@@ -1,0 +1,17 @@
+{
+  "name": "paydirt",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Family chore tracking app with virtual currency rewards (parentBucks).",
+  "packageManager": "pnpm@9.12.0",
+  "engines": {
+    "node": ">=24"
+  },
+  "scripts": {
+    "dev:web": "pnpm --filter web dev",
+    "dev:mobile": "pnpm --filter mobile start",
+    "test": "pnpm -r test",
+    "lint": "pnpm -r lint",
+    "lint:fix": "pnpm -r lint:fix"
+  }
+}

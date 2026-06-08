@@ -1,0 +1,48 @@
+# Dependencies
+node_modules/
+.pnp
+.pnp.js
+
+# Build output
+dist/
+build/
+.next/
+out/
+*.tsbuildinfo
+
+# Expo
+.expo/
+.expo-shared/
+*.apk
+*.aab
+web-build/
+
+# Env / secrets
+.env
+.env.local
+.env.*.local
+*.env
+config.yaml
+
+# PocketBase — binary + runtime data (never commit these)
+pocketbase/pocketbase
+pocketbase/pb_data/
+pocketbase/pb_static/
+
+# Logs
+*.log
+npm-debug.log*
+pnpm-debug.log*
+
+# OS / editor
+.DS_Store
+.idea/
+.vscode/
+*.swp
+
+# Test / coverage
+coverage/
+.nyc_output/
+
+# Audit marker (local only)
+.last-audit
