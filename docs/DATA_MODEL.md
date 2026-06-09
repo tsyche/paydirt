@@ -4,6 +4,11 @@ Authoritative spec for the PocketBase collections. The TypeScript mirror lives i
 `packages/shared/src/types.ts`; the migrations that create these live in
 `pocketbase/pb_migrations/`. Keep all three in sync.
 
+All base collections also carry `created` and `updated` autodate fields (added in
+`1717000002_add_timestamps.js`). PocketBase v0.23+ does **not** add these
+automatically — they're declared explicitly so sorting/filtering by timestamp
+works (omitting them previously caused `sort=created` queries to 400).
+
 ## Collections
 
 ### `households`
@@ -69,12 +74,15 @@ Append-only ledger. `+` earn, `−` spend. Sum = balance.
 | resolved_at | date | set on resolve |
 | resolved_by | relation → users | parent |
 
-## Hooks (next to implement)
+## Hooks (implemented)
 
-1. **transaction → balance**: on `currency_transactions` create, increment `users.balance` by `amount`. Single point that maintains the cached balance.
-2. **assignment approval → earn**: on `assignments` update to `approved`, create an `earn` transaction for `chore.reward`.
-3. **spend approval → spend**: on `spend_requests` update to `approved`, create a `spend` transaction for `−amount`.
-4. **ntfy notifications**: fire on chore assigned, completed (→parent), approved/rejected (→child), spend submitted (→parent), spend resolved (→child).
+Live in `pocketbase/pb_hooks/`. PocketBase runs each handler in an isolated VM, so shared helpers are `require()`'d **inside** each handler (see `lib/ntfy.js`).
+
+1. **transaction → balance** (`currency.pb.js`): on `currency_transactions` create, increment `users.balance` by `amount`. Single point that maintains the cached balance.
+2. **assignment approval → earn** (`currency.pb.js`): on `assignments` update to `approved`, create an `earn` transaction for `chore.reward`.
+3. **spend approval → spend** (`currency.pb.js`): on `spend_requests` update to `approved`, guard the balance first, then create a `spend` transaction for `−amount`.
+4. **ntfy notifications** (`notifications.pb.js`): fire on chore assigned, completed (→parent), approved/rejected (→child), spend submitted (→parent), spend resolved (→child).
+5. **approval guard** (`guards.pb.js`): block non-parents from setting an assignment to `approved`/`rejected`.
 
 ## Design decisions
 

@@ -17,6 +17,12 @@ Current scope tracker. See [ROADMAP.md](./ROADMAP.md) for phasing and the full p
 - On-device verification of the mobile app (Expo Go / emulator).
 - Live ntfy send (needs a configured topic per user).
 
+## Phase 1 — Partial
+
+- **Spontaneous bonus/deduction** ✅ — `adjustBalance()` creates a `manual_adjustment` transaction; the hook updates the cached balance, ledger-consistent. API-only (not surfaced in the dashboard UI yet).
+- **Photo-required flag** ⚠️ _schema only_ — `photo_required` exists on chores and `markComplete()` accepts a photo, but nothing enforces it and the UI doesn't prompt. Not a working feature yet.
+- **Simplified mode** ⚠️ _schema only_ — `simplified_mode` exists on users, but no app behavior branches on it.
+
 ## MVP Target
 
 **Chores**

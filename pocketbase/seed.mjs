@@ -147,7 +147,7 @@ async function main() {
     display_name: "Parent",
     household: hh,
   });
-  const kid1 = await upsertUser("child@test.local", {
+  const kid1 = await upsertUser("child1@test.local", {
     role: "child",
     display_name: "Kid 1",
     household: hh,
@@ -196,7 +196,7 @@ async function main() {
   console.log("\nDone. Logins (all password: " + PW + "):");
   console.log("  admin@paydirt.local   (superuser)");
   console.log("  parent@test.local     (parent)");
-  console.log("  child@test.local      (Kid 1)");
+  console.log("  child1@test.local      (Kid 1)");
   console.log("  child2@test.local     (Kid 2)");
 }
 

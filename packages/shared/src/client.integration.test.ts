@@ -4,7 +4,7 @@ import { Collections } from "./collections";
 import type { User } from "./types";
 
 // Live integration test — requires a running PocketBase at PB_URL with the seed
-// users from the manual setup (parent@test.local / child@test.local, pw password123).
+// users (parent@test.local / child1@test.local, pw password123). Run `make seed`.
 // Excluded from the default `test` script; run with `pnpm test:integration`.
 
 const PB_URL = process.env.PB_URL ?? "http://127.0.0.1:8090";
@@ -19,7 +19,7 @@ describe("PaydirtClient (live)", () => {
     parent = new PaydirtClient(PB_URL);
     child = new PaydirtClient(PB_URL);
     await parent.login("parent@test.local", PW);
-    childUser = await child.login("child@test.local", PW);
+    childUser = await child.login("child1@test.local", PW);
   });
 
   it("runs the full earn → spend loop with correct balance math", async () => {

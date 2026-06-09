@@ -21,6 +21,13 @@ The PocketBase binary is **not** committed (gitignored). Version-controlled here
 - `pb_migrations/` — schema as code; commit these so the data model is reproducible
 - `pb_data/` — runtime database and files (gitignored)
 
+## Test data
+
+With the server running, `make seed` populates a "Test Family" household (parent,
+two kids, chores, sample activity) via `seed.mjs` — idempotent, safe to re-run.
+For a clean slate: stop the server, `make reset-db`, restart, then `make seed`.
+All seeded logins use password `password123`.
+
 ## Production (future)
 
 Deploy the same binary + `pb_hooks/` + `pb_migrations/` to the VPS. See `~/.windsurf/plans/choregalore-plan.md` and the audit-notifications memory for the self-hosting migration.
