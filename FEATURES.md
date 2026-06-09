@@ -4,11 +4,13 @@ Current scope tracker. See [ROADMAP.md](./ROADMAP.md) for phasing and the full p
 
 ## Implemented
 
-_Nothing runnable yet._
+- **Data model** — MVP collections ([docs/DATA_MODEL.md](./docs/DATA_MODEL.md)) as a verified PocketBase migration; TypeScript mirror in `packages/shared`.
+- **Currency hooks** — verified against PocketBase 0.39.3: chore approval earns parentBucks, spend approval deducts, ledger maintains the cached balance, over-spending is blocked, re-approval is idempotent.
+- **Notification hooks** — ntfy fires wired for chore assigned/completed/approved/rejected and spend submitted/resolved (HTTP send path not yet live-tested — needs a real ntfy topic).
 
 ## In Progress
 
-- **Data model** — MVP collections specced in [docs/DATA_MODEL.md](./docs/DATA_MODEL.md); TypeScript mirror in `packages/shared`. Next: PocketBase migrations + balance/notification hooks (needs binary via `make pb-download`).
+- **App scaffolds** — Next.js (web) and Expo (mobile) not yet created.
 
 ## MVP Target
 
