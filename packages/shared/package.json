@@ -11,8 +11,12 @@
   "scripts": {
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
-    "test": "vitest run",
+    "test": "vitest run --passWithNoTests --exclude '**/*.integration.test.ts'",
+    "test:integration": "vitest run src/client.integration.test.ts",
     "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "pocketbase": "^0.26.0"
   },
   "devDependencies": {
     "typescript": "^5.6.0",

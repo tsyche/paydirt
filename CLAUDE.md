@@ -39,7 +39,15 @@ make lint         # lint all workspaces
 make help         # full target list
 ```
 
-PocketBase binary is not committed — download from the [releases page](https://github.com/pocketbase/pocketbase/releases) into `pocketbase/`.
+PocketBase binary is not committed — run `make pb-download` (or grab it from the [releases page](https://github.com/pocketbase/pocketbase/releases)) into `pocketbase/`.
+
+## Toolchain notes (non-obvious)
+
+- **Node** via asdf (`.tool-versions` → nodejs 24.7.0). **pnpm** via corepack; if `pnpm` isn't found after enabling, run `asdf reshim nodejs`.
+- **`node-linker=hoisted`** (in `.npmrc`) is required — React Native / Expo's Metro bundler assumes a flat `node_modules`, and pnpm's default symlinked layout breaks resolution of transitive deps (`@babel/runtime`, `expo-modules-core`).
+- **React is pinned to 19.2.3 workspace-wide** via `pnpm.overrides` (root `package.json`). Expo SDK 56 needs that exact version; without the override, hoisting mixes React versions and Next's prerender fails with a null `useContext`.
+- **`@paydirt/shared`** is consumed as TypeScript source (no build step). Imports are extensionless so vitest, Next/webpack, and Metro all resolve them. Next transpiles it via `transpilePackages`.
+- The PostToolUse hook syncs `AGENTS.md` → `CLAUDE.md`; edit **AGENTS.md**, not CLAUDE.md.
 
 ## Key Concepts
 
