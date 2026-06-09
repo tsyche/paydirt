@@ -1,4 +1,4 @@
-.PHONY: help setup install dev dev-web dev-mobile dev-pb pb-download seed reset-db test lint lintfix clean fresh sync-docs
+.PHONY: help setup install dev dev-web dev-mobile dev-pb pb-download seed reset-db test typecheck lint lintfix clean fresh sync-docs
 
 # Colors for output
 BLUE := \033[0;34m
@@ -30,6 +30,7 @@ help:
 	@echo ""
 	@echo "$(GREEN)Quality:$(NC)"
 	@echo "  make test            Run all workspace tests"
+	@echo "  make typecheck       Type-check all workspaces (tsc --noEmit)"
 	@echo "  make lint            Lint all workspaces"
 	@echo "  make lintfix         Auto-fix lint issues"
 	@echo ""
@@ -97,6 +98,10 @@ reset-db:
 
 test:
 	@pnpm -r test
+
+typecheck:
+	@echo "$(BLUE)Type-checking all workspaces...$(NC)"
+	@pnpm -r typecheck
 
 lint:
 	@pnpm -r lint
