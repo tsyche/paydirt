@@ -4,11 +4,11 @@ Current scope tracker. See [ROADMAP.md](./ROADMAP.md) for phasing and the full p
 
 ## Implemented
 
-_Nothing yet — repo just initialized._
+_Nothing runnable yet._
 
 ## In Progress
 
-_Nothing yet._
+- **Data model** — MVP collections specced in [docs/DATA_MODEL.md](./docs/DATA_MODEL.md); TypeScript mirror in `packages/shared`. Next: PocketBase migrations + balance/notification hooks (needs binary via `make pb-download`).
 
 ## MVP Target
 
