@@ -19,6 +19,11 @@ export class PaydirtClient {
   constructor(urlOrClient: string | PocketBase) {
     this.pb =
       typeof urlOrClient === "string" ? new PocketBase(urlOrClient) : urlOrClient;
+    // The SDK auto-cancels duplicate in-flight requests by key. With React
+    // strict mode (dev) firing effects twice and our parallel dashboard loads,
+    // that cancels legitimate requests — they surface as "cancelled" in the
+    // network tab and can reject the load. We don't rely on dedup, so disable it.
+    this.pb.autoCancellation(false);
   }
 
   // ── Auth ───────────────────────────────────────────────────────────────────
@@ -90,11 +95,9 @@ export class PaydirtClient {
     });
   }
 
-  listPendingApprovals(householdId: string): Promise<Assignment[]> {
+  listPendingApprovals(_householdId: string): Promise<Assignment[]> {
     return this.pb.collection(Collections.Assignments).getFullList<Assignment>({
-      filter: this.pb.filter("status = 'completed' && chore.household = {:hh}", {
-        hh: householdId,
-      }),
+      filter: "status = 'completed'",
       sort: "completed_at",
       expand: "chore,child",
     });
@@ -171,11 +174,9 @@ export class PaydirtClient {
     });
   }
 
-  listPendingSpendRequests(householdId: string): Promise<SpendRequest[]> {
+  listPendingSpendRequests(_householdId: string): Promise<SpendRequest[]> {
     return this.pb.collection(Collections.SpendRequests).getFullList<SpendRequest>({
-      filter: this.pb.filter("status = 'pending' && child.household = {:hh}", {
-        hh: householdId,
-      }),
+      filter: "status = 'pending'",
       sort: "created",
       expand: "child",
     });
