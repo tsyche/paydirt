@@ -8,22 +8,22 @@ Chore CRUD, assignment, complete/approve flow, parentBucks earn + spend, ntfy no
 
 **Before it's truly usable (do these first):**
 1. On-device verification of the mobile app (Expo dev build for GrapheneOS/LineageOS, not just emulator).
-2. Live ntfy send — set a real `ntfy_topic` per user and confirm the HTTP send path fires. Until this works, no notifications actually reach anyone.
+2. ✅ Live ntfy send — topics set on all test users; notifications confirmed delivered to ntfy.sh end-to-end.
 
 ## Recommended next 3
 
-1. **ntfy topic setup + live test** — finishes the MVP's last real gap; everything else is moot if notifications don't fire.
-2. **Spend bonus/deduction button in the dashboard** — the logic (`adjustBalance`) is already done and tested; this is just UI. Quick win.
-3. **Simplified mode UI for the 6-year-old** — the `simplified_mode` field exists; wiring the kid screen to it is the highest-value UX work given an early reader is a primary user.
+1. ✅ **ntfy topic setup + live test** — topics set and confirmed working end-to-end (hooks fire → ntfy.sh receives).
+2. ✅ **Spend bonus/deduction button in the dashboard** — `AdjustControl` component per kid; calls `adjustBalance()`, reloads on submit.
+3. ✅ **Simplified mode UI for the 6-year-old** — `SimpleKidHome` screen with giant text/buttons; `App.tsx` branches on `user.simplified_mode`.
 
 ## Phase 1 — Core Feature Set
 
 Status legend: ✅ done · ◑ partial (see [FEATURES.md](./FEATURES.md)) · ○ not started
 
 - **Chores**: ○ one-off deadlines + escalating reminders, ◑ photo-required flag *(schema only — not enforced)*, ○ race mechanic (first kid wins), ○ kid-proposed chores
-- **Currency**: ○ bank thresholds (screen-time prompt), ✅ spontaneous bonus/deduction *(API-level; needs UI)*, ○ optional expiry (off by default), ○ physical goods exchange with configurable rate
+- **Currency**: ○ bank thresholds (screen-time prompt), ✅ spontaneous bonus/deduction *(AdjustControl UI + API)*, ○ optional expiry (off by default), ○ physical goods exchange with configurable rate
 - **Savings goals**: ○ named goals with progress bars, multiple goals, fulfilled notifications
-- **Kid UX**: ○ glanceable home screen, ○ chore history/portfolio, ◑ simplified mode *(schema only — no UI branch)*, ○ kid-added reminders
+- **Kid UX**: ○ glanceable home screen, ○ chore history/portfolio, ✅ simplified mode *(SimpleKidHome screen; branches on `simplified_mode` field)*, ○ kid-added reminders
 - **Parent UX**: ○ scheduled chore reminders, ○ approval nudges, ○ household broadcast, ○ approval reactions
 
 ## Phase 1.5 — Gamification & Reporting

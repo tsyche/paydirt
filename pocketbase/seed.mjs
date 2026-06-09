@@ -146,18 +146,21 @@ async function main() {
     role: "parent",
     display_name: "Parent",
     household: hh,
+    ntfy_topic: "paydirt-parent",
   });
   const kid1 = await upsertUser("child1@test.local", {
     role: "child",
     display_name: "Kid 1",
     household: hh,
     simplified_mode: false,
+    ntfy_topic: "paydirt-kid1",
   });
   const kid2 = await upsertUser("child2@test.local", {
     role: "child",
     display_name: "Kid 2",
     household: hh,
     simplified_mode: true,
+    ntfy_topic: "paydirt-kid2",
   });
 
   // Chores

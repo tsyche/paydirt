@@ -6,6 +6,7 @@ import type { User } from "@paydirt/shared";
 import { client } from "./lib/client";
 import { Login } from "./screens/Login";
 import { KidHome } from "./screens/KidHome";
+import { SimpleKidHome } from "./screens/SimpleKidHome";
 import { ParentNotice } from "./screens/ParentNotice";
 
 // Earthy Material 3 palette to match the PayDirt look.
@@ -35,7 +36,11 @@ export default function App() {
   function renderScreen() {
     if (!ready) return null;
     if (!user) return <Login onLogin={setUser} />;
-    if (user.role === "child") return <KidHome user={user} onLogout={logout} />;
+    if (user.role === "child") {
+      return user.simplified_mode
+        ? <SimpleKidHome user={user} onLogout={logout} />
+        : <KidHome user={user} onLogout={logout} />;
+    }
     return <ParentNotice onLogout={logout} />;
   }
 

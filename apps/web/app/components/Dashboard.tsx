@@ -67,9 +67,12 @@ export function Dashboard({
       <h2>Kids</h2>
       {kids.length === 0 && <p className="muted">No kids in this household yet.</p>}
       {kids.map((kid) => (
-        <div className="card row" key={kid.id}>
-          <span>{kid.display_name}</span>
-          <span className="balance">{kid.balance} parentBucks</span>
+        <div className="card" key={kid.id}>
+          <div className="row">
+            <span>{kid.display_name}</span>
+            <span className="balance">{kid.balance} parentBucks</span>
+          </div>
+          <AdjustControl kid={kid} onAdjusted={reload} />
         </div>
       ))}
 
@@ -141,6 +144,66 @@ export function Dashboard({
         </div>
       ))}
     </main>
+  );
+}
+
+function AdjustControl({ kid, onAdjusted }: { kid: User; onAdjusted: () => void }) {
+  const [open, setOpen] = useState(false);
+  const [amount, setAmount] = useState(0);
+  const [reason, setReason] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+
+  async function submit() {
+    if (amount === 0 || !reason.trim()) return;
+    setBusy(true);
+    setError("");
+    try {
+      await client.adjustBalance(kid.id, amount, reason.trim());
+      setAmount(0);
+      setReason("");
+      setOpen(false);
+      onAdjusted();
+    } catch (e) {
+      setError(String(e));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  if (!open) {
+    return (
+      <button style={{ marginTop: 6 }} onClick={() => setOpen(true)}>
+        Bonus / deduct
+      </button>
+    );
+  }
+
+  return (
+    <div className="stack" style={{ marginTop: 8 }}>
+      <div className="inline">
+        <input
+          type="number"
+          value={amount}
+          onChange={(e) => setAmount(Number(e.target.value))}
+          style={{ width: 90 }}
+          placeholder="Amount (±)"
+        />
+        <input
+          placeholder="Reason"
+          value={reason}
+          onChange={(e) => setReason(e.target.value)}
+        />
+        <button className="primary" onClick={submit} disabled={busy || amount === 0 || !reason.trim()}>
+          Apply
+        </button>
+        <button onClick={() => { setOpen(false); setError(""); }}>Cancel</button>
+      </div>
+      <p style={{ fontSize: 12, opacity: 0.6, margin: 0 }}>
+        Positive = bonus, negative = deduction
+      </p>
+      {error && <p className="error">{error}</p>}
+    </div>
   );
 }
 
