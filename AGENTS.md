@@ -34,10 +34,17 @@ make setup        # install workspace deps (pnpm)
 make dev-web      # Next.js dashboard
 make dev-mobile   # Expo app
 make dev-pb       # local PocketBase (needs binary in pocketbase/)
+make seed         # seed test household/users/chores (server must be RUNNING)
+make reset-db     # wipe + rebuild empty DB (server must be STOPPED)
 make test         # all workspace tests
 make lint         # lint all workspaces
 make help         # full target list
 ```
+
+Test data: `make seed` (idempotent) populates a "Test Family" household with a
+parent, two kids, chores, and sample activity. It talks to the running server's
+API. For a clean, ledger-consistent slate: stop the server, `make reset-db`,
+start the server, then `make seed`. All seeded logins use password `password123`.
 
 PocketBase binary is not committed — run `make pb-download` (or grab it from the [releases page](https://github.com/pocketbase/pocketbase/releases)) into `pocketbase/`.
 

@@ -1,4 +1,4 @@
-.PHONY: help setup install dev dev-web dev-mobile dev-pb pb-download test lint lintfix clean fresh sync-docs
+.PHONY: help setup install dev dev-web dev-mobile dev-pb pb-download seed reset-db test lint lintfix clean fresh sync-docs
 
 # Colors for output
 BLUE := \033[0;34m
@@ -23,6 +23,10 @@ help:
 	@echo "  make dev-mobile      Start Expo React Native app"
 	@echo "  make dev-pb          Start local PocketBase server (needs binary)"
 	@echo "  make pb-download     Download the PocketBase binary (latest, or PB_VERSION=x.y.z)"
+	@echo ""
+	@echo "$(GREEN)Test data:$(NC)"
+	@echo "  make seed            Seed test household/users/chores (server must be RUNNING)"
+	@echo "  make reset-db        Wipe the PocketBase DB and rebuild empty (server must be STOPPED)"
 	@echo ""
 	@echo "$(GREEN)Quality:$(NC)"
 	@echo "  make test            Run all workspace tests"
@@ -75,6 +79,21 @@ pb-download:
 	unzip -o /tmp/pocketbase.zip pocketbase -d pocketbase/ && \
 	chmod +x $(PB) && rm -f /tmp/pocketbase.zip && \
 	echo "$(GREEN)Installed $$($(PB) --version)$(NC)"
+
+seed:
+	@echo "$(BLUE)Seeding test data (PocketBase must be running)...$(NC)"
+	@node pocketbase/seed.mjs
+
+reset-db:
+	@if [ ! -f "$(PB)" ]; then echo "$(YELLOW)PocketBase binary not found — run 'make pb-download'.$(NC)"; exit 1; fi
+	@if curl -sf -o /dev/null http://127.0.0.1:8090/api/health; then \
+		echo "$(YELLOW)PocketBase is running. Stop 'make dev-pb' first, then re-run 'make reset-db'.$(NC)"; exit 1; \
+	fi
+	@echo "$(BLUE)Wiping PocketBase data and rebuilding empty DB...$(NC)"
+	@rm -rf pocketbase/pb_data
+	@$(PB) migrate up --dir pocketbase/pb_data --migrationsDir pocketbase/pb_migrations
+	@$(PB) superuser upsert admin@paydirt.local password123 --dir pocketbase/pb_data
+	@echo "$(GREEN)DB reset. Now: start 'make dev-pb', then run 'make seed'.$(NC)"
 
 test:
 	@pnpm -r test

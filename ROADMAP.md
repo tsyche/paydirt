@@ -2,9 +2,9 @@
 
 Full detail and rationale: `~/.windsurf/plans/choregalore-plan.md`. Scope checklist: [FEATURES.md](./FEATURES.md).
 
-## MVP — Ship It and Use It
+## ✅ MVP — Shipped
 
-Smallest useful version: chore CRUD, assignment, complete/approve flow, parentBucks earn + spend requests, ntfy notifications, optional photo proof. See [FEATURES.md](./FEATURES.md).
+Chore CRUD, assignment, complete/approve flow, parentBucks earn + spend, ntfy notification wiring, shared typed client, Next.js parent dashboard, Expo kid app (role-gated). Pending: on-device verification, live ntfy topic per user.
 
 ## Phase 1 — Core Feature Set
 
