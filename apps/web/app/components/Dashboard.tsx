@@ -4,12 +4,19 @@ import { useCallback, useEffect, useState } from "react";
 import type {
   Assignment,
   Chore,
+  CurrencyTransaction,
   SpendRequest,
   User,
 } from "@paydirt/shared";
 import { client } from "../lib/client";
 
 type Expanded<T> = T & { expand?: Record<string, User | Chore> };
+
+const TX_LABEL: Record<string, string> = {
+  chore_reward: "Chore reward",
+  spend_deduction: "Spent",
+  manual_adjustment: "Adjustment",
+};
 
 export function Dashboard({
   user,
@@ -23,20 +30,23 @@ export function Dashboard({
   const [chores, setChores] = useState<Chore[]>([]);
   const [approvals, setApprovals] = useState<Expanded<Assignment>[]>([]);
   const [spend, setSpend] = useState<Expanded<SpendRequest>[]>([]);
+  const [recentApproved, setRecentApproved] = useState<Expanded<Assignment>[]>([]);
   const [error, setError] = useState("");
 
   const reload = useCallback(async () => {
     try {
-      const [k, c, a, s] = await Promise.all([
+      const [k, c, a, s, ra] = await Promise.all([
         client.listChildren(household),
         client.listChores(household),
         client.listPendingApprovals(household),
         client.listPendingSpendRequests(household),
+        client.listRecentlyApproved(8),
       ]);
       setKids(k);
       setChores(c);
       setApprovals(a as Expanded<Assignment>[]);
       setSpend(s as Expanded<SpendRequest>[]);
+      setRecentApproved(ra as Expanded<Assignment>[]);
     } catch (e) {
       setError(String(e));
     }
@@ -72,7 +82,10 @@ export function Dashboard({
             <span>{kid.display_name}</span>
             <span className="balance">{kid.balance} parentBucks</span>
           </div>
-          <AdjustControl kid={kid} onAdjusted={reload} />
+          <div className="inline" style={{ marginTop: 6 }}>
+            <AdjustControl kid={kid} onAdjusted={reload} />
+            <LedgerToggle kidId={kid.id} />
+          </div>
         </div>
       ))}
 
@@ -130,12 +143,42 @@ export function Dashboard({
         </div>
       ))}
 
+      <h2>Recently approved ({recentApproved.length})</h2>
+      {recentApproved.length === 0 && <p className="muted">No approved chores yet.</p>}
+      {recentApproved.map((a) => {
+        const chore = a.expand?.chore as Chore | undefined;
+        const kid = a.expand?.child as User | undefined;
+        return (
+          <div className="card row" key={a.id}>
+            <div>
+              <div>{chore?.name ?? "Chore"}</div>
+              <div className="muted">
+                {kid?.display_name ?? "child"} · +{chore?.reward ?? "?"} parentBucks
+              </div>
+            </div>
+            <button
+              className="danger"
+              onClick={() => {
+                if (!kid || !chore) return;
+                if (!window.confirm(`Undo approval for "${chore.name}"? This will deduct ${chore.reward} parentBucks from ${kid.display_name}.`)) return;
+                void act(() => client.reverseApproval(kid.id, chore.reward, chore.name));
+              }}
+            >
+              Undo
+            </button>
+          </div>
+        );
+      })}
+
       <h2>Chores</h2>
       <CreateChore household={household} parentId={user.id} kids={kids} onCreated={reload} />
       {chores.map((c) => (
         <div className="card row" key={c.id}>
           <div>
-            <div>{c.name}</div>
+            <div>
+              {c.name}
+              {c.photo_required ? <span className="muted"> 📷</span> : null}
+            </div>
             <div className="muted">
               {c.reward} parentBucks · {c.type}
             </div>
@@ -144,6 +187,47 @@ export function Dashboard({
         </div>
       ))}
     </main>
+  );
+}
+
+function LedgerToggle({ kidId }: { kidId: string }) {
+  const [open, setOpen] = useState(false);
+  const [txns, setTxns] = useState<CurrencyTransaction[]>([]);
+  const [loading, setLoading] = useState(false);
+
+  async function toggle() {
+    if (open) { setOpen(false); return; }
+    setLoading(true);
+    try {
+      const list = await client.listTransactions(kidId);
+      setTxns(list);
+      setOpen(true);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  return (
+    <div>
+      <button onClick={toggle} disabled={loading}>
+        {loading ? "…" : open ? "Hide history" : "History"}
+      </button>
+      {open && (
+        <div className="stack" style={{ marginTop: 8 }}>
+          {txns.length === 0 && <p className="muted">No transactions yet.</p>}
+          {txns.map((t) => (
+            <div key={t.id} className="row" style={{ fontSize: 13 }}>
+              <span className="muted">{t.created.slice(0, 10)}</span>
+              <span>{TX_LABEL[t.type] ?? t.type}</span>
+              <span style={{ color: t.amount >= 0 ? "#2f7d4f" : "#b3433a", fontWeight: 600 }}>
+                {t.amount >= 0 ? "+" : ""}{t.amount}
+              </span>
+              <span className="muted">{t.reason ?? ""}</span>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -173,7 +257,7 @@ function AdjustControl({ kid, onAdjusted }: { kid: User; onAdjusted: () => void 
 
   if (!open) {
     return (
-      <button style={{ marginTop: 6 }} onClick={() => setOpen(true)}>
+      <button onClick={() => setOpen(true)}>
         Bonus / deduct
       </button>
     );
@@ -220,6 +304,7 @@ function CreateChore({
   const [name, setName] = useState("");
   const [reward, setReward] = useState(10);
   const [type, setType] = useState<"oneoff" | "recurring">("oneoff");
+  const [photoRequired, setPhotoRequired] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
 
@@ -233,11 +318,13 @@ function CreateChore({
         name: name.trim(),
         reward,
         type,
+        photo_required: photoRequired,
         created_by: parentId,
         active: true,
       });
       setName("");
       setReward(10);
+      setPhotoRequired(false);
       onCreated();
     } catch (e) {
       setError(String(e));
@@ -265,6 +352,14 @@ function CreateChore({
           <option value="oneoff">one-off</option>
           <option value="recurring">recurring</option>
         </select>
+        <label style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 13 }}>
+          <input
+            type="checkbox"
+            checked={photoRequired}
+            onChange={(e) => setPhotoRequired(e.target.checked)}
+          />
+          📷 required
+        </label>
         <button className="primary" onClick={create} disabled={busy}>
           Add chore
         </button>

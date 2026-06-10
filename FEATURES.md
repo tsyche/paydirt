@@ -13,14 +13,16 @@ Current scope tracker. See [ROADMAP.md](./ROADMAP.md) for phasing and the full p
 - **Mobile app** (`apps/mobile`, Expo + react-native-paper) — role-gated; kid screen (balance, chores, mark done, spend request); simplified mode for young kids; runs on emulator.
 - **Simplified mode** — `SimpleKidHome` screen with giant text/buttons for early readers; branches on `simplified_mode` user field.
 - **Bonus/deduction UI** — `AdjustControl` per kid in the parent dashboard; calls `adjustBalance()`.
+- **Per-kid ledger view** — `LedgerToggle` in parent dashboard shows full transaction history per kid.
+- **photo_required enforcement** — server guard (`guards.pb.js`) rejects completion without a photo; `KidHome` shows camera button for photo-required chores (`expo-image-picker`).
+- **Approval undo** — "Recently approved" section in dashboard; Undo writes a compensating `manual_adjustment` via `reverseApproval()`.
 - **Test tooling** — `make seed` (idempotent seeder), `make reset-db`, `make lint`, `make typecheck`.
 
-## Not Yet Implemented (Phase 1 gaps)
+## Not Yet Implemented
 
-- **photo_required enforcement** ⚠️ — flag exists on chores and `markComplete()` accepts a photo, but nothing enforces it and the UI doesn't prompt. Schema only.
-- **Spending history / ledger view** — `currency_transactions` data exists but isn't surfaced in any UI.
-- **Approval undo** — mis-approval is permanent; no parent "reverse" action yet.
 - **On-device test** — run on GrapheneOS/LineageOS device (emulator only so far).
+- **Kid chore history** — past approved chores not surfaced in the kid app.
+- **Configurable currency name** — "parentBucks" is hardcoded; plan calls for per-household naming.
 
 ## MVP Target
 

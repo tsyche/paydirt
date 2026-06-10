@@ -12,6 +12,7 @@ import {
   Snackbar,
 } from "react-native-paper";
 import { SafeAreaView } from "react-native-safe-area-context";
+import * as ImagePicker from "expo-image-picker";
 import type { Assignment, Chore, User } from "@paydirt/shared";
 import { client } from "../lib/client";
 
@@ -61,6 +62,27 @@ export function KidHome({ user, onLogout }: { user: User; onLogout: () => void }
     }
   }
 
+  async function markDoneWithPhoto(id: string) {
+    const perm = await ImagePicker.requestCameraPermissionsAsync();
+    if (perm.status !== "granted") {
+      setSnack("Camera permission needed to submit this chore.");
+      return;
+    }
+    const result = await ImagePicker.launchCameraAsync({
+      mediaTypes: "images",
+      quality: 0.7,
+    });
+    if (result.canceled) return;
+    try {
+      const blob = await fetch(result.assets[0].uri).then((r) => r.blob());
+      await client.markComplete(id, blob);
+      setSnack("Marked done — waiting for approval!");
+      await reload();
+    } catch (e) {
+      setSnack(String(e));
+    }
+  }
+
   return (
     <SafeAreaView style={styles.container} edges={["top"]}>
       <Appbar.Header>
@@ -102,9 +124,15 @@ export function KidHome({ user, onLogout }: { user: User; onLogout: () => void }
                 <Text style={styles.rejected}>{a.rejection_message}</Text>
               ) : null}
               {a.status === "assigned" ? (
-                <Button mode="contained" onPress={() => markDone(a.id)} style={styles.doneBtn}>
-                  Mark done
-                </Button>
+                a.expand?.chore?.photo_required ? (
+                  <Button mode="contained" onPress={() => markDoneWithPhoto(a.id)} style={styles.doneBtn} icon="camera">
+                    Take photo & mark done
+                  </Button>
+                ) : (
+                  <Button mode="contained" onPress={() => markDone(a.id)} style={styles.doneBtn}>
+                    Mark done
+                  </Button>
+                )
               ) : null}
             </Card.Content>
           </Card>

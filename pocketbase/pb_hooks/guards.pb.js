@@ -17,3 +17,17 @@ onRecordUpdateRequest((e) => {
   }
   e.next();
 }, "assignments");
+
+// If a chore requires a photo, block completion without one.
+// Runs during the update lifecycle (after new values are applied, before save).
+onRecordUpdate((e) => {
+  const newStatus = e.record.getString("status");
+  const prevStatus = e.record.original().getString("status");
+  if (newStatus === "completed" && prevStatus !== "completed") {
+    const chore = e.app.findRecordById("chores", e.record.getString("chore"));
+    if (chore.getBool("photo_required") && !e.record.getString("photo")) {
+      throw new ApiError(400, "This chore requires a photo — snap one first.");
+    }
+  }
+  e.next();
+}, "assignments");

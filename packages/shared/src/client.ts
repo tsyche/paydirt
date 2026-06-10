@@ -152,6 +152,23 @@ export class PaydirtClient {
     });
   }
 
+  /** Writes a compensating negative entry to undo a chore approval. */
+  reverseApproval(kidId: string, reward: number, choreName: string): Promise<CurrencyTransaction> {
+    return this.adjustBalance(kidId, -reward, `Reversal: ${choreName}`);
+  }
+
+  /** Returns the N most recently approved assignments, newest first. */
+  async listRecentlyApproved(limit = 8): Promise<Assignment[]> {
+    const result = await this.pb
+      .collection(Collections.Assignments)
+      .getList<Assignment>(1, limit, {
+        filter: "status = 'approved'",
+        sort: "-approved_at",
+        expand: "chore,child",
+      });
+    return result.items;
+  }
+
   // ── Spend requests ───────────────────────────────────────────────────────────
 
   submitSpendRequest(
