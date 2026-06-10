@@ -16,24 +16,27 @@ type Expanded = Assignment & { expand?: { chore?: Chore } };
 export function SimpleKidHome({ user, onLogout }: { user: User; onLogout: () => void }) {
   const [balance, setBalance] = useState(user.balance);
   const [assignments, setAssignments] = useState<Expanded[]>([]);
+  const [currencyName, setCurrencyName] = useState("parentBucks");
   const [refreshing, setRefreshing] = useState(false);
   const [snack, setSnack] = useState("");
 
   const reload = useCallback(async () => {
     setRefreshing(true);
     try {
-      const [bal, list] = await Promise.all([
+      const [bal, list, household] = await Promise.all([
         client.getBalance(user.id),
         client.listAssignmentsForChild(user.id),
+        client.getHousehold(user.household),
       ]);
       setBalance(bal);
       setAssignments(list as Expanded[]);
+      setCurrencyName(household.currency_name?.trim() || "parentBucks");
     } catch (e) {
       setSnack(String(e));
     } finally {
       setRefreshing(false);
     }
-  }, [user.id]);
+  }, [user.id, user.household]);
 
   useEffect(() => {
     void reload();
@@ -66,7 +69,7 @@ export function SimpleKidHome({ user, onLogout }: { user: User; onLogout: () => 
         <Surface style={styles.balanceSurface} elevation={2}>
           <Text style={styles.balanceEmoji}>💰</Text>
           <Text style={styles.balanceNumber}>{balance}</Text>
-          <Text style={styles.balanceLabel}>parentBucks</Text>
+          <Text style={styles.balanceLabel}>{currencyName}</Text>
         </Surface>
 
         {activeChores.length === 0 && waitingChores.length === 0 && (

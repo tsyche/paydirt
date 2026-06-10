@@ -5,6 +5,7 @@ import type {
   Assignment,
   Chore,
   CurrencyTransaction,
+  Household,
   SpendRequest,
   User,
 } from "@paydirt/shared";
@@ -25,7 +26,8 @@ export function Dashboard({
   user: User;
   onLogout: () => void;
 }) {
-  const household = user.household;
+  const householdId = user.household;
+  const [household, setHousehold] = useState<Household | null>(null);
   const [kids, setKids] = useState<User[]>([]);
   const [chores, setChores] = useState<Chore[]>([]);
   const [approvals, setApprovals] = useState<Expanded<Assignment>[]>([]);
@@ -33,15 +35,19 @@ export function Dashboard({
   const [recentApproved, setRecentApproved] = useState<Expanded<Assignment>[]>([]);
   const [error, setError] = useState("");
 
+  const currencyName = household?.currency_name?.trim() || "parentBucks";
+
   const reload = useCallback(async () => {
     try {
-      const [k, c, a, s, ra] = await Promise.all([
-        client.listChildren(household),
-        client.listChores(household),
-        client.listPendingApprovals(household),
-        client.listPendingSpendRequests(household),
+      const [hh, k, c, a, s, ra] = await Promise.all([
+        client.getHousehold(householdId),
+        client.listChildren(householdId),
+        client.listChores(householdId),
+        client.listPendingApprovals(householdId),
+        client.listPendingSpendRequests(householdId),
         client.listRecentlyApproved(8),
       ]);
+      setHousehold(hh);
       setKids(k);
       setChores(c);
       setApprovals(a as Expanded<Assignment>[]);
@@ -50,7 +56,7 @@ export function Dashboard({
     } catch (e) {
       setError(String(e));
     }
-  }, [household]);
+  }, [householdId]);
 
   useEffect(() => {
     void reload();
@@ -70,7 +76,14 @@ export function Dashboard({
     <main>
       <div className="row">
         <h1>PayDirt</h1>
-        <button onClick={onLogout}>Sign out</button>
+        <div className="inline">
+          <CurrencyNameControl
+            householdId={householdId}
+            current={currencyName}
+            onSaved={reload}
+          />
+          <button onClick={onLogout}>Sign out</button>
+        </div>
       </div>
       {error && <p className="error">{error}</p>}
 
@@ -80,7 +93,7 @@ export function Dashboard({
         <div className="card" key={kid.id}>
           <div className="row">
             <span>{kid.display_name}</span>
-            <span className="balance">{kid.balance} parentBucks</span>
+            <span className="balance">{kid.balance} {currencyName}</span>
           </div>
           <div className="inline" style={{ marginTop: 6 }}>
             <AdjustControl kid={kid} onAdjusted={reload} />
@@ -124,7 +137,7 @@ export function Dashboard({
             <div>
               {(s.expand?.child as User | undefined)?.display_name ?? "child"} — {s.description}
             </div>
-            <div className="muted">{s.amount} parentBucks</div>
+            <div className="muted">{s.amount} {currencyName}</div>
           </div>
           <div className="inline">
             <button
@@ -153,7 +166,7 @@ export function Dashboard({
             <div>
               <div>{chore?.name ?? "Chore"}</div>
               <div className="muted">
-                {kid?.display_name ?? "child"} · +{chore?.reward ?? "?"} parentBucks
+                {kid?.display_name ?? "child"} · +{chore?.reward ?? "?"} {currencyName}
               </div>
             </div>
             <button
@@ -171,7 +184,7 @@ export function Dashboard({
       })}
 
       <h2>Chores</h2>
-      <CreateChore household={household} parentId={user.id} kids={kids} onCreated={reload} />
+      <CreateChore household={householdId} parentId={user.id} kids={kids} onCreated={reload} />
       {chores.map((c) => (
         <div className="card row" key={c.id}>
           <div>
@@ -180,13 +193,63 @@ export function Dashboard({
               {c.photo_required ? <span className="muted"> 📷</span> : null}
             </div>
             <div className="muted">
-              {c.reward} parentBucks · {c.type}
+              {c.reward} {currencyName} · {c.type}
             </div>
           </div>
           <AssignControl chore={c} kids={kids} onAssigned={reload} />
         </div>
       ))}
     </main>
+  );
+}
+
+function CurrencyNameControl({
+  householdId,
+  current,
+  onSaved,
+}: {
+  householdId: string;
+  current: string;
+  onSaved: () => void;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [value, setValue] = useState(current);
+  const [busy, setBusy] = useState(false);
+
+  async function save() {
+    setBusy(true);
+    try {
+      await client.updateHousehold(householdId, { currency_name: value.trim() || "" });
+      setEditing(false);
+      onSaved();
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  if (!editing) {
+    return (
+      <button
+        style={{ fontSize: 12, opacity: 0.7 }}
+        onClick={() => { setValue(current); setEditing(true); }}
+      >
+        💱 {current}
+      </button>
+    );
+  }
+
+  return (
+    <div className="inline">
+      <input
+        value={value}
+        onChange={(e) => setValue(e.target.value)}
+        placeholder="parentBucks"
+        style={{ width: 120 }}
+        autoFocus
+      />
+      <button className="primary" onClick={save} disabled={busy}>Save</button>
+      <button onClick={() => setEditing(false)}>Cancel</button>
+    </div>
   );
 }
 

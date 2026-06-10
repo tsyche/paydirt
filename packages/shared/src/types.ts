@@ -13,6 +13,8 @@ export interface BaseRecord {
 
 export interface Household extends BaseRecord {
   name: string;
+  /** Display name for the virtual currency, e.g. "GoldCoins". Defaults to "parentBucks" when empty. */
+  currency_name?: string;
 }
 
 // ─── Users ───────────────────────────────────────────────────────────────────

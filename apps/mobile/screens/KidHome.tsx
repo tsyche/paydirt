@@ -28,6 +28,7 @@ const STATUS_LABEL: Record<Assignment["status"], string> = {
 export function KidHome({ user, onLogout }: { user: User; onLogout: () => void }) {
   const [balance, setBalance] = useState(user.balance);
   const [assignments, setAssignments] = useState<Expanded[]>([]);
+  const [currencyName, setCurrencyName] = useState("parentBucks");
   const [refreshing, setRefreshing] = useState(false);
   const [spendOpen, setSpendOpen] = useState(false);
   const [snack, setSnack] = useState("");
@@ -35,18 +36,20 @@ export function KidHome({ user, onLogout }: { user: User; onLogout: () => void }
   const reload = useCallback(async () => {
     setRefreshing(true);
     try {
-      const [bal, list] = await Promise.all([
+      const [bal, list, household] = await Promise.all([
         client.getBalance(user.id),
         client.listAssignmentsForChild(user.id),
+        client.getHousehold(user.household),
       ]);
       setBalance(bal);
       setAssignments(list as Expanded[]);
+      setCurrencyName(household.currency_name?.trim() || "parentBucks");
     } catch (e) {
       setSnack(String(e));
     } finally {
       setRefreshing(false);
     }
-  }, [user.id]);
+  }, [user.id, user.household]);
 
   useEffect(() => {
     void reload();
@@ -83,6 +86,11 @@ export function KidHome({ user, onLogout }: { user: User; onLogout: () => void }
     }
   }
 
+  const activeAssignments = assignments.filter((a) => a.status !== "approved");
+  const history = assignments
+    .filter((a) => a.status === "approved")
+    .slice(0, 10);
+
   return (
     <SafeAreaView style={styles.container} edges={["top"]}>
       <Appbar.Header>
@@ -96,7 +104,7 @@ export function KidHome({ user, onLogout }: { user: User; onLogout: () => void }
       >
         <Card style={styles.balanceCard}>
           <Card.Content>
-            <Text variant="labelLarge">Your parentBucks</Text>
+            <Text variant="labelLarge">Your {currencyName}</Text>
             <Text variant="displaySmall" style={styles.balance}>
               {balance}
             </Text>
@@ -109,8 +117,8 @@ export function KidHome({ user, onLogout }: { user: User; onLogout: () => void }
         <Text variant="titleMedium" style={styles.heading}>
           My chores
         </Text>
-        {assignments.length === 0 && <Text>No chores right now. 🎉</Text>}
-        {assignments.map((a) => (
+        {activeAssignments.length === 0 && <Text>No chores right now. 🎉</Text>}
+        {activeAssignments.map((a) => (
           <Card key={a.id} style={styles.choreCard}>
             <Card.Content>
               <View style={styles.choreRow}>
@@ -118,7 +126,7 @@ export function KidHome({ user, onLogout }: { user: User; onLogout: () => void }
                 <Chip compact>{STATUS_LABEL[a.status]}</Chip>
               </View>
               {a.expand?.chore ? (
-                <Text variant="bodySmall">{a.expand.chore.reward} parentBucks</Text>
+                <Text variant="bodySmall">{a.expand.chore.reward} {currencyName}</Text>
               ) : null}
               {a.status === "rejected" && a.rejection_message ? (
                 <Text style={styles.rejected}>{a.rejection_message}</Text>
@@ -137,9 +145,35 @@ export function KidHome({ user, onLogout }: { user: User; onLogout: () => void }
             </Card.Content>
           </Card>
         ))}
+
+        {history.length > 0 && (
+          <>
+            <Text variant="titleMedium" style={styles.heading}>
+              My history
+            </Text>
+            {history.map((a) => (
+              <Card key={a.id} style={[styles.choreCard, styles.historyCard]}>
+                <Card.Content>
+                  <View style={styles.choreRow}>
+                    <Text variant="bodyLarge">{a.expand?.chore?.name ?? "Chore"}</Text>
+                    <Text variant="bodyMedium" style={styles.earned}>
+                      +{a.expand?.chore?.reward ?? "?"} {currencyName}
+                    </Text>
+                  </View>
+                  {a.approved_at ? (
+                    <Text variant="bodySmall" style={styles.date}>
+                      {a.approved_at.slice(0, 10)}
+                    </Text>
+                  ) : null}
+                </Card.Content>
+              </Card>
+            ))}
+          </>
+        )}
       </ScrollView>
 
       <SpendDialog
+        currencyName={currencyName}
         visible={spendOpen}
         onClose={() => setSpendOpen(false)}
         onSubmit={async (amount, description) => {
@@ -161,10 +195,12 @@ export function KidHome({ user, onLogout }: { user: User; onLogout: () => void }
 }
 
 function SpendDialog({
+  currencyName,
   visible,
   onClose,
   onSubmit,
 }: {
+  currencyName: string;
   visible: boolean;
   onClose: () => void;
   onSubmit: (amount: number, description: string) => void;
@@ -184,7 +220,7 @@ function SpendDialog({
             style={styles.dialogInput}
           />
           <TextInput
-            label="parentBucks"
+            label={currencyName}
             value={amount}
             onChangeText={setAmount}
             keyboardType="number-pad"
@@ -212,8 +248,11 @@ const styles = StyleSheet.create({
   balance: { fontWeight: "700", marginVertical: 4 },
   heading: { marginTop: 8, marginBottom: 4 },
   choreCard: {},
+  historyCard: { opacity: 0.75 },
   choreRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
   rejected: { color: "#b3433a", marginTop: 4 },
+  earned: { color: "#2f7d4f", fontWeight: "700" },
+  date: { opacity: 0.5, marginTop: 2 },
   doneBtn: { marginTop: 8 },
   dialogInput: { marginBottom: 8 },
 });

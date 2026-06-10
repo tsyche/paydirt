@@ -11,17 +11,17 @@ Chore CRUD, assignment, complete/approve flow, parentBucks earn + spend, ntfy no
 
 ## Recently Completed
 
-1. **Per-kid ledger view** — `LedgerToggle` per kid in parent dashboard; shows date, type, amount, reason from `currency_transactions`.
-2. **photo_required enforcement** — server guard rejects completion without photo; `KidHome` shows "Take photo & mark done" button; `expo-image-picker` handles camera.
-3. **Approval undo** — "Recently approved" section in dashboard; Undo writes a compensating `manual_adjustment`; `reverseApproval()` in shared client.
-4. **Simplified mode UI** — `SimpleKidHome` screen with giant text/buttons; `App.tsx` branches on `simplified_mode`.
-5. **Bonus/deduction UI** — `AdjustControl` per kid in the parent dashboard; calls `adjustBalance()`.
+1. **Kid chore history** — approved chores listed under "My history" in `KidHome`; shows name, reward earned, date approved.
+2. **Configurable currency name** — `currency_name` field on households; inline editor in dashboard header (💱 button); propagated to all mobile and web displays.
+3. **Per-kid ledger view** — `LedgerToggle` per kid in parent dashboard; shows date, type, amount, reason from `currency_transactions`.
+4. **photo_required enforcement** — server guard rejects completion without photo; `KidHome` shows "Take photo & mark done" button; `expo-image-picker` handles camera.
+5. **Approval undo** — "Recently approved" section in dashboard; Undo writes a compensating `manual_adjustment`; `reverseApproval()` in shared client.
 
 ## Recommended Next 3
 
 1. **On-device test** — run on a real GrapheneOS/LineageOS device. Everything else is moot if it crashes there. User-driven; Claude can help debug via adb.
-2. **Kid chore history in mobile app** — read-only list of past approved chores in `KidHome`; builds pride and answers "what did I earn?" ~1-2 hrs.
-3. **Configurable currency name per household** — small field on households + parent dashboard UI. Lets the family rename "parentBucks" to something fun. ~1-2 hrs.
+2. **Streak bonuses** — consecutive chore completions earn a multiplier. Hooks + new `streak` field on assignments; motivates daily habits. ~3-4 hrs.
+3. **Scheduled chore reminders** — parent can set a reminder time per chore; PocketBase cron fires ntfy to the assigned kid. ~2-3 hrs.
 
 ## Phase 1 — Core Feature Set
 
@@ -30,7 +30,7 @@ Status legend: ✅ done · ◑ partial (see [FEATURES.md](./FEATURES.md)) · ○
 - **Chores**: ○ one-off deadlines + escalating reminders, ✅ photo-required flag *(enforced server + client)*, ○ race mechanic (first kid wins), ○ kid-proposed chores
 - **Currency**: ○ bank thresholds (screen-time prompt), ✅ spontaneous bonus/deduction, ○ optional expiry (off by default), ○ physical goods exchange with configurable rate
 - **Savings goals**: ○ named goals with progress bars, multiple goals, fulfilled notifications
-- **Kid UX**: ○ glanceable home screen, ○ chore history/portfolio, ✅ simplified mode, ○ kid-added reminders
+- **Kid UX**: ○ glanceable home screen, ✅ chore history, ✅ simplified mode, ○ kid-added reminders
 - **Parent UX**: ○ scheduled chore reminders, ○ approval nudges, ○ household broadcast, ○ approval reactions
 
 ## Phase 1.5 — Gamification & Reporting

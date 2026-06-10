@@ -4,6 +4,7 @@ import type {
   Assignment,
   Chore,
   CurrencyTransaction,
+  Household,
   SpendRequest,
   User,
 } from "./types";
@@ -45,6 +46,16 @@ export class PaydirtClient {
 
   get isParent(): boolean {
     return this.currentUser?.role === "parent";
+  }
+
+  // ── Households ─────────────────────────────────────────────────────────────
+
+  getHousehold(id: string): Promise<Household> {
+    return this.pb.collection(Collections.Households).getOne<Household>(id);
+  }
+
+  updateHousehold(id: string, data: Partial<Household>): Promise<Household> {
+    return this.pb.collection(Collections.Households).update<Household>(id, data);
   }
 
   // ── Chores ──────────────────────────────────────────────────────────────────
