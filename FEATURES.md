@@ -21,10 +21,29 @@ Current scope tracker. See [ROADMAP.md](./ROADMAP.md) for phasing and the full p
 - **Integration test suite** — live API tests for the shared client and every PB hook/guard (currency math, undo reversal, photo guard, balance guard, role guards, broadcast rules, realtime). `make test-integration`.
 - **Playwright e2e** — dashboard golden path (create → assign → complete → approve → undo) and broadcast UI. `make test-e2e`.
 - **ntfy kill-switch** — `NTFY_DISABLED=1` suppresses all sends so test runs don't blast the real public topics.
+- **Rejected-chore flow** — kids reply to rejections (`kid_response`, parents notified + shown in dashboard) or resubmit; resubmission requires a freshly uploaded photo, enforced server-side. Simplified mode gets a big "Try again 📷" button.
+- **Collapsible history** — kid history is an accordion, closed by default, capped at the 50 most recent approvals (paged query, not getFullList).
+- **Deadlines + escalating reminders** — optional `due_at` per chore; cron escalates 24h → 2h → overdue (parents pinged on overdue).
+- **Race mechanic** — race chores assigned to everyone; first approval wins, the rest auto-close with a "who won" notification.
+- **Kid-proposed chores** — kids pitch a chore + asking price; parents approve at a negotiated reward (auto-creates chore + assignment) or decline.
+- **Savings goals** — kid-created targets with progress bars; hook marks achieved + notifies both sides when the balance crosses the target.
+- **Bank threshold** — one-time ntfy nudge to the kid when their balance crosses the household threshold.
+- **Currency expiry** — optional: earn entries older than N days lapse via compensating adjustments (daily cron), capped at current balance.
+- **Goods conversion display** — household `goods_rate` (bucks per $1) shown on spend requests and the kid's spend dialog.
+- **Scheduled chore reminders** — per-chore "HH:MM"; cron reminds assigned kids once a day.
+- **Approval nudges** — parents pinged when a completion sits unapproved longer than `nudge_hours`.
+- **Approval reactions** — parents react with an emoji from "Recently approved"; kid gets pinged and sees it in history.
+- **Kid reminders** — kids set one-shot reminders (1h / 3h / tomorrow) on their own chores.
+- **Chore swap** — kid offers a chore to a sibling, who accepts (takes ownership) or declines; guarded server-side.
+- **Streak bonuses** — consecutive earn-days tracked per kid (🔥 shown in both apps); milestone bonuses at 3/7/14/30 days.
+- **Weekly digest** — Sunday-evening ntfy summary to parents (per-kid chores, earned/spent, balances, pending approvals).
+- **Vacation mode** — household pause switch suspends cron reminders, nudges, digest, and expiry.
+- **Household settings panel** — currency name, bank threshold, expiry days, goods rate, nudge hours, vacation mode — all in the dashboard.
 - **Dev tooling** — `make dev-all` starts PB + web + Expo in one command with emulator check, health polling, and cache clear; `make stop` kills everything including the emulator app; `RESET=1 make dev-all` wipes and reseeds. `make seed`, `make reset-db`, `make lint`, `make typecheck`.
 
 ## Not Yet Implemented
 
+- **Recurring chore auto-assignment** — the `cadence` field exists but nothing re-creates assignments on schedule yet.
 - **On-device test** — emulator validated; GrapheneOS/LineageOS real device not yet tested.
 - **Parent dashboard realtime** — the web dashboard still reloads after actions; only the kid screens subscribe live.
 

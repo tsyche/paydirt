@@ -4,8 +4,10 @@ import type {
   Assignment,
   Broadcast,
   Chore,
+  ChoreProposal,
   CurrencyTransaction,
   Household,
+  SavingsGoal,
   SpendRequest,
   User,
 } from "./types";
@@ -107,6 +109,29 @@ export class PaydirtClient {
     });
   }
 
+  /** A kid's actionable list: everything except settled (approved/closed) items. */
+  listActiveAssignmentsForChild(childId: string): Promise<Assignment[]> {
+    return this.pb.collection(Collections.Assignments).getFullList<Assignment>({
+      filter: this.pb.filter("child = {:c} && status != 'approved' && status != 'closed'", {
+        c: childId,
+      }),
+      sort: "-created",
+      expand: "chore",
+    });
+  }
+
+  /** A kid's approved history, newest first, capped (default 50). */
+  async listApprovedHistory(childId: string, limit = 50): Promise<Assignment[]> {
+    const result = await this.pb
+      .collection(Collections.Assignments)
+      .getList<Assignment>(1, limit, {
+        filter: this.pb.filter("child = {:c} && status = 'approved'", { c: childId }),
+        sort: "-approved_at",
+        expand: "chore",
+      });
+    return result.items;
+  }
+
   listPendingApprovals(householdId: string): Promise<Assignment[]> {
     return this.pb.collection(Collections.Assignments).getFullList<Assignment>({
       filter: this.pb.filter("status = 'completed' && chore.household = {:hh}", {
@@ -140,6 +165,64 @@ export class PaydirtClient {
       status: "rejected",
       rejection_message: message ?? "",
     });
+  }
+
+  /** Kid replies to a rejection; parents get notified by the hook. */
+  respondToRejection(assignmentId: string, message: string): Promise<Assignment> {
+    return this.pb.collection(Collections.Assignments).update<Assignment>(assignmentId, {
+      kid_response: message,
+    });
+  }
+
+  /** Parent reacts to an approved chore with an emoji; the kid gets pinged. */
+  reactToAssignment(assignmentId: string, emoji: string): Promise<Assignment> {
+    return this.pb.collection(Collections.Assignments).update<Assignment>(assignmentId, {
+      reaction: emoji,
+    });
+  }
+
+  /** Kid sets a one-shot reminder; the cron fires and clears it. */
+  setKidReminder(assignmentId: string, when: Date): Promise<Assignment> {
+    return this.pb.collection(Collections.Assignments).update<Assignment>(assignmentId, {
+      kid_reminder_at: when.toISOString(),
+    });
+  }
+
+  // ── Swaps ────────────────────────────────────────────────────────────────────
+
+  /** Kid offers their assignment to a sibling (guard validates the target). */
+  offerSwap(assignmentId: string, siblingId: string): Promise<Assignment> {
+    return this.pb.collection(Collections.Assignments).update<Assignment>(assignmentId, {
+      swap_to: siblingId,
+    });
+  }
+
+  /** The swap target takes over (accept) or passes (decline). */
+  respondToSwap(assignment: Assignment, myId: string, accept: boolean): Promise<Assignment> {
+    return this.pb.collection(Collections.Assignments).update<Assignment>(assignment.id, {
+      child: accept ? myId : assignment.child,
+      swap_to: "",
+    });
+  }
+
+  /** Swap offers waiting on this kid's answer. */
+  listIncomingSwaps(childId: string): Promise<Assignment[]> {
+    return this.pb.collection(Collections.Assignments).getFullList<Assignment>({
+      filter: this.pb.filter("swap_to = {:c} && status = 'assigned'", { c: childId }),
+      sort: "-created",
+      expand: "chore,child",
+    });
+  }
+
+  // ── Races ────────────────────────────────────────────────────────────────────
+
+  /** Assign a race chore to several kids at once; first approval wins. */
+  async startRace(choreId: string, kidIds: string[]): Promise<Assignment[]> {
+    const out: Assignment[] = [];
+    for (const kidId of kidIds) {
+      out.push(await this.assignChore(choreId, kidId));
+    }
+    return out;
   }
 
   // ── Currency ─────────────────────────────────────────────────────────────────
@@ -242,6 +325,88 @@ export class PaydirtClient {
     });
   }
 
+  // ── Savings goals ────────────────────────────────────────────────────────────
+
+  listGoals(childId: string): Promise<SavingsGoal[]> {
+    return this.pb.collection(Collections.SavingsGoals).getFullList<SavingsGoal>({
+      filter: this.pb.filter("child = {:c}", { c: childId }),
+      sort: "achieved,target",
+    });
+  }
+
+  createGoal(childId: string, name: string, target: number): Promise<SavingsGoal> {
+    return this.pb.collection(Collections.SavingsGoals).create<SavingsGoal>({
+      child: childId,
+      name,
+      target,
+      achieved: false,
+    });
+  }
+
+  deleteGoal(goalId: string): Promise<boolean> {
+    return this.pb.collection(Collections.SavingsGoals).delete(goalId);
+  }
+
+  // ── Chore proposals ──────────────────────────────────────────────────────────
+
+  proposeChore(
+    householdId: string,
+    childId: string,
+    name: string,
+    rewardRequested: number,
+    description?: string,
+  ): Promise<ChoreProposal> {
+    return this.pb.collection(Collections.ChoreProposals).create<ChoreProposal>({
+      household: householdId,
+      child: childId,
+      name,
+      description: description ?? "",
+      reward_requested: rewardRequested,
+      status: "pending",
+    });
+  }
+
+  listPendingProposals(householdId: string): Promise<ChoreProposal[]> {
+    return this.pb.collection(Collections.ChoreProposals).getFullList<ChoreProposal>({
+      filter: this.pb.filter("household = {:hh} && status = 'pending'", { hh: householdId }),
+      sort: "created",
+      expand: "child",
+    });
+  }
+
+  /**
+   * Parent accepts a proposal: creates the real chore (at the parent's chosen
+   * reward), assigns it to the proposing kid, and marks the proposal approved.
+   */
+  async approveProposal(
+    proposal: ChoreProposal,
+    parentId: string,
+    reward = proposal.reward_requested,
+  ): Promise<Chore> {
+    const chore = await this.createChore({
+      household: proposal.household,
+      name: proposal.name,
+      description: proposal.description,
+      reward,
+      type: "oneoff",
+      created_by: parentId,
+      active: true,
+    });
+    await this.assignChore(chore.id, proposal.child);
+    await this.pb.collection(Collections.ChoreProposals).update(proposal.id, {
+      status: "approved",
+      resolved_by: parentId,
+    });
+    return chore;
+  }
+
+  declineProposal(proposalId: string, parentId: string): Promise<ChoreProposal> {
+    return this.pb.collection(Collections.ChoreProposals).update<ChoreProposal>(proposalId, {
+      status: "declined",
+      resolved_by: parentId,
+    });
+  }
+
   // ── Broadcasts ───────────────────────────────────────────────────────────────
 
   /** Parent sends a one-liner to every kid in the household (ntfy hook delivers it). */
@@ -259,13 +424,17 @@ export class PaydirtClient {
   // constructing the client (see apps/mobile/lib/client.ts).
 
   /**
-   * Subscribe to everything a kid's home screen shows: their assignments and
-   * their own user record (balance). Fires `onChange` on any event; callers
-   * are expected to re-fetch. Returns an unsubscribe function.
+   * Subscribe to everything a kid's home screen shows: their assignments
+   * (including swap offers aimed at them), their goals, and their own user
+   * record (balance/streak). Fires `onChange` on any event; callers are
+   * expected to re-fetch. Returns an unsubscribe function.
    */
   async subscribeToKidUpdates(childId: string, onChange: () => void): Promise<() => void> {
     const unsubs = await Promise.all([
       this.pb.collection(Collections.Assignments).subscribe("*", onChange, {
+        filter: this.pb.filter("child = {:c} || swap_to = {:c}", { c: childId }),
+      }),
+      this.pb.collection(Collections.SavingsGoals).subscribe("*", onChange, {
         filter: this.pb.filter("child = {:c}", { c: childId }),
       }),
       this.pb.collection(Collections.Users).subscribe(childId, onChange),

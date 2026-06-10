@@ -8,34 +8,32 @@ Chore CRUD, assignment, complete/approve flow, parentBucks earn + spend, ntfy no
 
 ## Recently Completed
 
-1. ✅ **Real-time updates** — kid screens subscribe to their assignments + balance via PocketBase realtime (`subscribeToKidUpdates()`); approvals appear without pull-to-refresh; `react-native-sse` polyfill on mobile.
-2. ✅ **Integration + API test suite** — 11 live tests for the shared client and every PB hook/guard (`make test-integration`) + Playwright golden path & broadcast UI for the dashboard (`make test-e2e`). Caught and fixed real bugs: double-undo deduction, unscoped household filters, wrong ledger labels, pre-existing ledger drift.
-3. ✅ **Household broadcast** — `broadcasts` collection + ntfy fan-out hook; dashboard "Message all kids" control; parent-only by access rule.
-4. **Android emulator dev tooling** — `make dev-all` starts everything (PB + web + Expo) with cache clear, emulator check, and health polling; `make stop` kills all services; `RESET=1` flag wipes and reseeds.
-5. **Approval undo (hardened)** — undo is now a status change; a server hook writes the compensating ledger entry, making double-undo impossible and blocking kids from touching approved chores.
+1. ✅ **Phase 1 + 1.5 wrap (2026-06-10)** — deadlines with escalating reminders, race mechanic, kid-proposed chores, savings goals, bank threshold, currency expiry, goods-rate display, kid reminders, scheduled chore reminders, approval nudges, approval reactions, streak bonuses, weekly digest, chore swap, vacation mode, household settings panel. Cron foundation (`scheduler.pb.js`, 10-min tick + daily + weekly) with superuser-only manual triggers for tests.
+2. ✅ **Rejected-chore flow** — kids reply to rejections or resubmit; resubmission requires a fresh photo (server-enforced); parents see replies in the approval queue; simplified mode "Try again 📷".
+3. ✅ **Collapsible kid history** — accordion closed by default, capped at 50 via a paged query.
+4. ✅ **Photo guard fix** — legit photo uploads were rejected (file object vs filename mid-update); with-photo path now covered by tests.
+5. ✅ **Real-time updates / test suite / broadcast** — kid screens subscribe live; 18 integration + 4 Playwright tests; household broadcast.
 
 ## Recommended Next 3
 
-1. **Recurring chore auto-assignment** — the `cadence` field exists but nothing acts on it: "recurring" chores sit inert until a parent manually reassigns. A PocketBase cron (`cronAdd`) re-creates assignments on schedule (daily/weekly). Fixes a half-built feature and lays the cron foundation that nudges, reminders, and the weekly digest all reuse. ~2-3 hrs.
-2. **Approval nudges** — ntfy reminder to parents when a chore sits awaiting approval >X hrs. Kids now see approvals instantly (realtime); this closes the other half of the loop. Rides the cron foundation from #1. ~1-2 hrs.
-3. **Savings goals** — named goals with progress bars and a "goal reached" notification when the balance crosses the threshold. Biggest kid-facing motivator on the list; schema + hook + kid UI. ~3-4 hrs.
+1. **Recurring chore auto-assignment** — the `cadence` field still does nothing: "recurring" chores sit inert until a parent manually reassigns. The cron foundation now exists (`lib/scheduler.js`); add a daily pass that re-creates assignments per cadence. ~1-2 hrs.
+2. **Real-device test** — kids are about to start testing; validate on the actual GrapheneOS/LineageOS device before they do. User-driven; Claude can help debug via adb.
+3. **Parent dashboard realtime** — subscribe the dashboard the way the kid screens do; drops the post-action reloads. ~1-2 hrs.
 
-## Phase 1 — Core Feature Set
+## Phase 1 — Core Feature Set ✅ (completed 2026-06-10)
 
-Status legend: ✅ done · ◑ partial (see [FEATURES.md](./FEATURES.md)) · ○ not started
+- **Chores**: ✅ one-off deadlines + escalating reminders, ✅ photo-required flag, ✅ race mechanic (first approval wins), ✅ kid-proposed chores
+- **Currency**: ✅ configurable currency name, ✅ bank thresholds, ✅ spontaneous bonus/deduction, ✅ optional expiry (off by default), ✅ physical goods exchange rate (conversion display)
+- **Savings goals**: ✅ named goals with progress bars, multiple goals, fulfilled notifications
+- **Kid UX**: ✅ glanceable home screen (balance + to-do count + streak + due chips), ✅ chore history (collapsible, capped), ✅ simplified mode, ✅ kid-added reminders
+- **Parent UX**: ✅ scheduled chore reminders, ✅ approval nudges, ✅ approval undo, ✅ household broadcast, ✅ approval reactions
 
-- **Chores**: ○ one-off deadlines + escalating reminders, ✅ photo-required flag *(enforced server + client)*, ○ race mechanic (first kid wins), ○ kid-proposed chores
-- **Currency**: ✅ configurable currency name, ○ bank thresholds (screen-time prompt), ✅ spontaneous bonus/deduction, ○ optional expiry (off by default), ○ physical goods exchange with configurable rate
-- **Savings goals**: ○ named goals with progress bars, multiple goals, fulfilled notifications
-- **Kid UX**: ○ glanceable home screen, ✅ chore history, ✅ simplified mode, ○ kid-added reminders
-- **Parent UX**: ○ scheduled chore reminders, ○ approval nudges, ✅ approval undo, ✅ household broadcast, ○ approval reactions
+## Phase 1.5 — Gamification & Reporting ✅ (completed 2026-06-10)
 
-## Phase 1.5 — Gamification & Reporting
-
-- Streak bonuses (consecutive completions, milestone rewards) ~3-4 hrs
-- Scheduled chore reminders (parent sets time per chore; PB cron fires ntfy to kid) ~2-3 hrs
-- Weekly digest (parent summary via ntfy; reuses the cron foundation) ~2-3 hrs
-- Lower priority: pause/vacation mode, chore swap between siblings
+- ✅ Streak bonuses (3/7/14/30-day milestones, 🔥 shown in both apps)
+- ✅ Weekly digest (Sunday 6pm ntfy summary to parents)
+- ✅ Pause/vacation mode (suspends reminders, nudges, digest, expiry)
+- ✅ Chore swap between siblings (offer → accept/decline, server-guarded)
 
 ## Phase 2 — Family Link Automation
 
@@ -53,9 +51,8 @@ Status legend: ✅ done · ◑ partial (see [FEATURES.md](./FEATURES.md)) · ○
 
 ## Ideas (unscheduled)
 
-- **Real-device test** — run on GrapheneOS/LineageOS. Emulator validated; real device is the remaining unknown. User-driven; Claude can help debug via adb.
-- **Parent dashboard realtime** — subscribe the web dashboard the way the kid screens now do; drops the post-action reloads. Quick win now that `subscribeToKidUpdates` exists as a pattern. ~1-2 hrs.
-- **Race mechanic** — chore assignable to multiple kids; first approval wins the reward. ~2-3 hrs.
 - **One-command live test run** — make target that boots an ephemeral PocketBase on a scratch data dir (with `NTFY_DISABLED=1`), migrates, seeds, runs integration + e2e, tears down. Removes the "server must be running and seeded" setup step. ~1-2 hrs.
 - **Kid-side broadcast history** — broadcasts are already stored; show the last few in the kid screens so a missed ntfy ping isn't lost. ~1 hr.
 - **Notification quiet hours** — per-household window where ntfy sends are held or dropped (no 6am "chore approved" dings). ~1-2 hrs.
+- **Custom kid reminder times** — the preset 1h/3h/tomorrow picker could take a freeform time. ~1 hr.
+- **Streak/expiry tuning UI** — milestone amounts are hard-coded in `lib/streaks.js`; surface them in household settings if the defaults chafe. ~1-2 hrs.

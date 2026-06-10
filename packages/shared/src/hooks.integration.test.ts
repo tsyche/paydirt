@@ -1,6 +1,9 @@
-import { describe, it, expect, beforeAll } from "vitest";
+import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { EventSource } from "eventsource";
 import { PaydirtClient } from "./client";
+import { Collections } from "./collections";
+import { cleanupChores, cleanupSpendRequests } from "./integration.cleanup";
+import { completionFormWithPhoto } from "./integration.fixtures";
 import type { User } from "./types";
 
 // The PocketBase SDK's realtime service needs a global EventSource; Node
@@ -23,6 +26,8 @@ describe("PocketBase hooks & guards (live)", () => {
   let kid: PaydirtClient;
   let kidUser: User;
   let householdId: string;
+  const createdChores: string[] = [];
+  const createdSpendRequests: string[] = [];
 
   beforeAll(async () => {
     parent = new PaydirtClient(PB_URL);
@@ -32,8 +37,14 @@ describe("PocketBase hooks & guards (live)", () => {
     householdId = parent.currentUser!.household;
   });
 
-  /** Create, assign, and complete a fresh chore; returns the pieces. */
-  async function completedAssignment(reward: number, name: string) {
+  // Remove everything the suite created so the dev household stays clean —
+  // leftover "test chore" assignments otherwise pile up on the kid screens.
+  afterAll(async () => {
+    await cleanupChores(createdChores);
+    await cleanupSpendRequests(createdSpendRequests);
+  });
+
+  async function createTestChore(reward: number, name: string, extra: object = {}) {
     const chore = await parent.createChore({
       household: householdId,
       name,
@@ -41,7 +52,15 @@ describe("PocketBase hooks & guards (live)", () => {
       type: "oneoff",
       created_by: parent.currentUser!.id,
       active: true,
+      ...extra,
     });
+    createdChores.push(chore.id);
+    return chore;
+  }
+
+  /** Create, assign, and complete a fresh chore; returns the pieces. */
+  async function completedAssignment(reward: number, name: string) {
+    const chore = await createTestChore(reward, name);
     const assignment = await parent.assignChore(chore.id, kidUser.id);
     await kid.markComplete(assignment.id);
     return { chore, assignment };
@@ -57,7 +76,7 @@ describe("PocketBase hooks & guards (live)", () => {
 
   it("approval undo reverses the reward exactly once", async () => {
     const start = await parent.getBalance(kidUser.id);
-    const { chore, assignment } = await completedAssignment(17, "Undo test chore");
+    const { assignment } = await completedAssignment(17, "Undo test chore");
 
     await parent.approveAssignment(assignment.id);
     expect(await parent.getBalance(kidUser.id)).toBe(start + 17);
@@ -75,15 +94,13 @@ describe("PocketBase hooks & guards (live)", () => {
     await parent.approveAssignment(assignment.id);
     expect(await parent.getBalance(kidUser.id)).toBe(start + 17);
 
-    // Cleanup: undo, reject, deactivate
+    // Final undo restores the starting balance (records removed in afterAll)
     await parent.undoApproval(assignment.id);
-    await parent.rejectAssignment(assignment.id, "test cleanup");
-    await parent.deactivateChore(chore.id);
     expect(await parent.getBalance(kidUser.id)).toBe(start);
   });
 
   it("a child cannot approve, reject, or undo-approve an assignment", async () => {
-    const { chore, assignment } = await completedAssignment(11, "Guard test chore");
+    const { assignment } = await completedAssignment(11, "Guard test chore");
 
     await expect(kid.approveAssignment(assignment.id)).rejects.toThrow();
     await expect(kid.rejectAssignment(assignment.id, "nope")).rejects.toThrow();
@@ -92,32 +109,32 @@ describe("PocketBase hooks & guards (live)", () => {
     // approved chores are settled — kids can't move them back
     await expect(kid.undoApproval(assignment.id)).rejects.toThrow();
 
-    // Cleanup
+    // Restore the balance (records removed in afterAll)
     await parent.undoApproval(assignment.id);
-    await parent.rejectAssignment(assignment.id, "test cleanup");
-    await parent.deactivateChore(chore.id);
   });
 
-  it("photo-required chores cannot be completed without a photo", async () => {
-    const chore = await parent.createChore({
-      household: householdId,
-      name: "Photo guard test chore",
-      reward: 9,
-      type: "oneoff",
-      photo_required: true,
-      created_by: parent.currentUser!.id,
-      active: true,
-    });
+  it("photo-required chores reject completion without a photo and accept one with it", async () => {
+    const chore = await createTestChore(9, "Photo guard test chore", { photo_required: true });
     const assignment = await parent.assignChore(chore.id, kidUser.id);
 
+    // Without a photo: blocked by the guard
     await expect(kid.markComplete(assignment.id)).rejects.toThrow();
 
-    await parent.deactivateChore(chore.id);
+    // With a photo (multipart, like the app sends): accepted. This is the
+    // case the guard originally got wrong — mid-update a fresh upload isn't a
+    // filename string yet, and the guard treated it as "no photo".
+    const updated = await kid.pb
+      .collection(Collections.Assignments)
+      .update(assignment.id, completionFormWithPhoto());
+
+    expect(updated.status).toBe("completed");
+    expect(updated.photo).toBeTruthy();
   });
 
   it("spend requests exceeding the balance cannot be approved", async () => {
     const balance = await parent.getBalance(kidUser.id);
     const sr = await kid.submitSpendRequest(kidUser.id, balance + 1000, "moon rocket");
+    createdSpendRequests.push(sr.id);
 
     await expect(
       parent.approveSpendRequest(sr.id, parent.currentUser!.id),
@@ -167,15 +184,8 @@ describe("PocketBase hooks & guards (live)", () => {
 
     // Give the SSE connection a beat to establish, then trigger an event
     await new Promise((r) => setTimeout(r, 500));
-    const chore = await parent.createChore({
-      household: householdId,
-      name: "Realtime test chore",
-      reward: 1,
-      type: "oneoff",
-      created_by: parent.currentUser!.id,
-      active: true,
-    });
-    const assignment = await parent.assignChore(chore.id, kidUser.id);
+    const chore = await createTestChore(1, "Realtime test chore");
+    await parent.assignChore(chore.id, kidUser.id);
 
     await expect(
       Promise.race([
@@ -187,9 +197,6 @@ describe("PocketBase hooks & guards (live)", () => {
     ).resolves.toBeUndefined();
     expect(events.length).toBeGreaterThan(0);
 
-    // Cleanup
-    await parent.rejectAssignment(assignment.id, "test cleanup");
-    await parent.deactivateChore(chore.id);
     await kid.pb.realtime.unsubscribe();
   });
 
@@ -203,17 +210,15 @@ describe("PocketBase hooks & guards (live)", () => {
     const startBalance = await parent.getBalance(kidUser.id);
     const startLedger = await sumLedger();
 
-    const { chore, assignment } = await completedAssignment(13, "Ledger lockstep chore");
+    const { assignment } = await completedAssignment(13, "Ledger lockstep chore");
     await parent.approveAssignment(assignment.id);
     await parent.adjustBalance(kidUser.id, -4, "lockstep deduction");
 
     expect(await parent.getBalance(kidUser.id)).toBe(startBalance + 13 - 4);
     expect(await sumLedger()).toBe(startLedger + 13 - 4);
 
-    // Cleanup
+    // Restore the balance (records removed in afterAll)
     await parent.undoApproval(assignment.id);
-    await parent.rejectAssignment(assignment.id, "test cleanup");
-    await parent.deactivateChore(chore.id);
     await parent.adjustBalance(kidUser.id, 4, "lockstep cleanup");
     expect(await parent.getBalance(kidUser.id)).toBe(startBalance);
   });

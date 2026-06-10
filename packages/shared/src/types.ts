@@ -15,6 +15,16 @@ export interface Household extends BaseRecord {
   name: string;
   /** Display name for the virtual currency, e.g. "GoldCoins". Defaults to "parentBucks" when empty. */
   currency_name?: string;
+  /** Notify a kid when their balance crosses this. 0/unset = off. */
+  bank_threshold?: number;
+  /** Earned rewards lapse after this many days (daily cron). 0/unset = off. */
+  expiry_days?: number;
+  /** Bucks per $1 for physical-goods conversion display. 0/unset = off. */
+  goods_rate?: number;
+  /** Remind parents when a completion waits this many hours. 0/unset = off. */
+  nudge_hours?: number;
+  /** Vacation mode: cron reminders/nudges/digest/expiry are suspended. */
+  paused?: boolean;
 }
 
 // ─── Users ───────────────────────────────────────────────────────────────────
@@ -33,6 +43,8 @@ export interface User extends BaseRecord {
   balance: number;
   /** Larger tap targets, icon-heavy UI, minimal reading. Default on for youngest. */
   simplified_mode: boolean;
+  /** Consecutive days with an approved chore. Maintained by hooks + daily cron. */
+  streak_count?: number;
 }
 
 // ─── Chores ──────────────────────────────────────────────────────────────────
@@ -51,15 +63,23 @@ export interface Chore extends BaseRecord {
   photo_required: boolean;
   created_by: string; // -> users.id (parent)
   active: boolean;
+  /** Optional deadline (one-offs). Cron escalates reminders: 24h → 2h → overdue. */
+  due_at?: string;
+  /** Race chore: assigned to several kids; first approval wins, others close. */
+  race?: boolean;
+  /** "HH:MM" server-local; cron reminds assigned kids daily at this time. */
+  reminder_time?: string;
 }
 
 // ─── Assignments ─────────────────────────────────────────────────────────────
 
-export type AssignmentStatus = "assigned" | "completed" | "approved" | "rejected";
+export type AssignmentStatus = "assigned" | "completed" | "approved" | "rejected" | "closed";
 
 /**
  * A chore assigned to one child. Status flows:
  * assigned → completed (child marks done) → approved | rejected (parent).
+ * rejected → completed again (resubmit; server requires a fresh photo).
+ * "closed" = race lost; set by the race hook, terminal and non-actionable.
  * One chore can have multiple assignments (one per child).
  */
 export interface Assignment extends BaseRecord {
@@ -71,6 +91,46 @@ export interface Assignment extends BaseRecord {
   /** PocketBase file name; present when photo proof was attached. */
   photo?: string;
   rejection_message?: string;
+  /** Kid's reply to a rejection; parents are notified and see it on approval. */
+  kid_response?: string;
+  /** Parent's emoji reaction to an approved chore. */
+  reaction?: string;
+  /** Deadline escalation progress (cron-managed): 0 none, 1 24h, 2 2h, 3 overdue. */
+  reminder_stage?: number;
+  /** Kid-set one-shot reminder; cron fires and clears it. */
+  kid_reminder_at?: string;
+  /** Last scheduled-reminder send (cron dedupe marker). */
+  last_reminded?: string;
+  /** Last approval-nudge send (cron dedupe marker). */
+  nudged_at?: string;
+  /** Pending swap offer to a sibling; they accept (take over) or decline. */
+  swap_to?: string; // -> users.id
+}
+
+// ─── Savings Goals ───────────────────────────────────────────────────────────
+
+/** Kid-owned target; a hook marks it achieved when the balance crosses target. */
+export interface SavingsGoal extends BaseRecord {
+  child: string; // -> users.id
+  name: string;
+  target: number;
+  achieved: boolean;
+  achieved_at?: string;
+}
+
+// ─── Chore Proposals ─────────────────────────────────────────────────────────
+
+export type ChoreProposalStatus = "pending" | "approved" | "declined";
+
+/** A kid pitches a chore + asking price; a parent approves or declines. */
+export interface ChoreProposal extends BaseRecord {
+  household: string; // -> households.id
+  child: string; // -> users.id
+  name: string;
+  description?: string;
+  reward_requested: number;
+  status: ChoreProposalStatus;
+  resolved_by?: string; // -> users.id (parent)
 }
 
 // ─── Currency ────────────────────────────────────────────────────────────────

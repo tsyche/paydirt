@@ -1,6 +1,7 @@
-import { describe, it, expect, beforeAll } from "vitest";
+import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { PaydirtClient } from "./client";
 import { Collections } from "./collections";
+import { cleanupChores, cleanupSpendRequests } from "./integration.cleanup";
 import type { User } from "./types";
 
 // Live integration test — requires a running PocketBase at PB_URL with the seed
@@ -14,12 +15,19 @@ describe("PaydirtClient (live)", () => {
   let parent: PaydirtClient;
   let child: PaydirtClient;
   let childUser: User;
+  const createdChores: string[] = [];
+  const createdSpendRequests: string[] = [];
 
   beforeAll(async () => {
     parent = new PaydirtClient(PB_URL);
     child = new PaydirtClient(PB_URL);
     await parent.login("parent@test.local", PW);
     childUser = await child.login("child1@test.local", PW);
+  });
+
+  afterAll(async () => {
+    await cleanupChores(createdChores);
+    await cleanupSpendRequests(createdSpendRequests);
   });
 
   it("runs the full earn → spend loop with correct balance math", async () => {
@@ -35,6 +43,7 @@ describe("PaydirtClient (live)", () => {
       created_by: parent.currentUser!.id,
       active: true,
     });
+    createdChores.push(chore.id);
     const assignment = await parent.assignChore(chore.id, childUser.id);
 
     // Child marks it complete
@@ -51,6 +60,7 @@ describe("PaydirtClient (live)", () => {
 
     // Child submits a spend request, parent approves → spend hook fires
     const sr = await child.submitSpendRequest(childUser.id, 10, "test reward");
+    createdSpendRequests.push(sr.id);
     const resolved = await parent.approveSpendRequest(sr.id, parent.currentUser!.id);
     expect(resolved.status).toBe("approved");
     expect(await parent.getBalance(childUser.id)).toBe(startBalance + 30 - 10);

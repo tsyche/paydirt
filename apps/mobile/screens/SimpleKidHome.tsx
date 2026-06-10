@@ -26,7 +26,7 @@ export function SimpleKidHome({ user, onLogout }: { user: User; onLogout: () => 
     try {
       const [bal, list, household] = await Promise.all([
         client.getBalance(user.id),
-        client.listAssignmentsForChild(user.id),
+        client.listActiveAssignmentsForChild(user.id),
         client.getHousehold(user.household),
       ]);
       setBalance(bal);
@@ -89,6 +89,7 @@ export function SimpleKidHome({ user, onLogout }: { user: User; onLogout: () => 
 
   const activeChores = assignments.filter((a) => a.status === "assigned");
   const waitingChores = assignments.filter((a) => a.status === "completed");
+  const redoChores = assignments.filter((a) => a.status === "rejected");
 
   return (
     <SafeAreaView style={styles.container} edges={["top"]}>
@@ -107,7 +108,7 @@ export function SimpleKidHome({ user, onLogout }: { user: User; onLogout: () => 
           <Text style={styles.balanceLabel}>{currencyName}</Text>
         </Surface>
 
-        {activeChores.length === 0 && waitingChores.length === 0 && (
+        {activeChores.length === 0 && waitingChores.length === 0 && redoChores.length === 0 && (
           <Surface style={styles.emptyCard} elevation={1}>
             <Text style={styles.emptyEmoji}>🎉</Text>
             <Text style={styles.emptyText}>All done! Great job!</Text>
@@ -130,6 +131,26 @@ export function SimpleKidHome({ user, onLogout }: { user: User; onLogout: () => 
               onPress={() => a.expand?.chore?.photo_required ? markDoneWithPhoto(a.id) : markDone(a.id)}
             >
               {a.expand?.chore?.photo_required ? "Take photo! 📷" : "I did it! ✓"}
+            </Button>
+          </Surface>
+        ))}
+
+        {redoChores.map((a) => (
+          <Surface key={a.id} style={[styles.choreCard, styles.redoCard]} elevation={2}>
+            <Text style={styles.choreEmoji}>😅</Text>
+            <Text style={styles.choreName}>{a.expand?.chore?.name ?? "Chore"}</Text>
+            {a.rejection_message ? (
+              <Text style={styles.waitingText}>{a.rejection_message}</Text>
+            ) : null}
+            <Button
+              mode="contained"
+              style={styles.doneButton}
+              contentStyle={styles.doneButtonContent}
+              labelStyle={styles.doneButtonLabel}
+              icon="camera"
+              onPress={() => markDoneWithPhoto(a.id)}
+            >
+              Try again! 📷
             </Button>
           </Surface>
         ))}
@@ -178,6 +199,7 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   waitingCard: { opacity: 0.6 },
+  redoCard: { backgroundColor: "#fdeceb" },
   choreEmoji: { fontSize: 40 },
   choreName: { fontSize: 28, fontWeight: "700", textAlign: "center" },
   choreReward: { fontSize: 22, fontWeight: "600" },

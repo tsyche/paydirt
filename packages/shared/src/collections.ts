@@ -9,6 +9,8 @@ export const Collections = {
   CurrencyTransactions: "currency_transactions",
   SpendRequests: "spend_requests",
   Broadcasts: "broadcasts",
+  SavingsGoals: "savings_goals",
+  ChoreProposals: "chore_proposals",
 } as const;
 
 export type CollectionName = (typeof Collections)[keyof typeof Collections];
