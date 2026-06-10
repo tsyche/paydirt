@@ -1,4 +1,4 @@
-.PHONY: help setup install dev dev-web dev-mobile dev-pb pb-download seed reset-db test typecheck lint lintfix clean fresh sync-docs
+.PHONY: help setup install dev dev-all stop cache-clean dev-web dev-mobile dev-pb pb-download seed reset-db test typecheck lint lintfix clean fresh sync-docs
 
 # Colors for output
 BLUE := \033[0;34m
@@ -18,10 +18,13 @@ help:
 	@echo "  make install         Alias for setup"
 	@echo ""
 	@echo "$(GREEN)Development:$(NC)"
-	@echo "  make dev             Start web + mobile (PocketBase run separately)"
-	@echo "  make dev-web         Start Next.js parent dashboard"
-	@echo "  make dev-mobile      Start Expo React Native app"
-	@echo "  make dev-pb          Start local PocketBase server (needs binary)"
+	@echo "  make dev-all         Clear caches + start everything (PB + web + mobile); requires emulator"
+	@echo "  RESET=1 make dev-all Same, but wipe DB and reseed first (make stop first if running)"
+	@echo "  make stop            Kill all PayDirt dev services"
+	@echo "  make cache-clean     Clear Next.js/.expo/Metro caches (runs automatically in dev-all)"
+	@echo "  make dev-web         Start Next.js parent dashboard only"
+	@echo "  make dev-mobile      Start Expo React Native app only"
+	@echo "  make dev-pb          Start PocketBase only"
 	@echo "  make pb-download     Download the PocketBase binary (latest, or PB_VERSION=x.y.z)"
 	@echo ""
 	@echo "$(GREEN)Test data:$(NC)"
@@ -45,6 +48,70 @@ setup:
 	@pnpm install
 
 install: setup
+
+cache-clean:
+	@echo "$(BLUE)Clearing build/bundler caches...$(NC)"
+	@rm -rf apps/web/.next
+	@rm -rf apps/mobile/.expo
+	@rm -rf /tmp/metro-* /tmp/haste-* 2>/dev/null || true
+	@rm -rf /tmp/paydirt-logs
+	@echo "$(GREEN)Caches cleared.$(NC)"
+
+dev-all: cache-clean
+	@if [ "$(RESET)" = "1" ]; then \
+		echo "$(BLUE)Resetting database...$(NC)"; \
+		if curl -sf -o /dev/null http://127.0.0.1:8090/api/health; then \
+			echo "$(YELLOW)PocketBase is running — stop it before resetting. Run 'make stop' first.$(NC)"; exit 1; \
+		fi; \
+		make reset-db; \
+	fi
+	@if ! adb devices 2>/dev/null | grep -q "emulator.*device"; then \
+		echo "$(YELLOW)No Android emulator detected. Start one first (AVD Manager or 'emulator -avd Pixel_7_API_33 &').$(NC)"; \
+		exit 1; \
+	fi
+	@if [ ! -f "$(PB)" ]; then echo "$(YELLOW)PocketBase binary not found — run 'make pb-download'.$(NC)"; exit 1; fi
+	@mkdir -p /tmp/paydirt-logs
+	@echo "$(BLUE)Starting PocketBase...$(NC)"
+	@$(PB) serve --dir pocketbase/pb_data --hooksDir pocketbase/pb_hooks --migrationsDir pocketbase/pb_migrations \
+		> /tmp/paydirt-logs/pb.log 2>&1 & echo $$! > /tmp/paydirt-pb.pid
+	@echo "  Waiting for PocketBase to be ready..."
+	@for i in $$(seq 1 20); do \
+		if curl -sf -o /dev/null http://127.0.0.1:8090/api/health; then break; fi; \
+		if [ "$$i" = "20" ]; then echo "$(YELLOW)PocketBase didn't start in time — check /tmp/paydirt-logs/pb.log$(NC)"; exit 1; fi; \
+		sleep 1; \
+	done
+	@if [ "$(RESET)" = "1" ]; then \
+		echo "$(BLUE)Seeding test data...$(NC)"; \
+		node pocketbase/seed.mjs; \
+	fi
+	@echo "$(BLUE)Starting Next.js dashboard...$(NC)"
+	@pnpm run dev:web > /tmp/paydirt-logs/web.log 2>&1 & echo $$! > /tmp/paydirt-web.pid
+	@sleep 3
+	@echo "$(BLUE)Starting Expo (mobile) → pushing to Android emulator...$(NC)"
+	@pnpm --filter mobile start -- --android > /tmp/paydirt-logs/mobile.log 2>&1 & echo $$! > /tmp/paydirt-mobile.pid
+	@echo ""
+	@echo "$(GREEN)All services running. Logs:$(NC)"
+	@echo "  PocketBase:  /tmp/paydirt-logs/pb.log"
+	@echo "  Dashboard:   /tmp/paydirt-logs/web.log  (http://localhost:3000)"
+	@echo "  Mobile/Expo: /tmp/paydirt-logs/mobile.log"
+	@echo "  PocketBase admin: http://localhost:8090/_/"
+	@echo ""
+	@echo "Press Ctrl+C to stop all services (or run 'make stop' from another terminal)."
+	@trap 'make stop' INT; wait
+
+stop:
+	@echo "$(BLUE)Stopping PayDirt services...$(NC)"
+	@for pid_file in /tmp/paydirt-pb.pid /tmp/paydirt-web.pid /tmp/paydirt-mobile.pid; do \
+		if [ -f "$$pid_file" ]; then \
+			pid=$$(cat "$$pid_file"); \
+			if kill -0 "$$pid" 2>/dev/null; then kill "$$pid"; fi; \
+			rm -f "$$pid_file"; \
+		fi; \
+	done
+	@pkill -f "pocketbase serve" 2>/dev/null || true
+	@pkill -f "next dev" 2>/dev/null || true
+	@pkill -f "expo start" 2>/dev/null || true
+	@echo "$(GREEN)Done.$(NC)"
 
 dev:
 	@echo "$(YELLOW)Tip: run 'make dev-pb' in a separate terminal for the backend.$(NC)"
@@ -109,11 +176,10 @@ lint:
 lintfix:
 	@pnpm -r lint:fix
 
-clean:
-	@echo "$(BLUE)Cleaning artifacts...$(NC)"
+clean: cache-clean
+	@echo "$(BLUE)Removing node_modules and build outputs...$(NC)"
 	@rm -rf node_modules apps/*/node_modules packages/*/node_modules
-	@rm -rf apps/web/.next apps/web/out apps/*/dist packages/*/dist
-	@rm -rf apps/mobile/.expo
+	@rm -rf apps/web/out apps/*/dist packages/*/dist
 	@find . -name "*.tsbuildinfo" -delete 2>/dev/null || true
 
 fresh: clean setup test

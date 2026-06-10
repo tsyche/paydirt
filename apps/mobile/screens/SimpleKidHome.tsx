@@ -8,6 +8,7 @@ import {
   Snackbar,
 } from "react-native-paper";
 import { SafeAreaView } from "react-native-safe-area-context";
+import * as ImagePicker from "expo-image-picker";
 import type { Assignment, Chore, User } from "@paydirt/shared";
 import { client } from "../lib/client";
 
@@ -45,6 +46,28 @@ export function SimpleKidHome({ user, onLogout }: { user: User; onLogout: () => 
   async function markDone(id: string) {
     try {
       await client.markComplete(id);
+      setSnack("Woohoo! Waiting for Mom/Dad to check!");
+      await reload();
+    } catch (e) {
+      setSnack(String(e));
+    }
+  }
+
+  async function markDoneWithPhoto(id: string) {
+    const perm = await ImagePicker.requestCameraPermissionsAsync();
+    if (perm.status !== "granted") {
+      setSnack("Need camera permission for this chore!");
+      return;
+    }
+    const result = await ImagePicker.launchCameraAsync({ mediaTypes: "images", quality: 0.7 });
+    if (result.canceled) return;
+    try {
+      const asset = result.assets[0];
+      const formData = new FormData();
+      formData.append("status", "completed");
+      formData.append("completed_at", new Date().toISOString());
+      formData.append("photo", { uri: asset.uri, type: asset.mimeType ?? "image/jpeg", name: "proof.jpg" } as unknown as Blob);
+      await client.pb.collection("assignments").update(id, formData);
       setSnack("Woohoo! Waiting for Mom/Dad to check!");
       await reload();
     } catch (e) {
@@ -91,9 +114,10 @@ export function SimpleKidHome({ user, onLogout }: { user: User; onLogout: () => 
               style={styles.doneButton}
               contentStyle={styles.doneButtonContent}
               labelStyle={styles.doneButtonLabel}
-              onPress={() => markDone(a.id)}
+              icon={a.expand?.chore?.photo_required ? "camera" : undefined}
+              onPress={() => a.expand?.chore?.photo_required ? markDoneWithPhoto(a.id) : markDone(a.id)}
             >
-              I did it! ✓
+              {a.expand?.chore?.photo_required ? "Take photo! 📷" : "I did it! ✓"}
             </Button>
           </Surface>
         ))}

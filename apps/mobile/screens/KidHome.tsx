@@ -77,8 +77,16 @@ export function KidHome({ user, onLogout }: { user: User; onLogout: () => void }
     });
     if (result.canceled) return;
     try {
-      const blob = await fetch(result.assets[0].uri).then((r) => r.blob());
-      await client.markComplete(id, blob);
+      const asset = result.assets[0];
+      const formData = new FormData();
+      formData.append("status", "completed");
+      formData.append("completed_at", new Date().toISOString());
+      formData.append("photo", {
+        uri: asset.uri,
+        type: asset.mimeType ?? "image/jpeg",
+        name: "proof.jpg",
+      } as unknown as Blob);
+      await client.pb.collection("assignments").update(id, formData);
       setSnack("Marked done — waiting for approval!");
       await reload();
     } catch (e) {

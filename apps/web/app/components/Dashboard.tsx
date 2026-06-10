@@ -172,8 +172,11 @@ export function Dashboard({
             <button
               className="danger"
               onClick={() => {
-                if (!kid || !chore) return;
-                if (!window.confirm(`Undo approval for "${chore.name}"? This will deduct ${chore.reward} parentBucks from ${kid.display_name}.`)) return;
+                if (!kid || !chore) {
+                  setError("Could not undo: assignment data not fully loaded. Try refreshing.");
+                  return;
+                }
+                if (!window.confirm(`Undo approval for "${chore.name}"? This will deduct ${chore.reward} ${currencyName} from ${kid.display_name}.`)) return;
                 void act(() => client.reverseApproval(kid.id, chore.reward, chore.name));
               }}
             >
