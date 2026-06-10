@@ -111,6 +111,9 @@ stop:
 	@pkill -f "pocketbase serve" 2>/dev/null || true
 	@pkill -f "next dev" 2>/dev/null || true
 	@pkill -f "expo start" 2>/dev/null || true
+	@if adb devices 2>/dev/null | grep -q "emulator.*device"; then \
+		adb shell am force-stop host.exp.exponent 2>/dev/null || true; \
+	fi
 	@echo "$(GREEN)Done.$(NC)"
 
 dev:

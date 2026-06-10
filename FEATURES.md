@@ -16,13 +16,14 @@ Current scope tracker. See [ROADMAP.md](./ROADMAP.md) for phasing and the full p
 - **Per-kid ledger view** — `LedgerToggle` in parent dashboard shows full transaction history per kid.
 - **photo_required enforcement** — server guard (`guards.pb.js`) rejects completion without a photo; `KidHome` shows camera button for photo-required chores (`expo-image-picker`).
 - **Approval undo** — "Recently approved" section in dashboard; Undo writes a compensating `manual_adjustment` via `reverseApproval()`.
-- **Test tooling** — `make seed` (idempotent seeder), `make reset-db`, `make lint`, `make typecheck`.
+- **Dev tooling** — `make dev-all` starts PB + web + Expo in one command with emulator check, health polling, and cache clear; `make stop` kills everything including the emulator app; `RESET=1 make dev-all` wipes and reseeds. `make seed`, `make reset-db`, `make lint`, `make typecheck`.
 
 ## Not Yet Implemented
 
-- **On-device test** — run on GrapheneOS/LineageOS device (emulator only so far).
-- **Kid chore history** — past approved chores not surfaced in the kid app.
-- **Configurable currency name** — "parentBucks" is hardcoded; plan calls for per-household naming.
+- **Real-time updates** — kids must pull-to-refresh to see approvals; PocketBase subscriptions not yet wired.
+- **Integration/API tests** — no automated tests for PB hooks or the shared client; no Playwright coverage for the web dashboard.
+- **Household broadcast** — parent → all kids ntfy message; ntfy wiring exists but no UI.
+- **On-device test** — emulator validated; GrapheneOS/LineageOS real device not yet tested.
 
 ## MVP Target
 
