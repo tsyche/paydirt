@@ -8,6 +8,9 @@ function ntfyServer() {
 
 function sendNtfy(app, topic, title, message) {
   if (!topic) return; // no topic configured — skip silently
+  // Kill-switch for test runs: the seeded topics are real public ntfy.sh
+  // topics, and a test suite would otherwise blast them on every run.
+  if ($os.getenv("NTFY_DISABLED")) return;
   try {
     $http.send({
       url: ntfyServer() + "/" + topic,
@@ -26,18 +29,26 @@ function notifyUser(app, userId, title, message) {
   sendNtfy(app, user.getString("ntfy_topic"), title, message);
 }
 
-function notifyParents(app, householdId, title, message) {
-  const parents = app.findRecordsByFilter(
+function notifyRole(app, householdId, role, title, message) {
+  const members = app.findRecordsByFilter(
     "users",
-    "household = {:hh} && role = 'parent'",
+    "household = {:hh} && role = {:role}",
     "",
     0,
     0,
-    { hh: householdId },
+    { hh: householdId, role: role },
   );
-  for (const p of parents) {
-    sendNtfy(app, p.getString("ntfy_topic"), title, message);
+  for (const m of members) {
+    sendNtfy(app, m.getString("ntfy_topic"), title, message);
   }
 }
 
-module.exports = { sendNtfy, notifyUser, notifyParents };
+function notifyParents(app, householdId, title, message) {
+  notifyRole(app, householdId, "parent", title, message);
+}
+
+function notifyChildren(app, householdId, title, message) {
+  notifyRole(app, householdId, "child", title, message);
+}
+
+module.exports = { sendNtfy, notifyUser, notifyParents, notifyChildren };

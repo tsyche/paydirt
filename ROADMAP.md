@@ -8,17 +8,17 @@ Chore CRUD, assignment, complete/approve flow, parentBucks earn + spend, ntfy no
 
 ## Recently Completed
 
-1. **Android emulator dev tooling** — `make dev-all` starts everything (PB + web + Expo) with cache clear, emulator check, and health polling; `make stop` kills all services and force-quits the app on emulator; `RESET=1` flag wipes and reseeds.
-2. **Photo upload fix** — replaced `fetch(uri).blob()` (crashes on Android) with FormData URI pattern; works on both `KidHome` and `SimpleKidHome` for photo-required chores.
-3. **Approval undo** — "Recently approved" section in dashboard; Undo writes a compensating `manual_adjustment`; now surfaces errors instead of silently no-oping.
-4. **Simplified mode** — `SimpleKidHome` with giant text/buttons for young kids; handles photo-required chores; branches on `simplified_mode` user field.
-5. **Per-kid ledger + currency name** — `LedgerToggle` shows full transaction history; `currency_name` field on households with inline editor; propagated to all mobile/web views.
+1. ✅ **Real-time updates** — kid screens subscribe to their assignments + balance via PocketBase realtime (`subscribeToKidUpdates()`); approvals appear without pull-to-refresh; `react-native-sse` polyfill on mobile.
+2. ✅ **Integration + API test suite** — 11 live tests for the shared client and every PB hook/guard (`make test-integration`) + Playwright golden path & broadcast UI for the dashboard (`make test-e2e`). Caught and fixed real bugs: double-undo deduction, unscoped household filters, wrong ledger labels, pre-existing ledger drift.
+3. ✅ **Household broadcast** — `broadcasts` collection + ntfy fan-out hook; dashboard "Message all kids" control; parent-only by access rule.
+4. **Android emulator dev tooling** — `make dev-all` starts everything (PB + web + Expo) with cache clear, emulator check, and health polling; `make stop` kills all services; `RESET=1` flag wipes and reseeds.
+5. **Approval undo (hardened)** — undo is now a status change; a server hook writes the compensating ledger entry, making double-undo impossible and blocking kids from touching approved chores.
 
 ## Recommended Next 3
 
-1. **Real-time updates** — kids currently must pull-to-refresh to see approvals; PocketBase subscription API in `KidHome`/`SimpleKidHome` makes it instant. ~2-3 hrs.
-2. **Integration + API test suite** — PB hook tests (currency math, guards), shared client tests against live DB, Playwright for the parent dashboard golden path. User-requested; catches regressions before they reach the emulator. ~4-6 hrs.
-3. **Household broadcast** — parent sends a one-liner to all kids via ntfy. Already have the ntfy wiring; minimal new code. ~1 hr.
+1. **Recurring chore auto-assignment** — the `cadence` field exists but nothing acts on it: "recurring" chores sit inert until a parent manually reassigns. A PocketBase cron (`cronAdd`) re-creates assignments on schedule (daily/weekly). Fixes a half-built feature and lays the cron foundation that nudges, reminders, and the weekly digest all reuse. ~2-3 hrs.
+2. **Approval nudges** — ntfy reminder to parents when a chore sits awaiting approval >X hrs. Kids now see approvals instantly (realtime); this closes the other half of the loop. Rides the cron foundation from #1. ~1-2 hrs.
+3. **Savings goals** — named goals with progress bars and a "goal reached" notification when the balance crosses the threshold. Biggest kid-facing motivator on the list; schema + hook + kid UI. ~3-4 hrs.
 
 ## Phase 1 — Core Feature Set
 
@@ -28,14 +28,13 @@ Status legend: ✅ done · ◑ partial (see [FEATURES.md](./FEATURES.md)) · ○
 - **Currency**: ✅ configurable currency name, ○ bank thresholds (screen-time prompt), ✅ spontaneous bonus/deduction, ○ optional expiry (off by default), ○ physical goods exchange with configurable rate
 - **Savings goals**: ○ named goals with progress bars, multiple goals, fulfilled notifications
 - **Kid UX**: ○ glanceable home screen, ✅ chore history, ✅ simplified mode, ○ kid-added reminders
-- **Parent UX**: ○ scheduled chore reminders, ○ approval nudges, ✅ approval undo, ○ household broadcast, ○ approval reactions
+- **Parent UX**: ○ scheduled chore reminders, ○ approval nudges, ✅ approval undo, ✅ household broadcast, ○ approval reactions
 
 ## Phase 1.5 — Gamification & Reporting
 
 - Streak bonuses (consecutive completions, milestone rewards) ~3-4 hrs
 - Scheduled chore reminders (parent sets time per chore; PB cron fires ntfy to kid) ~2-3 hrs
-- Approval nudges (ntfy reminder to parent if chore awaiting approval >X hrs) ~1-2 hrs
-- Weekly digest (parent summary via ntfy) ~2-3 hrs
+- Weekly digest (parent summary via ntfy; reuses the cron foundation) ~2-3 hrs
 - Lower priority: pause/vacation mode, chore swap between siblings
 
 ## Phase 2 — Family Link Automation
@@ -54,7 +53,9 @@ Status legend: ✅ done · ◑ partial (see [FEATURES.md](./FEATURES.md)) · ○
 
 ## Ideas (unscheduled)
 
-- **Household broadcast** — parent sends a message to all kids via ntfy. Zero infra cost. ~1 hr.
 - **Real-device test** — run on GrapheneOS/LineageOS. Emulator validated; real device is the remaining unknown. User-driven; Claude can help debug via adb.
-- **Savings goals** — named goals with progress bars; fulfilled notification when balance crosses threshold. ~3-4 hrs.
+- **Parent dashboard realtime** — subscribe the web dashboard the way the kid screens now do; drops the post-action reloads. Quick win now that `subscribeToKidUpdates` exists as a pattern. ~1-2 hrs.
 - **Race mechanic** — chore assignable to multiple kids; first approval wins the reward. ~2-3 hrs.
+- **One-command live test run** — make target that boots an ephemeral PocketBase on a scratch data dir (with `NTFY_DISABLED=1`), migrates, seeds, runs integration + e2e, tears down. Removes the "server must be running and seeded" setup step. ~1-2 hrs.
+- **Kid-side broadcast history** — broadcasts are already stored; show the last few in the kid screens so a missed ntfy ping isn't lost. ~1 hr.
+- **Notification quiet hours** — per-household window where ntfy sends are held or dropped (no 6am "chore approved" dings). ~1-2 hrs.

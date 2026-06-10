@@ -14,8 +14,8 @@ import { client } from "../lib/client";
 type Expanded<T> = T & { expand?: Record<string, User | Chore> };
 
 const TX_LABEL: Record<string, string> = {
-  chore_reward: "Chore reward",
-  spend_deduction: "Spent",
+  earn: "Chore reward",
+  spend: "Spent",
   manual_adjustment: "Adjustment",
 };
 
@@ -45,7 +45,7 @@ export function Dashboard({
         client.listChores(householdId),
         client.listPendingApprovals(householdId),
         client.listPendingSpendRequests(householdId),
-        client.listRecentlyApproved(8),
+        client.listRecentlyApproved(householdId, 8),
       ]);
       setHousehold(hh);
       setKids(k);
@@ -101,6 +101,8 @@ export function Dashboard({
           </div>
         </div>
       ))}
+
+      {kids.length > 0 && <BroadcastControl householdId={householdId} senderId={user.id} />}
 
       <h2>Pending approvals ({approvals.length})</h2>
       {approvals.length === 0 && <p className="muted">Nothing waiting.</p>}
@@ -172,12 +174,12 @@ export function Dashboard({
             <button
               className="danger"
               onClick={() => {
-                if (!kid || !chore) {
-                  setError("Could not undo: assignment data not fully loaded. Try refreshing.");
-                  return;
-                }
-                if (!window.confirm(`Undo approval for "${chore.name}"? This will deduct ${chore.reward} ${currencyName} from ${kid.display_name}.`)) return;
-                void act(() => client.reverseApproval(kid.id, chore.reward, chore.name));
+                const choreName = chore?.name ?? "this chore";
+                const detail = chore && kid
+                  ? ` This will deduct ${chore.reward} ${currencyName} from ${kid.display_name}.`
+                  : "";
+                if (!window.confirm(`Undo approval for "${choreName}"?${detail}`)) return;
+                void act(() => client.undoApproval(a.id));
               }}
             >
               Undo
@@ -187,7 +189,7 @@ export function Dashboard({
       })}
 
       <h2>Chores</h2>
-      <CreateChore household={householdId} parentId={user.id} kids={kids} onCreated={reload} />
+      <CreateChore household={householdId} parentId={user.id} onCreated={reload} />
       {chores.map((c) => (
         <div className="card row" key={c.id}>
           <div>
@@ -252,6 +254,45 @@ function CurrencyNameControl({
       />
       <button className="primary" onClick={save} disabled={busy}>Save</button>
       <button onClick={() => setEditing(false)}>Cancel</button>
+    </div>
+  );
+}
+
+function BroadcastControl({ householdId, senderId }: { householdId: string; senderId: string }) {
+  const [message, setMessage] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [status, setStatus] = useState("");
+
+  async function send() {
+    if (!message.trim()) return;
+    setBusy(true);
+    setStatus("");
+    try {
+      await client.sendBroadcast(householdId, senderId, message.trim());
+      setMessage("");
+      setStatus("Sent to all kids 📣");
+    } catch (e) {
+      setStatus(String(e));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div className="card stack">
+      <div className="inline">
+        <input
+          placeholder="Message all kids (e.g. Dinner in 10 minutes!)"
+          value={message}
+          onChange={(e) => setMessage(e.target.value)}
+          onKeyDown={(e) => { if (e.key === "Enter") void send(); }}
+          style={{ flex: 1 }}
+        />
+        <button className="primary" onClick={send} disabled={busy || !message.trim()}>
+          📣 Send
+        </button>
+      </div>
+      {status && <p className="muted" style={{ margin: 0 }}>{status}</p>}
     </div>
   );
 }
@@ -364,7 +405,6 @@ function CreateChore({
 }: {
   household: string;
   parentId: string;
-  kids: User[];
   onCreated: () => void;
 }) {
   const [name, setName] = useState("");

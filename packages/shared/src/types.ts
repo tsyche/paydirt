@@ -91,6 +91,18 @@ export interface CurrencyTransaction extends BaseRecord {
   related_spend_request?: string; // -> spend_requests.id
 }
 
+// ─── Broadcasts ──────────────────────────────────────────────────────────────
+
+/**
+ * A one-liner from a parent to every kid in the household. Creating a record
+ * triggers the ntfy hook that fans the message out to each kid's topic.
+ */
+export interface Broadcast extends BaseRecord {
+  household: string; // -> households.id
+  sender: string; // -> users.id (parent)
+  message: string;
+}
+
 // ─── Spend Requests ──────────────────────────────────────────────────────────
 
 export type SpendRequestStatus = "pending" | "approved" | "denied";

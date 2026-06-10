@@ -1,4 +1,4 @@
-.PHONY: help setup install dev dev-all stop cache-clean dev-web dev-mobile dev-pb pb-download seed reset-db test typecheck lint lintfix clean fresh sync-docs
+.PHONY: help setup install dev dev-all stop cache-clean dev-web dev-mobile dev-pb pb-download seed reset-db test test-integration test-e2e typecheck lint lintfix clean fresh sync-docs
 
 # Colors for output
 BLUE := \033[0;34m
@@ -33,6 +33,8 @@ help:
 	@echo ""
 	@echo "$(GREEN)Quality:$(NC)"
 	@echo "  make test            Run all workspace tests"
+	@echo "  make test-integration Run live API/hook tests (needs running, seeded PocketBase)"
+	@echo "  make test-e2e        Run Playwright dashboard tests (needs running, seeded PocketBase)"
 	@echo "  make typecheck       Type-check all workspaces (tsc --noEmit)"
 	@echo "  make lint            Lint all workspaces"
 	@echo "  make lintfix         Auto-fix lint issues"
@@ -168,6 +170,21 @@ reset-db:
 
 test:
 	@pnpm -r test
+
+# Live tests need a running, seeded PocketBase: make dev-pb (in another
+# terminal), then make seed. Start PB with NTFY_DISABLED=1 to keep test runs
+# from blasting the real ntfy topics.
+test-integration:
+	@if ! curl -sf -o /dev/null http://127.0.0.1:8090/api/health; then \
+		echo "$(YELLOW)PocketBase is not running. Start it ('make dev-pb', ideally with NTFY_DISABLED=1) and 'make seed' first.$(NC)"; exit 1; \
+	fi
+	@pnpm --filter @paydirt/shared test:integration
+
+test-e2e:
+	@if ! curl -sf -o /dev/null http://127.0.0.1:8090/api/health; then \
+		echo "$(YELLOW)PocketBase is not running. Start it ('make dev-pb', ideally with NTFY_DISABLED=1) and 'make seed' first.$(NC)"; exit 1; \
+	fi
+	@pnpm --filter web test:e2e
 
 typecheck:
 	@echo "$(BLUE)Type-checking all workspaces...$(NC)"

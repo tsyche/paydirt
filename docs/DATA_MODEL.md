@@ -74,6 +74,17 @@ Append-only ledger. `+` earn, `−` spend. Sum = balance.
 | resolved_at | date | set on resolve |
 | resolved_by | relation → users | parent |
 
+### `broadcasts`
+A one-liner from a parent to every kid in the household. Creating a record
+triggers the ntfy fan-out hook. Read-only history after creation (no
+update/delete rules).
+
+| Field | Type | Notes |
+|-------|------|-------|
+| household | relation → households | required |
+| sender | relation → users | parent; required |
+| message | text | required |
+
 ## Hooks (implemented)
 
 Live in `pocketbase/pb_hooks/`. PocketBase runs each handler in an isolated VM, so shared helpers are `require()`'d **inside** each handler (see `lib/ntfy.js`).
@@ -81,11 +92,12 @@ Live in `pocketbase/pb_hooks/`. PocketBase runs each handler in an isolated VM, 
 1. **transaction → balance** (`currency.pb.js`): on `currency_transactions` create, increment `users.balance` by `amount`. Single point that maintains the cached balance.
 2. **assignment approval → earn** (`currency.pb.js`): on `assignments` update to `approved`, create an `earn` transaction for `chore.reward`.
 3. **spend approval → spend** (`currency.pb.js`): on `spend_requests` update to `approved`, guard the balance first, then create a `spend` transaction for `−amount`.
-4. **ntfy notifications** (`notifications.pb.js`): fire on chore assigned, completed (→parent), approved/rejected (→child), spend submitted (→parent), spend resolved (→child).
-5. **approval guard** (`guards.pb.js`): block non-parents from setting an assignment to `approved`/`rejected`.
+4. **approval undo → reversal** (`currency.pb.js`): on `assignments` update *out of* `approved`, create a compensating `manual_adjustment` for `−chore.reward`. Undo is therefore a single status change; the ledger can't drift from the status.
+5. **ntfy notifications** (`notifications.pb.js`): fire on chore assigned, completed (→parent, except when a parent undoes an approval), approved/rejected (→child), spend submitted (→parent), spend resolved (→child), broadcast created (→all children). Set `NTFY_DISABLED=1` to suppress sends (use for test runs — the seeded topics are real public ntfy.sh topics).
+6. **approval guard** (`guards.pb.js`): block non-parents from setting an assignment to `approved`/`rejected`, and from changing an assignment that is already `approved` (only parents may undo).
 
 ## Design decisions
 
-- **Cached balance vs. computed**: balance is a cached field on `users`, kept correct by hook #1. The ledger remains the source of truth; transactions are append-only (no edits/deletes) so the cache can't drift. Revisit if we ever need to void a transaction.
+- **Cached balance vs. computed**: balance is a cached field on `users`, kept correct by hook #1. The ledger remains the source of truth; transactions are append-only (no edits/deletes) so the cache can't drift. Voiding happens via compensating entries, never edits — approval undo (hook #4) is the canonical example.
 - **Assignments carry status, no separate `completions` collection (yet)**: for the MVP an assignment's status flow is enough. The plan's separate `completions` concept matters for the Phase 1 race mechanic (first of many to finish wins); we'll add it then rather than over-build now.
 - **Reward not snapshotted on assignment**: the `earn` transaction records the actual amount awarded, so it is the snapshot. Changing a chore's reward later doesn't rewrite history.

@@ -36,10 +36,16 @@ make dev-mobile   # Expo app
 make dev-pb       # local PocketBase (needs binary in pocketbase/)
 make seed         # seed test household/users/chores (server must be RUNNING)
 make reset-db     # wipe + rebuild empty DB (server must be STOPPED)
-make test         # all workspace tests
+make test         # all workspace tests (unit; no server needed)
+make test-integration  # live API/hook tests (needs running, seeded PB)
+make test-e2e     # Playwright dashboard tests (needs running, seeded PB)
 make lint         # lint all workspaces
 make help         # full target list
 ```
+
+For the live test targets, start the backend with notifications muted so test
+runs don't blast the real ntfy.sh topics: `NTFY_DISABLED=1 make dev-pb`, then
+`make seed`.
 
 Test data: `make seed` (idempotent) populates a "Test Family" household with a
 parent, two kids, chores, and sample activity. It talks to the running server's

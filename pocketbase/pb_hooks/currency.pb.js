@@ -46,6 +46,26 @@ onRecordAfterUpdateSuccess((e) => {
   e.next();
 }, "assignments");
 
+// ── assignments → un-approved: compensate the earn (approval undo) ───────────
+// Moving an assignment OUT of approved (parent undo) reverses the reward, so
+// the ledger and the assignment status can never drift apart.
+onRecordAfterUpdateSuccess((e) => {
+  const becameUnapproved =
+    e.record.original().getString("status") === "approved" &&
+    e.record.getString("status") !== "approved";
+  if (becameUnapproved) {
+    const chore = e.app.findRecordById("chores", e.record.getString("chore"));
+    const tx = new Record(e.app.findCollectionByNameOrId("currency_transactions"));
+    tx.set("user", e.record.getString("child"));
+    tx.set("amount", -chore.getFloat("reward"));
+    tx.set("type", "manual_adjustment");
+    tx.set("reason", "Reversal: " + chore.getString("name"));
+    tx.set("related_assignment", e.record.id);
+    e.app.save(tx);
+  }
+  e.next();
+}, "assignments");
+
 // ── spend_requests → approved: create a spend transaction (negative) ─────────
 onRecordAfterUpdateSuccess((e) => {
   const becameApproved =

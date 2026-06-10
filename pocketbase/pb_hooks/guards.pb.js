@@ -5,15 +5,18 @@
 // onRecordUpdateRequest fires only for API requests, so internal hook saves
 // (e.app.save) are never blocked by these.
 
-// Only a parent may move an assignment to approved/rejected. The update rule
-// lets a child PATCH their own assignment (to mark it completed); this stops
-// them from self-approving.
+// Only a parent may move an assignment to approved/rejected, or move it back
+// OUT of approved (approval undo — which triggers a balance reversal). The
+// update rule lets a child PATCH their own assignment (to mark it completed);
+// this stops them from self-approving or fiddling with settled chores.
 onRecordUpdateRequest((e) => {
+  const isParent = e.auth && e.auth.getString("role") === "parent";
   const status = e.record.getString("status");
-  if (status === "approved" || status === "rejected") {
-    if (!e.auth || e.auth.getString("role") !== "parent") {
-      throw new ForbiddenError("Only a parent can approve or reject a chore.");
-    }
+  if ((status === "approved" || status === "rejected") && !isParent) {
+    throw new ForbiddenError("Only a parent can approve or reject a chore.");
+  }
+  if (e.record.original().getString("status") === "approved" && !isParent) {
+    throw new ForbiddenError("Only a parent can change an approved chore.");
   }
   e.next();
 }, "assignments");

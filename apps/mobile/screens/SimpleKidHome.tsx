@@ -8,9 +8,9 @@ import {
   Snackbar,
 } from "react-native-paper";
 import { SafeAreaView } from "react-native-safe-area-context";
-import * as ImagePicker from "expo-image-picker";
 import type { Assignment, Chore, User } from "@paydirt/shared";
 import { client } from "../lib/client";
+import { takePhotoAndComplete } from "../lib/completeWithPhoto";
 
 type Expanded = Assignment & { expand?: { chore?: Chore } };
 
@@ -43,6 +43,25 @@ export function SimpleKidHome({ user, onLogout }: { user: User; onLogout: () => 
     void reload();
   }, [reload]);
 
+  // Realtime: re-fetch when this kid's assignments or balance change, so
+  // approvals show up without pull-to-refresh. Best-effort — if the
+  // subscription fails, pull-to-refresh still works.
+  useEffect(() => {
+    let unsub: (() => void) | undefined;
+    let disposed = false;
+    client
+      .subscribeToKidUpdates(user.id, () => void reload())
+      .then((u) => {
+        if (disposed) u();
+        else unsub = u;
+      })
+      .catch(() => {});
+    return () => {
+      disposed = true;
+      unsub?.();
+    };
+  }, [user.id, reload]);
+
   async function markDone(id: string) {
     try {
       await client.markComplete(id);
@@ -54,20 +73,13 @@ export function SimpleKidHome({ user, onLogout }: { user: User; onLogout: () => 
   }
 
   async function markDoneWithPhoto(id: string) {
-    const perm = await ImagePicker.requestCameraPermissionsAsync();
-    if (perm.status !== "granted") {
-      setSnack("Need camera permission for this chore!");
-      return;
-    }
-    const result = await ImagePicker.launchCameraAsync({ mediaTypes: "images", quality: 0.7 });
-    if (result.canceled) return;
     try {
-      const asset = result.assets[0];
-      const formData = new FormData();
-      formData.append("status", "completed");
-      formData.append("completed_at", new Date().toISOString());
-      formData.append("photo", { uri: asset.uri, type: asset.mimeType ?? "image/jpeg", name: "proof.jpg" } as unknown as Blob);
-      await client.pb.collection("assignments").update(id, formData);
+      const result = await takePhotoAndComplete(id);
+      if (result === "no-permission") {
+        setSnack("Need camera permission for this chore!");
+        return;
+      }
+      if (result === "cancelled") return;
       setSnack("Woohoo! Waiting for Mom/Dad to check!");
       await reload();
     } catch (e) {

@@ -15,15 +15,18 @@ Current scope tracker. See [ROADMAP.md](./ROADMAP.md) for phasing and the full p
 - **Bonus/deduction UI** — `AdjustControl` per kid in the parent dashboard; calls `adjustBalance()`.
 - **Per-kid ledger view** — `LedgerToggle` in parent dashboard shows full transaction history per kid.
 - **photo_required enforcement** — server guard (`guards.pb.js`) rejects completion without a photo; `KidHome` shows camera button for photo-required chores (`expo-image-picker`).
-- **Approval undo** — "Recently approved" section in dashboard; Undo writes a compensating `manual_adjustment` via `reverseApproval()`.
+- **Approval undo** — "Recently approved" section in dashboard; `undoApproval()` moves the assignment back to completed and a server hook writes the compensating ledger entry (double-undo impossible; kids blocked from touching approved chores).
+- **Real-time updates** — kid screens subscribe to their assignments + balance via PocketBase realtime (`subscribeToKidUpdates()`); approvals appear without pull-to-refresh. SSE polyfill (`react-native-sse`) on mobile.
+- **Household broadcast** — parent sends a one-liner to all kids from the dashboard; `broadcasts` collection + ntfy fan-out hook; only parents can send.
+- **Integration test suite** — live API tests for the shared client and every PB hook/guard (currency math, undo reversal, photo guard, balance guard, role guards, broadcast rules, realtime). `make test-integration`.
+- **Playwright e2e** — dashboard golden path (create → assign → complete → approve → undo) and broadcast UI. `make test-e2e`.
+- **ntfy kill-switch** — `NTFY_DISABLED=1` suppresses all sends so test runs don't blast the real public topics.
 - **Dev tooling** — `make dev-all` starts PB + web + Expo in one command with emulator check, health polling, and cache clear; `make stop` kills everything including the emulator app; `RESET=1 make dev-all` wipes and reseeds. `make seed`, `make reset-db`, `make lint`, `make typecheck`.
 
 ## Not Yet Implemented
 
-- **Real-time updates** — kids must pull-to-refresh to see approvals; PocketBase subscriptions not yet wired.
-- **Integration/API tests** — no automated tests for PB hooks or the shared client; no Playwright coverage for the web dashboard.
-- **Household broadcast** — parent → all kids ntfy message; ntfy wiring exists but no UI.
 - **On-device test** — emulator validated; GrapheneOS/LineageOS real device not yet tested.
+- **Parent dashboard realtime** — the web dashboard still reloads after actions; only the kid screens subscribe live.
 
 ## MVP Target
 

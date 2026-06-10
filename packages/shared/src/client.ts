@@ -2,6 +2,7 @@ import PocketBase from "pocketbase";
 import { Collections } from "./collections";
 import type {
   Assignment,
+  Broadcast,
   Chore,
   CurrencyTransaction,
   Household,
@@ -106,9 +107,11 @@ export class PaydirtClient {
     });
   }
 
-  listPendingApprovals(_householdId: string): Promise<Assignment[]> {
+  listPendingApprovals(householdId: string): Promise<Assignment[]> {
     return this.pb.collection(Collections.Assignments).getFullList<Assignment>({
-      filter: "status = 'completed'",
+      filter: this.pb.filter("status = 'completed' && chore.household = {:hh}", {
+        hh: householdId,
+      }),
       sort: "completed_at",
       expand: "chore,child",
     });
@@ -163,17 +166,27 @@ export class PaydirtClient {
     });
   }
 
-  /** Writes a compensating negative entry to undo a chore approval. */
-  reverseApproval(kidId: string, reward: number, choreName: string): Promise<CurrencyTransaction> {
-    return this.adjustBalance(kidId, -reward, `Reversal: ${choreName}`);
+  /**
+   * Undo an approval by moving the assignment back to "completed". A server
+   * hook writes the compensating negative ledger entry, so the balance and
+   * the assignment status can't drift apart (and a double-undo is impossible —
+   * the second attempt finds the status already changed).
+   */
+  undoApproval(assignmentId: string): Promise<Assignment> {
+    return this.pb.collection(Collections.Assignments).update<Assignment>(assignmentId, {
+      status: "completed",
+      approved_at: "",
+    });
   }
 
-  /** Returns the N most recently approved assignments, newest first. */
-  async listRecentlyApproved(limit = 8): Promise<Assignment[]> {
+  /** Returns the N most recently approved assignments in a household, newest first. */
+  async listRecentlyApproved(householdId: string, limit = 8): Promise<Assignment[]> {
     const result = await this.pb
       .collection(Collections.Assignments)
       .getList<Assignment>(1, limit, {
-        filter: "status = 'approved'",
+        filter: this.pb.filter("status = 'approved' && chore.household = {:hh}", {
+          hh: householdId,
+        }),
         sort: "-approved_at",
         expand: "chore,child",
       });
@@ -202,9 +215,11 @@ export class PaydirtClient {
     });
   }
 
-  listPendingSpendRequests(_householdId: string): Promise<SpendRequest[]> {
+  listPendingSpendRequests(householdId: string): Promise<SpendRequest[]> {
     return this.pb.collection(Collections.SpendRequests).getFullList<SpendRequest>({
-      filter: "status = 'pending'",
+      filter: this.pb.filter("status = 'pending' && child.household = {:hh}", {
+        hh: householdId,
+      }),
       sort: "created",
       expand: "child",
     });
@@ -225,5 +240,38 @@ export class PaydirtClient {
       resolved_at: new Date().toISOString(),
       resolved_by: resolvedBy,
     });
+  }
+
+  // ── Broadcasts ───────────────────────────────────────────────────────────────
+
+  /** Parent sends a one-liner to every kid in the household (ntfy hook delivers it). */
+  sendBroadcast(householdId: string, senderId: string, message: string): Promise<Broadcast> {
+    return this.pb.collection(Collections.Broadcasts).create<Broadcast>({
+      household: householdId,
+      sender: senderId,
+      message,
+    });
+  }
+
+  // ── Realtime ─────────────────────────────────────────────────────────────────
+  // PocketBase realtime rides on SSE. On React Native there is no native
+  // EventSource — the mobile app installs the react-native-sse polyfill before
+  // constructing the client (see apps/mobile/lib/client.ts).
+
+  /**
+   * Subscribe to everything a kid's home screen shows: their assignments and
+   * their own user record (balance). Fires `onChange` on any event; callers
+   * are expected to re-fetch. Returns an unsubscribe function.
+   */
+  async subscribeToKidUpdates(childId: string, onChange: () => void): Promise<() => void> {
+    const unsubs = await Promise.all([
+      this.pb.collection(Collections.Assignments).subscribe("*", onChange, {
+        filter: this.pb.filter("child = {:c}", { c: childId }),
+      }),
+      this.pb.collection(Collections.Users).subscribe(childId, onChange),
+    ]);
+    return () => {
+      for (const unsub of unsubs) void unsub();
+    };
   }
 }

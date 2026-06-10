@@ -24,7 +24,9 @@ onRecordAfterUpdateSuccess((e) => {
   const chore = e.app.findRecordById("chores", e.record.getString("chore"));
   const name = chore.getString("name");
 
-  if (status === "completed") {
+  if (status === "completed" && prev !== "approved") {
+    // prev === "approved" means a parent undid an approval — they already
+    // know it's back in the queue, so don't ping them.
     notifyParents(e.app, chore.getString("household"), "Chore needs approval", name);
   } else if (status === "approved") {
     notifyUser(e.app, e.record.getString("child"), "Chore approved", name + " — nice work!");
@@ -34,6 +36,19 @@ onRecordAfterUpdateSuccess((e) => {
   }
   e.next();
 }, "assignments");
+
+// ── broadcast created → fan out to every kid in the household ────────────────
+onRecordAfterCreateSuccess((e) => {
+  const { notifyChildren } = require(`${__hooks}/lib/ntfy.js`);
+  const sender = e.app.findRecordById("users", e.record.getString("sender"));
+  notifyChildren(
+    e.app,
+    e.record.getString("household"),
+    "Message from " + sender.getString("display_name"),
+    e.record.getString("message"),
+  );
+  e.next();
+}, "broadcasts");
 
 // ── spend request created → notify parents ───────────────────────────────────
 onRecordAfterCreateSuccess((e) => {

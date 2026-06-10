@@ -44,6 +44,9 @@ pnpm-debug.log*
 # Test / coverage
 coverage/
 .nyc_output/
+test-results/
+playwright-report/
+blob-report/
 
 # Audit marker (local only)
 .last-audit
