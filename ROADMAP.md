@@ -2,28 +2,35 @@
 
 Full detail and rationale: `~/.windsurf/plans/choregalore-plan.md`. Scope checklist: [FEATURES.md](./FEATURES.md).
 
-## ✅ MVP — Shipped (code-complete)
+## ✅ MVP — Shipped
 
-Chore CRUD, assignment, complete/approve flow, parentBucks earn + spend, ntfy notification wiring, shared typed client, Next.js parent dashboard, Expo kid app (role-gated).
+Chore CRUD, assignment, complete/approve flow, parentBucks earn + spend, ntfy notification wiring, shared typed client, Next.js parent dashboard, Expo kid app (role-gated), live ntfy delivery confirmed end-to-end.
 
-**Before it's truly usable (do these first):**
-1. On-device verification of the mobile app (Expo dev build for GrapheneOS/LineageOS, not just emulator).
-2. ✅ Live ntfy send — topics set on all test users; notifications confirmed delivered to ntfy.sh end-to-end.
+**Still needed before real-device use:**
+- On-device verification on GrapheneOS/LineageOS (user-driven; Claude can help debug via adb).
 
-## Recommended next 3
+## Recently Completed
 
-1. ✅ **ntfy topic setup + live test** — topics set and confirmed working end-to-end (hooks fire → ntfy.sh receives).
-2. ✅ **Spend bonus/deduction button in the dashboard** — `AdjustControl` component per kid; calls `adjustBalance()`, reloads on submit.
-3. ✅ **Simplified mode UI for the 6-year-old** — `SimpleKidHome` screen with giant text/buttons; `App.tsx` branches on `user.simplified_mode`.
+1. **Simplified mode UI** — `SimpleKidHome` screen with giant text/buttons; `App.tsx` branches on `simplified_mode`.
+2. **Bonus/deduction UI** — `AdjustControl` per kid in the parent dashboard; calls `adjustBalance()`.
+3. **ntfy live test** — topics set on all test users; hook → ntfy.sh delivery confirmed end-to-end.
+4. **Test data seeder** — `make seed` (idempotent) + `make reset-db`; all test accounts at `password123`.
+5. **eslint + typecheck** — wired across all three workspaces; `make lint` and `make typecheck` both clean.
+
+## Recommended Next 3
+
+1. **Per-kid ledger view** — `currency_transactions` data exists; purely a presentation layer. Answers "where did my parentBucks go?" for kids and parents. ~2-3 hrs.
+2. **photo_required enforcement** — flag is in the schema but does nothing. Kids can skip photos on chores that require them. Needs UI prompt in `KidHome` + hook validation server-side. Closes a real trust gap. ~3-4 hrs.
+3. **Approval undo** — a mis-approval is permanent right now. Add a parent "reverse" action that writes a compensating `manual_adjustment` rather than editing history. Keeps the ledger clean. ~2-3 hrs.
 
 ## Phase 1 — Core Feature Set
 
 Status legend: ✅ done · ◑ partial (see [FEATURES.md](./FEATURES.md)) · ○ not started
 
 - **Chores**: ○ one-off deadlines + escalating reminders, ◑ photo-required flag *(schema only — not enforced)*, ○ race mechanic (first kid wins), ○ kid-proposed chores
-- **Currency**: ○ bank thresholds (screen-time prompt), ✅ spontaneous bonus/deduction *(AdjustControl UI + API)*, ○ optional expiry (off by default), ○ physical goods exchange with configurable rate
+- **Currency**: ○ bank thresholds (screen-time prompt), ✅ spontaneous bonus/deduction, ○ optional expiry (off by default), ○ physical goods exchange with configurable rate
 - **Savings goals**: ○ named goals with progress bars, multiple goals, fulfilled notifications
-- **Kid UX**: ○ glanceable home screen, ○ chore history/portfolio, ✅ simplified mode *(SimpleKidHome screen; branches on `simplified_mode` field)*, ○ kid-added reminders
+- **Kid UX**: ○ glanceable home screen, ○ chore history/portfolio, ✅ simplified mode, ○ kid-added reminders
 - **Parent UX**: ○ scheduled chore reminders, ○ approval nudges, ○ household broadcast, ○ approval reactions
 
 ## Phase 1.5 — Gamification & Reporting
@@ -48,8 +55,6 @@ Status legend: ✅ done · ◑ partial (see [FEATURES.md](./FEATURES.md)) · ○
 
 ## Ideas (unscheduled)
 
-Cheap, high-value adds that ride on data/infra already in place:
-
-1. **Per-kid ledger view** — read-only transaction history in the dashboard (and kid app). The `currency_transactions` data already exists; this is pure presentation. Answers "where did my parentBucks go." ~2-3 hrs.
-2. **Configurable currency name per household** — the plan calls for it; small config field + UI. Lets kids name their own currency (high delight, low cost). ~1-2 hrs.
-3. **Approval undo (reversing entry)** — a mis-approval is currently permanent (append-only ledger). Add a parent "reverse" action that writes a compensating `manual_adjustment` rather than editing history. Keeps the ledger clean. ~2-3 hrs.
+- **Configurable currency name per household** — small config field + UI. Lets kids name their own currency. ~1-2 hrs.
+- **Kid chore history** — read-only list of past completed/approved chores in the kid app. Builds pride. ~2 hrs.
+- **Household broadcast** — parent sends a message to all kids via ntfy. Zero infra cost. ~1 hr.

@@ -6,22 +6,21 @@ Current scope tracker. See [ROADMAP.md](./ROADMAP.md) for phasing and the full p
 
 - **Data model** — MVP collections ([docs/DATA_MODEL.md](./docs/DATA_MODEL.md)) as a verified PocketBase migration; TypeScript mirror in `packages/shared`.
 - **Access rules** — household-scoped API rules for all collections; guard hook blocks kids from self-approving chores.
-- **Currency hooks** — verified against PocketBase 0.39.3: chore approval earns parentBucks, spend approval deducts, ledger maintains the cached balance, over-spending is blocked, re-approval is idempotent.
-- **Notification hooks** — ntfy fires wired for chore assigned/completed/approved/rejected and spend submitted/resolved (HTTP send path not yet live-tested — needs a real ntfy topic).
-- **Shared client** (`packages/shared`) — typed PocketBase wrapper (auth, chores, assignments, currency, spend). Verified end-to-end via a live integration test (real user auth + rules + guards).
-- **Web dashboard** (`apps/web`, Next.js) — parent login, kids' balances, pending approvals (approve/reject), spend requests (approve/deny), create/assign chores. Builds and serves.
-- **Mobile app** (`apps/mobile`, Expo + react-native-paper) — role-gated; kid screen with balance, assigned chores (mark done), and spend requests. Bundles via Metro. **Not yet run on a device/emulator.**
+- **Currency hooks** — chore approval earns parentBucks, spend approval deducts, ledger maintains cached balance, over-spending blocked, re-approval idempotent.
+- **Notification hooks** — ntfy fires for chore assigned/completed/approved/rejected and spend submitted/resolved. Topics set per user; end-to-end delivery confirmed.
+- **Shared client** (`packages/shared`) — typed PocketBase wrapper (auth, chores, assignments, currency, spend). Integration-tested against live server.
+- **Web dashboard** (`apps/web`, Next.js) — parent login, kids' balances, pending approvals (approve/reject), spend requests (approve/deny), create/assign chores, per-kid bonus/deduction.
+- **Mobile app** (`apps/mobile`, Expo + react-native-paper) — role-gated; kid screen (balance, chores, mark done, spend request); simplified mode for young kids; runs on emulator.
+- **Simplified mode** — `SimpleKidHome` screen with giant text/buttons for early readers; branches on `simplified_mode` user field.
+- **Bonus/deduction UI** — `AdjustControl` per kid in the parent dashboard; calls `adjustBalance()`.
+- **Test tooling** — `make seed` (idempotent seeder), `make reset-db`, `make lint`, `make typecheck`.
 
-## In Progress
+## Not Yet Implemented (Phase 1 gaps)
 
-- On-device verification of the mobile app (Expo Go / emulator).
-- Live ntfy send (needs a configured topic per user).
-
-## Phase 1 — Partial
-
-- **Spontaneous bonus/deduction** ✅ — `adjustBalance()` creates a `manual_adjustment` transaction; the hook updates the cached balance, ledger-consistent. API-only (not surfaced in the dashboard UI yet).
-- **Photo-required flag** ⚠️ _schema only_ — `photo_required` exists on chores and `markComplete()` accepts a photo, but nothing enforces it and the UI doesn't prompt. Not a working feature yet.
-- **Simplified mode** ⚠️ _schema only_ — `simplified_mode` exists on users, but no app behavior branches on it.
+- **photo_required enforcement** ⚠️ — flag exists on chores and `markComplete()` accepts a photo, but nothing enforces it and the UI doesn't prompt. Schema only.
+- **Spending history / ledger view** — `currency_transactions` data exists but isn't surfaced in any UI.
+- **Approval undo** — mis-approval is permanent; no parent "reverse" action yet.
+- **On-device test** — run on GrapheneOS/LineageOS device (emulator only so far).
 
 ## MVP Target
 
