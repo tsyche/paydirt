@@ -8,7 +8,7 @@ import {
   Snackbar,
 } from "react-native-paper";
 import { SafeAreaView } from "react-native-safe-area-context";
-import type { Assignment, Chore, User } from "@paydirt/shared";
+import type { Assignment, Broadcast, Chore, User } from "@paydirt/shared";
 import { client } from "../lib/client";
 import { takePhotoAndComplete } from "../lib/completeWithPhoto";
 
@@ -18,20 +18,23 @@ export function SimpleKidHome({ user, onLogout }: { user: User; onLogout: () => 
   const [balance, setBalance] = useState(user.balance);
   const [assignments, setAssignments] = useState<Expanded[]>([]);
   const [currencyName, setCurrencyName] = useState("parentBucks");
+  const [broadcasts, setBroadcasts] = useState<Broadcast[]>([]);
   const [refreshing, setRefreshing] = useState(false);
   const [snack, setSnack] = useState("");
 
   const reload = useCallback(async () => {
     setRefreshing(true);
     try {
-      const [bal, list, household] = await Promise.all([
+      const [bal, list, household, bcs] = await Promise.all([
         client.getBalance(user.id),
         client.listActiveAssignmentsForChild(user.id),
         client.getHousehold(user.household),
+        client.getRecentBroadcasts(user.household, 3),
       ]);
       setBalance(bal);
       setAssignments(list as Expanded[]);
       setCurrencyName(household.currency_name?.trim() || "parentBucks");
+      setBroadcasts(bcs);
     } catch (e) {
       setSnack(String(e));
     } finally {
@@ -162,6 +165,13 @@ export function SimpleKidHome({ user, onLogout }: { user: User; onLogout: () => 
             <Text style={styles.waitingText}>Waiting for Mom/Dad…</Text>
           </Surface>
         ))}
+
+        {broadcasts.map((b) => (
+          <Surface key={b.id} style={[styles.choreCard, styles.broadcastCard]} elevation={1}>
+            <Text style={styles.choreEmoji}>📣</Text>
+            <Text style={styles.broadcastText}>{b.message}</Text>
+          </Surface>
+        ))}
       </ScrollView>
 
       <Snackbar visible={!!snack} onDismiss={() => setSnack("")} duration={3000}>
@@ -207,4 +217,6 @@ const styles = StyleSheet.create({
   doneButtonContent: { paddingVertical: 12 },
   doneButtonLabel: { fontSize: 22, fontWeight: "700" },
   waitingText: { fontSize: 18, opacity: 0.7, textAlign: "center" },
+  broadcastCard: { backgroundColor: "#e8f4fd" },
+  broadcastText: { fontSize: 22, fontWeight: "600", textAlign: "center" },
 });

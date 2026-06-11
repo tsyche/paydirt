@@ -184,6 +184,66 @@ test-e2e:
     fi
     pnpm --filter web test:e2e
 
+# Self-contained test run: ephemeral PB on :8091, migrate, seed, integration + e2e, teardown
+test-all:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    TEST_PORT=8091
+    TEST_URL="http://127.0.0.1:${TEST_PORT}"
+    EDIR=$(mktemp -d)
+
+    cleanup() {
+        if [ -f "${EDIR}/pb.pid" ]; then
+            kill "$(cat "${EDIR}/pb.pid")" 2>/dev/null || true
+        fi
+        rm -rf "${EDIR}"
+        printf '\033[0;34mEphemeral PB torn down.\033[0m\n'
+    }
+    trap cleanup EXIT INT TERM
+
+    if [ ! -f "{{pb}}" ]; then
+        printf '\033[0;33mPocketBase binary not found — run '\''just pb-download'\''.\033[0m\n'
+        exit 1
+    fi
+    if lsof -ti :"${TEST_PORT}" &>/dev/null; then
+        printf '\033[0;33mPort %s is already in use. Stop that process first.\033[0m\n' "${TEST_PORT}"
+        exit 1
+    fi
+
+    printf '\033[0;34mBootstrapping ephemeral PocketBase on :%s...\033[0m\n' "${TEST_PORT}"
+    {{pb}} migrate up --dir "${EDIR}/pb_data" --migrationsDir pocketbase/pb_migrations 2>&1 | grep -v '^$' || true
+    {{pb}} superuser upsert admin@paydirt.local password123 --dir "${EDIR}/pb_data" 2>&1 | grep -v '^$' || true
+
+    NTFY_DISABLED=1 {{pb}} serve \
+        --dir "${EDIR}/pb_data" \
+        --hooksDir pocketbase/pb_hooks \
+        --migrationsDir pocketbase/pb_migrations \
+        --http "127.0.0.1:${TEST_PORT}" \
+        > "${EDIR}/pb.log" 2>&1 &
+    echo $! > "${EDIR}/pb.pid"
+
+    printf 'Waiting for PocketBase...'
+    for i in $(seq 1 30); do
+        if curl -sf -o /dev/null "${TEST_URL}/api/health"; then printf ' ready.\n'; break; fi
+        [ "${i}" = "30" ] && { printf '\nFailed to start — see %s\n' "${EDIR}/pb.log"; cat "${EDIR}/pb.log"; exit 1; }
+        sleep 1
+    done
+
+    printf '\033[0;34mSeeding...\033[0m\n'
+    PB_URL="${TEST_URL}" node pocketbase/seed.mjs
+
+    printf '\033[0;34mRunning integration tests...\033[0m\n'
+    PB_URL="${TEST_URL}" pnpm --filter @paydirt/shared test:integration
+
+    if lsof -ti :3000 &>/dev/null; then
+        printf '\033[0;33mNote: port 3000 already in use — Playwright will reuse that server.\033[0m\n'
+        printf '\033[0;33m      If it is a dev server pointed at 8090, e2e results may be unreliable.\033[0m\n'
+    fi
+    printf '\033[0;34mRunning e2e tests...\033[0m\n'
+    PB_URL="${TEST_URL}" NEXT_PUBLIC_POCKETBASE_URL="${TEST_URL}" pnpm --filter web test:e2e
+
+    printf '\033[0;32mAll tests passed.\033[0m\n'
+
 # Type-check all workspaces (tsc --noEmit)
 typecheck:
     @printf '\033[0;34mType-checking all workspaces...\033[0m\n'

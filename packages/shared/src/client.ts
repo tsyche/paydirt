@@ -418,6 +418,15 @@ export class PaydirtClient {
     });
   }
 
+  /** Fetch the N most recent broadcasts for a household (kid screens use this). */
+  async getRecentBroadcasts(householdId: string, limit = 5): Promise<Broadcast[]> {
+    const result = await this.pb.collection(Collections.Broadcasts).getList<Broadcast>(1, limit, {
+      filter: this.pb.filter("household = {:hh}", { hh: householdId }),
+      sort: "-created",
+    });
+    return result.items;
+  }
+
   // ── Realtime ─────────────────────────────────────────────────────────────────
   // PocketBase realtime rides on SSE. On React Native there is no native
   // EventSource — the mobile app installs the react-native-sse polyfill before

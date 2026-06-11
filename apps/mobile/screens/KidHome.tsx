@@ -15,7 +15,7 @@ import {
   Snackbar,
 } from "react-native-paper";
 import { SafeAreaView } from "react-native-safe-area-context";
-import type { Assignment, Chore, Household, SavingsGoal, User } from "@paydirt/shared";
+import type { Assignment, Broadcast, Chore, Household, SavingsGoal, User } from "@paydirt/shared";
 import { client } from "../lib/client";
 import { takePhotoAndComplete } from "../lib/completeWithPhoto";
 
@@ -44,6 +44,7 @@ export function KidHome({ user, onLogout }: { user: User; onLogout: () => void }
   const [swapsIn, setSwapsIn] = useState<Expanded[]>([]);
   const [siblings, setSiblings] = useState<User[]>([]);
   const [household, setHousehold] = useState<Household | null>(null);
+  const [broadcasts, setBroadcasts] = useState<Broadcast[]>([]);
   const [historyOpen, setHistoryOpen] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [spendOpen, setSpendOpen] = useState(false);
@@ -58,7 +59,7 @@ export function KidHome({ user, onLogout }: { user: User; onLogout: () => void }
   const reload = useCallback(async () => {
     setRefreshing(true);
     try {
-      const [freshMe, list, hist, gs, swaps, kids, hh] = await Promise.all([
+      const [freshMe, list, hist, gs, swaps, kids, hh, bcs] = await Promise.all([
         client.pb.collection("users").getOne<User>(user.id),
         client.listActiveAssignmentsForChild(user.id),
         client.listApprovedHistory(user.id, 50),
@@ -66,6 +67,7 @@ export function KidHome({ user, onLogout }: { user: User; onLogout: () => void }
         client.listIncomingSwaps(user.id),
         client.listChildren(user.household),
         client.getHousehold(user.household),
+        client.getRecentBroadcasts(user.household, 5),
       ]);
       setMe(freshMe);
       setAssignments(list as Expanded[]);
@@ -74,6 +76,7 @@ export function KidHome({ user, onLogout }: { user: User; onLogout: () => void }
       setSwapsIn((swaps as Expanded[]).filter((s) => s.child !== user.id));
       setSiblings(kids.filter((k) => k.id !== user.id));
       setHousehold(hh);
+      setBroadcasts(bcs);
     } catch (e) {
       setSnack(String(e));
     } finally {
@@ -275,6 +278,24 @@ export function KidHome({ user, onLogout }: { user: User; onLogout: () => void }
           onCreate={(name, target) => act(() => client.createGoal(user.id, name, target), "Goal added!")()}
           onDelete={(id) => act(() => client.deleteGoal(id))()}
         />
+
+        {broadcasts.length > 0 && (
+          <>
+            <Text variant="titleMedium" style={styles.heading}>
+              From parent 📣
+            </Text>
+            {broadcasts.map((b) => (
+              <Card key={b.id} style={styles.choreCard}>
+                <Card.Content>
+                  <Text variant="bodyMedium">{b.message}</Text>
+                  <Text variant="bodySmall" style={styles.date}>
+                    {b.created.slice(0, 10)}
+                  </Text>
+                </Card.Content>
+              </Card>
+            ))}
+          </>
+        )}
 
         {history.length > 0 && (
           <List.Accordion
