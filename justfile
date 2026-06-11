@@ -106,6 +106,36 @@ dev-web:
 dev-mobile:
     @pnpm run dev:mobile
 
+# Start PB + Expo pointed at a physical Android device over LAN
+dev-device:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    LAN_IP=$(ipconfig getifaddr en0 2>/dev/null || ip route get 1 2>/dev/null | awk '{print $7; exit}' || echo "")
+    if [ -z "${LAN_IP}" ]; then
+        printf '\033[0;33mCould not detect LAN IP. Set EXPO_PUBLIC_POCKETBASE_URL manually.\033[0m\n'
+        exit 1
+    fi
+    if [ ! -f "{{pb}}" ]; then
+        printf '\033[0;33mPocketBase binary not found — run '\''just pb-download'\''.\033[0m\n'
+        exit 1
+    fi
+    printf '\033[0;32mLAN IP: %s\033[0m\n' "${LAN_IP}"
+    printf '\033[0;34mStarting PocketBase (listening on all interfaces)...\033[0m\n'
+    mkdir -p /tmp/paydirt-logs
+    {{pb}} serve --dir pocketbase/pb_data --hooksDir pocketbase/pb_hooks --migrationsDir pocketbase/pb_migrations \
+        --http "0.0.0.0:8090" \
+        > /tmp/paydirt-logs/pb.log 2>&1 & echo $! > /tmp/paydirt-pb.pid
+    sleep 2
+    printf '\033[0;34mStarting Expo (scan QR on device)...\033[0m\n'
+    printf '\n  Device PB URL: http://%s:8090\n' "${LAN_IP}"
+    printf '  Set in .env:   EXPO_PUBLIC_POCKETBASE_URL=http://%s:8090\n\n' "${LAN_IP}"
+    EXPO_PUBLIC_POCKETBASE_URL="http://${LAN_IP}:8090" pnpm --filter mobile start
+
+# Tunnel device USB traffic → host port 8090 (run once after plugging in; lets device use 127.0.0.1)
+adb-tunnel:
+    @adb reverse tcp:8090 tcp:8090
+    @printf '\033[0;32mTunnel set: device:8090 → host:8090. Use EXPO_PUBLIC_POCKETBASE_URL=http://127.0.0.1:8090\033[0m\n'
+
 # Start PocketBase only (use NTFY_DISABLED=1 just dev-pb for test runs)
 dev-pb:
     #!/usr/bin/env bash
