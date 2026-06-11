@@ -206,6 +206,11 @@ clean: cache-clean
     @rm -rf apps/web/out apps/*/dist packages/*/dist
     @find . -name "*.tsbuildinfo" -delete 2>/dev/null || true
 
+# Build all apps for production (mobile production build requires EAS: eas build)
+build:
+    @printf '\033[0;34mBuilding web app...\033[0m\n'
+    @pnpm --filter web build
+
 # Full reset: clean + setup + test
 fresh: clean setup test
 
