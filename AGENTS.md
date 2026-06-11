@@ -66,8 +66,8 @@ PocketBase binary is not committed — run `just pb-download` (or grab it from t
 
 - **Roles**: One mobile app binary; parent vs. child determined at login. Parents also use the web dashboard.
 - **parentBucks**: Virtual currency earned on parent-approved chore completion. Configurable reward per chore. Spent via request → parent approval → deduction.
-- **Race mechanic** (post-MVP): a chore assignable to multiple kids; first one approved wins the reward.
-- **Simplified mode** (post-MVP): per-child UI toggle — larger tap targets, icon-heavy, minimal reading. Default on for the youngest (age 6); standard UI for the 11-year-old.
+- **Race mechanic**: a chore assignable to multiple kids; first one approved wins the reward.
+- **Simplified mode**: per-child UI toggle — larger tap targets, icon-heavy, minimal reading. Default on for the youngest (age 6); standard UI for the 11-year-old.
 - **No Google**: Stack deliberately avoids Play Services. ntfy over FCM, PocketBase over Firebase.
 - **Family Link automation** is a future phase (Accessibility Service, then custom MDM) — see plan.
 

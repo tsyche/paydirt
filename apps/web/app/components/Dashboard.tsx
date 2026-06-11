@@ -73,10 +73,16 @@ export function Dashboard({
   useEffect(() => {
     void reload();
     let unsub: (() => void) | undefined;
-    client.subscribeToDashboardUpdates(householdId, () => void reload()).then((fn) => {
-      unsub = fn;
-    });
+    let disposed = false;
+    client
+      .subscribeToDashboardUpdates(householdId, () => void reload())
+      .then((fn) => {
+        if (disposed) fn();
+        else unsub = fn;
+      })
+      .catch(() => {});
     return () => {
+      disposed = true;
       unsub?.();
     };
   }, [reload, householdId]);

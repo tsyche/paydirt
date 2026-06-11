@@ -13,7 +13,7 @@ function sendNtfy(app, topic, title, message) {
   if ($os.getenv("NTFY_DISABLED")) return;
   try {
     $http.send({
-      url: ntfyServer() + "/" + topic,
+      url: ntfyServer() + "/" + encodeURIComponent(topic),
       method: "POST",
       body: message,
       headers: { Title: title },
