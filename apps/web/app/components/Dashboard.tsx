@@ -72,7 +72,14 @@ export function Dashboard({
 
   useEffect(() => {
     void reload();
-  }, [reload]);
+    let unsub: (() => void) | undefined;
+    client.subscribeToDashboardUpdates(householdId, () => void reload()).then((fn) => {
+      unsub = fn;
+    });
+    return () => {
+      unsub?.();
+    };
+  }, [reload, householdId]);
 
   const act = async (fn: () => Promise<unknown>) => {
     setError("");

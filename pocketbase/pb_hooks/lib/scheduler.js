@@ -138,12 +138,68 @@ function runTick(app) {
   }
 }
 
-// ── daily (3am): currency expiry + streak refresh ────────────────────────────
+// ── daily (3am): recurring assignment, currency expiry, streak refresh ───────
 function runDaily(app) {
   const { computeStreak } = require(`${__hooks}/lib/streaks.js`);
+  const { notifyUser } = require(`${__hooks}/lib/ntfy.js`);
   const now = new Date();
 
   for (const hh of listHouseholds(app)) {
+    if (!hh.getBool("paused")) {
+      // Recurring chore auto-assignment: re-create an assignment when a
+      // recurring chore has no open assignment for a kid who's done it before.
+      // "daily" cadence: re-assign any time there's no active assignment.
+      // "weekly" cadence: re-assign only after 7 days since the last was created.
+      const recurringChores = app.findRecordsByFilter(
+        "chores",
+        "household = {:hh} && active = true && type = 'recurring'",
+        "",
+        0,
+        0,
+        { hh: hh.id },
+      );
+      for (const chore of recurringChores) {
+        const cadence = chore.getString("cadence") || "daily";
+        // Build a map of childId → most recent assignment for this chore.
+        const history = app.findRecordsByFilter(
+          "assignments",
+          "chore = {:c}",
+          "-created",
+          0,
+          0,
+          { c: chore.id },
+        );
+        const lastByChild = {};
+        for (const a of history) {
+          const cid = a.getString("child");
+          if (!lastByChild[cid]) lastByChild[cid] = a;
+        }
+        for (const childId in lastByChild) {
+          // Skip if the kid already has an open assignment for this chore.
+          const open = app.findRecordsByFilter(
+            "assignments",
+            "chore = {:c} && child = {:kid} && status != 'approved' && status != 'closed'",
+            "",
+            1,
+            0,
+            { c: chore.id, kid: childId },
+          );
+          if (open.length > 0) continue;
+          // Weekly cadence: only re-assign after 7 days since the last was created.
+          if (cadence === "weekly") {
+            const lastCreated = new Date(lastByChild[childId].getString("created").replace(" ", "T"));
+            if ((now.getTime() - lastCreated.getTime()) < 7 * 86400e3) continue;
+          }
+          const a = new Record(app.findCollectionByNameOrId("assignments"));
+          a.set("chore", chore.id);
+          a.set("child", childId);
+          a.set("status", "assigned");
+          app.save(a);
+          notifyUser(app, childId, "New chore assigned 🧹", chore.getString("name"));
+        }
+      }
+    }
+
     // Expiry: earn entries older than expiry_days lapse via a compensating
     // negative adjustment, capped at the current balance (already-spent
     // rewards can't expire twice). Skipped while on vacation.

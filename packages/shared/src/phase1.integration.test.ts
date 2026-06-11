@@ -180,4 +180,31 @@ describe("Phase 1 features (live)", () => {
       parent.pb.send("/api/paydirt/cron/tick", { method: "POST" }),
     ).rejects.toThrow();
   });
+
+  it("recurring chore auto-assignment: daily cron re-creates after approval", async () => {
+    const admin = new PaydirtClient(PB_URL);
+    await admin.pb.collection("_superusers").authWithPassword(ADMIN_EMAIL, ADMIN_PASSWORD);
+
+    // Create a recurring chore and give kid1 the first assignment
+    const chore = await newChore("Take out trash", { type: "recurring", cadence: "daily" });
+    const first = await parent.assignChore(chore.id, kid1User.id);
+
+    // Complete and approve — no open assignment now
+    await kid1.markComplete(first.id);
+    await parent.approveAssignment(first.id);
+
+    // Running daily cron should re-assign since there's no open assignment
+    await admin.pb.send("/api/paydirt/cron/daily", { method: "POST" });
+
+    const active = await kid1.listActiveAssignmentsForChild(kid1User.id);
+    const newAssignment = active.find((a) => a.chore === chore.id);
+    expect(newAssignment).toBeDefined();
+    expect(newAssignment!.status).toBe("assigned");
+
+    // Running daily cron again should NOT create a duplicate (open one exists)
+    await admin.pb.send("/api/paydirt/cron/daily", { method: "POST" });
+    const activeAgain = await kid1.listActiveAssignmentsForChild(kid1User.id);
+    const duplicates = activeAgain.filter((a) => a.chore === chore.id);
+    expect(duplicates).toHaveLength(1);
+  });
 });

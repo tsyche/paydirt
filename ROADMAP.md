@@ -8,17 +8,18 @@ Chore CRUD, assignment, complete/approve flow, parentBucks earn + spend, ntfy no
 
 ## Recently Completed
 
-1. ✅ **Phase 1 + 1.5 wrap (2026-06-10)** — deadlines with escalating reminders, race mechanic, kid-proposed chores, savings goals, bank threshold, currency expiry, goods-rate display, kid reminders, scheduled chore reminders, approval nudges, approval reactions, streak bonuses, weekly digest, chore swap, vacation mode, household settings panel. Cron foundation (`scheduler.pb.js`, 10-min tick + daily + weekly) with superuser-only manual triggers for tests.
-2. ✅ **Rejected-chore flow** — kids reply to rejections or resubmit; resubmission requires a fresh photo (server-enforced); parents see replies in the approval queue; simplified mode "Try again 📷".
-3. ✅ **Collapsible kid history** — accordion closed by default, capped at 50 via a paged query.
-4. ✅ **Photo guard fix** — legit photo uploads were rejected (file object vs filename mid-update); with-photo path now covered by tests.
+1. ✅ **Parent dashboard realtime (2026-06-10)** — `subscribeToDashboardUpdates()` added to shared client; Dashboard wires it up in `useEffect` so approvals, spend requests, proposals, chore changes, and kid balances update live without post-action full reloads.
+2. ✅ **Recurring chore auto-assignment (2026-06-10)** — `runDaily` now re-creates assignments for recurring chores (daily or weekly cadence) when no open assignment exists for a kid who's had the chore before. Duplicate-safe: a second cron pass is a no-op if one is already assigned. Integration test added.
+2. ✅ **Phase 1 + 1.5 wrap (2026-06-10)** — deadlines with escalating reminders, race mechanic, kid-proposed chores, savings goals, bank threshold, currency expiry, goods-rate display, kid reminders, scheduled chore reminders, approval nudges, approval reactions, streak bonuses, weekly digest, chore swap, vacation mode, household settings panel. Cron foundation (`scheduler.pb.js`, 10-min tick + daily + weekly) with superuser-only manual triggers for tests.
+3. ✅ **Rejected-chore flow** — kids reply to rejections or resubmit; resubmission requires a fresh photo (server-enforced); parents see replies in the approval queue; simplified mode "Try again 📷".
+4. ✅ **Collapsible kid history** — accordion closed by default, capped at 50 via a paged query.
 5. ✅ **Real-time updates / test suite / broadcast** — kid screens subscribe live; 18 integration + 4 Playwright tests; household broadcast.
 
 ## Recommended Next 3
 
-1. **Recurring chore auto-assignment** — the `cadence` field still does nothing: "recurring" chores sit inert until a parent manually reassigns. The cron foundation now exists (`lib/scheduler.js`); add a daily pass that re-creates assignments per cadence. ~1-2 hrs.
-2. **Real-device test** — kids are about to start testing; validate on the actual GrapheneOS/LineageOS device before they do. User-driven; Claude can help debug via adb.
-3. **Parent dashboard realtime** — subscribe the dashboard the way the kid screens do; drops the post-action reloads. ~1-2 hrs.
+1. **Real-device test** — kids are about to start testing; validate on the actual GrapheneOS/LineageOS device before they do. User-driven; Claude can help debug via adb.
+2. **One-command live test run** — just target that boots ephemeral PocketBase, migrates, seeds, runs integration + e2e, tears down. Removes the "server must be running and seeded" setup step. ~1-2 hrs.
+3. **Kid broadcast history** — broadcasts are already stored; show the last few in kid screens so a missed ntfy ping isn't lost. ~1 hr.
 
 ## Phase 1 — Core Feature Set ✅ (completed 2026-06-10)
 

@@ -443,4 +443,38 @@ export class PaydirtClient {
       for (const unsub of unsubs) void unsub();
     };
   }
+
+  /**
+   * Subscribe to everything the parent dashboard shows: assignments, spend
+   * requests, proposals, chores, kids' balances, and the household record.
+   * Fires `onChange` on any event; caller re-fetches. Returns an unsubscribe
+   * function.
+   */
+  async subscribeToDashboardUpdates(
+    householdId: string,
+    onChange: () => void,
+  ): Promise<() => void> {
+    const hhFilter = this.pb.filter("household = {:hh}", { hh: householdId });
+    const unsubs = await Promise.all([
+      this.pb.collection(Collections.Assignments).subscribe("*", onChange, {
+        filter: this.pb.filter("chore.household = {:hh}", { hh: householdId }),
+      }),
+      this.pb.collection(Collections.SpendRequests).subscribe("*", onChange, {
+        filter: hhFilter,
+      }),
+      this.pb.collection(Collections.ChoreProposals).subscribe("*", onChange, {
+        filter: hhFilter,
+      }),
+      this.pb.collection(Collections.Chores).subscribe("*", onChange, {
+        filter: hhFilter,
+      }),
+      this.pb.collection(Collections.Users).subscribe("*", onChange, {
+        filter: hhFilter,
+      }),
+      this.pb.collection(Collections.Households).subscribe(householdId, onChange),
+    ]);
+    return () => {
+      for (const unsub of unsubs) void unsub();
+    };
+  }
 }
