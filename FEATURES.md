@@ -18,8 +18,8 @@ Current scope tracker. See [ROADMAP.md](./ROADMAP.md) for phasing and the full p
 - **Approval undo** — "Recently approved" section in dashboard; `undoApproval()` moves the assignment back to completed and a server hook writes the compensating ledger entry (double-undo impossible; kids blocked from touching approved chores).
 - **Real-time updates** — kid screens subscribe to their assignments + balance via PocketBase realtime (`subscribeToKidUpdates()`); approvals appear without pull-to-refresh. SSE polyfill (`react-native-sse`) on mobile.
 - **Household broadcast** — parent sends a one-liner to all kids from the dashboard; `broadcasts` collection + ntfy fan-out hook; only parents can send.
-- **Integration test suite** — live API tests for the shared client and every PB hook/guard (currency math, undo reversal, photo guard, balance guard, role guards, broadcast rules, realtime). `make test-integration`.
-- **Playwright e2e** — dashboard golden path (create → assign → complete → approve → undo) and broadcast UI. `make test-e2e`.
+- **Integration test suite** — live API tests for the shared client and every PB hook/guard (currency math, undo reversal, photo guard, balance guard, role guards, broadcast rules, realtime). `just test-integration`.
+- **Playwright e2e** — dashboard golden path (create → assign → complete → approve → undo) and broadcast UI. `just test-e2e`.
 - **ntfy kill-switch** — `NTFY_DISABLED=1` suppresses all sends so test runs don't blast the real public topics.
 - **Rejected-chore flow** — kids reply to rejections (`kid_response`, parents notified + shown in dashboard) or resubmit; resubmission requires a freshly uploaded photo, enforced server-side. Simplified mode gets a big "Try again 📷" button.
 - **Collapsible history** — kid history is an accordion, closed by default, capped at the 50 most recent approvals (paged query, not getFullList).
@@ -39,13 +39,11 @@ Current scope tracker. See [ROADMAP.md](./ROADMAP.md) for phasing and the full p
 - **Weekly digest** — Sunday-evening ntfy summary to parents (per-kid chores, earned/spent, balances, pending approvals).
 - **Vacation mode** — household pause switch suspends cron reminders, nudges, digest, and expiry.
 - **Household settings panel** — currency name, bank threshold, expiry days, goods rate, nudge hours, vacation mode — all in the dashboard.
-- **Dev tooling** — `make dev-all` starts PB + web + Expo in one command with emulator check, health polling, and cache clear; `make stop` kills everything including the emulator app; `RESET=1 make dev-all` wipes and reseeds. `make seed`, `make reset-db`, `make lint`, `make typecheck`.
+- **Dev tooling** — `just dev-all` starts PB + web + Expo in one command with emulator check, health polling, and cache clear; `just stop` kills everything including the emulator app; `just dev-all reset=1` wipes and reseeds. `just seed`, `just reset-db`, `just lint`, `just typecheck`.
 
 ## Not Yet Implemented
 
-- **Recurring chore auto-assignment** — the `cadence` field exists but nothing re-creates assignments on schedule yet.
 - **On-device test** — emulator validated; GrapheneOS/LineageOS real device not yet tested.
-- **Parent dashboard realtime** — the web dashboard still reloads after actions; only the kid screens subscribe live.
 
 ## MVP Target
 

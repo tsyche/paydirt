@@ -82,6 +82,7 @@ Append-only ledger. `+` earn, `−` spend. Sum = balance.
 | reason | text | optional |
 | related_assignment | relation → assignments | optional |
 | related_spend_request | relation → spend_requests | optional |
+| expiry_processed | bool | set by daily cron after expiry entry written (dedupe guard) |
 
 ### `spend_requests`
 | Field | Type | Notes |
@@ -151,11 +152,11 @@ Server-local time. Manual triggers for tests/debugging: `POST /api/paydirt/cron/
 | Job | Schedule | Does |
 |-----|----------|------|
 | paydirt_tick | every 10 min | approval nudges (`nudge_hours`), daily chore reminders (`reminder_time`), deadline escalation (`due_at`: 24h → 2h → overdue, parents pinged on overdue), kid one-shot reminders |
-| paydirt_daily | 03:00 | currency expiry (`expiry_days`, compensating negative adjustment capped at balance), streak refresh (zeroes broken streaks) |
+| paydirt_daily | 03:00 | currency expiry (`expiry_days`, compensating negative adjustment capped at balance), streak refresh (zeroes broken streaks), recurring chore auto-assignment (re-creates assignments for recurring chores when no open one exists per kid) |
 | paydirt_digest | Sun 18:00 | weekly per-kid summary (chores, earned/spent, balances, pending count) to parents |
 
 ## Design decisions
 
 - **Cached balance vs. computed**: balance is a cached field on `users`, kept correct by hook #1. The ledger remains the source of truth; transactions are append-only (no edits/deletes) so the cache can't drift. Voiding happens via compensating entries, never edits — approval undo (hook #4) is the canonical example.
-- **Assignments carry status, no separate `completions` collection (yet)**: for the MVP an assignment's status flow is enough. The plan's separate `completions` concept matters for the Phase 1 race mechanic (first of many to finish wins); we'll add it then rather than over-build now.
+- **Assignments carry status, no separate `completions` collection**: the status flow is enough. The race mechanic (first approval wins) is handled by `races.pb.js` closing losing assignments on the existing `assignments` collection.
 - **Reward not snapshotted on assignment**: the `earn` transaction records the actual amount awarded, so it is the snapshot. Changing a chore's reward later doesn't rewrite history.

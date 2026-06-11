@@ -8,7 +8,7 @@ The PocketBase binary is **not** committed (gitignored). Version-controlled here
 2. Run it:
 
    ```bash
-   make dev-pb
+   just dev-pb
    ```
 
    This serves on `http://localhost:8090` using the local `pb_data/`, `pb_hooks/`, and `pb_migrations/` directories.
@@ -23,9 +23,9 @@ The PocketBase binary is **not** committed (gitignored). Version-controlled here
 
 ## Test data
 
-With the server running, `make seed` populates a "Test Family" household (parent,
+With the server running, `just seed` populates a "Test Family" household (parent,
 two kids, chores, sample activity) via `seed.mjs` — idempotent, safe to re-run.
-For a clean slate: stop the server, `make reset-db`, restart, then `make seed`.
+For a clean slate: stop the server, `just reset-db`, restart, then `just seed`.
 All seeded logins use password `password123`.
 
 ## Production (future)
