@@ -30,29 +30,29 @@ paydirt/
 ## Development
 
 ```bash
-make setup        # install workspace deps (pnpm)
-make dev-web      # Next.js dashboard
-make dev-mobile   # Expo app
-make dev-pb       # local PocketBase (needs binary in pocketbase/)
-make seed         # seed test household/users/chores (server must be RUNNING)
-make reset-db     # wipe + rebuild empty DB (server must be STOPPED)
-make test         # all workspace tests (unit; no server needed)
-make test-integration  # live API/hook tests (needs running, seeded PB)
-make test-e2e     # Playwright dashboard tests (needs running, seeded PB)
-make lint         # lint all workspaces
-make help         # full target list
+just setup        # install workspace deps (pnpm)
+just dev-web      # Next.js dashboard
+just dev-mobile   # Expo app
+just dev-pb       # local PocketBase (needs binary in pocketbase/)
+just seed         # seed test household/users/chores (server must be RUNNING)
+just reset-db     # wipe + rebuild empty DB (server must be STOPPED)
+just test         # all workspace tests (unit; no server needed)
+just test-integration  # live API/hook tests (needs running, seeded PB)
+just test-e2e     # Playwright dashboard tests (needs running, seeded PB)
+just lint         # lint all workspaces
+just --list       # full recipe list
 ```
 
 For the live test targets, start the backend with notifications muted so test
-runs don't blast the real ntfy.sh topics: `NTFY_DISABLED=1 make dev-pb`, then
-`make seed`.
+runs don't blast the real ntfy.sh topics: `NTFY_DISABLED=1 just dev-pb`, then
+`just seed`.
 
-Test data: `make seed` (idempotent) populates a "Test Family" household with a
+Test data: `just seed` (idempotent) populates a "Test Family" household with a
 parent, two kids, chores, and sample activity. It talks to the running server's
-API. For a clean, ledger-consistent slate: stop the server, `make reset-db`,
-start the server, then `make seed`. All seeded logins use password `password123`.
+API. For a clean, ledger-consistent slate: stop the server, `just reset-db`,
+start the server, then `just seed`. All seeded logins use password `password123`.
 
-PocketBase binary is not committed — run `make pb-download` (or grab it from the [releases page](https://github.com/pocketbase/pocketbase/releases)) into `pocketbase/`.
+PocketBase binary is not committed — run `just pb-download` (or grab it from the [releases page](https://github.com/pocketbase/pocketbase/releases)) into `pocketbase/`.
 
 ## Toolchain notes (non-obvious)
 

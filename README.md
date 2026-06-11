@@ -7,13 +7,13 @@ A private family chore tracking app. Kids do chores, earn **parentBucks**, and s
 ## Setup
 
 ```bash
-make setup        # install dependencies
-make dev-web      # parent dashboard (Next.js)
-make dev-mobile   # mobile app (Expo)
-make dev-pb       # local PocketBase backend
+just setup        # install dependencies
+just dev-web      # parent dashboard (Next.js)
+just dev-mobile   # mobile app (Expo)
+just dev-pb       # local PocketBase backend
 ```
 
-See `make help` for all targets.
+See `just --list` for all recipes.
 
 ## Stack
 
