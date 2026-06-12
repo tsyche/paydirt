@@ -136,6 +136,45 @@ adb-tunnel:
     @adb reverse tcp:8090 tcp:8090
     @printf '\033[0;32mTunnel set: device:8090 → host:8090. Use EXPO_PUBLIC_POCKETBASE_URL=http://127.0.0.1:8090\033[0m\n'
 
+# --- Android build ---
+
+# Generate native android/ directory from app.json (run once, or after app.json changes).
+# Set EXPO_PUBLIC_POCKETBASE_URL in apps/mobile/.env before running:
+#   echo "EXPO_PUBLIC_POCKETBASE_URL=http://192.168.1.50:8090" > apps/mobile/.env
+prebuild:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    if [ ! -f apps/mobile/.env ] && [ -z "${EXPO_PUBLIC_POCKETBASE_URL:-}" ]; then
+        printf '\033[0;33mSet EXPO_PUBLIC_POCKETBASE_URL before prebuilding.\033[0m\n'
+        printf '\033[0;33mExample: echo "EXPO_PUBLIC_POCKETBASE_URL=http://192.168.1.50:8090" > apps/mobile/.env\033[0m\n'
+        exit 1
+    fi
+    printf '\033[0;34mInstalling mobile dependencies...\033[0m\n'
+    pnpm --filter mobile install
+    printf '\033[0;34mGenerating native Android project...\033[0m\n'
+    cd apps/mobile && npx expo prebuild --platform android --no-install
+    printf '\033[0;32mDone. Run '\''just build-apk'\'' to produce the APK.\033[0m\n'
+
+# Build a debug APK — faster, no signing required, good for sideloading during dev.
+# Requires: JDK 17+, Android SDK (set ANDROID_HOME). Run `just prebuild` first.
+build-apk:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    if [ ! -d "apps/mobile/android" ]; then
+        printf '\033[0;33mandroid/ not found — run '\''just prebuild'\'' first.\033[0m\n'
+        exit 1
+    fi
+    printf '\033[0;34mBuilding debug APK...\033[0m\n'
+    cd apps/mobile/android && ./gradlew assembleDebug
+    APK="apps/mobile/android/app/build/outputs/apk/debug/app-debug.apk"
+    printf '\033[0;32mAPK ready: %s\033[0m\n' "${APK}"
+    printf 'Install with: adb install -r %s\n' "${APK}"
+
+# Install the debug APK directly to a connected device / emulator.
+install-apk: build-apk
+    @adb install -r apps/mobile/android/app/build/outputs/apk/debug/app-debug.apk
+    @printf '\033[0;32mInstalled.\033[0m\n'
+
 # Start PocketBase only (use NTFY_DISABLED=1 just dev-pb for test runs)
 dev-pb:
     #!/usr/bin/env bash

@@ -2,79 +2,111 @@
 
 Guide for testing on a real Android device (GrapheneOS / LineageOS).
 
-## Prerequisites
+The app is distributed as a sideloaded APK — no Play Store, no Expo Go.
+Notifications appear as **PayDirt** notifications (not ntfy). Kids do not need
+to install any extra apps.
 
-**On the device:**
+## One-time device setup
+
 1. Enable Developer Options: Settings → About → tap Build Number 7 times
 2. Enable USB Debugging: Settings → System → Developer Options → USB Debugging
-3. Install Expo Go — not available on Play Store; sideload the APK from [expo.dev/go](https://expo.dev/go)
-   - GrapheneOS: enable "Install unknown apps" for your browser, download, install, then re-disable
-4. Connect device via USB and trust the computer when prompted
+3. Connect device via USB and trust the computer when prompted
 
-**On your machine:**
 ```bash
 adb devices   # should show the device as "device" (not "unauthorized")
 ```
 
 If it shows `unauthorized`, revoke USB debugging auth on the device and reconnect.
 
-## Running
+## Build the APK
+
+### 1. Set the server URL
+
+Create `apps/mobile/.env` with your PocketBase server address:
 
 ```bash
-just dev-device
+# LAN IP (find with: ipconfig getifaddr en0 on macOS Wi-Fi)
+echo "EXPO_PUBLIC_POCKETBASE_URL=http://192.168.1.50:8090" > apps/mobile/.env
+
+# Or use adb reverse (USB tunnel) and keep 127.0.0.1:
+just adb-tunnel
+echo "EXPO_PUBLIC_POCKETBASE_URL=http://127.0.0.1:8090" > apps/mobile/.env
 ```
 
-This:
-- Detects your LAN IP
-- Starts PocketBase listening on `0.0.0.0:8090` (accessible to the device)
-- Starts Expo and prints the QR code and LAN URL
+### 2. Generate native project + build APK
 
-Open Expo Go on the device, scan the QR code.
-
-If you already have a `.env` file, set the device URL there so you don't need to pass it every time:
+```bash
+just prebuild    # generates apps/mobile/android/ from app.json (run once)
+just build-apk   # builds the debug APK (~2-3 min first time, faster after)
 ```
-EXPO_PUBLIC_POCKETBASE_URL=http://192.168.1.50:8090   # your actual LAN IP
+
+Requires: JDK 17+ and Android SDK. If not installed, Android Studio includes both
+(`sdkmanager` → install "Android SDK Platform 34" and "Android SDK Build-Tools").
+
+Set `ANDROID_HOME` if Gradle can't find the SDK:
+```bash
+export ANDROID_HOME=$HOME/Library/Android/sdk   # macOS default
+```
+
+### 3. Install on device
+
+```bash
+just install-apk   # builds + adb install in one step
+```
+
+Or manually after `just build-apk`:
+```bash
+adb install -r apps/mobile/android/app/build/outputs/apk/debug/app-debug.apk
 ```
 
 ## Test checklist
 
 ### Auth
-- [ ] Login as parent → lands on parent dashboard
-- [ ] Login as kid → lands on KidHome (or SimpleKidHome for simplified_mode user)
+- [ ] Login as parent → lands on ParentNotice (web dashboard is primary)
+- [ ] Login as kid → lands on KidHome (or SimpleKidHome for simplified_mode)
 - [ ] Logout and switch roles
+- [ ] App reopens to the correct screen after being killed (auth persists)
 
 ### Kid flow
 - [ ] Balance displays correctly
 - [ ] Chores list loads (assigned chores visible)
 - [ ] Mark a chore done (non-photo)
-- [ ] Mark a chore done with photo (`expo-image-picker` camera permission prompt appears; photo uploads)
+- [ ] Mark a chore done with photo (camera permission prompt appears; photo uploads)
 - [ ] Spend request dialog opens and submits
 - [ ] Realtime: approve a chore from the web dashboard → kid screen updates without pull-to-refresh
-- [ ] Broadcast from parent → appears in "From parent 📣" section
+
+### Notifications (key test)
+- [ ] Background: lock the screen, have parent approve a chore → notification appears from **PayDirt** (not ntfy)
+- [ ] Background: parent broadcasts a message → notification appears
+- [ ] Foreground: app open, approve a chore → UI updates silently (no duplicate notification)
+- [ ] Notification tap opens the app
 
 ### Simplified mode (youngest kid)
 - [ ] Giant balance card visible
 - [ ] Chore cards with large "I did it!" buttons
 - [ ] Broadcast cards show in blue
 
-### ntfy
-- [ ] ntfy notification received on device when chore is assigned (requires device subscribed to the kid's ntfy topic)
-  - Install ntfy app from F-Droid (Play-Services-free)
-  - Subscribe to the kid's topic
-
-### Known GrapheneOS / LineageOS notes
-- No FCM — this app uses ntfy over plain HTTP/SSE, so no Google dependency at all
-- Camera permission may show a different permission dialog; accept it
-- `react-native-sse` provides the SSE polyfill so realtime works without any Google services
+### Persistent service indicator
+The notification shade will show a small "PayDirt — Watching for chore updates"
+entry. This is expected — it's what keeps notifications working when the app is
+in the background. Importance is set to LOW so it makes no sound and stays quiet.
 
 ## Useful adb commands
 
 ```bash
-adb devices                          # list connected devices
-adb logcat -s ReactNative ReactNativeJS   # stream JS console output
-adb logcat | grep -i "error\|crash"  # filter for errors
-adb shell am force-stop host.exp.exponent  # kill Expo Go
-adb reverse tcp:8090 tcp:8090        # tunnel device → host (alternative to LAN IP)
+adb devices                                    # list connected devices
+adb install -r path/to/app-debug.apk           # install / update APK
+adb logcat -s ReactNative ReactNativeJS        # stream JS console output
+adb logcat | grep -i "error\|crash"            # filter for errors
+adb shell am force-stop io.paydirt.app         # kill the app
+adb reverse tcp:8090 tcp:8090                  # tunnel device → host (run once after plugging in)
 ```
 
-`adb reverse` is worth knowing: it tunnels device traffic back to your machine, so you can keep `EXPO_PUBLIC_POCKETBASE_URL=http://127.0.0.1:8090` and skip the LAN IP entirely. Run it once after plugging in.
+## Rebuilding after code changes
+
+```bash
+just build-apk    # recompile (no need to re-run prebuild unless app.json changed)
+just install-apk  # build + install in one step
+```
+
+Re-run `just prebuild` only when `app.json` changes (new plugins, package name, etc.).

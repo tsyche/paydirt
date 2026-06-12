@@ -8,7 +8,9 @@ Chore CRUD, assignment, complete/approve flow, parentBucks earn + spend, ntfy no
 
 ## Recently Completed
 
-1. ✅ **One-command live test run (2026-06-10)** — `just test-all` boots ephemeral PocketBase on :8091, migrates, seeds, runs integration + e2e, tears down. No manual server setup required.
+
+1. ✅ **Native push notifications (2026-06-11)** — EAS/standalone APK build pipeline (`just prebuild` + `just build-apk` + `just install-apk`); foreground service polls PocketBase every 30s when backgrounded; notifications appear from PayDirt (not ntfy); ntfy removed from kid-facing hooks, kept for parent web alerts. UnifiedPush (zero-Google, no persistent indicator) is the planned fast follow.
+2. ✅ **One-command live test run (2026-06-10)** — `just test-all` boots ephemeral PocketBase on :8091, migrates, seeds, runs integration + e2e, tears down. No manual server setup required.
 2. ✅ **Kid broadcast history (2026-06-10)** — `getRecentBroadcasts()` added to shared client; KidHome shows last 5 broadcasts in a "From parent 📣" section; SimpleKidHome shows last 3 as big cards.
 3. ✅ **Parent dashboard realtime (2026-06-10)** — `subscribeToDashboardUpdates()` added to shared client; Dashboard wires it up in `useEffect` so approvals, spend requests, proposals, chore changes, and kid balances update live without post-action full reloads.
 4. ✅ **Recurring chore auto-assignment (2026-06-10)** — `runDaily` now re-creates assignments for recurring chores (daily or weekly cadence) when no open assignment exists for a kid who's had the chore before. Duplicate-safe: a second cron pass is a no-op if one is already assigned. Integration test added.
@@ -18,9 +20,9 @@ Chore CRUD, assignment, complete/approve flow, parentBucks earn + spend, ntfy no
 
 ## Recommended Next 3
 
-1. **Real-device test** — kids are about to start testing; validate on the actual GrapheneOS/LineageOS device before they do. User-driven; Claude can help debug via adb.
-2. **Recurring chore cadence selector in UI** — `cadence` field exists and the cron acts on it, but the web dashboard has no UI to set it. ~1 hr.
-3. **Batch approval** — select multiple pending completions from the dashboard and approve/reject them all at once. ~1-2 hrs.
+1. **Real-device test** — build the APK and validate on GrapheneOS/LineageOS; confirm notifications appear from PayDirt, background service stays alive, camera works. Run `just prebuild && just install-apk`. User-driven.
+2. **UnifiedPush fast follow** — ~50 lines of native Android Java + a JS bridge; ntfy becomes invisible plumbing and the persistent service indicator goes away. Fully Google-free. ~1 day.
+3. **Recurring chore cadence selector in UI** — `cadence` field exists and the cron acts on it, but the web dashboard has no UI to set it. ~1 hr.
 
 ## Phase 1 — Core Feature Set ✅ (completed 2026-06-10)
 
@@ -62,3 +64,4 @@ Chore CRUD, assignment, complete/approve flow, parentBucks earn + spend, ntfy no
 - **Custom kid reminder times** — the preset 1h/3h/tomorrow picker could take a freeform time. ~1 hr.
 - **Streak/expiry tuning UI** — milestone amounts are hard-coded in `lib/streaks.js`; surface them in household settings if the defaults chafe. ~1-2 hrs.
 - **Multi-kid chore assignment in dashboard** — currently parents assign one kid at a time; a checkbox list would speed up setup for race chores or shared tasks. ~1-2 hrs.
+- **UnifiedPush** — fast follow to the shipped foreground-service notifications. Small native Android shim replaces the persistent service indicator; ntfy becomes invisible plumbing. FCM can be wired as a fallback path for any future public release. ~1 day.
