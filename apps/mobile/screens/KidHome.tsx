@@ -415,7 +415,7 @@ export function KidHome({ user, onLogout }: { user: User; onLogout: () => void }
         }}
       />
 
-      <Snackbar visible={!!snack} onDismiss={() => setSnack("")} duration={3000}>
+      <Snackbar visible={!!snack} onDismiss={() => setSnack("")} duration={5000}>
         {snack}
       </Snackbar>
     </SafeAreaView>

@@ -181,7 +181,7 @@ export function SimpleKidHome({ user, onLogout }: { user: User; onLogout: () => 
         ))}
       </ScrollView>
 
-      <Snackbar visible={!!snack} onDismiss={() => setSnack("")} duration={3000}>
+      <Snackbar visible={!!snack} onDismiss={() => setSnack("")} duration={5000}>
         {snack}
       </Snackbar>
     </SafeAreaView>

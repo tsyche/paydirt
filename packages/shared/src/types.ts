@@ -39,6 +39,8 @@ export interface User extends BaseRecord {
   household: string; // -> households.id
   /** ntfy topic this user's devices subscribe to. */
   ntfy_topic?: string;
+  /** UnifiedPush endpoint URL from the ntfy distributor. Set by the app on login. */
+  up_endpoint?: string;
   /** Cached parentBucks balance (children). Maintained by a PocketBase hook on transaction create. */
   balance: number;
   /** Larger tap targets, icon-heavy UI, minimal reading. Default on for youngest. */

@@ -77,7 +77,9 @@ onRecordUpdate((e) => {
   if (newStatus === "completed" && prevStatus !== "completed") {
     const photo = e.record.get("photo");
     const hasPhoto = !!photo && (!Array.isArray(photo) || photo.length > 0);
-    const isNewUpload = hasPhoto && typeof photo !== "string";
+    // Non-string = FormData file object (mid-save). String starting with "data:"
+    // = base64 data URI uploaded via JSON (PocketBase processes it server-side).
+    const isNewUpload = hasPhoto && (typeof photo !== "string" || photo.startsWith("data:"));
 
     if (prevStatus === "rejected") {
       if (!isNewUpload) {

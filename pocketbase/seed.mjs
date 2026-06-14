@@ -134,9 +134,10 @@ async function main() {
   // Household
   let household = await findOne("households", pb.filter("name = {:n}", { n: "Test Family" }));
   if (!household) {
-    household = await pb.collection("households").create({ name: "Test Family" });
+    household = await pb.collection("households").create({ name: "Test Family", goods_rate: 10 });
     log(`household "Test Family" (created)`);
   } else {
+    await pb.collection("households").update(household.id, { goods_rate: 10 });
     log(`household "Test Family" (exists)`);
   }
   const hh = household.id;

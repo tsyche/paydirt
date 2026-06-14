@@ -2,17 +2,28 @@
 
 // Push notifications.
 //
-// Kids receive notifications through the in-app background service
-// (apps/mobile/lib/backgroundService.ts), which polls PocketBase directly.
-// ntfy is kept only for parent-facing events so the parent gets pinged on
-// their phone even when the web dashboard isn't open.
+// Kids receive event-driven push via UnifiedPush (ntfy distributor).
+// The endpoint URL lives in users.up_endpoint, set by the mobile app on login.
+// If a kid has no endpoint yet, notifyUser falls back to their ntfy_topic.
+//
+// Parents use ntfy directly (they aren't running the mobile app as a kid).
 
-// ── assignment created → (kids learn via background service poll) ─────────────
-// No server-side ntfy needed for the child.
+// ── Assignment created → notify the assigned kid ─────────────────────────────
+onRecordAfterCreateSuccess((e) => {
+  const { notifyUser } = require(`${__hooks}/lib/ntfy.js`);
+  const chore = e.app.findRecordById("chores", e.record.getString("chore"));
+  notifyUser(
+    e.app,
+    e.record.getString("child"),
+    "New chore! ⭐",
+    chore.getString("name"),
+  );
+  e.next();
+}, "assignments");
 
-// ── assignment updated → status changes, kid replies, reactions, swaps ───────
+// ── Assignment updated ────────────────────────────────────────────────────────
 onRecordAfterUpdateSuccess((e) => {
-  const { notifyParents } = require(`${__hooks}/lib/ntfy.js`);
+  const { notifyUser, notifyParents } = require(`${__hooks}/lib/ntfy.js`);
   const chore = e.app.findRecordById("chores", e.record.getString("chore"));
   const name = chore.getString("name");
   const status = e.record.getString("status");
@@ -35,15 +46,25 @@ onRecordAfterUpdateSuccess((e) => {
     return;
   }
 
-  // Chore completed → parents need to approve.
   if (status === "completed" && prev !== "approved") {
+    // Chore submitted — parents need to approve.
     notifyParents(e.app, chore.getString("household"), "Chore needs approval", name);
+  } else if (status === "approved") {
+    notifyUser(e.app, e.record.getString("child"), "Chore approved! ✅", name + " — nice work!");
+  } else if (status === "rejected") {
+    const msg = e.record.getString("rejection_message");
+    notifyUser(
+      e.app,
+      e.record.getString("child"),
+      "Chore needs a redo",
+      msg ? name + ": " + msg : name,
+    );
   }
-  // approved / rejected / reaction / swap → kids learn via background service.
+
   e.next();
 }, "assignments");
 
-// ── chore proposal created → notify parents ──────────────────────────────────
+// ── Chore proposal created → notify parents ───────────────────────────────────
 onRecordAfterCreateSuccess((e) => {
   const { notifyParents } = require(`${__hooks}/lib/ntfy.js`);
   const kid = e.app.findRecordById("users", e.record.getString("child"));
@@ -56,11 +77,37 @@ onRecordAfterCreateSuccess((e) => {
   e.next();
 }, "chore_proposals");
 
-// ── chore proposal resolved → kids learn via background service ───────────────
+// ── Chore proposal resolved → notify kid ─────────────────────────────────────
+onRecordAfterUpdateSuccess((e) => {
+  const { notifyUser } = require(`${__hooks}/lib/ntfy.js`);
+  const status = e.record.getString("status");
+  const prev = e.record.original().getString("status");
+  if (prev !== "pending" || (status !== "approved" && status !== "declined")) {
+    e.next();
+    return;
+  }
+  const name = e.record.getString("name");
+  if (status === "approved") {
+    notifyUser(e.app, e.record.getString("child"), "Chore idea approved! 🎉", name + " — it's on your list");
+  } else {
+    notifyUser(e.app, e.record.getString("child"), "Chore idea declined", name);
+  }
+  e.next();
+}, "chore_proposals");
 
-// ── broadcast created → parents sent it; kids learn via background service ───
+// ── Broadcast created → notify all kids ──────────────────────────────────────
+onRecordAfterCreateSuccess((e) => {
+  const { notifyChildren } = require(`${__hooks}/lib/ntfy.js`);
+  notifyChildren(
+    e.app,
+    e.record.getString("household"),
+    "Message from Mom/Dad 📣",
+    e.record.getString("message"),
+  );
+  e.next();
+}, "broadcasts");
 
-// ── spend request created → notify parents ───────────────────────────────────
+// ── Spend request created → notify parents ────────────────────────────────────
 onRecordAfterCreateSuccess((e) => {
   const { notifyParents } = require(`${__hooks}/lib/ntfy.js`);
   const child = e.app.findRecordById("users", e.record.getString("child"));
@@ -73,4 +120,20 @@ onRecordAfterCreateSuccess((e) => {
   e.next();
 }, "spend_requests");
 
-// ── spend request resolved → kids learn via background service ────────────────
+// ── Spend request resolved → notify kid ──────────────────────────────────────
+onRecordAfterUpdateSuccess((e) => {
+  const { notifyUser } = require(`${__hooks}/lib/ntfy.js`);
+  const status = e.record.getString("status");
+  const prev = e.record.original().getString("status");
+  if (prev !== "pending" || (status !== "approved" && status !== "denied")) {
+    e.next();
+    return;
+  }
+  const desc = e.record.getString("description");
+  if (status === "approved") {
+    notifyUser(e.app, e.record.getString("child"), "Spend approved! 🎉", desc);
+  } else {
+    notifyUser(e.app, e.record.getString("child"), "Spend denied", desc);
+  }
+  e.next();
+}, "spend_requests");

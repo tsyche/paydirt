@@ -8,21 +8,17 @@ Chore CRUD, assignment, complete/approve flow, parentBucks earn + spend, ntfy no
 
 ## Recently Completed
 
-
-1. ✅ **Native push notifications (2026-06-11)** — EAS/standalone APK build pipeline (`just prebuild` + `just build-apk` + `just install-apk`); foreground service polls PocketBase every 30s when backgrounded; notifications appear from PayDirt (not ntfy); ntfy removed from kid-facing hooks, kept for parent web alerts. UnifiedPush (zero-Google, no persistent indicator) is the planned fast follow.
-2. ✅ **One-command live test run (2026-06-10)** — `just test-all` boots ephemeral PocketBase on :8091, migrates, seeds, runs integration + e2e, tears down. No manual server setup required.
-2. ✅ **Kid broadcast history (2026-06-10)** — `getRecentBroadcasts()` added to shared client; KidHome shows last 5 broadcasts in a "From parent 📣" section; SimpleKidHome shows last 3 as big cards.
-3. ✅ **Parent dashboard realtime (2026-06-10)** — `subscribeToDashboardUpdates()` added to shared client; Dashboard wires it up in `useEffect` so approvals, spend requests, proposals, chore changes, and kid balances update live without post-action full reloads.
-4. ✅ **Recurring chore auto-assignment (2026-06-10)** — `runDaily` now re-creates assignments for recurring chores (daily or weekly cadence) when no open assignment exists for a kid who's had the chore before. Duplicate-safe: a second cron pass is a no-op if one is already assigned. Integration test added.
-5. ✅ **Phase 1 + 1.5 wrap (2026-06-10)** — deadlines with escalating reminders, race mechanic, kid-proposed chores, savings goals, bank threshold, currency expiry, goods-rate display, kid reminders, scheduled chore reminders, approval nudges, approval reactions, streak bonuses, weekly digest, chore swap, vacation mode, household settings panel. Cron foundation (`scheduler.pb.js`, 10-min tick + daily + weekly) with superuser-only manual triggers for tests.
-6. ✅ **Rejected-chore flow** — kids reply to rejections or resubmit; resubmission requires a fresh photo (server-enforced); parents see replies in the approval queue; simplified mode "Try again 📷".
-7. ✅ **Real-time updates / test suite / broadcast** — kid screens subscribe live; 18 integration + 4 Playwright tests; household broadcast.
+1. ✅ **Dollar value display (2026-06-14)** — `goods_rate` (bucks per $1) now shows `$X.XX` alongside parentBucks balance on all kid screens (KidHome, SimpleKidHome) and next to each kid in the parent dashboard. Rate is household-wide, configurable in ⚙️ Settings. Seed defaults to 10 PB = $1.
+2. ✅ **Photo upload fix (2026-06-14)** — Switched from FormData file URI to base64 data URI (JSON). Fixes `ClientResponse 0` crash on Android 13+ where `content://` URIs from the camera couldn't be read by the native HTTP client. Guard updated to accept data URIs as new uploads; snack extended to 5s so errors are readable.
+3. ✅ **Dark mode + Android 16 crash fix (2026-06-13)** — Dynamic theme via `useColorScheme()` + `MD3DarkTheme`; hardcoded hex colors replaced with `useTheme()` tokens across all mobile screens. Fixed `InvalidForegroundServiceTypeException` on targetSdk 36 by declaring `foregroundServiceType="dataSync"` and passing it as an array to the library.
+4. ✅ **Standalone APK + real-device testing (2026-06-13)** — Sideloadable debug APK (no Metro); `debuggableVariants = []` in build.gradle; Gradle 9.3.1 pinned; New Architecture disabled; PocketBase bound to `0.0.0.0:8090` for LAN access. Tested on GrapheneOS / Android 16.
+5. ✅ **Native push notifications via background service (2026-06-11)** — EAS/standalone APK build pipeline; foreground service polls PocketBase every 30s; notifications appear from PayDirt (not ntfy); ntfy kept for parent web alerts only.
 
 ## Recommended Next 3
 
-1. **Dark mode support (mobile)** — real-device testing confirmed dark mode breaks the UI; hardcoded colors and `opacity`-based text throughout the mobile screens need to be replaced with `useTheme()` / `theme.colors.*` from react-native-paper. High priority before kids use it daily. ~2-3 hrs.
-2. **Mobile UI design polish** — full visual pass on all kid-facing screens (KidHome, SimpleKidHome, Login, ParentNotice); fix layout gaps, button feedback, error states, and "try again" flows. Use `frontend-design@claude-plugins-official` skill. ~3-5 hrs.
-3. **UnifiedPush fast follow** — ~50 lines of native Android Java + a JS bridge; ntfy becomes invisible plumbing and the persistent service indicator goes away. Fully Google-free. ~1 day.
+1. **Mobile UI design polish** — Full visual pass on all kid-facing screens (KidHome, SimpleKidHome, Login, ParentNotice). Fix layout gaps, button feedback, error states, and spacing. Use `frontend-design@claude-plugins-official` skill. ~3-5 hrs.
+2. **UnifiedPush fast follow** — Replace the foreground polling service with event-driven push via ntfy (UnifiedPush distributor already installed on device). Eliminates the persistent "Watching for chore updates" indicator. Requires: `up_endpoint` field on users, PocketBase hooks to POST to UP endpoint, native Android BroadcastReceiver (via Expo Config Plugin), JS registration on login. Self-hosted ntfy migration is transparent — endpoint URL encodes the server. ~1 day.
+3. **Recurring chore cadence selector in UI** — The `cadence` field exists and the daily cron acts on it, but the web dashboard has no way to set it. One-off addition to the CreateChore form: a text field (or select: daily/weekly/monthly) that appears when `type = recurring`. ~1 hr.
 
 ## Phase 1 — Core Feature Set ✅ (completed 2026-06-10)
 
@@ -55,16 +51,13 @@ Chore CRUD, assignment, complete/approve flow, parentBucks earn + spend, ntfy no
 
 ## Ideas (unscheduled)
 
-- **"Try again" button audit** — real-device testing showed some "try again" buttons are no-ops; trace each one to confirm error handling surfaces properly and retries actually re-invoke the underlying action. ~1 hr.
-- **ClientResponse error display** — PocketBase errors surface as raw `ClientResponse0` strings in some flows (e.g. photo resubmission); map common error codes to human-readable messages. ~1 hr.
-
-- **Batch approval** — select multiple pending completions from the dashboard and approve/reject them all at once. High-value UX as chore count grows; the server already handles individual approvals atomically. ~1-2 hrs.
-- **Chore templates** — a household-level library of reusable chore definitions (name, description, reward, photo_required). Creating a new chore picks from the library instead of typing from scratch. ~2-3 hrs.
-- **Parent earnings/activity report** — monthly summary page (or exportable CSV) showing per-kid totals: chores completed, earned, spent, streak peak. Complements the weekly digest with a longer view. ~2-3 hrs.
-- **Notification quiet hours** — per-household window where ntfy sends are held or dropped (no 6am "chore approved" dings). ~1-2 hrs.
-- **Kid avatar / display name color** — simple personalization (pick a color or emoji avatar) shown on both apps next to the kid's name. Low effort, meaningfully boosts kid engagement. ~1-2 hrs.
-- **Recurring chore cadence selector in UI** — `cadence` field exists and the cron acts on it, but the web dashboard has no UI to set it. ~1 hr.
-- **Custom kid reminder times** — the preset 1h/3h/tomorrow picker could take a freeform time. ~1 hr.
-- **Streak/expiry tuning UI** — milestone amounts are hard-coded in `lib/streaks.js`; surface them in household settings if the defaults chafe. ~1-2 hrs.
-- **Multi-kid chore assignment in dashboard** — currently parents assign one kid at a time; a checkbox list would speed up setup for race chores or shared tasks. ~1-2 hrs.
-- **UnifiedPush** — fast follow to the shipped foreground-service notifications. Small native Android shim replaces the persistent service indicator; ntfy becomes invisible plumbing. FCM can be wired as a fallback path for any future public release. ~1 day.
+- **Recurring cadence UI** — `cadence` field exists and cron acts on it; web dashboard has no way to set it. ~1 hr. *(promoted to Recommended Next 3)*
+- **Batch approval** — select multiple pending completions and approve/reject at once. High-value as chore count grows; server already handles individual approvals atomically. ~1-2 hrs.
+- **Chore templates** — household-level library of reusable definitions. Creating a new chore picks from the library. ~2-3 hrs.
+- **Parent earnings/activity report** — monthly summary (or exportable CSV): per-kid totals for chores completed, earned, spent, streak peak. ~2-3 hrs.
+- **Notification quiet hours** — per-household window where ntfy sends are held/dropped (no 6am pings). ~1-2 hrs.
+- **Kid avatar / display name color** — pick a color or emoji avatar shown on both apps. Low effort, high kid engagement. ~1-2 hrs.
+- **Custom kid reminder times** — freeform time input in addition to the 1h/3h/tomorrow presets. ~1 hr.
+- **Streak/expiry tuning UI** — milestone amounts hard-coded in `lib/streaks.js`; surface in household settings. ~1-2 hrs.
+- **Multi-kid chore assignment** — currently one kid at a time; checkbox list would speed up race chore setup. ~1-2 hrs.
+- **Per-kid goods rate** — `goods_rate` is household-wide; `users.goods_rate` with fallback to household rate would let kids at different ages have different conversion displays. ~1 hr.

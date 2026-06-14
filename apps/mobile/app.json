@@ -31,7 +31,8 @@
           "color": "#2f7d4f",
           "sounds": []
         }
-      ]
+      ],
+      "./plugins/withUnifiedPush"
     ]
   }
 }

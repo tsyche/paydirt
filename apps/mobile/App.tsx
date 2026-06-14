@@ -18,6 +18,7 @@ import {
   stopBackgroundService,
   storePbUrl,
 } from "./lib/backgroundService";
+import { syncUnifiedPushEndpoint } from "./lib/unifiedpush";
 
 const lightTheme = {
   ...MD3LightTheme,
@@ -52,10 +53,18 @@ export default function App() {
     return () => unsub();
   }, []);
 
-  // Keep the background notification service running iff a kid is logged in.
+  // Notification strategy for kids: prefer UnifiedPush (event-driven, no
+  // persistent notification). Fall back to the polling service if the UP
+  // endpoint hasn't been registered yet (first launch before ntfy responds).
   useEffect(() => {
     if (user?.role === "child") {
-      void startBackgroundService();
+      void syncUnifiedPushEndpoint(user.id).then((hasUp) => {
+        if (hasUp) {
+          void stopBackgroundService();
+        } else {
+          void startBackgroundService();
+        }
+      });
     } else {
       void stopBackgroundService();
     }
