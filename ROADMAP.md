@@ -20,9 +20,9 @@ Chore CRUD, assignment, complete/approve flow, parentBucks earn + spend, ntfy no
 
 ## Recommended Next 3
 
-1. **Real-device test** — build the APK and validate on GrapheneOS/LineageOS; confirm notifications appear from PayDirt, background service stays alive, camera works. Run `just prebuild && just install-apk`. User-driven.
-2. **UnifiedPush fast follow** — ~50 lines of native Android Java + a JS bridge; ntfy becomes invisible plumbing and the persistent service indicator goes away. Fully Google-free. ~1 day.
-3. **Recurring chore cadence selector in UI** — `cadence` field exists and the cron acts on it, but the web dashboard has no UI to set it. ~1 hr.
+1. **Dark mode support (mobile)** — real-device testing confirmed dark mode breaks the UI; hardcoded colors and `opacity`-based text throughout the mobile screens need to be replaced with `useTheme()` / `theme.colors.*` from react-native-paper. High priority before kids use it daily. ~2-3 hrs.
+2. **Mobile UI design polish** — full visual pass on all kid-facing screens (KidHome, SimpleKidHome, Login, ParentNotice); fix layout gaps, button feedback, error states, and "try again" flows. Use `frontend-design@claude-plugins-official` skill. ~3-5 hrs.
+3. **UnifiedPush fast follow** — ~50 lines of native Android Java + a JS bridge; ntfy becomes invisible plumbing and the persistent service indicator goes away. Fully Google-free. ~1 day.
 
 ## Phase 1 — Core Feature Set ✅ (completed 2026-06-10)
 
@@ -54,6 +54,9 @@ Chore CRUD, assignment, complete/approve flow, parentBucks earn + spend, ntfy no
 - Configurable reward types: in-app currency, Venmo, bank transfer, manual — all with in-app record-keeping
 
 ## Ideas (unscheduled)
+
+- **"Try again" button audit** — real-device testing showed some "try again" buttons are no-ops; trace each one to confirm error handling surfaces properly and retries actually re-invoke the underlying action. ~1 hr.
+- **ClientResponse error display** — PocketBase errors surface as raw `ClientResponse0` strings in some flows (e.g. photo resubmission); map common error codes to human-readable messages. ~1 hr.
 
 - **Batch approval** — select multiple pending completions from the dashboard and approve/reject them all at once. High-value UX as chore count grows; the server already handles individual approvals atomically. ~1-2 hrs.
 - **Chore templates** — a household-level library of reusable chore definitions (name, description, reward, photo_required). Creating a new chore picks from the library instead of typing from scratch. ~2-3 hrs.

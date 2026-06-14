@@ -13,6 +13,7 @@ import {
   ProgressBar,
   TextInput,
   Snackbar,
+  useTheme,
 } from "react-native-paper";
 import { SafeAreaView } from "react-native-safe-area-context";
 import type { Assignment, Broadcast, Chore, Household, SavingsGoal, User } from "@paydirt/shared";
@@ -37,6 +38,7 @@ function dueInfo(chore?: Chore): { label: string; overdue: boolean } | null {
 }
 
 export function KidHome({ user, onLogout }: { user: User; onLogout: () => void }) {
+  const theme = useTheme();
   const [me, setMe] = useState<User>(user);
   const [assignments, setAssignments] = useState<Expanded[]>([]);
   const [history, setHistory] = useState<Expanded[]>([]);
@@ -220,17 +222,17 @@ export function KidHome({ user, onLogout }: { user: User; onLogout: () => void }
                   <Text variant="bodySmall">{chore.reward} {currencyName}</Text>
                 ) : null}
                 {due ? (
-                  <Chip compact icon="clock-outline" style={due.overdue ? styles.overdueChip : styles.dueChip}>
+                  <Chip compact icon="clock-outline" style={[due.overdue ? styles.overdueChip : styles.dueChip, due.overdue ? { backgroundColor: theme.colors.errorContainer } : {}]}>
                     {due.label}
                   </Chip>
                 ) : null}
                 {a.status === "rejected" ? (
                   <>
                     {a.rejection_message ? (
-                      <Text style={styles.rejected}>Parent said: {a.rejection_message}</Text>
+                      <Text style={[styles.rejected, { color: theme.colors.error }]}>Parent said: {a.rejection_message}</Text>
                     ) : null}
                     {a.kid_response ? (
-                      <Text style={styles.kidSaid}>You said: {a.kid_response}</Text>
+                      <Text style={[styles.kidSaid, { color: theme.colors.onSurfaceVariant }]}>You said: {a.kid_response}</Text>
                     ) : null}
                     <View style={styles.buttonRow}>
                       <Button mode="outlined" icon="reply" onPress={() => setReplyFor(a)}>
@@ -312,7 +314,7 @@ export function KidHome({ user, onLogout }: { user: User; onLogout: () => void }
                       {a.expand?.chore?.name ?? "Chore"}
                       {a.reaction ? `  ${a.reaction}` : ""}
                     </Text>
-                    <Text variant="bodyMedium" style={styles.earned}>
+                    <Text variant="bodyMedium" style={[styles.earned, { color: theme.colors.primary }]}>
                       +{a.expand?.chore?.reward ?? "?"} {currencyName}
                     </Text>
                   </View>
@@ -722,16 +724,16 @@ const styles = StyleSheet.create({
   historyAccordion: { marginTop: 8, paddingVertical: 0 },
   choreRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
   choreName: { flexShrink: 1 },
-  rejected: { color: "#b3433a", marginTop: 4 },
-  kidSaid: { opacity: 0.7, marginTop: 2, fontStyle: "italic" },
-  earned: { color: "#2f7d4f", fontWeight: "700" },
+  rejected: { marginTop: 4 },
+  kidSaid: { marginTop: 2, fontStyle: "italic" },
+  earned: { fontWeight: "700" },
   date: { opacity: 0.5, marginTop: 2 },
   doneBtn: { marginTop: 8 },
   buttonRow: { flexDirection: "row", gap: 8, marginTop: 8 },
   utilityRow: { flexDirection: "row", alignItems: "center", marginTop: 2 },
   offeredNote: { opacity: 0.6 },
   dueChip: { alignSelf: "flex-start", marginTop: 4 },
-  overdueChip: { alignSelf: "flex-start", marginTop: 4, backgroundColor: "#f6d3d1" },
+  overdueChip: { alignSelf: "flex-start", marginTop: 4 },
   goalList: { gap: 8 },
   goalRight: { flexDirection: "row", alignItems: "center" },
   goalBar: { marginTop: 6, height: 8, borderRadius: 4 },

@@ -183,7 +183,7 @@ dev-pb:
         echo "Run 'just pb-download' first."
         exit 1
     fi
-    {{pb}} serve --dir pocketbase/pb_data --hooksDir pocketbase/pb_hooks --migrationsDir pocketbase/pb_migrations
+    {{pb}} serve --dir pocketbase/pb_data --hooksDir pocketbase/pb_hooks --migrationsDir pocketbase/pb_migrations --http 0.0.0.0:8090
 
 # Download the PocketBase binary (latest, or PB_VERSION=x.y.z)
 pb-download:

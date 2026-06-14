@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { StyleSheet } from "react-native";
-import { TextInput, Button, Text } from "react-native-paper";
+import { TextInput, Button, Text, useTheme } from "react-native-paper";
 import { SafeAreaView } from "react-native-safe-area-context";
 import type { User } from "@paydirt/shared";
 import { client } from "../lib/client";
@@ -10,6 +10,7 @@ export function Login({ onLogin }: { onLogin: (u: User) => void }) {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
+  const theme = useTheme();
 
   async function submit() {
     setBusy(true);
@@ -48,7 +49,7 @@ export function Login({ onLogin }: { onLogin: (u: User) => void }) {
         style={styles.input}
       />
       {error ? (
-        <Text style={styles.error}>{error}</Text>
+        <Text style={[styles.error, { color: theme.colors.error }]}>{error}</Text>
       ) : null}
       <Button
         mode="contained"
@@ -69,5 +70,5 @@ const styles = StyleSheet.create({
   tagline: { textAlign: "center", marginBottom: 16, opacity: 0.6 },
   input: {},
   button: { marginTop: 8 },
-  error: { color: "#b3433a" },
+  error: {},
 });

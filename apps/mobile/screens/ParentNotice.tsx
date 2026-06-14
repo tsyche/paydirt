@@ -1,16 +1,17 @@
 import { StyleSheet } from "react-native";
-import { Text, Button } from "react-native-paper";
+import { Text, Button, useTheme } from "react-native-paper";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 // Parents use the web dashboard for the MVP; a full parent mobile experience
 // is a later phase.
 export function ParentNotice({ onLogout }: { onLogout: () => void }) {
+  const theme = useTheme();
   return (
     <SafeAreaView style={styles.container}>
       <Text variant="headlineSmall" style={styles.title}>
         Parent account
       </Text>
-      <Text style={styles.body}>
+      <Text style={[styles.body, { color: theme.colors.onSurface }]}>
         For now, manage chores and approvals from the PayDirt web dashboard.
         Parent tools in the app are coming in a later phase.
       </Text>

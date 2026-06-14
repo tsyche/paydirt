@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
+import { useColorScheme } from "react-native";
 import { StatusBar } from "expo-status-bar";
 import { SafeAreaProvider } from "react-native-safe-area-context";
-import { PaperProvider, MD3LightTheme } from "react-native-paper";
+import { PaperProvider, MD3LightTheme, MD3DarkTheme } from "react-native-paper";
 import type { User } from "@paydirt/shared";
 import { client, pbUrl } from "./lib/client";
 import { Login } from "./screens/Login";
@@ -18,17 +19,19 @@ import {
   storePbUrl,
 } from "./lib/backgroundService";
 
-// Earthy Material 3 palette to match the PayDirt look.
-const theme = {
+const lightTheme = {
   ...MD3LightTheme,
-  colors: {
-    ...MD3LightTheme.colors,
-    primary: "#2f7d4f",
-    secondary: "#b3433a",
-  },
+  colors: { ...MD3LightTheme.colors, primary: "#2f7d4f", secondary: "#b3433a" },
+};
+
+const darkTheme = {
+  ...MD3DarkTheme,
+  colors: { ...MD3DarkTheme.colors, primary: "#5cb87a", secondary: "#e07b72" },
 };
 
 export default function App() {
+  const colorScheme = useColorScheme();
+  const theme = colorScheme === "dark" ? darkTheme : lightTheme;
   const [user, setUser] = useState<User | null>(null);
   const [ready, setReady] = useState(false);
 

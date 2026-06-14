@@ -6,6 +6,7 @@ import {
   Button,
   Surface,
   Snackbar,
+  useTheme,
 } from "react-native-paper";
 import { SafeAreaView } from "react-native-safe-area-context";
 import type { Assignment, Broadcast, Chore, User } from "@paydirt/shared";
@@ -15,6 +16,7 @@ import { takePhotoAndComplete } from "../lib/completeWithPhoto";
 type Expanded = Assignment & { expand?: { chore?: Chore } };
 
 export function SimpleKidHome({ user, onLogout }: { user: User; onLogout: () => void }) {
+  const theme = useTheme();
   const [balance, setBalance] = useState(user.balance);
   const [assignments, setAssignments] = useState<Expanded[]>([]);
   const [currencyName, setCurrencyName] = useState("parentBucks");
@@ -139,7 +141,7 @@ export function SimpleKidHome({ user, onLogout }: { user: User; onLogout: () => 
         ))}
 
         {redoChores.map((a) => (
-          <Surface key={a.id} style={[styles.choreCard, styles.redoCard]} elevation={2}>
+          <Surface key={a.id} style={[styles.choreCard, styles.redoCard, { backgroundColor: theme.colors.errorContainer }]} elevation={2}>
             <Text style={styles.choreEmoji}>😅</Text>
             <Text style={styles.choreName}>{a.expand?.chore?.name ?? "Chore"}</Text>
             {a.rejection_message ? (
@@ -167,7 +169,7 @@ export function SimpleKidHome({ user, onLogout }: { user: User; onLogout: () => 
         ))}
 
         {broadcasts.map((b) => (
-          <Surface key={b.id} style={[styles.choreCard, styles.broadcastCard]} elevation={1}>
+          <Surface key={b.id} style={[styles.choreCard, styles.broadcastCard, { backgroundColor: theme.colors.secondaryContainer }]} elevation={1}>
             <Text style={styles.choreEmoji}>📣</Text>
             <Text style={styles.broadcastText}>{b.message}</Text>
           </Surface>
@@ -209,7 +211,7 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   waitingCard: { opacity: 0.6 },
-  redoCard: { backgroundColor: "#fdeceb" },
+  redoCard: {},
   choreEmoji: { fontSize: 40 },
   choreName: { fontSize: 28, fontWeight: "700", textAlign: "center" },
   choreReward: { fontSize: 22, fontWeight: "600" },
@@ -217,6 +219,6 @@ const styles = StyleSheet.create({
   doneButtonContent: { paddingVertical: 12 },
   doneButtonLabel: { fontSize: 22, fontWeight: "700" },
   waitingText: { fontSize: 18, opacity: 0.7, textAlign: "center" },
-  broadcastCard: { backgroundColor: "#e8f4fd" },
+  broadcastCard: {},
   broadcastText: { fontSize: 22, fontWeight: "600", textAlign: "center" },
 });

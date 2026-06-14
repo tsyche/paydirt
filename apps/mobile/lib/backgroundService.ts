@@ -223,6 +223,7 @@ export async function startBackgroundService() {
     color: "#2f7d4f",
     linkingURI: "io.paydirt.app://",
     progressBar: { max: 0, value: 0, indeterminate: false },
+    foregroundServiceType: ["dataSync"],
   });
 }
 
