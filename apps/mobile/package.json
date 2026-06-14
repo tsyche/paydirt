@@ -23,6 +23,7 @@
     "eslint-config-expo": "~56.0.4",
     "expo": "~56.0.9",
     "expo-device": "~56.0.4",
+    "expo-file-system": "~56.0.7",
     "expo-image-picker": "~56.0.16",
     "expo-notifications": "~56.0.16",
     "expo-status-bar": "~56.0.4",
