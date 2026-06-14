@@ -55,3 +55,4 @@ blob-report/
 
 # Audit marker (local only)
 .last-audit
+.audit-log

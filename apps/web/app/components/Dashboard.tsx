@@ -119,7 +119,10 @@ export function Dashboard({
                 <span className="muted"> 🔥 {kid.streak_count}-day streak</span>
               ) : null}
             </span>
-            <span className="balance">{kid.balance} {currencyName}</span>
+            <span className="balance">
+              {kid.balance} {currencyName}
+              {goodsRate > 0 ? <span className="muted"> · ${(kid.balance / goodsRate).toFixed(2)}</span> : null}
+            </span>
           </div>
           {(goalsByKid[kid.id] ?? []).length > 0 && (
             <div className="muted" style={{ fontSize: 13, marginTop: 4 }}>

@@ -159,6 +159,11 @@ export function KidHome({ user, onLogout }: { user: User; onLogout: () => void }
             <Text variant="displaySmall" style={styles.balance}>
               {me.balance}
             </Text>
+            {(household?.goods_rate ?? 0) > 0 ? (
+              <Text variant="bodyMedium" style={styles.dollarValue}>
+                ${(me.balance / household!.goods_rate!).toFixed(2)}
+              </Text>
+            ) : null}
             <Text variant="bodySmall" style={styles.todoLine}>
               {toDo.length === 0 ? "Nothing to do — go play! 🎉" : `${toDo.length} chore${toDo.length === 1 ? "" : "s"} to do`}
             </Text>
@@ -716,6 +721,7 @@ const styles = StyleSheet.create({
   balanceCard: { marginBottom: 8 },
   balance: { fontWeight: "700", marginVertical: 4 },
   todoLine: { marginBottom: 8, opacity: 0.7 },
+  dollarValue: { opacity: 0.6, marginBottom: 2 },
   streakChip: { marginRight: 4 },
   heading: { marginTop: 8, marginBottom: 4 },
   headingRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },

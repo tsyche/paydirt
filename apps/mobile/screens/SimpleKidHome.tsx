@@ -20,6 +20,7 @@ export function SimpleKidHome({ user, onLogout }: { user: User; onLogout: () => 
   const [balance, setBalance] = useState(user.balance);
   const [assignments, setAssignments] = useState<Expanded[]>([]);
   const [currencyName, setCurrencyName] = useState("parentBucks");
+  const [goodsRate, setGoodsRate] = useState(0);
   const [broadcasts, setBroadcasts] = useState<Broadcast[]>([]);
   const [refreshing, setRefreshing] = useState(false);
   const [snack, setSnack] = useState("");
@@ -36,6 +37,7 @@ export function SimpleKidHome({ user, onLogout }: { user: User; onLogout: () => 
       setBalance(bal);
       setAssignments(list as Expanded[]);
       setCurrencyName(household.currency_name?.trim() || "parentBucks");
+      setGoodsRate(household.goods_rate ?? 0);
       setBroadcasts(bcs);
     } catch (e) {
       setSnack(String(e));
@@ -110,6 +112,9 @@ export function SimpleKidHome({ user, onLogout }: { user: User; onLogout: () => 
         <Surface style={styles.balanceSurface} elevation={2}>
           <Text style={styles.balanceEmoji}>💰</Text>
           <Text style={styles.balanceNumber}>{balance}</Text>
+          {goodsRate > 0 ? (
+            <Text style={styles.dollarValue}>${(balance / goodsRate).toFixed(2)}</Text>
+          ) : null}
           <Text style={styles.balanceLabel}>{currencyName}</Text>
         </Surface>
 
@@ -194,6 +199,7 @@ const styles = StyleSheet.create({
   },
   balanceEmoji: { fontSize: 48 },
   balanceNumber: { fontSize: 72, fontWeight: "900", lineHeight: 80 },
+  dollarValue: { fontSize: 28, fontWeight: "600", opacity: 0.65 },
   balanceLabel: { fontSize: 20, opacity: 0.7 },
   emptyCard: {
     width: "100%",
