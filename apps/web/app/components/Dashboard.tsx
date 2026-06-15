@@ -272,6 +272,7 @@ export function Dashboard({
             </div>
             <div className="muted">
               {c.reward} {currencyName} · {c.type}
+              {c.cadence ? ` (${c.cadence})` : ""}
               {c.due_at ? ` · due ${new Date(c.due_at.replace(" ", "T")).toLocaleString()}` : ""}
               {c.reminder_time ? ` · ⏰ ${c.reminder_time}` : ""}
             </div>
@@ -504,6 +505,7 @@ function CreateChore({
   const [name, setName] = useState("");
   const [reward, setReward] = useState(10);
   const [type, setType] = useState<"oneoff" | "recurring">("oneoff");
+  const [cadence, setCadence] = useState<"daily" | "weekly" | "monthly">("weekly");
   const [photoRequired, setPhotoRequired] = useState(false);
   const [race, setRace] = useState(false);
   const [dueAt, setDueAt] = useState("");
@@ -521,6 +523,7 @@ function CreateChore({
         name: name.trim(),
         reward,
         type,
+        cadence: type === "recurring" ? cadence : undefined,
         photo_required: photoRequired,
         race,
         due_at: dueAt ? new Date(dueAt).toISOString() : "",
@@ -561,6 +564,13 @@ function CreateChore({
           <option value="oneoff">one-off</option>
           <option value="recurring">recurring</option>
         </select>
+        {type === "recurring" && (
+          <select value={cadence} onChange={(e) => setCadence(e.target.value as "daily" | "weekly" | "monthly")}>
+            <option value="daily">daily</option>
+            <option value="weekly">weekly</option>
+            <option value="monthly">monthly</option>
+          </select>
+        )}
         <label style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 13 }}>
           <input
             type="checkbox"
