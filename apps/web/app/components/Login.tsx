@@ -36,34 +36,45 @@ export function Login({
   }
 
   return (
-    <main>
-      <h1>PayDirt</h1>
-      <p className="muted">Do. The. Thing.</p>
-      <form className="card stack" onSubmit={submit} style={{ maxWidth: 360 }}>
-        <input
-          type="email"
-          placeholder="Email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          autoComplete="username"
-          required
-        />
-        <input
-          type="password"
-          placeholder="Password"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          autoComplete="current-password"
-          required
-        />
-        <button className="primary" type="submit" disabled={busy}>
-          {busy ? "Signing in…" : "Sign in"}
-        </button>
-        {notParent && !error && (
-          <p className="error">This dashboard is for parents.</p>
-        )}
-        {error && <p className="error">{error}</p>}
-      </form>
-    </main>
+    <div className="login-shell">
+      <div className="login-card">
+        <div className="login-logo">💰</div>
+        <h1 className="login-title">PayDirt</h1>
+        <p className="login-tagline">Do. The. Thing.</p>
+
+        <form className="stack" onSubmit={submit}>
+          <input
+            type="email"
+            placeholder="Email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            autoComplete="username"
+            required
+            style={{ width: "100%" }}
+          />
+          <input
+            type="password"
+            placeholder="Password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            autoComplete="current-password"
+            required
+            style={{ width: "100%" }}
+          />
+          {(notParent && !error) && (
+            <p className="error">This dashboard is for parents.</p>
+          )}
+          {error && <p className="error">{error}</p>}
+          <button
+            className="primary"
+            type="submit"
+            disabled={busy}
+            style={{ width: "100%", justifyContent: "center", marginTop: 4, padding: "12px 20px" }}
+          >
+            {busy ? "Signing in…" : "Sign in"}
+          </button>
+        </form>
+      </div>
+    </div>
   );
 }

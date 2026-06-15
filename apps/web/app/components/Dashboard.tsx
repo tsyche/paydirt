@@ -100,249 +100,332 @@ export function Dashboard({
   };
 
   return (
-    <main>
-      <div className="row">
-        <h1>PayDirt</h1>
-        <div className="inline">
-          {household && <HouseholdSettings household={household} onSaved={reload} />}
-          <button onClick={onLogout}>Sign out</button>
-        </div>
-      </div>
-      {error && <p className="error">{error}</p>}
-
-      <h2>Kids</h2>
-      {kids.length === 0 && <p className="muted">No kids in this household yet.</p>}
-      {kids.map((kid) => (
-        <div
-          className="card"
-          key={kid.id}
-          style={{ borderLeft: `4px solid ${kid.color ?? "#8e24aa"}` }}
-        >
-          <div className="row">
-            <span style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              <span style={{ fontSize: 24, lineHeight: 1 }}>{kid.avatar || "🧒"}</span>
-              <span>
-                {kid.display_name}
-                {(kid.streak_count ?? 0) >= 2 ? (
-                  <span className="muted"> 🔥 {kid.streak_count}-day streak</span>
-                ) : null}
-              </span>
-            </span>
-            <span className="balance">
-              {kid.balance} {currencyName}
-              {goodsRate > 0 ? <span className="muted"> · ${(kid.balance / goodsRate).toFixed(2)}</span> : null}
-            </span>
+    <div className="app-shell">
+      {/* ── App Bar ── */}
+      <header className="app-bar">
+        <div className="app-bar-inner">
+          <div className="app-bar-title">
+            <span className="app-bar-logo">💰</span>
+            PayDirt
           </div>
-          {(goalsByKid[kid.id] ?? []).length > 0 && (
-            <div className="muted" style={{ fontSize: 13, marginTop: 4 }}>
-              🎯 {(goalsByKid[kid.id] ?? [])
-                .map((g) => `${g.name} (${g.achieved ? "done!" : `${kid.balance}/${g.target}`})`)
-                .join(" · ")}
-            </div>
-          )}
-          <div className="inline" style={{ marginTop: 6 }}>
-            <AdjustControl kid={kid} onAdjusted={reload} />
-            <LedgerToggle kidId={kid.id} />
-            <AvatarControl kid={kid} onSaved={reload} />
-          </div>
-        </div>
-      ))}
-
-      {kids.length > 0 && <BroadcastControl householdId={householdId} senderId={user.id} />}
-
-      {proposals.length > 0 && (
-        <>
-          <h2>Chore ideas from the kids ({proposals.length})</h2>
-          {proposals.map((p) => (
-            <ProposalRow key={p.id} proposal={p} parentId={user.id} currencyName={currencyName} onActed={reload} />
-          ))}
-        </>
-      )}
-
-      <div className="row">
-        <h2>Pending approvals ({approvals.length})</h2>
-        {approvals.length > 1 && (
           <div className="inline">
-            {selectedApprovals.size > 0 && (
-              <button
-                className="primary"
-                onClick={() =>
-                  act(() =>
-                    Promise.all([...selectedApprovals].map((id) => client.approveAssignment(id))).then(() => {}),
-                  )
-                }
-              >
-                Approve selected ({selectedApprovals.size})
-              </button>
+            {household && (
+              <HouseholdSettings household={household} onSaved={reload} />
             )}
-            <button
-              className="primary"
-              onClick={() =>
-                act(() => Promise.all(approvals.map((a) => client.approveAssignment(a.id))).then(() => {}))
-              }
-            >
-              Approve all
+            <button className="outlined sm" onClick={onLogout}>
+              Sign out
             </button>
-            <label className="inline" style={{ fontSize: 13, gap: 4 }}>
-              <input
-                type="checkbox"
-                checked={selectedApprovals.size === approvals.length}
-                onChange={(e) =>
-                  setSelectedApprovals(e.target.checked ? new Set(approvals.map((a) => a.id)) : new Set())
-                }
-              />
-              Select all
-            </label>
           </div>
+        </div>
+      </header>
+
+      <main>
+        {error && <p className="error" style={{ marginBottom: 12 }}>⚠️ {error}</p>}
+
+        {/* ── Kids ── */}
+        <h2>Kids</h2>
+        {kids.length === 0 && (
+          <p className="muted">No kids in this household yet.</p>
         )}
-      </div>
-      {approvals.length === 0 && <p className="muted">Nothing waiting.</p>}
-      {approvals.map((a) => (
-        <div className="card row" key={a.id}>
-          <div className="inline" style={{ gap: 8, alignItems: "flex-start" }}>
-            {approvals.length > 1 && (
-              <input
-                type="checkbox"
-                style={{ marginTop: 3 }}
-                checked={selectedApprovals.has(a.id)}
-                onChange={(e) => {
-                  const next = new Set(selectedApprovals);
-                  e.target.checked ? next.add(a.id) : next.delete(a.id);
-                  setSelectedApprovals(next);
-                }}
-              />
-            )}
-            <div>
-              <div>{(a.expand?.chore as Chore | undefined)?.name ?? "Chore"}</div>
-              <div className="muted">
-                {(a.expand?.child as User | undefined)?.display_name ?? "child"}
-              </div>
-              {a.rejection_message ? (
-                <div className="muted" style={{ fontSize: 13 }}>
-                  ↩️ Resubmitted — you said: {a.rejection_message}
+        {kids.map((kid) => (
+          <div
+            className="card"
+            key={kid.id}
+            style={{ borderLeft: `4px solid ${kid.color ?? "#2f7d4f"}` }}
+          >
+            <div className="row">
+              <div className="inline" style={{ gap: 12 }}>
+                <div
+                  className="kid-avatar"
+                  style={{ backgroundColor: `color-mix(in srgb, ${kid.color ?? "#2f7d4f"} 18%, transparent)` }}
+                >
+                  {kid.avatar || "🧒"}
                 </div>
-              ) : null}
-              {a.kid_response ? (
-                <div className="muted" style={{ fontSize: 13 }}>💬 {a.kid_response}</div>
-              ) : null}
-            </div>
-          </div>
-          <div className="inline">
-            <button className="primary" onClick={() => act(() => client.approveAssignment(a.id))}>
-              Approve
-            </button>
-            <button
-              className="danger"
-              onClick={() => {
-                const msg = window.prompt("Reason (optional):") ?? "";
-                void act(() => client.rejectAssignment(a.id, msg));
-              }}
-            >
-              Reject
-            </button>
-          </div>
-        </div>
-      ))}
-
-      <h2>Spend requests ({spend.length})</h2>
-      {spend.length === 0 && <p className="muted">Nothing waiting.</p>}
-      {spend.map((s) => (
-        <div className="card row" key={s.id}>
-          <div>
-            <div>
-              {(s.expand?.child as User | undefined)?.display_name ?? "child"} — {s.description}
-            </div>
-            <div className="muted">
-              {s.amount} {currencyName}
-              {goodsRate > 0 ? ` (≈ $${(s.amount / goodsRate).toFixed(2)})` : ""}
-            </div>
-          </div>
-          <div className="inline">
-            <button
-              className="primary"
-              onClick={() => act(() => client.approveSpendRequest(s.id, user.id))}
-            >
-              Approve
-            </button>
-            <button
-              className="danger"
-              onClick={() => act(() => client.denySpendRequest(s.id, user.id))}
-            >
-              Deny
-            </button>
-          </div>
-        </div>
-      ))}
-
-      <h2>Recently approved ({recentApproved.length})</h2>
-      {recentApproved.length === 0 && <p className="muted">No approved chores yet.</p>}
-      {recentApproved.map((a) => {
-        const chore = a.expand?.chore as Chore | undefined;
-        const kid = a.expand?.child as User | undefined;
-        return (
-          <div className="card row" key={a.id}>
-            <div>
-              <div>{chore?.name ?? "Chore"}</div>
-              <div className="muted">
-                {kid?.display_name ?? "child"} · +{chore?.reward ?? "?"} {currencyName}
+                <div>
+                  <div style={{ fontWeight: 700, fontSize: 15 }}>
+                    {kid.display_name}
+                    {(kid.streak_count ?? 0) >= 2 && (
+                      <span className="chip chip-primary" style={{ marginLeft: 8, fontSize: 11 }}>
+                        🔥 {kid.streak_count}-day streak
+                      </span>
+                    )}
+                  </div>
+                  {(goalsByKid[kid.id] ?? []).length > 0 && (
+                    <div className="muted" style={{ marginTop: 2 }}>
+                      🎯{" "}
+                      {(goalsByKid[kid.id] ?? [])
+                        .map((g) =>
+                          `${g.name} (${g.achieved ? "done!" : `${kid.balance}/${g.target}`})`
+                        )
+                        .join(" · ")}
+                    </div>
+                  )}
+                </div>
+              </div>
+              <div style={{ textAlign: "right" }}>
+                <div className="balance" style={{ fontSize: 18 }}>
+                  {kid.balance}
+                  <span style={{ fontWeight: 400, fontSize: 13, marginLeft: 4 }}>
+                    {currencyName}
+                  </span>
+                </div>
+                {goodsRate > 0 && (
+                  <div className="muted" style={{ fontSize: 12 }}>
+                    ${(kid.balance / goodsRate).toFixed(2)}
+                  </div>
+                )}
               </div>
             </div>
-            <div className="inline">
-              {a.reaction ? (
-                <span style={{ fontSize: 20 }}>{a.reaction}</span>
-              ) : (
-                REACTIONS.map((emoji) => (
+            <div className="inline" style={{ marginTop: 10 }}>
+              <AdjustControl kid={kid} onAdjusted={reload} />
+              <LedgerToggle kidId={kid.id} />
+              <AvatarControl kid={kid} onSaved={reload} />
+            </div>
+          </div>
+        ))}
+
+        {kids.length > 0 && (
+          <BroadcastControl householdId={householdId} senderId={user.id} />
+        )}
+
+        {/* ── Chore proposals ── */}
+        {proposals.length > 0 && (
+          <>
+            <h2>💡 Chore ideas from the kids ({proposals.length})</h2>
+            {proposals.map((p) => (
+              <ProposalRow
+                key={p.id}
+                proposal={p}
+                parentId={user.id}
+                currencyName={currencyName}
+                onActed={reload}
+              />
+            ))}
+          </>
+        )}
+
+        {/* ── Pending approvals — priority section ── */}
+        <div className="section-priority">
+          <div className="row" style={{ flexWrap: "wrap", gap: 8 }}>
+            <h2 style={{ margin: "28px 0 12px" }}>
+              ✅ Pending approvals ({approvals.length})
+            </h2>
+            {approvals.length > 1 && (
+              <div className="inline">
+                {selectedApprovals.size > 0 && (
                   <button
-                    key={emoji}
-                    title="Send a reaction"
-                    style={{ padding: "2px 6px" }}
-                    onClick={() => act(() => client.reactToAssignment(a.id, emoji))}
+                    className="primary sm"
+                    onClick={() =>
+                      act(() =>
+                        Promise.all(
+                          [...selectedApprovals].map((id) => client.approveAssignment(id))
+                        ).then(() => {})
+                      )
+                    }
                   >
-                    {emoji}
+                    Approve selected ({selectedApprovals.size})
                   </button>
-                ))
-              )}
+                )}
+                <button
+                  className="primary sm"
+                  onClick={() =>
+                    act(() =>
+                      Promise.all(approvals.map((a) => client.approveAssignment(a.id))).then(
+                        () => {}
+                      )
+                    )
+                  }
+                >
+                  Approve all
+                </button>
+                <label className="inline" style={{ fontSize: 13, gap: 6, cursor: "pointer" }}>
+                  <input
+                    type="checkbox"
+                    checked={selectedApprovals.size === approvals.length}
+                    onChange={(e) =>
+                      setSelectedApprovals(
+                        e.target.checked ? new Set(approvals.map((a) => a.id)) : new Set()
+                      )
+                    }
+                  />
+                  Select all
+                </label>
+              </div>
+            )}
+          </div>
+          {approvals.length === 0 && (
+            <p className="muted" style={{ paddingBottom: 8 }}>Nothing waiting. 🎉</p>
+          )}
+          {approvals.map((a) => (
+            <div className="card row" key={a.id} style={{ alignItems: "flex-start" }}>
+              <div className="inline" style={{ gap: 10, alignItems: "flex-start", flex: 1 }}>
+                {approvals.length > 1 && (
+                  <input
+                    type="checkbox"
+                    style={{ marginTop: 2 }}
+                    checked={selectedApprovals.has(a.id)}
+                    onChange={(e) => {
+                      const next = new Set(selectedApprovals);
+                      if (e.target.checked) { next.add(a.id); } else { next.delete(a.id); }
+                      setSelectedApprovals(next);
+                    }}
+                  />
+                )}
+                <div>
+                  <div style={{ fontWeight: 600 }}>
+                    {(a.expand?.chore as Chore | undefined)?.name ?? "Chore"}
+                  </div>
+                  <div className="muted">
+                    {(a.expand?.child as User | undefined)?.display_name ?? "child"}
+                  </div>
+                  {a.rejection_message && (
+                    <div className="muted" style={{ fontSize: 12, marginTop: 2 }}>
+                      ↩️ Resubmitted — you said: {a.rejection_message}
+                    </div>
+                  )}
+                  {a.kid_response && (
+                    <div className="muted" style={{ fontSize: 12, marginTop: 2 }}>
+                      💬 {a.kid_response}
+                    </div>
+                  )}
+                </div>
+              </div>
+              <div className="inline" style={{ flexShrink: 0 }}>
+                <button
+                  className="primary sm"
+                  onClick={() => act(() => client.approveAssignment(a.id))}
+                >
+                  Approve
+                </button>
+                <button
+                  className="danger sm"
+                  onClick={() => {
+                    const msg = window.prompt("Reason (optional):") ?? "";
+                    void act(() => client.rejectAssignment(a.id, msg));
+                  }}
+                >
+                  Reject
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* ── Spend requests ── */}
+        <h2>💸 Spend requests ({spend.length})</h2>
+        {spend.length === 0 && <p className="muted">Nothing waiting.</p>}
+        {spend.map((s) => (
+          <div className="card row" key={s.id} style={{ alignItems: "flex-start", flexWrap: "wrap" }}>
+            <div>
+              <div style={{ fontWeight: 600 }}>
+                {(s.expand?.child as User | undefined)?.display_name ?? "child"}
+                <span style={{ fontWeight: 400 }}> — {s.description}</span>
+              </div>
+              <div className="muted">
+                <span className="balance" style={{ fontSize: 13 }}>{s.amount}</span>
+                {" "}{currencyName}
+                {goodsRate > 0 && ` (≈ $${(s.amount / goodsRate).toFixed(2)})`}
+              </div>
+            </div>
+            <div className="inline" style={{ flexShrink: 0 }}>
               <button
-                className="danger"
-                onClick={() => {
-                  const choreName = chore?.name ?? "this chore";
-                  const detail = chore && kid
-                    ? ` This will deduct ${chore.reward} ${currencyName} from ${kid.display_name}.`
-                    : "";
-                  if (!window.confirm(`Undo approval for "${choreName}"?${detail}`)) return;
-                  void act(() => client.undoApproval(a.id));
-                }}
+                className="primary sm"
+                onClick={() => act(() => client.approveSpendRequest(s.id, user.id))}
               >
-                Undo
+                Approve
+              </button>
+              <button
+                className="danger sm"
+                onClick={() => act(() => client.denySpendRequest(s.id, user.id))}
+              >
+                Deny
               </button>
             </div>
           </div>
-        );
-      })}
+        ))}
 
-      <h2>Chores</h2>
-      <CreateChore household={householdId} parentId={user.id} onCreated={reload} />
-      {chores.map((c) => (
-        <div className="card row" key={c.id}>
-          <div>
-            <div>
-              {c.race ? "🏁 " : ""}
-              {c.name}
-              {c.photo_required ? <span className="muted"> 📷</span> : null}
+        {/* ── Recently approved ── */}
+        <h2>🏆 Recently approved ({recentApproved.length})</h2>
+        {recentApproved.length === 0 && <p className="muted">No approved chores yet.</p>}
+        {recentApproved.map((a) => {
+          const chore = a.expand?.chore as Chore | undefined;
+          const kid = a.expand?.child as User | undefined;
+          return (
+            <div className="card row" key={a.id} style={{ flexWrap: "wrap", gap: 10 }}>
+              <div style={{ flex: 1, minWidth: 160 }}>
+                <div style={{ fontWeight: 600 }}>{chore?.name ?? "Chore"}</div>
+                <div className="muted">
+                  {kid?.display_name ?? "child"} ·{" "}
+                  <span className="balance" style={{ fontSize: 13 }}>
+                    +{chore?.reward ?? "?"}
+                  </span>{" "}
+                  {currencyName}
+                </div>
+              </div>
+              <div className="inline">
+                {a.reaction ? (
+                  <span style={{ fontSize: 22 }}>{a.reaction}</span>
+                ) : (
+                  REACTIONS.map((emoji) => (
+                    <button
+                      key={emoji}
+                      className="reaction-btn"
+                      title="Send a reaction"
+                      onClick={() => act(() => client.reactToAssignment(a.id, emoji))}
+                    >
+                      {emoji}
+                    </button>
+                  ))
+                )}
+                <button
+                  className="danger sm"
+                  onClick={() => {
+                    const choreName = chore?.name ?? "this chore";
+                    const detail =
+                      chore && kid
+                        ? ` This will deduct ${chore.reward} ${currencyName} from ${kid.display_name}.`
+                        : "";
+                    if (!window.confirm(`Undo approval for "${choreName}"?${detail}`)) return;
+                    void act(() => client.undoApproval(a.id));
+                  }}
+                >
+                  Undo
+                </button>
+              </div>
             </div>
-            <div className="muted">
-              {c.reward} {currencyName} · {c.type}
-              {c.cadence ? ` (${c.cadence})` : ""}
-              {c.due_at ? ` · due ${new Date(c.due_at.replace(" ", "T")).toLocaleString()}` : ""}
-              {c.reminder_time ? ` · ⏰ ${c.reminder_time}` : ""}
+          );
+        })}
+
+        {/* ── Chores ── */}
+        <h2>📋 Chores</h2>
+        <CreateChore household={householdId} parentId={user.id} onCreated={reload} />
+        {chores.map((c) => (
+          <div className="card row" key={c.id} style={{ flexWrap: "wrap", gap: 10 }}>
+            <div style={{ flex: 1, minWidth: 160 }}>
+              <div style={{ fontWeight: 600 }}>
+                {c.race ? "🏁 " : ""}
+                {c.name}
+                {c.photo_required && <span className="muted"> 📷</span>}
+              </div>
+              <div className="muted">
+                <span className="balance" style={{ fontSize: 13 }}>{c.reward}</span>
+                {" "}{currencyName} · {c.type}
+                {c.cadence ? ` (${c.cadence})` : ""}
+                {c.due_at
+                  ? ` · due ${new Date(c.due_at.replace(" ", "T")).toLocaleString()}`
+                  : ""}
+                {c.reminder_time ? ` · ⏰ ${c.reminder_time}` : ""}
+              </div>
             </div>
+            <AssignControl chore={c} kids={kids} onAssigned={reload} />
           </div>
-          <AssignControl chore={c} kids={kids} onAssigned={reload} />
-        </div>
-      ))}
-    </main>
+        ))}
+      </main>
+    </div>
   );
 }
+
+/* ─── Sub-components ─────────────────────────────────────────────────────── */
 
 function ProposalRow({
   proposal,
@@ -373,20 +456,24 @@ function ProposalRow({
   };
 
   return (
-    <div className="card row">
-      <div>
-        <div>
+    <div className="card row" style={{ flexWrap: "wrap", gap: 10 }}>
+      <div style={{ flex: 1, minWidth: 160 }}>
+        <div style={{ fontWeight: 600 }}>
           💡 {proposal.name}
-          {proposal.description ? <span className="muted"> — {proposal.description}</span> : null}
+          {proposal.description && (
+            <span className="muted" style={{ fontWeight: 400 }}> — {proposal.description}</span>
+          )}
         </div>
         <div className="muted">
-          {kid?.display_name ?? "kid"} asks {proposal.reward_requested} {currencyName}
+          {kid?.display_name ?? "kid"} asks{" "}
+          <span className="balance" style={{ fontSize: 13 }}>{proposal.reward_requested}</span>
+          {" "}{currencyName}
         </div>
-        {error && <p className="error">{error}</p>}
+        {error && <p className="error" style={{ marginTop: 4 }}>{error}</p>}
       </div>
-      <div className="inline">
+      <div className="inline" style={{ flexShrink: 0 }}>
         <button
-          className="primary"
+          className="primary sm"
           disabled={busy}
           onClick={() => {
             const answer = window.prompt(
@@ -402,7 +489,7 @@ function ProposalRow({
           Approve
         </button>
         <button
-          className="danger"
+          className="danger sm"
           disabled={busy}
           onClick={() => run(() => client.declineProposal(proposal.id, parentId))}
         >
@@ -434,20 +521,26 @@ function BroadcastControl({ householdId, senderId }: { householdId: string; send
   }
 
   return (
-    <div className="card stack">
+    <div className="card" style={{ marginTop: 4 }}>
       <div className="inline">
         <input
-          placeholder="Message all kids (e.g. Dinner in 10 minutes!)"
+          placeholder="📣 Message all kids (e.g. Dinner in 10 minutes!)"
           value={message}
           onChange={(e) => setMessage(e.target.value)}
           onKeyDown={(e) => { if (e.key === "Enter") void send(); }}
           style={{ flex: 1 }}
         />
-        <button className="primary" onClick={send} disabled={busy || !message.trim()}>
-          📣 Send
+        <button
+          className="primary sm"
+          onClick={send}
+          disabled={busy || !message.trim()}
+        >
+          Send
         </button>
       </div>
-      {status && <p className="muted" style={{ margin: 0 }}>{status}</p>}
+      {status && (
+        <p className="muted" style={{ margin: "8px 0 0" }}>{status}</p>
+      )}
     </div>
   );
 }
@@ -471,20 +564,20 @@ function LedgerToggle({ kidId }: { kidId: string }) {
 
   return (
     <div>
-      <button onClick={toggle} disabled={loading}>
+      <button className="sm" onClick={toggle} disabled={loading}>
         {loading ? "…" : open ? "Hide history" : "History"}
       </button>
       {open && (
-        <div className="stack" style={{ marginTop: 8 }}>
+        <div style={{ marginTop: 10 }}>
           {txns.length === 0 && <p className="muted">No transactions yet.</p>}
           {txns.map((t) => (
-            <div key={t.id} className="row" style={{ fontSize: 13 }}>
+            <div key={t.id} className="ledger-row">
               <span className="muted">{t.created.slice(0, 10)}</span>
               <span>{TX_LABEL[t.type] ?? t.type}</span>
-              <span style={{ color: t.amount >= 0 ? "#2f7d4f" : "#b3433a", fontWeight: 600 }}>
+              <span className={t.amount >= 0 ? "amount-positive" : "amount-negative"}>
                 {t.amount >= 0 ? "+" : ""}{t.amount}
               </span>
-              <span className="muted">{t.reason ?? ""}</span>
+              <span className="muted" style={{ fontSize: 12 }}>{t.reason ?? ""}</span>
             </div>
           ))}
         </div>
@@ -519,34 +612,44 @@ function AdjustControl({ kid, onAdjusted }: { kid: User; onAdjusted: () => void 
 
   if (!open) {
     return (
-      <button onClick={() => setOpen(true)}>
+      <button className="sm" onClick={() => setOpen(true)}>
         Bonus / deduct
       </button>
     );
   }
 
   return (
-    <div className="stack" style={{ marginTop: 8 }}>
+    <div className="stack" style={{ marginTop: 8, width: "100%" }}>
       <div className="inline">
         <input
           type="number"
           value={amount}
           onChange={(e) => setAmount(Number(e.target.value))}
-          style={{ width: 90 }}
+          style={{ width: 100 }}
           placeholder="Amount (±)"
         />
         <input
           placeholder="Reason"
           value={reason}
           onChange={(e) => setReason(e.target.value)}
+          style={{ flex: 1 }}
         />
-        <button className="primary" onClick={submit} disabled={busy || amount === 0 || !reason.trim()}>
+        <button
+          className="primary sm"
+          onClick={submit}
+          disabled={busy || amount === 0 || !reason.trim()}
+        >
           Apply
         </button>
-        <button onClick={() => { setOpen(false); setError(""); }}>Cancel</button>
+        <button
+          className="sm"
+          onClick={() => { setOpen(false); setError(""); }}
+        >
+          Cancel
+        </button>
       </div>
-      <p style={{ fontSize: 12, opacity: 0.6, margin: 0 }}>
-        Positive = bonus, negative = deduction
+      <p style={{ fontSize: 12, color: "var(--md-on-surface-variant)", margin: 0 }}>
+        Positive = bonus · Negative = deduction
       </p>
       {error && <p className="error">{error}</p>}
     </div>
@@ -606,12 +709,14 @@ function CreateChore({
   }
 
   return (
-    <div className="card stack">
-      <div className="inline">
+    <div className="card-filled" style={{ marginBottom: 12 }}>
+      <div className="inline" style={{ marginBottom: 8 }}>
         <input
           placeholder="New chore name"
           value={name}
           onChange={(e) => setName(e.target.value)}
+          onKeyDown={(e) => { if (e.key === "Enter") void create(); }}
+          style={{ flex: 1 }}
         />
         <input
           type="number"
@@ -619,40 +724,51 @@ function CreateChore({
           value={reward}
           onChange={(e) => setReward(Number(e.target.value))}
           style={{ width: 90 }}
+          placeholder="Reward"
         />
-        <select value={type} onChange={(e) => setType(e.target.value as "oneoff" | "recurring")}>
+        <select
+          value={type}
+          onChange={(e) => setType(e.target.value as "oneoff" | "recurring")}
+        >
           <option value="oneoff">one-off</option>
           <option value="recurring">recurring</option>
         </select>
         {type === "recurring" && (
-          <select value={cadence} onChange={(e) => setCadence(e.target.value as "daily" | "weekly" | "monthly")}>
+          <select
+            value={cadence}
+            onChange={(e) => setCadence(e.target.value as "daily" | "weekly" | "monthly")}
+          >
             <option value="daily">daily</option>
             <option value="weekly">weekly</option>
             <option value="monthly">monthly</option>
           </select>
         )}
-        <label style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 13 }}>
+        <button
+          className="primary sm"
+          onClick={create}
+          disabled={busy || !name.trim()}
+        >
+          Add chore
+        </button>
+      </div>
+      <div className="inline" style={{ fontSize: 13, gap: 12 }}>
+        <label className="inline" style={{ gap: 6, cursor: "pointer" }}>
           <input
             type="checkbox"
             checked={photoRequired}
             onChange={(e) => setPhotoRequired(e.target.checked)}
           />
-          📷 required
+          📷 Photo required
         </label>
-        <label style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 13 }}>
+        <label className="inline" style={{ gap: 6, cursor: "pointer" }}>
           <input
             type="checkbox"
             checked={race}
             onChange={(e) => setRace(e.target.checked)}
           />
-          🏁 race
+          🏁 Race
         </label>
-        <button className="primary" onClick={create} disabled={busy}>
-          Add chore
-        </button>
-      </div>
-      <div className="inline" style={{ fontSize: 13 }}>
-        <label style={{ display: "flex", alignItems: "center", gap: 4 }}>
+        <label className="inline" style={{ gap: 6 }}>
           Due
           <input
             type="datetime-local"
@@ -660,7 +776,7 @@ function CreateChore({
             onChange={(e) => setDueAt(e.target.value)}
           />
         </label>
-        <label style={{ display: "flex", alignItems: "center", gap: 4 }}>
+        <label className="inline" style={{ gap: 6 }}>
           Daily reminder
           <input
             type="time"
@@ -670,7 +786,7 @@ function CreateChore({
         </label>
         <span className="muted">(both optional)</span>
       </div>
-      {error && <p className="error">{error}</p>}
+      {error && <p className="error" style={{ marginTop: 8 }}>{error}</p>}
     </div>
   );
 }
@@ -685,19 +801,19 @@ function AvatarControl({ kid, onSaved }: { kid: User; onSaved: () => void }) {
 
   if (!open) {
     return (
-      <button style={{ fontSize: 13 }} onClick={() => setOpen(true)}>
+      <button className="sm" style={{ fontSize: 13 }} onClick={() => setOpen(true)}>
         ✏️ Avatar
       </button>
     );
   }
 
   return (
-    <div className="inline" style={{ flexWrap: "wrap", gap: 6 }}>
+    <div className="inline" style={{ flexWrap: "wrap", gap: 8, marginTop: 4 }}>
       <input
         placeholder="Emoji (e.g. 🦊)"
         value={avatar}
         onChange={(e) => setAvatar(e.target.value)}
-        style={{ width: 100 }}
+        style={{ width: 110 }}
       />
       <div className="inline" style={{ gap: 4 }}>
         {AVATAR_COLORS.map((c) => (
@@ -706,18 +822,19 @@ function AvatarControl({ kid, onSaved }: { kid: User; onSaved: () => void }) {
             title={c}
             onClick={() => setColor(c)}
             style={{
-              width: 22,
-              height: 22,
+              width: 24,
+              height: 24,
               borderRadius: "50%",
               backgroundColor: c,
-              border: color === c ? "3px solid #333" : "2px solid transparent",
+              border: color === c ? "3px solid var(--md-on-surface)" : "2px solid transparent",
               padding: 0,
+              boxShadow: color === c ? "0 0 0 2px var(--md-surface)" : "none",
             }}
           />
         ))}
       </div>
       <button
-        className="primary"
+        className="primary sm"
         disabled={busy}
         onClick={async () => {
           setBusy(true);
@@ -732,7 +849,7 @@ function AvatarControl({ kid, onSaved }: { kid: User; onSaved: () => void }) {
       >
         Save
       </button>
-      <button onClick={() => setOpen(false)}>Cancel</button>
+      <button className="sm" onClick={() => setOpen(false)}>Cancel</button>
     </div>
   );
 }
@@ -766,19 +883,23 @@ function AssignControl({
   }
 
   return (
-    <div className="inline">
+    <div className="inline" style={{ flexShrink: 0 }}>
       <select value={childId} onChange={(e) => setChildId(e.target.value)}>
         <option value="">Assign to…</option>
-        {chore.race && kids.length > 1 ? (
+        {chore.race && kids.length > 1 && (
           <option value="__race__">🏁 Everyone (race!)</option>
-        ) : null}
+        )}
         {kids.map((k) => (
           <option key={k.id} value={k.id}>
-            {k.display_name}
+            {k.avatar ? `${k.avatar} ` : ""}{k.display_name}
           </option>
         ))}
       </select>
-      <button onClick={assign} disabled={busy || !childId}>
+      <button
+        className="tonal sm"
+        onClick={assign}
+        disabled={busy || !childId}
+      >
         Assign
       </button>
     </div>
