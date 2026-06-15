@@ -8,7 +8,7 @@ import { client, pbUrl } from "./lib/client";
 import { Login } from "./screens/Login";
 import { KidHome } from "./screens/KidHome";
 import { SimpleKidHome } from "./screens/SimpleKidHome";
-import { ParentNotice } from "./screens/ParentNotice";
+import { ParentHome } from "./screens/ParentHome";
 import {
   requestNotificationPermissions,
   setupNotificationChannels,
@@ -84,7 +84,7 @@ export default function App() {
         ? <SimpleKidHome user={user} onLogout={logout} />
         : <KidHome user={user} onLogout={logout} />;
     }
-    return <ParentNotice onLogout={logout} />;
+    return <ParentHome user={user} onLogout={logout} />;
   }
 
   return (
