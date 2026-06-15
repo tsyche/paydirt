@@ -8,7 +8,9 @@ Chore CRUD, assignment, complete/approve flow, parentBucks earn + spend, ntfy no
 
 ## Recently Completed
 
-1. ✅ **Multi-kid chore assignment (2026-06-15)** — `AssignControl` replaced with per-kid checkboxes; parents tick any subset and assign in one action. Race mechanic still driven by chore's `race` flag on backend.
+1. ✅ **Parent mobile chore creation (2026-06-15)** — Create-chore form added to ParentHome (name, reward, type/cadence, photo-required, race, reminder time) with collapsible toggle. Chore list below with tap-to-toggle kid chips for direct assignment.
+2. ✅ **Kid leaderboard / achievement wall (2026-06-15)** — Collapsible "🏆 Sibling leaderboard" accordion in KidHome. Shows each sibling sorted by streak (avatar, name, streak count, last 3 wins). Fetched lazily on expand; balances never exposed.
+3. ✅ **Multi-kid chore assignment (2026-06-15)** — `AssignControl` replaced with per-kid checkboxes; parents tick any subset and assign in one action. Race mechanic still driven by chore's `race` flag on backend.
 2. ✅ **Parent earnings/activity report (2026-06-15)** — Collapsible 📊 section in the web dashboard. Per-kid monthly cards: chores completed, earned, spent, streak peak (computed from consecutive approved days). Month/year navigation. Two new client methods: `listTransactionsForMonth`, `listApprovedAssignmentsForMonth`.
 3. ✅ **Streak/expiry tuning UI (2026-06-15)** — Milestone bonus amounts now overridable per household via HouseholdSettings (3/7/14/30-day). Migration `1717000012` adds `streak_bonus_N` fields; `goals.pb.js` reads household overrides, falls back to hardcoded defaults when 0/unset.
 4. ✅ **Notification quiet hours (2026-06-15)** — Per-household window where all push notifications are suppressed. `quiet_start`/`quiet_end` (HH:MM) fields on households; `isQuietHours()` check in `ntfy.js` before every send; time pickers in HouseholdSettings; handles midnight wrap-around.
@@ -20,10 +22,10 @@ Chore CRUD, assignment, complete/approve flow, parentBucks earn + spend, ntfy no
 ## Recommended Next 3
 
 1. **Per-kid goods rate** — `goods_rate` is household-wide; `users.goods_rate` with fallback to household rate would let kids at different ages have different conversion displays. ~1 hr.
-2. **Parent mobile chore creation** — currently web-only; completing the mobile parent experience so parents can add chores from the phone. ~2 hrs.
-3. **Kid leaderboard / achievement wall** — siblings can see each other's streak and recent wins; light gamification without exposing balances. ~2-3 hrs.
+2. **Custom kid reminder times** — freeform time input in addition to the 1h/3h/tomorrow presets; currently not exposed on mobile. ~1 hr.
+3. **Fix `withUnifiedPush.js` lint errors** — pre-existing `expo-file-system` API mismatch and `require()` import style; blocking clean lint runs. ~30 min.
 
-**Also queued:** Custom kid reminder times (~1 hr), fix pre-existing `withUnifiedPush.js` lint errors (~30 min).
+**Also queued:** Per-kid goods rate (~1 hr).
 
 ## Phase 1 — Core Feature Set ✅ (completed 2026-06-10)
 

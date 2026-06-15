@@ -9,6 +9,8 @@ import {
   Chip,
   Snackbar,
   Divider,
+  Switch,
+  SegmentedButtons,
   useTheme,
 } from "react-native-paper";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -24,10 +26,26 @@ export function ParentHome({ user, onLogout }: { user: User; onLogout: () => voi
   const [kids, setKids] = useState<User[]>([]);
   const [approvals, setApprovals] = useState<ExpandedAssignment[]>([]);
   const [spend, setSpend] = useState<ExpandedSpend[]>([]);
+  const [chores, setChores] = useState<Chore[]>([]);
   const [refreshing, setRefreshing] = useState(false);
   const [broadcastMsg, setBroadcastMsg] = useState("");
   const [broadcasting, setBroadcasting] = useState(false);
   const [snack, setSnack] = useState("");
+
+  // Create chore form state
+  const [showCreateChore, setShowCreateChore] = useState(false);
+  const [choreName, setChoreName] = useState("");
+  const [choreReward, setChoreReward] = useState("10");
+  const [choreType, setChoreType] = useState<"oneoff" | "recurring">("oneoff");
+  const [choreCadence, setChoreCadence] = useState<"daily" | "weekly" | "monthly">("weekly");
+  const [chorePhoto, setChorePhoto] = useState(false);
+  const [choreRace, setChoreRace] = useState(false);
+  const [choreReminder, setChoreReminder] = useState("");
+  const [creatingChore, setCreatingChore] = useState(false);
+
+  // Assignment state: choreId → Set of selected kidIds
+  const [assignSelections, setAssignSelections] = useState<Record<string, Set<string>>>({});
+  const [assigning, setAssigning] = useState<Record<string, boolean>>({});
 
   const currencyName = household?.currency_name?.trim() || "parentBucks";
   const goodsRate = household?.goods_rate ?? 0;
@@ -35,16 +53,18 @@ export function ParentHome({ user, onLogout }: { user: User; onLogout: () => voi
   const reload = useCallback(async () => {
     setRefreshing(true);
     try {
-      const [hh, k, a, s] = await Promise.all([
+      const [hh, k, a, s, c] = await Promise.all([
         client.getHousehold(user.household),
         client.listChildren(user.household),
         client.listPendingApprovals(user.household),
         client.listPendingSpendRequests(user.household),
+        client.listChores(user.household),
       ]);
       setHousehold(hh);
       setKids(k);
       setApprovals(a as ExpandedAssignment[]);
       setSpend(s as ExpandedSpend[]);
+      setChores(c);
     } catch (e) {
       setSnack(String(e));
     } finally {
@@ -110,6 +130,66 @@ export function ParentHome({ user, onLogout }: { user: User; onLogout: () => voi
       setSnack(String(e));
     } finally {
       setBroadcasting(false);
+    }
+  }
+
+  async function createChore() {
+    if (!choreName.trim()) return;
+    setCreatingChore(true);
+    try {
+      await client.createChore({
+        household: user.household,
+        name: choreName.trim(),
+        reward: Number(choreReward) || 0,
+        type: choreType,
+        cadence: choreType === "recurring" ? choreCadence : undefined,
+        photo_required: chorePhoto,
+        race: choreRace,
+        reminder_time: choreReminder.trim() || undefined,
+        created_by: user.id,
+        active: true,
+      });
+      setChoreName("");
+      setChoreReward("10");
+      setChoreType("oneoff");
+      setChoreCadence("weekly");
+      setChorePhoto(false);
+      setChoreRace(false);
+      setChoreReminder("");
+      setShowCreateChore(false);
+      setSnack("Chore created ✅");
+      await reload();
+    } catch (e) {
+      setSnack(String(e));
+    } finally {
+      setCreatingChore(false);
+    }
+  }
+
+  function toggleKidForChore(choreId: string, kidId: string) {
+    setAssignSelections((prev) => {
+      const cur = new Set(prev[choreId] ?? []);
+      if (cur.has(kidId)) cur.delete(kidId);
+      else cur.add(kidId);
+      return { ...prev, [choreId]: cur };
+    });
+  }
+
+  async function assignChore(choreId: string) {
+    const selected = assignSelections[choreId];
+    if (!selected || selected.size === 0) return;
+    setAssigning((prev) => ({ ...prev, [choreId]: true }));
+    try {
+      for (const kidId of selected) {
+        await client.assignChore(choreId, kidId);
+      }
+      setAssignSelections((prev) => ({ ...prev, [choreId]: new Set() }));
+      setSnack("Assigned ✅");
+      await reload();
+    } catch (e) {
+      setSnack(String(e));
+    } finally {
+      setAssigning((prev) => ({ ...prev, [choreId]: false }));
     }
   }
 
@@ -318,6 +398,151 @@ export function ParentHome({ user, onLogout }: { user: User; onLogout: () => voi
             })}
           </>
         )}
+        {/* Chores */}
+        <Divider style={styles.divider} />
+        <View style={styles.sectionHeader}>
+          <Text variant="labelLarge" style={[styles.sectionLabel, { color: theme.colors.onSurfaceVariant }]}>
+            CHORES ({chores.length})
+          </Text>
+          <Button
+            mode="contained-tonal"
+            icon={showCreateChore ? "chevron-up" : "plus"}
+            onPress={() => setShowCreateChore((v) => !v)}
+            compact
+          >
+            {showCreateChore ? "Cancel" : "Add"}
+          </Button>
+        </View>
+
+        {showCreateChore && (
+          <Card style={styles.createChoreCard}>
+            <Card.Content style={styles.createChoreContent}>
+              <TextInput
+                mode="outlined"
+                label="Chore name"
+                value={choreName}
+                onChangeText={setChoreName}
+                dense
+              />
+              <TextInput
+                mode="outlined"
+                label="Reward"
+                value={choreReward}
+                onChangeText={setChoreReward}
+                keyboardType="numeric"
+                dense
+                style={styles.rewardInput}
+              />
+              <Text variant="labelMedium" style={{ color: theme.colors.onSurfaceVariant, marginTop: 4 }}>Type</Text>
+              <SegmentedButtons
+                value={choreType}
+                onValueChange={(v) => setChoreType(v as "oneoff" | "recurring")}
+                buttons={[
+                  { value: "oneoff", label: "One-off" },
+                  { value: "recurring", label: "Recurring" },
+                ]}
+                style={styles.segmented}
+              />
+              {choreType === "recurring" && (
+                <>
+                  <Text variant="labelMedium" style={{ color: theme.colors.onSurfaceVariant, marginTop: 4 }}>Cadence</Text>
+                  <SegmentedButtons
+                    value={choreCadence}
+                    onValueChange={(v) => setChoreCadence(v as "daily" | "weekly" | "monthly")}
+                    buttons={[
+                      { value: "daily", label: "Daily" },
+                      { value: "weekly", label: "Weekly" },
+                      { value: "monthly", label: "Monthly" },
+                    ]}
+                    style={styles.segmented}
+                  />
+                </>
+              )}
+              <TextInput
+                mode="outlined"
+                label="Reminder time (HH:MM, optional)"
+                value={choreReminder}
+                onChangeText={setChoreReminder}
+                keyboardType="numbers-and-punctuation"
+                placeholder="e.g. 15:30"
+                dense
+                style={{ marginTop: 4 }}
+              />
+              <View style={styles.switchRow}>
+                <Text>📷 Photo required</Text>
+                <Switch value={chorePhoto} onValueChange={setChorePhoto} />
+              </View>
+              <View style={styles.switchRow}>
+                <Text>🏁 Race (first to finish wins)</Text>
+                <Switch value={choreRace} onValueChange={setChoreRace} />
+              </View>
+              <Button
+                mode="contained"
+                onPress={createChore}
+                disabled={creatingChore || !choreName.trim()}
+                style={{ marginTop: 8, borderRadius: 12 }}
+                icon="check"
+              >
+                {creatingChore ? "Creating…" : "Create chore"}
+              </Button>
+            </Card.Content>
+          </Card>
+        )}
+
+        {chores.length === 0 && !showCreateChore && (
+          <Text style={[styles.emptyNote, { color: theme.colors.onSurfaceVariant }]}>
+            No active chores. Tap Add to create one.
+          </Text>
+        )}
+
+        {chores.map((chore) => {
+          const sel = assignSelections[chore.id] ?? new Set<string>();
+          const busy = assigning[chore.id] ?? false;
+          return (
+            <Card key={chore.id} style={styles.approvalCard}>
+              <Card.Content>
+                <View style={styles.choreRow}>
+                  <View style={{ flex: 1 }}>
+                    <Text variant="titleSmall" style={{ fontWeight: "700" }}>
+                      {chore.race ? "🏁 " : ""}{chore.name}
+                      {chore.photo_required ? " 📷" : ""}
+                    </Text>
+                    <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant }}>
+                      {chore.reward} {currencyName} · {chore.type}
+                      {chore.cadence ? ` (${chore.cadence})` : ""}
+                      {chore.reminder_time ? ` · ⏰ ${chore.reminder_time}` : ""}
+                    </Text>
+                  </View>
+                </View>
+                {kids.length > 0 && (
+                  <View style={styles.assignRow}>
+                    {kids.map((kid) => (
+                      <Chip
+                        key={kid.id}
+                        selected={sel.has(kid.id)}
+                        onPress={() => toggleKidForChore(chore.id, kid.id)}
+                        compact
+                        style={styles.kidAssignChip}
+                      >
+                        {kid.avatar || "🧒"} {kid.display_name}
+                      </Chip>
+                    ))}
+                    <Button
+                      mode="contained-tonal"
+                      onPress={() => void assignChore(chore.id)}
+                      disabled={busy || sel.size === 0}
+                      compact
+                      style={styles.assignBtn}
+                    >
+                      Assign
+                    </Button>
+                  </View>
+                )}
+              </Card.Content>
+            </Card>
+          );
+        })}
+
       </ScrollView>
 
       <Snackbar visible={!!snack} onDismiss={() => setSnack("")} duration={4000}>
@@ -369,4 +594,15 @@ const styles = StyleSheet.create({
   actionBtnContent: { paddingVertical: 4 },
 
   divider: { marginVertical: 8 },
+
+  sectionHeader: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
+  createChoreCard: { borderRadius: 16, marginTop: 8 },
+  createChoreContent: { gap: 6 },
+  rewardInput: { width: 120 },
+  segmented: { marginTop: 2 },
+  switchRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingVertical: 6 },
+  choreRow: { flexDirection: "row", justifyContent: "space-between", marginBottom: 8 },
+  assignRow: { flexDirection: "row", flexWrap: "wrap", gap: 6, marginTop: 4, alignItems: "center" },
+  kidAssignChip: {},
+  assignBtn: { borderRadius: 12 },
 });

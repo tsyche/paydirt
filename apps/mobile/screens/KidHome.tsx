@@ -48,6 +48,8 @@ export function KidHome({ user, onLogout }: { user: User; onLogout: () => void }
   const [household, setHousehold] = useState<Household | null>(null);
   const [broadcasts, setBroadcasts] = useState<Broadcast[]>([]);
   const [historyOpen, setHistoryOpen] = useState(false);
+  const [leaderboardOpen, setLeaderboardOpen] = useState(false);
+  const [siblingWins, setSiblingWins] = useState<Record<string, Assignment[]>>({});
   const [refreshing, setRefreshing] = useState(false);
   const [spendOpen, setSpendOpen] = useState(false);
   const [proposeOpen, setProposeOpen] = useState(false);
@@ -109,6 +111,19 @@ export function KidHome({ user, onLogout }: { user: User; onLogout: () => void }
       unsub?.();
     };
   }, [user.id, reload]);
+
+  useEffect(() => {
+    if (!leaderboardOpen || siblings.length === 0) return;
+    void Promise.all(
+      siblings.map((s) =>
+        client.listApprovedHistory(s.id, 3).then((wins) => ({ id: s.id, wins }))
+      )
+    ).then((results) => {
+      const map: Record<string, Assignment[]> = {};
+      for (const { id, wins } of results) map[id] = wins;
+      setSiblingWins(map);
+    });
+  }, [leaderboardOpen, siblings]);
 
   const act = (fn: () => Promise<unknown>, okMessage?: string) => async () => {
     try {
@@ -328,6 +343,56 @@ export function KidHome({ user, onLogout }: { user: User; onLogout: () => void }
               </Card>
             ))}
           </>
+        )}
+
+        {siblings.length > 0 && (
+          <List.Accordion
+            title="🏆 Sibling leaderboard"
+            expanded={leaderboardOpen}
+            onPress={() => setLeaderboardOpen((v) => !v)}
+            style={styles.historyAccordion}
+          >
+            {[...siblings]
+              .sort((a, b) => (b.streak_count ?? 0) - (a.streak_count ?? 0))
+              .map((sib) => {
+                const wins = siblingWins[sib.id] ?? [];
+                return (
+                  <Card key={sib.id} style={[styles.choreCard, styles.sibCard]}>
+                    <Card.Content>
+                      <View style={styles.sibRow}>
+                        <Text style={styles.sibAvatar}>{sib.avatar || "🧒"}</Text>
+                        <View style={{ flex: 1 }}>
+                          <Text variant="titleSmall" style={{ fontWeight: "700" }}>
+                            {sib.display_name}
+                          </Text>
+                          {(sib.streak_count ?? 0) >= 1 ? (
+                            <Text variant="bodySmall" style={{ color: theme.colors.primary }}>
+                              🔥 {sib.streak_count}-day streak
+                            </Text>
+                          ) : (
+                            <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant }}>
+                              No streak yet
+                            </Text>
+                          )}
+                        </View>
+                      </View>
+                      {wins.length > 0 && (
+                        <View style={styles.sibWins}>
+                          {wins.map((w) => (
+                            <Text key={w.id} variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant }}>
+                              ✅ {(w as Expanded).expand?.chore?.name ?? "Chore"}{" "}
+                              <Text style={{ color: theme.colors.onSurfaceVariant, opacity: 0.7 }}>
+                                {w.approved_at?.slice(0, 10)}
+                              </Text>
+                            </Text>
+                          ))}
+                        </View>
+                      )}
+                    </Card.Content>
+                  </Card>
+                );
+              })}
+          </List.Accordion>
         )}
 
         {history.length > 0 && (
@@ -796,4 +861,9 @@ const styles = StyleSheet.create({
   dialogContext: { marginBottom: 8, opacity: 0.7 },
   conversion: { marginTop: 6, opacity: 0.7 },
   presetBtn: { marginBottom: 8 },
+
+  sibCard: { marginBottom: 4 },
+  sibRow: { flexDirection: "row", alignItems: "center", gap: 10, marginBottom: 4 },
+  sibAvatar: { fontSize: 28 },
+  sibWins: { gap: 2, marginTop: 4 },
 });
