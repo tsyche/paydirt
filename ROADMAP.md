@@ -8,19 +8,19 @@ Chore CRUD, assignment, complete/approve flow, parentBucks earn + spend, ntfy no
 
 ## Recently Completed
 
-1. ✅ **UnifiedPush via ntfy (2026-06-14)** — Event-driven kid notifications replace 30s polling. BroadcastReceiver handles UP intents natively; endpoint stored per-user in PocketBase; hooks push to kids for all events (new chore, approved/rejected, broadcast, spend/proposal resolved). Config plugin re-applies after `expo prebuild`. Falls back to polling service on first launch.
-2. ✅ **Recurring chore cadence selector in UI (2026-06-14)** — Web dashboard CreateChore form now shows a daily/weekly/monthly select when type is "recurring". Cadence displayed in the chore list alongside type.
-3. ✅ **Dollar value display (2026-06-14)** — `goods_rate` shows `$X.XX` alongside parentBucks on all kid screens and next to each kid in the parent dashboard.
-4. ✅ **Photo upload fix (2026-06-14)** — Switched to base64 data URI to fix `ClientResponse 0` crash on Android 13+ camera.
-5. ✅ **Dark mode + Android 16 crash fix (2026-06-13)** — Dynamic MD3 theme; `useTheme()` tokens across all screens; foreground service type declaration fixed for targetSdk 36.
+1. ✅ **Kid avatar + display name color (2026-06-14)** — Emoji avatar + accent color per kid; set by parent via AvatarControl in web dashboard; shown as colored left border + emoji on kid cards, and in mobile screens (SimpleKidHome balance icon, KidHome appbar). PocketBase migration adds `avatar` + `color` fields.
+2. ✅ **Batch approval (2026-06-14)** — Select multiple pending completions and approve all at once; checkboxes + "Approve selected (N)" / "Approve all" buttons appear when 2+ completions are pending.
+3. ✅ **UnifiedPush via ntfy (2026-06-14)** — Event-driven kid notifications replace 30s polling. BroadcastReceiver handles UP intents natively; endpoint stored per-user in PocketBase; hooks push to kids for all events. Config plugin re-applies after `expo prebuild`. Falls back to polling service on first launch.
+4. ✅ **Recurring chore cadence selector in UI (2026-06-14)** — Web dashboard CreateChore form now shows a daily/weekly/monthly select when type is "recurring". Cadence displayed in the chore list alongside type.
+5. ✅ **Dollar value display (2026-06-14)** — `goods_rate` shows `$X.XX` alongside parentBucks on all kid screens and next to each kid in the parent dashboard.
 
 ## Recommended Next 3
 
-1. **Batch approval** — Select multiple pending completions and approve/reject at once. High-value as chore count grows; server already handles individual approvals atomically. ~1-2 hrs.
-2. **Kid avatar / display name color** — Pick a color or emoji avatar shown on both apps. Low effort, high kid engagement. ~1-2 hrs.
-3. **Parent mobile view** — Parents currently see a "go use the web dashboard" screen. Basic mobile parent experience: view pending approvals, approve/reject, send a broadcast. Unblocks parents from needing a laptop for routine tasks. ~4-6 hrs.
+1. **Parent mobile view** — Parents currently see a "go use the web dashboard" screen. Basic mobile parent experience: view pending approvals, approve/reject, send a broadcast. Unblocks parents from needing a laptop for routine tasks. ~4-6 hrs.
+2. **Mobile UI design polish** — Full visual pass on all kid-facing screens using the `frontend-design` skill. Fix layout gaps, button feedback, error states, spacing. High engagement impact before real kids start using it. ~3-5 hrs.
+3. **Chore templates** — Household-level library of reusable chore definitions; creating a new chore picks from the library. Reduces setup friction as chore count grows. ~2-3 hrs.
 
-**Also queued:** Mobile UI design polish (full visual pass, kid-facing screens, `frontend-design` skill) — ~3-5 hrs.
+**Also queued:** Notification quiet hours (~1-2 hrs), per-kid goods rate (~1 hr), multi-kid chore assignment (~1-2 hrs).
 
 ## Phase 1 — Core Feature Set ✅ (completed 2026-06-10)
 

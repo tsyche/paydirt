@@ -57,6 +57,7 @@ export function KidHome({ user, onLogout }: { user: User; onLogout: () => void }
   const [snack, setSnack] = useState("");
 
   const currencyName = household?.currency_name?.trim() || "parentBucks";
+  const accentColor = me.color ?? theme.colors.primary;
 
   const reload = useCallback(async () => {
     setRefreshing(true);
@@ -154,20 +155,31 @@ export function KidHome({ user, onLogout }: { user: User; onLogout: () => void }
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={reload} />}
       >
         <Card style={styles.balanceCard}>
-          <Card.Content>
-            <Text variant="labelLarge">Your {currencyName}</Text>
-            <Text variant="displaySmall" style={styles.balance}>
+          <View style={[styles.balanceHeader, { backgroundColor: accentColor }]}>
+            <Text style={styles.balanceHeaderEmoji}>{me.avatar || "💰"}</Text>
+            <Text style={styles.balanceHeaderName}>{me.display_name}</Text>
+          </View>
+          <Card.Content style={styles.balanceContent}>
+            <Text variant="labelMedium" style={[styles.balanceCurrencyLabel, { color: theme.colors.onSurfaceVariant }]}>
+              Your {currencyName}
+            </Text>
+            <Text style={[styles.balance, { color: theme.colors.onSurface }]}>
               {me.balance}
             </Text>
             {(household?.goods_rate ?? 0) > 0 ? (
-              <Text variant="bodyMedium" style={styles.dollarValue}>
+              <Text variant="bodyMedium" style={[styles.dollarValue, { color: theme.colors.onSurfaceVariant }]}>
                 ${(me.balance / household!.goods_rate!).toFixed(2)}
               </Text>
             ) : null}
             <Text variant="bodySmall" style={styles.todoLine}>
               {toDo.length === 0 ? "Nothing to do — go play! 🎉" : `${toDo.length} chore${toDo.length === 1 ? "" : "s"} to do`}
             </Text>
-            <Button mode="contained-tonal" onPress={() => setSpendOpen(true)}>
+            <Button
+              mode="contained-tonal"
+              onPress={() => setSpendOpen(true)}
+              contentStyle={styles.spendButtonContent}
+              labelStyle={styles.spendButtonLabel}
+            >
               Ask to spend
             </Button>
           </Card.Content>
@@ -252,11 +264,25 @@ export function KidHome({ user, onLogout }: { user: User; onLogout: () => void }
                 {a.status === "assigned" ? (
                   <>
                     {chore?.photo_required ? (
-                      <Button mode="contained" onPress={() => markDoneWithPhoto(a.id)} style={styles.doneBtn} icon="camera">
+                      <Button
+                        mode="contained"
+                        onPress={() => markDoneWithPhoto(a.id)}
+                        style={styles.doneBtn}
+                        contentStyle={styles.doneBtnContent}
+                        labelStyle={styles.doneBtnLabel}
+                        icon="camera"
+                      >
                         Take photo & mark done
                       </Button>
                     ) : (
-                      <Button mode="contained" onPress={() => markDone(a.id)} style={styles.doneBtn}>
+                      <Button
+                        mode="contained"
+                        onPress={() => markDone(a.id)}
+                        style={styles.doneBtn}
+                        contentStyle={styles.doneBtnContent}
+                        labelStyle={styles.doneBtnLabel}
+                        icon="check-circle"
+                      >
                         Mark done
                       </Button>
                     )}
@@ -717,32 +743,52 @@ function SwapDialog({
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  content: { padding: 16, gap: 8 },
-  balanceCard: { marginBottom: 8 },
-  balance: { fontWeight: "700", marginVertical: 4 },
-  todoLine: { marginBottom: 8, opacity: 0.7 },
-  dollarValue: { opacity: 0.6, marginBottom: 2 },
+  content: { padding: 16, gap: 10 },
+
+  balanceCard: { marginBottom: 4, borderRadius: 20, overflow: "hidden" },
+  balanceHeader: {
+    alignItems: "center",
+    paddingTop: 16,
+    paddingBottom: 12,
+    flexDirection: "row",
+    justifyContent: "center",
+    gap: 10,
+  },
+  balanceHeaderEmoji: { fontSize: 32 },
+  balanceHeaderName: { fontSize: 18, fontWeight: "800", color: "#fff" },
+  balanceContent: { paddingTop: 12 },
+  balanceCurrencyLabel: { opacity: 0.7, marginBottom: 2 },
+  balance: { fontSize: 56, fontWeight: "900", lineHeight: 62, marginVertical: 2 },
+  todoLine: { marginBottom: 10, opacity: 0.65 },
+  dollarValue: { opacity: 0.6, marginBottom: 4 },
+  spendButtonContent: { paddingVertical: 4 },
+  spendButtonLabel: { fontWeight: "700" },
+
   streakChip: { marginRight: 4 },
-  heading: { marginTop: 8, marginBottom: 4 },
+  heading: { marginTop: 8, marginBottom: 4, fontWeight: "700" },
   headingRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
-  choreCard: {},
+
+  choreCard: { borderRadius: 16, marginBottom: 2 },
   historyCard: { opacity: 0.75 },
   historyAccordion: { marginTop: 8, paddingVertical: 0 },
   choreRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
-  choreName: { flexShrink: 1 },
+  choreName: { flexShrink: 1, fontWeight: "600" },
   rejected: { marginTop: 4 },
   kidSaid: { marginTop: 2, fontStyle: "italic" },
   earned: { fontWeight: "700" },
   date: { opacity: 0.5, marginTop: 2 },
-  doneBtn: { marginTop: 8 },
+  doneBtn: { marginTop: 10, borderRadius: 12 },
+  doneBtnContent: { paddingVertical: 6 },
+  doneBtnLabel: { fontSize: 15, fontWeight: "700" },
   buttonRow: { flexDirection: "row", gap: 8, marginTop: 8 },
   utilityRow: { flexDirection: "row", alignItems: "center", marginTop: 2 },
   offeredNote: { opacity: 0.6 },
   dueChip: { alignSelf: "flex-start", marginTop: 4 },
   overdueChip: { alignSelf: "flex-start", marginTop: 4 },
+
   goalList: { gap: 8 },
   goalRight: { flexDirection: "row", alignItems: "center" },
-  goalBar: { marginTop: 6, height: 8, borderRadius: 4 },
+  goalBar: { marginTop: 6, height: 10, borderRadius: 5 },
   goalForm: { flexDirection: "row", alignItems: "center", gap: 6 },
   goalNameInput: { flex: 1 },
   goalTargetInput: { width: 70 },

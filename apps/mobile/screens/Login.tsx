@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { StyleSheet } from "react-native";
+import { View, StyleSheet } from "react-native";
 import { TextInput, Button, Text, useTheme } from "react-native-paper";
 import { SafeAreaView } from "react-native-safe-area-context";
 import type { User } from "@paydirt/shared";
@@ -26,49 +26,66 @@ export function Login({ onLogin }: { onLogin: (u: User) => void }) {
   }
 
   return (
-    <SafeAreaView style={styles.container}>
-      <Text variant="headlineLarge" style={styles.title}>
-        PayDirt
-      </Text>
-      <Text variant="bodyMedium" style={styles.tagline}>
-        Do. The. Thing.
-      </Text>
-      <TextInput
-        label="Email"
-        value={email}
-        onChangeText={setEmail}
-        autoCapitalize="none"
-        keyboardType="email-address"
-        style={styles.input}
-      />
-      <TextInput
-        label="Password"
-        value={password}
-        onChangeText={setPassword}
-        secureTextEntry
-        style={styles.input}
-      />
-      {error ? (
-        <Text style={[styles.error, { color: theme.colors.error }]}>{error}</Text>
-      ) : null}
-      <Button
-        mode="contained"
-        onPress={submit}
-        loading={busy}
-        disabled={busy}
-        style={styles.button}
-      >
-        Sign in
-      </Button>
+    <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]}>
+      <View style={styles.hero}>
+        <Text style={styles.coin}>💰</Text>
+        <Text
+          variant="displaySmall"
+          style={[styles.title, { color: theme.colors.primary }]}
+        >
+          PayDirt
+        </Text>
+        <Text style={[styles.tagline, { color: theme.colors.onSurfaceVariant }]}>
+          DO. THE. THING.
+        </Text>
+      </View>
+
+      <View style={styles.form}>
+        <TextInput
+          label="Email"
+          value={email}
+          onChangeText={setEmail}
+          autoCapitalize="none"
+          keyboardType="email-address"
+          mode="outlined"
+        />
+        <TextInput
+          label="Password"
+          value={password}
+          onChangeText={setPassword}
+          secureTextEntry
+          mode="outlined"
+          onSubmitEditing={submit}
+          returnKeyType="go"
+        />
+        {error ? (
+          <Text style={[styles.error, { color: theme.colors.error }]}>{error}</Text>
+        ) : null}
+        <Button
+          mode="contained"
+          onPress={submit}
+          loading={busy}
+          disabled={busy || !email.trim() || !password}
+          style={styles.button}
+          contentStyle={styles.buttonContent}
+          labelStyle={styles.buttonLabel}
+        >
+          Sign in
+        </Button>
+      </View>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, justifyContent: "center", padding: 24, gap: 12 },
-  title: { textAlign: "center" },
-  tagline: { textAlign: "center", marginBottom: 16, opacity: 0.6 },
-  input: {},
-  button: { marginTop: 8 },
-  error: {},
+  container: { flex: 1, justifyContent: "center", padding: 28 },
+  hero: { alignItems: "center", marginBottom: 40 },
+  coin: { fontSize: 72, marginBottom: 8 },
+  title: { fontWeight: "900", letterSpacing: -1 },
+  tagline: { fontSize: 12, fontWeight: "700", letterSpacing: 5, marginTop: 6 },
+  form: { gap: 14 },
+  error: { fontSize: 14 },
+  button: { marginTop: 4, borderRadius: 16 },
+  buttonContent: { paddingVertical: 8 },
+  buttonLabel: { fontSize: 16, fontWeight: "700", letterSpacing: 0.3 },
 });

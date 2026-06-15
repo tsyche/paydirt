@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { ScrollView, StyleSheet, RefreshControl } from "react-native";
+import { View, ScrollView, StyleSheet, RefreshControl } from "react-native";
 import {
   Appbar,
   Text,
@@ -50,9 +50,6 @@ export function SimpleKidHome({ user, onLogout }: { user: User; onLogout: () => 
     void reload();
   }, [reload]);
 
-  // Realtime: re-fetch when this kid's assignments or balance change, so
-  // approvals show up without pull-to-refresh. Best-effort — if the
-  // subscription fails, pull-to-refresh still works.
   useEffect(() => {
     let unsub: (() => void) | undefined;
     let disposed = false;
@@ -98,6 +95,8 @@ export function SimpleKidHome({ user, onLogout }: { user: User; onLogout: () => 
   const waitingChores = assignments.filter((a) => a.status === "completed");
   const redoChores = assignments.filter((a) => a.status === "rejected");
 
+  const accentColor = user.color ?? theme.colors.primary;
+
   return (
     <SafeAreaView style={styles.container} edges={["top"]}>
       <Appbar.Header>
@@ -109,36 +108,55 @@ export function SimpleKidHome({ user, onLogout }: { user: User; onLogout: () => 
         contentContainerStyle={styles.content}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={reload} />}
       >
-        <Surface style={styles.balanceSurface} elevation={2}>
-          <Text style={styles.balanceEmoji}>{user.avatar || "💰"}</Text>
-          <Text style={styles.balanceNumber}>{balance}</Text>
-          {goodsRate > 0 ? (
-            <Text style={styles.dollarValue}>${(balance / goodsRate).toFixed(2)}</Text>
-          ) : null}
-          <Text style={styles.balanceLabel}>{currencyName}</Text>
+        {/* Balance hero card */}
+        <Surface style={styles.balanceSurface} elevation={3}>
+          <View style={[styles.avatarBand, { backgroundColor: accentColor }]}>
+            <Text style={styles.balanceEmoji}>{user.avatar || "💰"}</Text>
+          </View>
+          <View style={styles.balanceBody}>
+            <Text style={[styles.balanceNumber, { color: theme.colors.onSurface }]}>
+              {balance}
+            </Text>
+            {goodsRate > 0 ? (
+              <Text style={[styles.dollarValue, { color: theme.colors.onSurfaceVariant }]}>
+                ${(balance / goodsRate).toFixed(2)}
+              </Text>
+            ) : null}
+            <Text style={[styles.balanceLabel, { color: theme.colors.onSurfaceVariant }]}>
+              {currencyName}
+            </Text>
+          </View>
         </Surface>
 
         {activeChores.length === 0 && waitingChores.length === 0 && redoChores.length === 0 && (
           <Surface style={styles.emptyCard} elevation={1}>
             <Text style={styles.emptyEmoji}>🎉</Text>
-            <Text style={styles.emptyText}>All done! Great job!</Text>
+            <Text style={[styles.emptyText, { color: theme.colors.onSurface }]}>
+              All done! Great job!
+            </Text>
           </Surface>
         )}
 
         {activeChores.map((a) => (
           <Surface key={a.id} style={styles.choreCard} elevation={2}>
             <Text style={styles.choreEmoji}>⭐</Text>
-            <Text style={styles.choreName}>{a.expand?.chore?.name ?? "Chore"}</Text>
+            <Text style={[styles.choreName, { color: theme.colors.onSurface }]}>
+              {a.expand?.chore?.name ?? "Chore"}
+            </Text>
             {a.expand?.chore ? (
-              <Text style={styles.choreReward}>+{a.expand.chore.reward} 💰</Text>
+              <Text style={[styles.choreReward, { color: accentColor }]}>
+                +{a.expand.chore.reward} {user.avatar || "💰"}
+              </Text>
             ) : null}
             <Button
               mode="contained"
               style={styles.doneButton}
               contentStyle={styles.doneButtonContent}
               labelStyle={styles.doneButtonLabel}
-              icon={a.expand?.chore?.photo_required ? "camera" : undefined}
-              onPress={() => a.expand?.chore?.photo_required ? markDoneWithPhoto(a.id) : markDone(a.id)}
+              icon={a.expand?.chore?.photo_required ? "camera" : "check-circle"}
+              onPress={() =>
+                a.expand?.chore?.photo_required ? markDoneWithPhoto(a.id) : markDone(a.id)
+              }
             >
               {a.expand?.chore?.photo_required ? "Take photo! 📷" : "I did it! ✓"}
             </Button>
@@ -146,14 +164,23 @@ export function SimpleKidHome({ user, onLogout }: { user: User; onLogout: () => 
         ))}
 
         {redoChores.map((a) => (
-          <Surface key={a.id} style={[styles.choreCard, styles.redoCard, { backgroundColor: theme.colors.errorContainer }]} elevation={2}>
+          <Surface
+            key={a.id}
+            style={[styles.choreCard, { backgroundColor: theme.colors.errorContainer }]}
+            elevation={2}
+          >
             <Text style={styles.choreEmoji}>😅</Text>
-            <Text style={styles.choreName}>{a.expand?.chore?.name ?? "Chore"}</Text>
+            <Text style={[styles.choreName, { color: theme.colors.onErrorContainer }]}>
+              {a.expand?.chore?.name ?? "Chore"}
+            </Text>
             {a.rejection_message ? (
-              <Text style={styles.waitingText}>{a.rejection_message}</Text>
+              <Text style={[styles.waitingText, { color: theme.colors.onErrorContainer }]}>
+                {a.rejection_message}
+              </Text>
             ) : null}
             <Button
               mode="contained"
+              buttonColor={theme.colors.error}
               style={styles.doneButton}
               contentStyle={styles.doneButtonContent}
               labelStyle={styles.doneButtonLabel}
@@ -168,15 +195,25 @@ export function SimpleKidHome({ user, onLogout }: { user: User; onLogout: () => 
         {waitingChores.map((a) => (
           <Surface key={a.id} style={[styles.choreCard, styles.waitingCard]} elevation={1}>
             <Text style={styles.choreEmoji}>⏳</Text>
-            <Text style={styles.choreName}>{a.expand?.chore?.name ?? "Chore"}</Text>
-            <Text style={styles.waitingText}>Waiting for Mom/Dad…</Text>
+            <Text style={[styles.choreName, { color: theme.colors.onSurface }]}>
+              {a.expand?.chore?.name ?? "Chore"}
+            </Text>
+            <Text style={[styles.waitingText, { color: theme.colors.onSurfaceVariant }]}>
+              Waiting for Mom/Dad…
+            </Text>
           </Surface>
         ))}
 
         {broadcasts.map((b) => (
-          <Surface key={b.id} style={[styles.choreCard, styles.broadcastCard, { backgroundColor: theme.colors.secondaryContainer }]} elevation={1}>
+          <Surface
+            key={b.id}
+            style={[styles.choreCard, { backgroundColor: theme.colors.secondaryContainer }]}
+            elevation={1}
+          >
             <Text style={styles.choreEmoji}>📣</Text>
-            <Text style={styles.broadcastText}>{b.message}</Text>
+            <Text style={[styles.broadcastText, { color: theme.colors.onSecondaryContainer }]}>
+              {b.message}
+            </Text>
           </Surface>
         ))}
       </ScrollView>
@@ -190,41 +227,53 @@ export function SimpleKidHome({ user, onLogout }: { user: User; onLogout: () => 
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  content: { padding: 16, gap: 16, alignItems: "center" },
+  content: { padding: 16, gap: 14, alignItems: "center" },
+
   balanceSurface: {
     width: "100%",
     borderRadius: 24,
-    padding: 24,
-    alignItems: "center",
+    overflow: "hidden",
   },
-  balanceEmoji: { fontSize: 48 },
-  balanceNumber: { fontSize: 72, fontWeight: "900", lineHeight: 80 },
-  dollarValue: { fontSize: 28, fontWeight: "600", opacity: 0.65 },
-  balanceLabel: { fontSize: 20, opacity: 0.7 },
+  avatarBand: {
+    alignItems: "center",
+    paddingTop: 20,
+    paddingBottom: 14,
+  },
+  balanceEmoji: { fontSize: 56 },
+  balanceBody: {
+    alignItems: "center",
+    paddingVertical: 16,
+    paddingHorizontal: 24,
+    gap: 2,
+  },
+  balanceNumber: { fontSize: 80, fontWeight: "900", lineHeight: 88 },
+  dollarValue: { fontSize: 26, fontWeight: "600", opacity: 0.7 },
+  balanceLabel: { fontSize: 18, opacity: 0.65, marginTop: 2 },
+
   emptyCard: {
     width: "100%",
     borderRadius: 20,
-    padding: 32,
+    padding: 36,
     alignItems: "center",
+    gap: 10,
   },
-  emptyEmoji: { fontSize: 56 },
-  emptyText: { fontSize: 24, fontWeight: "700", marginTop: 8, textAlign: "center" },
+  emptyEmoji: { fontSize: 64 },
+  emptyText: { fontSize: 24, fontWeight: "800", textAlign: "center" },
+
   choreCard: {
     width: "100%",
     borderRadius: 20,
     padding: 24,
     alignItems: "center",
-    gap: 8,
+    gap: 10,
   },
   waitingCard: { opacity: 0.6 },
-  redoCard: {},
-  choreEmoji: { fontSize: 40 },
-  choreName: { fontSize: 28, fontWeight: "700", textAlign: "center" },
-  choreReward: { fontSize: 22, fontWeight: "600" },
-  doneButton: { marginTop: 8, width: "100%", borderRadius: 16 },
-  doneButtonContent: { paddingVertical: 12 },
-  doneButtonLabel: { fontSize: 22, fontWeight: "700" },
-  waitingText: { fontSize: 18, opacity: 0.7, textAlign: "center" },
-  broadcastCard: {},
-  broadcastText: { fontSize: 22, fontWeight: "600", textAlign: "center" },
+  choreEmoji: { fontSize: 44 },
+  choreName: { fontSize: 26, fontWeight: "800", textAlign: "center" },
+  choreReward: { fontSize: 20, fontWeight: "700" },
+  doneButton: { marginTop: 4, width: "100%", borderRadius: 16 },
+  doneButtonContent: { paddingVertical: 14 },
+  doneButtonLabel: { fontSize: 20, fontWeight: "800" },
+  waitingText: { fontSize: 17, textAlign: "center" },
+  broadcastText: { fontSize: 20, fontWeight: "600", textAlign: "center" },
 });
