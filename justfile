@@ -7,30 +7,24 @@ pb := "pocketbase/pocketbase"
 default:
     @just --list
 
-# --- Setup ---
-
-# Install all workspace dependencies (pnpm)
-setup:
-    @printf '\033[0;34mInstalling workspace dependencies...\033[0m\n'
-    @pnpm install
-
-# Alias for setup
-install: setup
-
 # --- Development ---
 
-# Clear caches + start everything (PB + web + mobile); requires emulator. Pass reset=1 to wipe DB first.
-dev-all reset="0":
+# Reset DB + seed + start everything. Pass nuke=1 to also wipe node_modules and reinstall deps first.
+fresh nuke="0":
     #!/usr/bin/env bash
     set -euo pipefail
-    if [ "{{reset}}" = "1" ]; then
-        printf '\033[0;34mResetting database...\033[0m\n'
-        if curl -sf -o /dev/null http://127.0.0.1:8090/api/health; then
-            printf '\033[0;33mPocketBase is running — stop it before resetting. Run '\''just stop'\'' first.\033[0m\n'
-            exit 1
-        fi
-        just reset-db
+    if [ "{{nuke}}" = "1" ]; then
+        printf '\033[0;34mNuking caches and node_modules...\033[0m\n'
+        just clean
+        printf '\033[0;34mReinstalling dependencies...\033[0m\n'
+        pnpm install
     fi
+    printf '\033[0;34mResetting database...\033[0m\n'
+    if curl -sf -o /dev/null http://127.0.0.1:8090/api/health; then
+        printf '\033[0;33mPocketBase is running — stop it first (just stop).\033[0m\n'
+        exit 1
+    fi
+    just reset-db
     if ! adb devices 2>/dev/null | grep -q "emulator.*device"; then
         printf '\033[0;33mNo Android emulator detected. Start one first (AVD Manager or '\''emulator -avd Pixel_7_API_33 &'\'').\033[0m\n'
         exit 1
@@ -52,10 +46,8 @@ dev-all reset="0":
         fi
         sleep 1
     done
-    if [ "{{reset}}" = "1" ]; then
-        printf '\033[0;34mSeeding test data...\033[0m\n'
-        node pocketbase/seed.mjs
-    fi
+    printf '\033[0;34mSeeding test data...\033[0m\n'
+    node pocketbase/seed.mjs
     printf '\033[0;34mStarting Next.js dashboard...\033[0m\n'
     pnpm run dev:web > /tmp/paydirt-logs/web.log 2>&1 & echo $! > /tmp/paydirt-web.pid
     sleep 3
@@ -69,6 +61,10 @@ dev-all reset="0":
     echo ""
     echo "Press Ctrl+C to stop all services (or run 'just stop' from another terminal)."
     trap 'just stop' INT; wait
+
+# Deprecated alias — use 'just fresh' instead
+dev-all nuke="0":
+    @just fresh nuke="{{nuke}}"
 
 # Stop all PayDirt dev services
 stop:
@@ -227,7 +223,7 @@ reset-db:
     rm -rf pocketbase/pb_data
     {{pb}} migrate up --dir pocketbase/pb_data --migrationsDir pocketbase/pb_migrations
     {{pb}} superuser upsert admin@paydirt.local password123 --dir pocketbase/pb_data
-    printf '\033[0;32mDB reset. Now: start '\''just dev-pb'\'', then run '\''just seed'\''.\033[0m\n'
+    printf '\033[0;32mDB reset. Run '\''just fresh'\'' to seed and start, or '\''just seed'\'' after starting dev-pb manually.\033[0m\n'
 
 # --- Quality ---
 
@@ -339,9 +335,6 @@ clean: cache-clean
 build:
     @printf '\033[0;34mBuilding web app...\033[0m\n'
     @pnpm --filter web build
-
-# Full reset: clean + setup + test
-fresh: clean setup test
 
 # Sync AGENTS.md ↔ CLAUDE.md
 sync-docs:
