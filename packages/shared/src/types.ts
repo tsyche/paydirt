@@ -25,6 +25,10 @@ export interface Household extends BaseRecord {
   nudge_hours?: number;
   /** Vacation mode: cron reminders/nudges/digest/expiry are suspended. */
   paused?: boolean;
+  /** "HH:MM" start of nightly quiet window (no push notifications sent). */
+  quiet_start?: string;
+  /** "HH:MM" end of nightly quiet window. Wrap-around midnight is supported. */
+  quiet_end?: string;
 }
 
 // ─── Users ───────────────────────────────────────────────────────────────────

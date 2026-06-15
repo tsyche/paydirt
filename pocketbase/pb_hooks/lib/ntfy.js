@@ -42,9 +42,32 @@ function sendViaEndpoint(app, endpoint, title, message) {
   }
 }
 
+// Returns true when the current server time falls within the household's
+// quiet window (quiet_start/quiet_end, both "HH:MM"). Handles wrap-around
+// midnight (e.g. 22:00–07:00). Returns false when no window is configured.
+function isQuietHours(app, householdId) {
+  if (!householdId) return false;
+  try {
+    const hh = app.findRecordById("households", householdId);
+    const qs = hh.getString("quiet_start");
+    const qe = hh.getString("quiet_end");
+    if (!qs || !qe) return false;
+    const now = new Date();
+    const cur = now.getHours() * 60 + now.getMinutes();
+    const [sh, sm] = qs.split(":").map(Number);
+    const [eh, em] = qe.split(":").map(Number);
+    const start = sh * 60 + sm;
+    const end = eh * 60 + em;
+    return start <= end ? (cur >= start && cur < end) : (cur >= start || cur < end);
+  } catch (_) {
+    return false;
+  }
+}
+
 // Notify a single user: prefer their UP endpoint (event-driven, no polling
 // overhead), fall back to ntfy topic if no endpoint is registered.
 function notifyUserRecord(app, user, title, message) {
+  if (isQuietHours(app, user.getString("household"))) return;
   const endpoint = user.getString("up_endpoint");
   if (endpoint) {
     sendViaEndpoint(app, endpoint, title, message);

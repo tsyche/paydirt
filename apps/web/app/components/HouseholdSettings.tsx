@@ -21,6 +21,8 @@ export function HouseholdSettings({
     goods_rate: household.goods_rate ?? 0,
     nudge_hours: household.nudge_hours ?? 0,
     paused: household.paused ?? false,
+    quiet_start: household.quiet_start ?? "",
+    quiet_end: household.quiet_end ?? "",
   });
 
   async function save() {
@@ -105,6 +107,24 @@ export function HouseholdSettings({
             value={form.nudge_hours}
             onChange={(e) => setForm({ ...form, nudge_hours: num(e.target.value) })}
             style={{ width: 90 }}
+          />
+        </div>
+        <div className="settings-row">
+          <label>🌙 Quiet hours start <span className="muted">(no notifications after)</span></label>
+          <input
+            type="time"
+            value={form.quiet_start}
+            onChange={(e) => setForm({ ...form, quiet_start: e.target.value })}
+            style={{ width: 110 }}
+          />
+        </div>
+        <div className="settings-row">
+          <label>☀️ Quiet hours end <span className="muted">(resume notifications)</span></label>
+          <input
+            type="time"
+            value={form.quiet_end}
+            onChange={(e) => setForm({ ...form, quiet_end: e.target.value })}
+            style={{ width: 110 }}
           />
         </div>
         <div className="settings-row">
