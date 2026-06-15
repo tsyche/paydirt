@@ -29,6 +29,11 @@ export interface Household extends BaseRecord {
   quiet_start?: string;
   /** "HH:MM" end of nightly quiet window. Wrap-around midnight is supported. */
   quiet_end?: string;
+  /** Override streak milestone bonus amounts. 0/unset = use hardcoded default. */
+  streak_bonus_3?: number;
+  streak_bonus_7?: number;
+  streak_bonus_14?: number;
+  streak_bonus_30?: number;
 }
 
 // ─── Users ───────────────────────────────────────────────────────────────────

@@ -23,6 +23,10 @@ export function HouseholdSettings({
     paused: household.paused ?? false,
     quiet_start: household.quiet_start ?? "",
     quiet_end: household.quiet_end ?? "",
+    streak_bonus_3: household.streak_bonus_3 ?? 0,
+    streak_bonus_7: household.streak_bonus_7 ?? 0,
+    streak_bonus_14: household.streak_bonus_14 ?? 0,
+    streak_bonus_30: household.streak_bonus_30 ?? 0,
   });
 
   async function save() {
@@ -135,6 +139,29 @@ export function HouseholdSettings({
             onChange={(e) => setForm({ ...form, paused: e.target.checked })}
           />
         </div>
+        <div style={{ marginTop: 8, fontWeight: 600, fontSize: 13 }}>
+          🔥 Streak milestone bonuses <span className="muted">(0 = use default)</span>
+        </div>
+        {(
+          [
+            { key: "streak_bonus_3", label: "3-day bonus", placeholder: "5" },
+            { key: "streak_bonus_7", label: "7-day bonus", placeholder: "15" },
+            { key: "streak_bonus_14", label: "14-day bonus", placeholder: "40" },
+            { key: "streak_bonus_30", label: "30-day bonus", placeholder: "100" },
+          ] as const
+        ).map(({ key, label, placeholder }) => (
+          <div className="settings-row" key={key}>
+            <label>{label}</label>
+            <input
+              type="number"
+              min={0}
+              value={form[key]}
+              placeholder={placeholder}
+              onChange={(e) => setForm({ ...form, [key]: num(e.target.value) })}
+              style={{ width: 90 }}
+            />
+          </div>
+        ))}
       </div>
 
       <div className="divider" />

@@ -240,6 +240,30 @@ export class PaydirtClient {
     });
   }
 
+  /** Transactions for a given calendar month (year/month are 1-based). */
+  listTransactionsForMonth(userId: string, year: number, month: number): Promise<CurrencyTransaction[]> {
+    const start = new Date(year, month - 1, 1).toISOString().slice(0, 10);
+    const end = new Date(year, month, 1).toISOString().slice(0, 10);
+    return this.pb.collection(Collections.CurrencyTransactions).getFullList<CurrencyTransaction>({
+      filter: this.pb.filter("user = {:u} && created >= {:s} && created < {:e}", { u: userId, s: start, e: end }),
+      sort: "-created",
+    });
+  }
+
+  /** Approved assignments for a given calendar month (year/month are 1-based). */
+  listApprovedAssignmentsForMonth(childId: string, year: number, month: number): Promise<Assignment[]> {
+    const start = new Date(year, month - 1, 1).toISOString().slice(0, 10);
+    const end = new Date(year, month, 1).toISOString().slice(0, 10);
+    return this.pb.collection(Collections.Assignments).getFullList<Assignment>({
+      filter: this.pb.filter(
+        "child = {:c} && status = 'approved' && approved_at >= {:s} && approved_at < {:e}",
+        { c: childId, s: start, e: end }
+      ),
+      sort: "-approved_at",
+      expand: "chore",
+    });
+  }
+
   /** Parent grants or docks parentBucks outside of chores. */
   adjustBalance(userId: string, amount: number, reason: string): Promise<CurrencyTransaction> {
     return this.pb.collection(Collections.CurrencyTransactions).create<CurrencyTransaction>({

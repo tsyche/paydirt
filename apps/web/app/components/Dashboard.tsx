@@ -398,6 +398,9 @@ export function Dashboard({
           );
         })}
 
+        {/* ── Activity report ── */}
+        <ActivityReport kids={kids} currencyName={currencyName} />
+
         {/* ── Chores ── */}
         <h2>📋 Chores</h2>
         <ChoreTemplatesPanel
@@ -1010,19 +1013,26 @@ function AssignControl({
   kids: User[];
   onAssigned: () => void;
 }) {
-  const [childId, setChildId] = useState("");
+  const [selected, setSelected] = useState<Set<string>>(new Set());
   const [busy, setBusy] = useState(false);
 
+  function toggle(kidId: string) {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(kidId)) next.delete(kidId);
+      else next.add(kidId);
+      return next;
+    });
+  }
+
   async function assign() {
-    if (!childId) return;
+    if (selected.size === 0) return;
     setBusy(true);
     try {
-      if (childId === "__race__") {
-        await client.startRace(chore.id, kids.map((k) => k.id));
-      } else {
-        await client.assignChore(chore.id, childId);
+      for (const kidId of selected) {
+        await client.assignChore(chore.id, kidId);
       }
-      setChildId("");
+      setSelected(new Set());
       onAssigned();
     } finally {
       setBusy(false);
@@ -1031,24 +1041,141 @@ function AssignControl({
 
   return (
     <div className="inline" style={{ flexShrink: 0 }}>
-      <select value={childId} onChange={(e) => setChildId(e.target.value)}>
-        <option value="">Assign to…</option>
-        {chore.race && kids.length > 1 && (
-          <option value="__race__">🏁 Everyone (race!)</option>
-        )}
-        {kids.map((k) => (
-          <option key={k.id} value={k.id}>
-            {k.avatar ? `${k.avatar} ` : ""}{k.display_name}
-          </option>
-        ))}
-      </select>
+      {kids.map((k) => (
+        <label
+          key={k.id}
+          style={{ display: "flex", alignItems: "center", gap: 4, cursor: "pointer", fontSize: 13 }}
+        >
+          <input
+            type="checkbox"
+            checked={selected.has(k.id)}
+            onChange={() => toggle(k.id)}
+            disabled={busy}
+          />
+          {k.avatar ? `${k.avatar} ` : ""}{k.display_name}
+        </label>
+      ))}
       <button
         className="tonal sm"
         onClick={assign}
-        disabled={busy || !childId}
+        disabled={busy || selected.size === 0}
       >
         Assign
       </button>
+    </div>
+  );
+}
+
+function streakPeak(assignments: Assignment[]): number {
+  const days = [
+    ...new Set(
+      assignments
+        .map((a) => a.approved_at?.slice(0, 10))
+        .filter((d): d is string => !!d)
+    ),
+  ].sort();
+  let peak = 0;
+  let run = 0;
+  let prev: Date | null = null;
+  for (const d of days) {
+    const cur = new Date(d);
+    if (prev && (cur.getTime() - prev.getTime()) / 86400000 === 1) {
+      run++;
+    } else {
+      run = 1;
+    }
+    if (run > peak) peak = run;
+    prev = cur;
+  }
+  return peak;
+}
+
+function ActivityReport({
+  kids,
+  currencyName,
+}: {
+  kids: User[];
+  currencyName: string;
+}) {
+  const now = new Date();
+  const [year, setYear] = useState(now.getFullYear());
+  const [month, setMonth] = useState(now.getMonth() + 1);
+  const [open, setOpen] = useState(false);
+  const [data, setData] = useState<
+    { kid: User; chores: number; earned: number; spent: number; peak: number }[]
+  >([]);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (!open || kids.length === 0) return;
+    setLoading(true);
+    Promise.all(
+      kids.map(async (kid) => {
+        const [txns, assignments] = await Promise.all([
+          client.listTransactionsForMonth(kid.id, year, month),
+          client.listApprovedAssignmentsForMonth(kid.id, year, month),
+        ]);
+        const earned = txns.filter((t) => t.amount > 0).reduce((s, t) => s + t.amount, 0);
+        const spent = txns.filter((t) => t.amount < 0).reduce((s, t) => s + Math.abs(t.amount), 0);
+        return { kid, chores: assignments.length, earned, spent, peak: streakPeak(assignments) };
+      })
+    )
+      .then(setData)
+      .finally(() => setLoading(false));
+  }, [open, kids, year, month]);
+
+  const monthLabel = new Date(year, month - 1, 1).toLocaleDateString(undefined, {
+    month: "long",
+    year: "numeric",
+  });
+
+  function shiftMonth(delta: number) {
+    let m = month + delta;
+    let y = year;
+    if (m > 12) { m = 1; y++; }
+    if (m < 1) { m = 12; y--; }
+    setMonth(m);
+    setYear(y);
+  }
+
+  return (
+    <div style={{ marginBottom: 24 }}>
+      <button
+        className="sm outlined"
+        onClick={() => setOpen((v) => !v)}
+        style={{ marginBottom: open ? 12 : 0 }}
+      >
+        📊 {open ? "Hide" : "Show"} activity report
+      </button>
+      {open && (
+        <div>
+          <div className="inline" style={{ marginBottom: 12 }}>
+            <button className="sm" onClick={() => shiftMonth(-1)}>‹</button>
+            <span style={{ fontWeight: 600, minWidth: 140, textAlign: "center" }}>{monthLabel}</span>
+            <button className="sm" onClick={() => shiftMonth(1)} disabled={year === now.getFullYear() && month === now.getMonth() + 1}>›</button>
+          </div>
+          {loading ? (
+            <p className="muted">Loading…</p>
+          ) : (
+            <div className="inline" style={{ flexWrap: "wrap", gap: 12, alignItems: "flex-start" }}>
+              {data.map(({ kid, chores, earned, spent, peak }) => (
+                <div key={kid.id} className="card" style={{ minWidth: 160 }}>
+                  <div style={{ fontWeight: 600, marginBottom: 6 }}>
+                    {kid.avatar ? `${kid.avatar} ` : ""}{kid.display_name}
+                  </div>
+                  <div className="muted" style={{ lineHeight: 1.7 }}>
+                    <div>✅ Chores: <strong>{chores}</strong></div>
+                    <div>💰 Earned: <strong className="balance">{earned}</strong> {currencyName}</div>
+                    <div>🛍️ Spent: <strong>{spent}</strong> {currencyName}</div>
+                    <div>🔥 Streak peak: <strong>{peak}</strong> day{peak !== 1 ? "s" : ""}</div>
+                  </div>
+                </div>
+              ))}
+              {data.length === 0 && <p className="muted">No kids to report on.</p>}
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }

@@ -65,7 +65,13 @@ onRecordAfterCreateSuccess((e) => {
       child.set("streak_count", streak);
       e.app.save(child);
     }
-    const bonus = STREAK_MILESTONES[streak];
+    // Per-household overrides; fall back to hardcoded defaults when 0/unset.
+    const milestones = {};
+    for (const [days, def] of Object.entries(STREAK_MILESTONES)) {
+      const override = household.getFloat(`streak_bonus_${days}`);
+      milestones[days] = override > 0 ? override : def;
+    }
+    const bonus = milestones[streak];
     if (bonus && streak > prevStreak) {
       const tx = new Record(e.app.findCollectionByNameOrId("currency_transactions"));
       tx.set("user", child.id);
