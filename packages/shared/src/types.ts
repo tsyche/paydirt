@@ -37,6 +37,10 @@ export interface User extends BaseRecord {
   role: UserRole;
   display_name: string;
   household: string; // -> households.id
+  /** Emoji avatar shown on both apps (e.g. "🦊"). Set by parent. */
+  avatar?: string;
+  /** Accent color hex for the avatar badge (e.g. "#8e24aa"). Set by parent. */
+  color?: string;
   /** ntfy topic this user's devices subscribe to. */
   ntfy_topic?: string;
   /** UnifiedPush endpoint URL from the ntfy distributor. Set by the app on login. */

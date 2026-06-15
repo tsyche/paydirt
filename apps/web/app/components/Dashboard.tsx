@@ -37,6 +37,7 @@ export function Dashboard({
   const [goalsByKid, setGoalsByKid] = useState<Record<string, SavingsGoal[]>>({});
   const [chores, setChores] = useState<Chore[]>([]);
   const [approvals, setApprovals] = useState<Expanded<Assignment>[]>([]);
+  const [selectedApprovals, setSelectedApprovals] = useState<Set<string>>(new Set());
   const [spend, setSpend] = useState<Expanded<SpendRequest>[]>([]);
   const [proposals, setProposals] = useState<Expanded<ChoreProposal>[]>([]);
   const [recentApproved, setRecentApproved] = useState<Expanded<Assignment>[]>([]);
@@ -62,6 +63,7 @@ export function Dashboard({
       setGoalsByKid(Object.fromEntries(k.map((kid, i) => [kid.id, goals[i]])));
       setChores(c);
       setApprovals(a as Expanded<Assignment>[]);
+      setSelectedApprovals(new Set());
       setSpend(s as Expanded<SpendRequest>[]);
       setProposals(p as Expanded<ChoreProposal>[]);
       setRecentApproved(ra as Expanded<Assignment>[]);
@@ -111,13 +113,20 @@ export function Dashboard({
       <h2>Kids</h2>
       {kids.length === 0 && <p className="muted">No kids in this household yet.</p>}
       {kids.map((kid) => (
-        <div className="card" key={kid.id}>
+        <div
+          className="card"
+          key={kid.id}
+          style={{ borderLeft: `4px solid ${kid.color ?? "#8e24aa"}` }}
+        >
           <div className="row">
-            <span>
-              {kid.display_name}
-              {(kid.streak_count ?? 0) >= 2 ? (
-                <span className="muted"> 🔥 {kid.streak_count}-day streak</span>
-              ) : null}
+            <span style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <span style={{ fontSize: 24, lineHeight: 1 }}>{kid.avatar || "🧒"}</span>
+              <span>
+                {kid.display_name}
+                {(kid.streak_count ?? 0) >= 2 ? (
+                  <span className="muted"> 🔥 {kid.streak_count}-day streak</span>
+                ) : null}
+              </span>
             </span>
             <span className="balance">
               {kid.balance} {currencyName}
@@ -134,6 +143,7 @@ export function Dashboard({
           <div className="inline" style={{ marginTop: 6 }}>
             <AdjustControl kid={kid} onAdjusted={reload} />
             <LedgerToggle kidId={kid.id} />
+            <AvatarControl kid={kid} onSaved={reload} />
           </div>
         </div>
       ))}
@@ -149,23 +159,73 @@ export function Dashboard({
         </>
       )}
 
-      <h2>Pending approvals ({approvals.length})</h2>
+      <div className="row">
+        <h2>Pending approvals ({approvals.length})</h2>
+        {approvals.length > 1 && (
+          <div className="inline">
+            {selectedApprovals.size > 0 && (
+              <button
+                className="primary"
+                onClick={() =>
+                  act(() =>
+                    Promise.all([...selectedApprovals].map((id) => client.approveAssignment(id))).then(() => {}),
+                  )
+                }
+              >
+                Approve selected ({selectedApprovals.size})
+              </button>
+            )}
+            <button
+              className="primary"
+              onClick={() =>
+                act(() => Promise.all(approvals.map((a) => client.approveAssignment(a.id))).then(() => {}))
+              }
+            >
+              Approve all
+            </button>
+            <label className="inline" style={{ fontSize: 13, gap: 4 }}>
+              <input
+                type="checkbox"
+                checked={selectedApprovals.size === approvals.length}
+                onChange={(e) =>
+                  setSelectedApprovals(e.target.checked ? new Set(approvals.map((a) => a.id)) : new Set())
+                }
+              />
+              Select all
+            </label>
+          </div>
+        )}
+      </div>
       {approvals.length === 0 && <p className="muted">Nothing waiting.</p>}
       {approvals.map((a) => (
         <div className="card row" key={a.id}>
-          <div>
-            <div>{(a.expand?.chore as Chore | undefined)?.name ?? "Chore"}</div>
-            <div className="muted">
-              {(a.expand?.child as User | undefined)?.display_name ?? "child"}
-            </div>
-            {a.rejection_message ? (
-              <div className="muted" style={{ fontSize: 13 }}>
-                ↩️ Resubmitted — you said: {a.rejection_message}
+          <div className="inline" style={{ gap: 8, alignItems: "flex-start" }}>
+            {approvals.length > 1 && (
+              <input
+                type="checkbox"
+                style={{ marginTop: 3 }}
+                checked={selectedApprovals.has(a.id)}
+                onChange={(e) => {
+                  const next = new Set(selectedApprovals);
+                  e.target.checked ? next.add(a.id) : next.delete(a.id);
+                  setSelectedApprovals(next);
+                }}
+              />
+            )}
+            <div>
+              <div>{(a.expand?.chore as Chore | undefined)?.name ?? "Chore"}</div>
+              <div className="muted">
+                {(a.expand?.child as User | undefined)?.display_name ?? "child"}
               </div>
-            ) : null}
-            {a.kid_response ? (
-              <div className="muted" style={{ fontSize: 13 }}>💬 {a.kid_response}</div>
-            ) : null}
+              {a.rejection_message ? (
+                <div className="muted" style={{ fontSize: 13 }}>
+                  ↩️ Resubmitted — you said: {a.rejection_message}
+                </div>
+              ) : null}
+              {a.kid_response ? (
+                <div className="muted" style={{ fontSize: 13 }}>💬 {a.kid_response}</div>
+              ) : null}
+            </div>
           </div>
           <div className="inline">
             <button className="primary" onClick={() => act(() => client.approveAssignment(a.id))}>
@@ -611,6 +671,68 @@ function CreateChore({
         <span className="muted">(both optional)</span>
       </div>
       {error && <p className="error">{error}</p>}
+    </div>
+  );
+}
+
+const AVATAR_COLORS = ["#e53935", "#8e24aa", "#1e88e5", "#00897b", "#f4511e", "#f9a825"];
+
+function AvatarControl({ kid, onSaved }: { kid: User; onSaved: () => void }) {
+  const [open, setOpen] = useState(false);
+  const [avatar, setAvatar] = useState(kid.avatar ?? "");
+  const [color, setColor] = useState(kid.color ?? AVATAR_COLORS[0]);
+  const [busy, setBusy] = useState(false);
+
+  if (!open) {
+    return (
+      <button style={{ fontSize: 13 }} onClick={() => setOpen(true)}>
+        ✏️ Avatar
+      </button>
+    );
+  }
+
+  return (
+    <div className="inline" style={{ flexWrap: "wrap", gap: 6 }}>
+      <input
+        placeholder="Emoji (e.g. 🦊)"
+        value={avatar}
+        onChange={(e) => setAvatar(e.target.value)}
+        style={{ width: 100 }}
+      />
+      <div className="inline" style={{ gap: 4 }}>
+        {AVATAR_COLORS.map((c) => (
+          <button
+            key={c}
+            title={c}
+            onClick={() => setColor(c)}
+            style={{
+              width: 22,
+              height: 22,
+              borderRadius: "50%",
+              backgroundColor: c,
+              border: color === c ? "3px solid #333" : "2px solid transparent",
+              padding: 0,
+            }}
+          />
+        ))}
+      </div>
+      <button
+        className="primary"
+        disabled={busy}
+        onClick={async () => {
+          setBusy(true);
+          try {
+            await client.pb.collection("users").update(kid.id, { avatar: avatar.trim(), color });
+            setOpen(false);
+            onSaved();
+          } finally {
+            setBusy(false);
+          }
+        }}
+      >
+        Save
+      </button>
+      <button onClick={() => setOpen(false)}>Cancel</button>
     </div>
   );
 }

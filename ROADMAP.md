@@ -16,9 +16,11 @@ Chore CRUD, assignment, complete/approve flow, parentBucks earn + spend, ntfy no
 
 ## Recommended Next 3
 
-1. **Mobile UI design polish** — Full visual pass on all kid-facing screens (KidHome, SimpleKidHome, Login, ParentNotice). Fix layout gaps, button feedback, error states, and spacing. Use `frontend-design@claude-plugins-official` skill. ~3-5 hrs.
-2. **Batch approval** — Select multiple pending completions and approve/reject at once. High-value as chore count grows; server already handles individual approvals atomically. Quick win for the parent dashboard. ~1-2 hrs.
-3. **Kid avatar / display name color** — Pick a color or emoji avatar shown on both apps. Low effort, high kid engagement. ~1-2 hrs.
+1. **Batch approval** — Select multiple pending completions and approve/reject at once. High-value as chore count grows; server already handles individual approvals atomically. ~1-2 hrs.
+2. **Kid avatar / display name color** — Pick a color or emoji avatar shown on both apps. Low effort, high kid engagement. ~1-2 hrs.
+3. **Parent mobile view** — Parents currently see a "go use the web dashboard" screen. Basic mobile parent experience: view pending approvals, approve/reject, send a broadcast. Unblocks parents from needing a laptop for routine tasks. ~4-6 hrs.
+
+**Also queued:** Mobile UI design polish (full visual pass, kid-facing screens, `frontend-design` skill) — ~3-5 hrs.
 
 ## Phase 1 — Core Feature Set ✅ (completed 2026-06-10)
 

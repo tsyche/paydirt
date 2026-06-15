@@ -144,7 +144,7 @@ export function KidHome({ user, onLogout }: { user: User; onLogout: () => void }
   return (
     <SafeAreaView style={styles.container} edges={["top"]}>
       <Appbar.Header>
-        <Appbar.Content title={`Hi, ${user.display_name}`} />
+        <Appbar.Content title={`${me.avatar ? me.avatar + " " : ""}Hi, ${user.display_name}`} />
         {streak >= 2 ? <Chip compact style={styles.streakChip}>{`🔥 ${streak}-day streak`}</Chip> : null}
         <Appbar.Action icon="logout" onPress={onLogout} />
       </Appbar.Header>

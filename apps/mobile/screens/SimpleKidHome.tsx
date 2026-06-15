@@ -110,7 +110,7 @@ export function SimpleKidHome({ user, onLogout }: { user: User; onLogout: () => 
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={reload} />}
       >
         <Surface style={styles.balanceSurface} elevation={2}>
-          <Text style={styles.balanceEmoji}>💰</Text>
+          <Text style={styles.balanceEmoji}>{user.avatar || "💰"}</Text>
           <Text style={styles.balanceNumber}>{balance}</Text>
           {goodsRate > 0 ? (
             <Text style={styles.dollarValue}>${(balance / goodsRate).toFixed(2)}</Text>
