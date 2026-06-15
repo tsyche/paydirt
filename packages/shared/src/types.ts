@@ -77,6 +77,21 @@ export interface Chore extends BaseRecord {
   reminder_time?: string;
 }
 
+// ─── Chore Templates ─────────────────────────────────────────────────────────
+
+/** Household-level reusable chore definition. Apply to create a new Chore. */
+export interface ChoreTemplate extends BaseRecord {
+  household: string;
+  name: string;
+  description?: string;
+  reward: number;
+  type: ChoreType;
+  cadence?: string;
+  photo_required: boolean;
+  race?: boolean;
+  reminder_time?: string;
+}
+
 // ─── Assignments ─────────────────────────────────────────────────────────────
 
 export type AssignmentStatus = "assigned" | "completed" | "approved" | "rejected" | "closed";

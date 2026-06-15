@@ -5,6 +5,7 @@ import type {
   Broadcast,
   Chore,
   ChoreProposal,
+  ChoreTemplate,
   CurrencyTransaction,
   Household,
   SavingsGoal,
@@ -405,6 +406,23 @@ export class PaydirtClient {
       status: "declined",
       resolved_by: parentId,
     });
+  }
+
+  // ── Chore Templates ──────────────────────────────────────────────────────────
+
+  listTemplates(householdId: string): Promise<ChoreTemplate[]> {
+    return this.pb.collection(Collections.ChoreTemplates).getFullList<ChoreTemplate>({
+      filter: this.pb.filter("household = {:hh}", { hh: householdId }),
+      sort: "name",
+    });
+  }
+
+  createTemplate(data: Partial<ChoreTemplate>): Promise<ChoreTemplate> {
+    return this.pb.collection(Collections.ChoreTemplates).create<ChoreTemplate>(data);
+  }
+
+  deleteTemplate(id: string): Promise<boolean> {
+    return this.pb.collection(Collections.ChoreTemplates).delete(id);
   }
 
   // ── Broadcasts ───────────────────────────────────────────────────────────────

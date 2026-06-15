@@ -5,6 +5,7 @@ import type {
   Assignment,
   Chore,
   ChoreProposal,
+  ChoreTemplate,
   CurrencyTransaction,
   Household,
   SavingsGoal,
@@ -42,6 +43,7 @@ export function Dashboard({
   const [proposals, setProposals] = useState<Expanded<ChoreProposal>[]>([]);
   const [recentApproved, setRecentApproved] = useState<Expanded<Assignment>[]>([]);
   const [error, setError] = useState("");
+  const [templateFill, setTemplateFill] = useState<ChoreTemplate | null>(null);
 
   const currencyName = household?.currency_name?.trim() || "parentBucks";
   const goodsRate = household?.goods_rate ?? 0;
@@ -398,7 +400,17 @@ export function Dashboard({
 
         {/* ── Chores ── */}
         <h2>📋 Chores</h2>
-        <CreateChore household={householdId} parentId={user.id} onCreated={reload} />
+        <ChoreTemplatesPanel
+          householdId={householdId}
+          onUse={(t) => setTemplateFill(t)}
+        />
+        <CreateChore
+          household={householdId}
+          parentId={user.id}
+          onCreated={reload}
+          template={templateFill}
+          onTemplateClear={() => setTemplateFill(null)}
+        />
         {chores.map((c) => (
           <div className="card row" key={c.id} style={{ flexWrap: "wrap", gap: 10 }}>
             <div style={{ flex: 1, minWidth: 160 }}>
@@ -660,10 +672,14 @@ function CreateChore({
   household,
   parentId,
   onCreated,
+  template,
+  onTemplateClear,
 }: {
   household: string;
   parentId: string;
   onCreated: () => void;
+  template?: ChoreTemplate | null;
+  onTemplateClear?: () => void;
 }) {
   const [name, setName] = useState("");
   const [reward, setReward] = useState(10);
@@ -675,6 +691,31 @@ function CreateChore({
   const [remindAt, setRemindAt] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+
+  useEffect(() => {
+    if (!template) return;
+    setName(template.name);
+    setReward(template.reward);
+    setType(template.type);
+    if (template.cadence && (template.cadence === "daily" || template.cadence === "weekly" || template.cadence === "monthly")) {
+      setCadence(template.cadence);
+    }
+    setPhotoRequired(template.photo_required ?? false);
+    setRace(template.race ?? false);
+    setRemindAt(template.reminder_time ?? "");
+  }, [template]);
+
+  function reset() {
+    setName("");
+    setReward(10);
+    setType("oneoff");
+    setCadence("weekly");
+    setPhotoRequired(false);
+    setRace(false);
+    setDueAt("");
+    setRemindAt("");
+    onTemplateClear?.();
+  }
 
   async function create() {
     if (!name.trim()) return;
@@ -694,13 +735,30 @@ function CreateChore({
         created_by: parentId,
         active: true,
       });
-      setName("");
-      setReward(10);
-      setPhotoRequired(false);
-      setRace(false);
-      setDueAt("");
-      setRemindAt("");
+      reset();
       onCreated();
+    } catch (e) {
+      setError(String(e));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function saveTemplate() {
+    if (!name.trim()) return;
+    setBusy(true);
+    setError("");
+    try {
+      await client.createTemplate({
+        household,
+        name: name.trim(),
+        reward,
+        type,
+        cadence: type === "recurring" ? cadence : undefined,
+        photo_required: photoRequired,
+        race,
+        reminder_time: remindAt,
+      });
     } catch (e) {
       setError(String(e));
     } finally {
@@ -710,6 +768,12 @@ function CreateChore({
 
   return (
     <div className="card-filled" style={{ marginBottom: 12 }}>
+      {template && (
+        <div className="inline" style={{ marginBottom: 8, fontSize: 13 }}>
+          <span style={{ color: "var(--md-primary)", fontWeight: 600 }}>📋 From template</span>
+          <button className="sm" onClick={reset} style={{ fontSize: 12 }}>✕ Clear</button>
+        </div>
+      )}
       <div className="inline" style={{ marginBottom: 8 }}>
         <input
           placeholder="New chore name"
@@ -750,6 +814,14 @@ function CreateChore({
         >
           Add chore
         </button>
+        <button
+          className="outlined sm"
+          onClick={saveTemplate}
+          disabled={busy || !name.trim()}
+          title="Save current fields as a reusable template"
+        >
+          💾 Save template
+        </button>
       </div>
       <div className="inline" style={{ fontSize: 13, gap: 12 }}>
         <label className="inline" style={{ gap: 6, cursor: "pointer" }}>
@@ -787,6 +859,81 @@ function CreateChore({
         <span className="muted">(both optional)</span>
       </div>
       {error && <p className="error" style={{ marginTop: 8 }}>{error}</p>}
+    </div>
+  );
+}
+
+function ChoreTemplatesPanel({
+  householdId,
+  onUse,
+}: {
+  householdId: string;
+  onUse: (t: ChoreTemplate) => void;
+}) {
+  const [templates, setTemplates] = useState<ChoreTemplate[]>([]);
+  const [open, setOpen] = useState(false);
+  const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    client.listTemplates(householdId).then(setTemplates).catch(() => {});
+  }, [householdId, open]);
+
+  async function remove(id: string) {
+    setBusy(true);
+    try {
+      await client.deleteTemplate(id);
+      setTemplates((prev) => prev.filter((t) => t.id !== id));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  if (templates.length === 0) return null;
+
+  return (
+    <div style={{ marginBottom: 10 }}>
+      <button
+        className="outlined sm"
+        onClick={() => setOpen((o) => !o)}
+        style={{ fontSize: 13 }}
+      >
+        📋 Templates ({templates.length}) {open ? "▲" : "▼"}
+      </button>
+      {open && (
+        <div className="card" style={{ marginTop: 8, padding: "10px 14px", display: "flex", flexDirection: "column", gap: 6 }}>
+          {templates.map((t) => (
+            <div
+              key={t.id}
+              className="inline"
+              style={{ justifyContent: "space-between", flexWrap: "wrap", gap: 6 }}
+            >
+              <span style={{ fontWeight: 600, fontSize: 14 }}>
+                {t.name}
+                <span className="muted" style={{ fontWeight: 400, marginLeft: 8, fontSize: 13 }}>
+                  {t.reward} · {t.type}{t.cadence ? ` · ${t.cadence}` : ""}
+                  {t.photo_required ? " · 📷" : ""}
+                  {t.race ? " · 🏁" : ""}
+                </span>
+              </span>
+              <div className="inline" style={{ gap: 6 }}>
+                <button
+                  className="tonal sm"
+                  onClick={() => { onUse(t); setOpen(false); }}
+                >
+                  Use
+                </button>
+                <button
+                  className="danger sm"
+                  onClick={() => void remove(t.id)}
+                  disabled={busy}
+                >
+                  Delete
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
