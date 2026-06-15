@@ -8,19 +8,19 @@ Chore CRUD, assignment, complete/approve flow, parentBucks earn + spend, ntfy no
 
 ## Recently Completed
 
-1. ✅ **Kid avatar + display name color (2026-06-14)** — Emoji avatar + accent color per kid; set by parent via AvatarControl in web dashboard; shown as colored left border + emoji on kid cards, and in mobile screens (SimpleKidHome balance icon, KidHome appbar). PocketBase migration adds `avatar` + `color` fields.
-2. ✅ **Batch approval (2026-06-14)** — Select multiple pending completions and approve all at once; checkboxes + "Approve selected (N)" / "Approve all" buttons appear when 2+ completions are pending.
-3. ✅ **UnifiedPush via ntfy (2026-06-14)** — Event-driven kid notifications replace 30s polling. BroadcastReceiver handles UP intents natively; endpoint stored per-user in PocketBase; hooks push to kids for all events. Config plugin re-applies after `expo prebuild`. Falls back to polling service on first launch.
-4. ✅ **Recurring chore cadence selector in UI (2026-06-14)** — Web dashboard CreateChore form now shows a daily/weekly/monthly select when type is "recurring". Cadence displayed in the chore list alongside type.
-5. ✅ **Dollar value display (2026-06-14)** — `goods_rate` shows `$X.XX` alongside parentBucks on all kid screens and next to each kid in the parent dashboard.
+1. ✅ **Notification quiet hours (2026-06-15)** — Per-household window where all push notifications are suppressed. `quiet_start`/`quiet_end` (HH:MM) fields on households; `isQuietHours()` check in `ntfy.js` before every send; time pickers in HouseholdSettings; handles midnight wrap-around.
+2. ✅ **Chore templates (2026-06-15)** — Household-level reusable chore library. `chore_templates` PocketBase collection; `listTemplates`/`createTemplate`/`deleteTemplate` client methods; web dashboard shows collapsible template panel with "Use" (pre-fills form) and "Save template" button on CreateChore.
+3. ✅ **Parent mobile view (2026-06-15)** — Full MD3 parent home screen replacing the placeholder. Pending approvals (approve/reject/batch), spend requests, kids balance overview, household broadcast; real-time via `subscribeToDashboardUpdates`; pull-to-refresh.
+4. ✅ **MD3 design overhaul — web + mobile (2026-06-14)** — Material Design 3 visual system across all screens. Full CSS token set (light + dark), DM Sans/DM Mono fonts, elevation, shape, tonal surfaces. Mobile: Login, ParentNotice, SimpleKidHome, KidHome polished with MD3 components, avatar/color band on balance cards.
+5. ✅ **Kid avatar + color (2026-06-14)** — Emoji avatar + accent color per kid; set by parent via AvatarControl; shown on kid cards (web), balance header band (mobile), and throughout both apps.
 
 ## Recommended Next 3
 
-1. **Parent mobile view** — Parents currently see a "go use the web dashboard" screen. Basic mobile parent experience: view pending approvals, approve/reject, send a broadcast. Unblocks parents from needing a laptop for routine tasks. ~4-6 hrs.
-2. **Mobile UI design polish** — Full visual pass on all kid-facing screens using the `frontend-design` skill. Fix layout gaps, button feedback, error states, spacing. High engagement impact before real kids start using it. ~3-5 hrs.
-3. **Chore templates** — Household-level library of reusable chore definitions; creating a new chore picks from the library. Reduces setup friction as chore count grows. ~2-3 hrs.
+1. **Multi-kid chore assignment** — Currently each kid must be assigned individually; a checkbox list would let parents set up race chores in one action. High daily-use friction for the most common workflow. ~1-2 hrs.
+2. **Parent earnings/activity report** — Per-kid monthly summary (chores completed, earned, spent, streak peak) visible in the web dashboard. Parents have no current way to see historical performance at a glance. ~2-3 hrs.
+3. **Streak/expiry tuning UI** — Milestone bonus amounts and streak/expiry logic are hardcoded in `pocketbase/pb_hooks/lib/streaks.js`; expose thresholds and bonus values in household settings so the family can tune without a code change. ~1-2 hrs.
 
-**Also queued:** Notification quiet hours (~1-2 hrs), per-kid goods rate (~1 hr), multi-kid chore assignment (~1-2 hrs).
+**Also queued:** Per-kid goods rate (~1 hr), parent mobile chore creation (~2 hrs), fix pre-existing `withUnifiedPush.js` lint errors (~30 min).
 
 ## Phase 1 — Core Feature Set ✅ (completed 2026-06-10)
 
@@ -53,11 +53,11 @@ Chore CRUD, assignment, complete/approve flow, parentBucks earn + spend, ntfy no
 
 ## Ideas (unscheduled)
 
-- **Chore templates** — household-level library of reusable definitions. Creating a new chore picks from the library. ~2-3 hrs.
+- **Parent mobile: chore creation** — currently web-only; completing the mobile parent experience so parents can add chores from the phone. ~2 hrs.
 - **Parent earnings/activity report** — monthly summary (or exportable CSV): per-kid totals for chores completed, earned, spent, streak peak. ~2-3 hrs.
-- **Notification quiet hours** — per-household window where ntfy sends are held/dropped (no 6am pings). ~1-2 hrs.
 - **Custom kid reminder times** — freeform time input in addition to the 1h/3h/tomorrow presets. ~1 hr.
 - **Streak/expiry tuning UI** — milestone amounts hard-coded in `lib/streaks.js`; surface in household settings. ~1-2 hrs.
 - **Multi-kid chore assignment** — currently one kid at a time; checkbox list would speed up race chore setup. ~1-2 hrs.
 - **Per-kid goods rate** — `goods_rate` is household-wide; `users.goods_rate` with fallback to household rate would let kids at different ages have different conversion displays. ~1 hr.
+- **Kid leaderboard / achievement wall** — siblings can see each other's streak and recent wins; light gamification without exposing balances. ~2-3 hrs.
 - **UnifiedPush self-hosted ntfy** — when ready to move off ntfy.sh, re-register on device → new endpoint URL encodes the self-hosted server automatically. No server-side config needed.
