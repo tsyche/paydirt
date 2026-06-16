@@ -1,4 +1,20 @@
 # Project task runner. Run `just --list` to see all available commands.
+#
+# ── Quick Start ────────────────────────────────────────────────────────────────
+# Local dev (first time):
+#   just pb-download               # download PocketBase binary (one-time)
+#   just fresh                     # reset DB → seed → start all services
+#
+# Local dev (already set up):
+#   just dev-pb                    # PocketBase only
+#   just dev-web                   # Next.js dashboard
+#   just dev-mobile                # Expo app
+#   just stop                      # stop all services
+#
+# Release APK → real devices (wireless):
+#   adb connect <ip>:<port>        # once per device (Wireless Debugging in dev options)
+#   just install-apk-release-all   # build release APK + install on every connected device
+# ───────────────────────────────────────────────────────────────────────────────
 
 # PocketBase binary location (downloaded separately, gitignored)
 pb := "pocketbase/pocketbase"
@@ -61,10 +77,6 @@ fresh nuke="0":
     echo ""
     echo "Press Ctrl+C to stop all services (or run 'just stop' from another terminal)."
     trap 'just stop' INT; wait
-
-# Deprecated alias — use 'just fresh' instead
-dev-all nuke="0":
-    @just fresh nuke="{{nuke}}"
 
 # Stop all PayDirt dev services
 stop:
@@ -170,6 +182,42 @@ build-apk:
 install-apk: build-apk
     @adb install -r apps/mobile/android/app/build/outputs/apk/debug/app-debug.apk
     @printf '\033[0;32mInstalled.\033[0m\n'
+
+# Build a release APK — minified, signed with the committed debug.keystore
+# (see android/app/build.gradle). Same keystore every build means each new
+# release installs as an upgrade over the last, no uninstall needed. Bump
+# versionCode in android/app/build.gradle before each real release.
+build-apk-release:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    if [ ! -d "apps/mobile/android" ]; then
+        printf '\033[0;33mandroid/ not found — run '\''just prebuild'\'' first.\033[0m\n'
+        exit 1
+    fi
+    printf '\033[0;34mBuilding release APK...\033[0m\n'
+    cd apps/mobile/android && ./gradlew assembleRelease
+    APK="apps/mobile/android/app/build/outputs/apk/release/app-release.apk"
+    printf '\033[0;32mAPK ready: %s\033[0m\n' "${APK}"
+    printf 'Install on one device with: adb install -r %s\n' "${APK}"
+    printf 'Install on every connected device: just install-apk-release-all\n'
+
+# Install the release APK on every device currently connected over adb
+# (USB or `adb connect <ip>` for wireless). Skips devices already on this
+# exact APK's build, none are excluded by default — always reinstalls.
+install-apk-release-all: build-apk-release
+    #!/usr/bin/env bash
+    set -euo pipefail
+    APK="apps/mobile/android/app/build/outputs/apk/release/app-release.apk"
+    devices=$(adb devices | awk 'NR>1 && $2=="device" {print $1}')
+    if [ -z "$devices" ]; then
+        printf '\033[0;33mNo devices connected (check `adb devices`).\033[0m\n'
+        exit 1
+    fi
+    for d in $devices; do
+        printf '\033[0;34mInstalling on %s...\033[0m\n' "$d"
+        adb -s "$d" install -r "$APK"
+    done
+    printf '\033[0;32mDone.\033[0m\n'
 
 # Start PocketBase only (use NTFY_DISABLED=1 just dev-pb for test runs)
 dev-pb:
