@@ -10,7 +10,6 @@ default:
 # --- Quick Start ---
 
 # Print local dev setup steps
-[group('quick-start')]
 dev-start:
     @printf '\n\033[1mLocal dev — first time:\033[0m\n'
     @printf '  just pb-download    # download PocketBase binary (one-time)\n'
@@ -22,7 +21,6 @@ dev-start:
     @printf '  just stop           # stop all services\n\n'
 
 # Print release APK deployment steps for real devices
-[group('quick-start')]
 deploy-start:
     @printf '\n\033[1mDeploy release APK to real devices:\033[0m\n'
     @printf '  1. On each device: Settings → Developer Options → Wireless Debugging → enable\n'
