@@ -38,4 +38,4 @@ yarn-error.*
 
 # generated native folders
 /ios
-/android
+# /android is committed — bare Expo workflow with custom Kotlin native code
