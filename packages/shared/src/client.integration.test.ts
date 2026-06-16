@@ -72,4 +72,31 @@ describe("PaydirtClient (live)", () => {
       .getFullList({ filter: child.pb.filter("household = {:hh}", { hh: childUser.household }) });
     expect(chores.length).toBeGreaterThan(0);
   });
+
+  it("chore templates: create, list, and delete", async () => {
+    const householdId = parent.currentUser!.household;
+
+    const t = await parent.createTemplate({
+      household: householdId,
+      name: "Integration test template",
+      reward: 7,
+      type: "recurring",
+      cadence: "weekly",
+      photo_required: true,
+      race: false,
+    });
+
+    expect(t.id).toBeTruthy();
+    expect(t.name).toBe("Integration test template");
+    expect(t.reward).toBe(7);
+    expect(t.cadence).toBe("weekly");
+    expect(t.photo_required).toBe(true);
+
+    const list = await parent.listTemplates(householdId);
+    expect(list.some((x) => x.id === t.id)).toBe(true);
+
+    await parent.deleteTemplate(t.id);
+    const listAfter = await parent.listTemplates(householdId);
+    expect(listAfter.some((x) => x.id === t.id)).toBe(false);
+  });
 });

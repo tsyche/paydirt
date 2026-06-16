@@ -32,7 +32,7 @@ test("create → assign → kid completes → approve → undo", async ({ page }
   const kidBalance = page
     .locator(".card")
     .filter({ hasText: "Kid 1" })
-    .locator(".balance");
+    .locator(".kid-balance");
   const readBalance = async () => parseInt((await kidBalance.innerText()).trim(), 10);
   const startBalance = await readBalance();
 
@@ -98,6 +98,6 @@ test("broadcast a message to all kids", async ({ page }) => {
   await page
     .getByPlaceholder("Message all kids (e.g. Dinner in 10 minutes!)")
     .fill("E2E broadcast test");
-  await page.getByRole("button", { name: "📣 Send" }).click();
+  await page.getByRole("button", { name: "Send" }).click();
   await expect(page.getByText("Sent to all kids 📣")).toBeVisible();
 });

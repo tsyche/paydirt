@@ -8,7 +8,10 @@ Chore CRUD, assignment, complete/approve flow, parentBucks earn + spend, ntfy no
 
 ## Recently Completed
 
-1. ✅ **Recurring chore auto-close (2026-06-16)** — `runDaily()` now respects `monthly` cadence (30-day gate), not just `weekly`. Previously any non-`weekly` cadence — including the UI-exposed `monthly` option — fell through to immediate same-day re-assignment. Added integration tests for weekly and monthly (daily was already covered).
+1. ✅ **Currency ledger CSV export (2026-06-16)** — "Export CSV" button in the web `LedgerToggle`; downloads a kid's full transaction history. `buildLedgerCsv` extracted as a pure function with 7 unit tests.
+2. ✅ **Mobile chore template parity (2026-06-16)** — `ParentHome` now shows a collapsible template picker and "Save as template" button matching the web `ChoreTemplatesPanel`. Integration test covers create/list/delete.
+3. ✅ **golden-path.spec.ts e2e fixes (2026-06-16)** — fixed `.balance` → `.kid-balance` (too-broad CSS selector) and corrected "📣 Send" → "Send" button name mismatch.
+4. ✅ **Recurring chore auto-close (2026-06-16)** — `runDaily()` now respects `monthly` cadence (30-day gate), not just `weekly`. Previously any non-`weekly` cadence — including the UI-exposed `monthly` option — fell through to immediate same-day re-assignment. Added integration tests for weekly and monthly (daily was already covered).
 2. ✅ **Photo proof viewer (2026-06-15)** — parent approval cards (web + mobile) show the photo thumbnail inline via `client.getPhotoUrl()`; no more jumping to PocketBase admin.
 3. ✅ **Kid-proposed chore auto-assign (2026-06-15)** — already worked on web (`approveProposal()`); built the missing mobile parent UI (CHORE IDEAS section, approve/decline, reward prompt) for parity.
 4. ✅ **Fixed: PocketBase couldn't boot from a clean `pb_data` (2026-06-16)** — three latent bugs, only surfaced once `pb_data` was wiped to absolute zero: (a) custom `users.avatar` field collided with PocketBase's newer built-in `avatar` file field — renamed to `avatar_emoji` across migration + all call sites; (b) `1717000010_chore_templates.js` and `1717000011_household_quiet_hours.js` still used the pre-0.23 `Dao`/`SchemaField` API, removed in the installed PocketBase 0.39.3 — rewritten with the current `Collection`/`*Field` API used by every other migration.
@@ -26,13 +29,11 @@ Chore CRUD, assignment, complete/approve flow, parentBucks earn + spend, ntfy no
 
 ## Known issues
 
-- **Flaky/broken e2e tests** — `golden-path.spec.ts` has 2 pre-existing failures (not caused by recent work, verified against the prior commit too): a `.balance` CSS-class locator that resolves to 4 elements instead of 1 (selector needs to scope more precisely — too many unrelated elements share the class), and a "📣 Send" broadcast button the test can't find within 30s. Worth a dedicated fix pass.
+_None currently._
 
 ## Recommended Next 3
 
-1. **Currency ledger CSV export** — web dashboard button to download a kid's transaction history (already in `LedgerToggle`) as CSV; useful for record-keeping or tax-adjacent allowance tracking. ~1 hr.
-2. **Mobile chore template parity** — `ChoreTemplatesPanel` exists on web only; ParentHome's create-chore form has no "use template" / "save template" option. ~1 hr.
-3. **Fix golden-path.spec.ts e2e flakiness** — see Known issues above. ~30 min.
+_All caught up — no explicit next items yet. Run `/audit-roadmap` to generate new ones._
 
 ## Phase 1 — Core Feature Set ✅ (completed 2026-06-10)
 

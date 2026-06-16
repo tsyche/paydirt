@@ -25,6 +25,23 @@ const TX_LABEL: Record<string, string> = {
 
 const REACTIONS = ["🎉", "👏", "💪", "🌟"];
 
+export function buildLedgerCsv(
+  txns: CurrencyTransaction[],
+  labels: Record<string, string>,
+): string {
+  const esc = (v: string) => `"${v.replace(/"/g, '""')}"`;
+  const rows = [
+    ["Date", "Type", "Amount", "Reason"],
+    ...txns.map((t) => [
+      t.created.slice(0, 10),
+      labels[t.type] ?? t.type,
+      String(t.amount),
+      t.reason ?? "",
+    ]),
+  ];
+  return rows.map((r) => r.map(esc).join(",")).join("\n");
+}
+
 export function Dashboard({
   user,
   onLogout,
@@ -166,7 +183,7 @@ export function Dashboard({
                 </div>
               </div>
               <div style={{ textAlign: "right" }}>
-                <div className="balance" style={{ fontSize: 18 }}>
+                <div className="balance kid-balance" style={{ fontSize: 18 }}>
                   {kid.balance}
                   <span style={{ fontWeight: 400, fontSize: 13, marginLeft: 4 }}>
                     {currencyName}
@@ -181,7 +198,7 @@ export function Dashboard({
             </div>
             <div className="inline" style={{ marginTop: 10 }}>
               <AdjustControl kid={kid} onAdjusted={reload} />
-              <LedgerToggle kidId={kid.id} />
+              <LedgerToggle kidId={kid.id} kidName={kid.display_name} />
               <AvatarControl kid={kid} onSaved={reload} />
             </div>
           </div>
@@ -556,7 +573,7 @@ function BroadcastControl({ householdId, senderId }: { householdId: string; send
   );
 }
 
-function LedgerToggle({ kidId }: { kidId: string }) {
+function LedgerToggle({ kidId, kidName }: { kidId: string; kidName: string }) {
   const [open, setOpen] = useState(false);
   const [txns, setTxns] = useState<CurrencyTransaction[]>([]);
   const [loading, setLoading] = useState(false);
@@ -573,6 +590,17 @@ function LedgerToggle({ kidId }: { kidId: string }) {
     }
   }
 
+  function exportCsv() {
+    const csv = buildLedgerCsv(txns, TX_LABEL);
+    const blob = new Blob([csv], { type: "text/csv" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `${kidName.replace(/\s+/g, "_")}_ledger.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
   return (
     <div>
       <button className="sm" onClick={toggle} disabled={loading}>
@@ -580,6 +608,11 @@ function LedgerToggle({ kidId }: { kidId: string }) {
       </button>
       {open && (
         <div style={{ marginTop: 10 }}>
+          {txns.length > 0 && (
+            <button className="sm" style={{ marginBottom: 8 }} onClick={exportCsv}>
+              Export CSV
+            </button>
+          )}
           {txns.length === 0 && <p className="muted">No transactions yet.</p>}
           {txns.map((t) => (
             <div key={t.id} className="ledger-row">

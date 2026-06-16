@@ -14,7 +14,7 @@ import {
   useTheme,
 } from "react-native-paper";
 import { SafeAreaView } from "react-native-safe-area-context";
-import type { Assignment, Chore, ChoreProposal, Household, SpendRequest, User } from "@paydirt/shared";
+import type { Assignment, Chore, ChoreProposal, ChoreTemplate, Household, SpendRequest, User } from "@paydirt/shared";
 import { client } from "../lib/client";
 
 type ExpandedAssignment = Assignment & { expand?: { chore?: Chore; child?: User } };
@@ -44,6 +44,11 @@ export function ParentHome({ user, onLogout }: { user: User; onLogout: () => voi
   const [choreRace, setChoreRace] = useState(false);
   const [choreReminder, setChoreReminder] = useState("");
   const [creatingChore, setCreatingChore] = useState(false);
+
+  // Template state
+  const [templates, setTemplates] = useState<ChoreTemplate[]>([]);
+  const [showTemplates, setShowTemplates] = useState(false);
+  const [savingTemplate, setSavingTemplate] = useState(false);
 
   // Assignment state: choreId → Set of selected kidIds
   const [assignSelections, setAssignSelections] = useState<Record<string, Set<string>>>({});
@@ -193,6 +198,48 @@ export function ParentHome({ user, onLogout }: { user: User; onLogout: () => voi
       setCreatingChore(false);
     }
   }
+
+  function applyTemplate(t: ChoreTemplate) {
+    setChoreName(t.name);
+    setChoreReward(String(t.reward));
+    setChoreType(t.type);
+    if (t.cadence === "daily" || t.cadence === "weekly" || t.cadence === "monthly") {
+      setChoreCadence(t.cadence);
+    }
+    setChorePhoto(t.photo_required);
+    setChoreRace(t.race ?? false);
+    setChoreReminder(t.reminder_time ?? "");
+    setShowTemplates(false);
+  }
+
+  async function saveAsTemplate() {
+    if (!choreName.trim()) return;
+    setSavingTemplate(true);
+    try {
+      const t = await client.createTemplate({
+        household: user.household,
+        name: choreName.trim(),
+        reward: Number(choreReward) || 0,
+        type: choreType,
+        cadence: choreType === "recurring" ? choreCadence : undefined,
+        photo_required: chorePhoto,
+        race: choreRace,
+        reminder_time: choreReminder.trim() || undefined,
+      });
+      setTemplates((prev) => [...prev, t]);
+      setSnack("Template saved 📋");
+    } catch (e) {
+      setSnack(String(e));
+    } finally {
+      setSavingTemplate(false);
+    }
+  }
+
+  useEffect(() => {
+    if (showCreateChore) {
+      client.listTemplates(user.household).then(setTemplates).catch(() => {});
+    }
+  }, [showCreateChore, user.household]);
 
   function toggleKidForChore(choreId: string, kidId: string) {
     setAssignSelections((prev) => {
@@ -504,6 +551,37 @@ export function ParentHome({ user, onLogout }: { user: User; onLogout: () => voi
         {showCreateChore && (
           <Card style={styles.createChoreCard}>
             <Card.Content style={styles.createChoreContent}>
+              {templates.length > 0 && (
+                <>
+                  <Button
+                    mode="outlined"
+                    compact
+                    icon={showTemplates ? "chevron-up" : "clipboard-list-outline"}
+                    onPress={() => setShowTemplates((v) => !v)}
+                    style={{ borderRadius: 8, marginBottom: 4 }}
+                  >
+                    📋 Templates ({templates.length}) {showTemplates ? "▲" : "▼"}
+                  </Button>
+                  {showTemplates && templates.map((t) => (
+                    <View key={t.id} style={styles.templateRow}>
+                      <View style={{ flex: 1 }}>
+                        <Text variant="bodyMedium" style={{ fontWeight: "600" }}>{t.name}</Text>
+                        <Text variant="bodySmall" style={{ color: "gray" }}>
+                          {t.reward} · {t.type}{t.cadence ? ` · ${t.cadence}` : ""}{t.photo_required ? " · 📷" : ""}{t.race ? " · 🏁" : ""}
+                        </Text>
+                      </View>
+                      <Button
+                        mode="contained-tonal"
+                        compact
+                        onPress={() => applyTemplate(t)}
+                        style={{ borderRadius: 8 }}
+                      >
+                        Use
+                      </Button>
+                    </View>
+                  ))}
+                </>
+              )}
               <TextInput
                 mode="outlined"
                 label="Chore name"
@@ -571,6 +649,15 @@ export function ParentHome({ user, onLogout }: { user: User; onLogout: () => voi
                 icon="check"
               >
                 {creatingChore ? "Creating…" : "Create chore"}
+              </Button>
+              <Button
+                mode="outlined"
+                onPress={saveAsTemplate}
+                disabled={savingTemplate || !choreName.trim()}
+                style={{ borderRadius: 12 }}
+                icon="content-save-outline"
+              >
+                {savingTemplate ? "Saving…" : "Save as template"}
               </Button>
             </Card.Content>
           </Card>
@@ -689,6 +776,7 @@ const styles = StyleSheet.create({
   rewardInput: { width: 120 },
   segmented: { marginTop: 2 },
   switchRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingVertical: 6 },
+  templateRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingVertical: 4, gap: 8 },
   choreRow: { flexDirection: "row", justifyContent: "space-between", marginBottom: 8 },
   assignRow: { flexDirection: "row", flexWrap: "wrap", gap: 6, marginTop: 4, alignItems: "center" },
   kidAssignChip: {},
