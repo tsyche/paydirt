@@ -1,31 +1,42 @@
 # Project task runner. Run `just --list` to see all available commands.
-#
-# ── Quick Start ────────────────────────────────────────────────────────────────
-# Local dev (first time):
-#   just pb-download               # download PocketBase binary (one-time)
-#   just fresh                     # reset DB → seed → start all services
-#
-# Local dev (already set up):
-#   just dev-pb                    # PocketBase only
-#   just dev-web                   # Next.js dashboard
-#   just dev-mobile                # Expo app
-#   just stop                      # stop all services
-#
-# Release APK → real devices (wireless):
-#   adb connect <ip>:<port>        # once per device (Wireless Debugging in dev options)
-#   just install-apk-release-all   # build release APK + install on every connected device
-# ───────────────────────────────────────────────────────────────────────────────
 
 # PocketBase binary location (downloaded separately, gitignored)
 pb := "pocketbase/pocketbase"
 
 # Default: show available commands
 default:
-    @just --list
+    @just --list --unsorted
+
+# --- Quick Start ---
+
+# Print local dev setup steps
+[group('quick-start')]
+dev-start:
+    @printf '\n\033[1mLocal dev — first time:\033[0m\n'
+    @printf '  just pb-download    # download PocketBase binary (one-time)\n'
+    @printf '  just fresh          # reset DB → seed → start all services\n'
+    @printf '\n\033[1mLocal dev — already set up:\033[0m\n'
+    @printf '  just dev-pb         # PocketBase only\n'
+    @printf '  just dev-web        # Next.js dashboard only\n'
+    @printf '  just dev-mobile     # Expo app only\n'
+    @printf '  just stop           # stop all services\n\n'
+
+# Print release APK deployment steps for real devices
+[group('quick-start')]
+deploy-start:
+    @printf '\n\033[1mDeploy release APK to real devices:\033[0m\n'
+    @printf '  1. On each device: Settings → Developer Options → Wireless Debugging → enable\n'
+    @printf '     then tap "Pair device with pairing code" and run:\n'
+    @printf '       adb pair <ip>:<pair-port>    (enter pairing code)\n'
+    @printf '       adb connect <ip>:<port>       (the main debug port shown on device)\n'
+    @printf '  2. Verify: adb devices             (should list each device)\n'
+    @printf '  3. Install: just install-apk-release-all\n'
+    @printf '     (builds a signed release APK and pushes to every connected device)\n\n'
 
 # --- Development ---
 
 # Reset DB + seed + start everything. Pass nuke=1 to also wipe node_modules and reinstall deps first.
+[group('development')]
 fresh nuke="0":
     #!/usr/bin/env bash
     set -euo pipefail
@@ -79,6 +90,7 @@ fresh nuke="0":
     trap 'just stop' INT; wait
 
 # Stop all PayDirt dev services
+[group('development')]
 stop:
     #!/usr/bin/env bash
     printf '\033[0;34mStopping PayDirt services...\033[0m\n'
@@ -97,24 +109,29 @@ stop:
     fi
     printf '\033[0;32mDone.\033[0m\n'
 
-# Clear Next.js/.expo/Metro caches
-cache-clean:
-    @printf '\033[0;34mClearing build/bundler caches...\033[0m\n'
-    @rm -rf apps/web/.next
-    @rm -rf apps/mobile/.expo
-    @rm -rf /tmp/metro-* /tmp/haste-* 2>/dev/null || true
-    @rm -rf /tmp/paydirt-logs
-    @printf '\033[0;32mCaches cleared.\033[0m\n'
+# Start PocketBase only (use NTFY_DISABLED=1 just dev-pb for test runs)
+[group('development')]
+dev-pb:
+    #!/usr/bin/env bash
+    if [ ! -f "{{pb}}" ]; then
+        printf '\033[0;33mPocketBase binary not found at {{pb}}\033[0m\n'
+        echo "Run 'just pb-download' first."
+        exit 1
+    fi
+    {{pb}} serve --dir pocketbase/pb_data --hooksDir pocketbase/pb_hooks --migrationsDir pocketbase/pb_migrations --http 0.0.0.0:8090
 
 # Start Next.js parent dashboard only
+[group('development')]
 dev-web:
     @pnpm run dev:web
 
 # Start Expo React Native app only
+[group('development')]
 dev-mobile:
     @pnpm run dev:mobile
 
 # Start PB + Expo pointed at a physical Android device over LAN
+[group('development')]
 dev-device:
     #!/usr/bin/env bash
     set -euo pipefail
@@ -140,96 +157,13 @@ dev-device:
     EXPO_PUBLIC_POCKETBASE_URL="http://${LAN_IP}:8090" pnpm --filter mobile start
 
 # Tunnel device USB traffic → host port 8090 (run once after plugging in; lets device use 127.0.0.1)
+[group('development')]
 adb-tunnel:
     @adb reverse tcp:8090 tcp:8090
     @printf '\033[0;32mTunnel set: device:8090 → host:8090. Use EXPO_PUBLIC_POCKETBASE_URL=http://127.0.0.1:8090\033[0m\n'
 
-# --- Android build ---
-
-# Generate native android/ directory from app.json (run once, or after app.json changes).
-# Set EXPO_PUBLIC_POCKETBASE_URL in apps/mobile/.env before running:
-#   echo "EXPO_PUBLIC_POCKETBASE_URL=http://192.168.1.50:8090" > apps/mobile/.env
-prebuild:
-    #!/usr/bin/env bash
-    set -euo pipefail
-    if [ ! -f apps/mobile/.env ] && [ -z "${EXPO_PUBLIC_POCKETBASE_URL:-}" ]; then
-        printf '\033[0;33mSet EXPO_PUBLIC_POCKETBASE_URL before prebuilding.\033[0m\n'
-        printf '\033[0;33mExample: echo "EXPO_PUBLIC_POCKETBASE_URL=http://192.168.1.50:8090" > apps/mobile/.env\033[0m\n'
-        exit 1
-    fi
-    printf '\033[0;34mInstalling mobile dependencies...\033[0m\n'
-    pnpm --filter mobile install
-    printf '\033[0;34mGenerating native Android project...\033[0m\n'
-    cd apps/mobile && npx expo prebuild --platform android --no-install
-    printf '\033[0;32mDone. Run '\''just build-apk'\'' to produce the APK.\033[0m\n'
-
-# Build a debug APK — faster, no signing required, good for sideloading during dev.
-# Requires: JDK 17+, Android SDK (set ANDROID_HOME). Run `just prebuild` first.
-build-apk:
-    #!/usr/bin/env bash
-    set -euo pipefail
-    if [ ! -d "apps/mobile/android" ]; then
-        printf '\033[0;33mandroid/ not found — run '\''just prebuild'\'' first.\033[0m\n'
-        exit 1
-    fi
-    printf '\033[0;34mBuilding debug APK...\033[0m\n'
-    cd apps/mobile/android && ./gradlew assembleDebug
-    APK="apps/mobile/android/app/build/outputs/apk/debug/app-debug.apk"
-    printf '\033[0;32mAPK ready: %s\033[0m\n' "${APK}"
-    printf 'Install with: adb install -r %s\n' "${APK}"
-
-# Install the debug APK directly to a connected device / emulator.
-install-apk: build-apk
-    @adb install -r apps/mobile/android/app/build/outputs/apk/debug/app-debug.apk
-    @printf '\033[0;32mInstalled.\033[0m\n'
-
-# Build a release APK — minified, signed with the committed debug.keystore
-# (see android/app/build.gradle). Same keystore every build means each new
-# release installs as an upgrade over the last, no uninstall needed. Bump
-# versionCode in android/app/build.gradle before each real release.
-build-apk-release:
-    #!/usr/bin/env bash
-    set -euo pipefail
-    if [ ! -d "apps/mobile/android" ]; then
-        printf '\033[0;33mandroid/ not found — run '\''just prebuild'\'' first.\033[0m\n'
-        exit 1
-    fi
-    printf '\033[0;34mBuilding release APK...\033[0m\n'
-    cd apps/mobile/android && ./gradlew assembleRelease
-    APK="apps/mobile/android/app/build/outputs/apk/release/app-release.apk"
-    printf '\033[0;32mAPK ready: %s\033[0m\n' "${APK}"
-    printf 'Install on one device with: adb install -r %s\n' "${APK}"
-    printf 'Install on every connected device: just install-apk-release-all\n'
-
-# Install the release APK on every device currently connected over adb
-# (USB or `adb connect <ip>` for wireless). Skips devices already on this
-# exact APK's build, none are excluded by default — always reinstalls.
-install-apk-release-all: build-apk-release
-    #!/usr/bin/env bash
-    set -euo pipefail
-    APK="apps/mobile/android/app/build/outputs/apk/release/app-release.apk"
-    devices=$(adb devices | awk 'NR>1 && $2=="device" {print $1}')
-    if [ -z "$devices" ]; then
-        printf '\033[0;33mNo devices connected (check `adb devices`).\033[0m\n'
-        exit 1
-    fi
-    for d in $devices; do
-        printf '\033[0;34mInstalling on %s...\033[0m\n' "$d"
-        adb -s "$d" install -r "$APK"
-    done
-    printf '\033[0;32mDone.\033[0m\n'
-
-# Start PocketBase only (use NTFY_DISABLED=1 just dev-pb for test runs)
-dev-pb:
-    #!/usr/bin/env bash
-    if [ ! -f "{{pb}}" ]; then
-        printf '\033[0;33mPocketBase binary not found at {{pb}}\033[0m\n'
-        echo "Run 'just pb-download' first."
-        exit 1
-    fi
-    {{pb}} serve --dir pocketbase/pb_data --hooksDir pocketbase/pb_hooks --migrationsDir pocketbase/pb_migrations --http 0.0.0.0:8090
-
 # Download the PocketBase binary (latest, or PB_VERSION=x.y.z)
+[group('development')]
 pb-download:
     #!/usr/bin/env bash
     os=$(uname -s | tr '[:upper:]' '[:lower:]')
@@ -249,14 +183,87 @@ pb-download:
     chmod +x {{pb}} && rm -f /tmp/pocketbase.zip
     printf '\033[0;32mInstalled %s\033[0m\n' "$({{pb}} --version)"
 
+# --- Android ---
+
+# Generate native android/ directory from app.json (run once, or after app.json changes)
+[group('android')]
+prebuild:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    if [ ! -f apps/mobile/.env ] && [ -z "${EXPO_PUBLIC_POCKETBASE_URL:-}" ]; then
+        printf '\033[0;33mSet EXPO_PUBLIC_POCKETBASE_URL before prebuilding.\033[0m\n'
+        printf '\033[0;33mExample: echo "EXPO_PUBLIC_POCKETBASE_URL=http://192.168.1.50:8090" > apps/mobile/.env\033[0m\n'
+        exit 1
+    fi
+    printf '\033[0;34mInstalling mobile dependencies...\033[0m\n'
+    pnpm --filter mobile install
+    printf '\033[0;34mGenerating native Android project...\033[0m\n'
+    cd apps/mobile && npx expo prebuild --platform android --no-install
+    printf '\033[0;32mDone. Run '\''just build-apk-release'\'' to produce the APK.\033[0m\n'
+
+# Build a release APK — signed, minified, upgrades in-place on device (bump versionCode before each release)
+[group('android')]
+build-apk-release:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    if [ ! -d "apps/mobile/android" ]; then
+        printf '\033[0;33mandroid/ not found — run '\''just prebuild'\'' first.\033[0m\n'
+        exit 1
+    fi
+    printf '\033[0;34mBuilding release APK...\033[0m\n'
+    cd apps/mobile/android && ./gradlew assembleRelease
+    APK="apps/mobile/android/app/build/outputs/apk/release/app-release.apk"
+    printf '\033[0;32mAPK ready: %s\033[0m\n' "${APK}"
+    printf 'Install on every connected device: just install-apk-release-all\n'
+
+# Build release APK + install on every adb-connected device (USB or wireless adb connect)
+[group('android')]
+install-apk-release-all: build-apk-release
+    #!/usr/bin/env bash
+    set -euo pipefail
+    APK="apps/mobile/android/app/build/outputs/apk/release/app-release.apk"
+    devices=$(adb devices | awk 'NR>1 && $2=="device" {print $1}')
+    if [ -z "$devices" ]; then
+        printf '\033[0;33mNo devices connected (check `adb devices`).\033[0m\n'
+        exit 1
+    fi
+    for d in $devices; do
+        printf '\033[0;34mInstalling on %s...\033[0m\n' "$d"
+        adb -s "$d" install -r "$APK"
+    done
+    printf '\033[0;32mDone.\033[0m\n'
+
+# Build a debug APK (faster, no signing — for emulator/dev use only)
+[group('android')]
+build-apk:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    if [ ! -d "apps/mobile/android" ]; then
+        printf '\033[0;33mandroid/ not found — run '\''just prebuild'\'' first.\033[0m\n'
+        exit 1
+    fi
+    printf '\033[0;34mBuilding debug APK...\033[0m\n'
+    cd apps/mobile/android && ./gradlew assembleDebug
+    APK="apps/mobile/android/app/build/outputs/apk/debug/app-debug.apk"
+    printf '\033[0;32mAPK ready: %s\033[0m\n' "${APK}"
+    printf 'Install with: adb install -r %s\n' "${APK}"
+
+# Build debug APK + install on the connected emulator/device
+[group('android')]
+install-apk: build-apk
+    @adb install -r apps/mobile/android/app/build/outputs/apk/debug/app-debug.apk
+    @printf '\033[0;32mInstalled.\033[0m\n'
+
 # --- Test data ---
 
 # Seed test household/users/chores (PocketBase must be running)
+[group('test data')]
 seed:
     @printf '\033[0;34mSeeding test data (PocketBase must be running)...\033[0m\n'
     @node pocketbase/seed.mjs
 
 # Wipe the PocketBase DB and rebuild empty (PocketBase must be stopped)
+[group('test data')]
 reset-db:
     #!/usr/bin/env bash
     if [ ! -f "{{pb}}" ]; then
@@ -276,10 +283,12 @@ reset-db:
 # --- Quality ---
 
 # Run all workspace tests
+[group('quality')]
 test:
     @pnpm -r test
 
 # Live API/hook tests — needs running, seeded PocketBase (use NTFY_DISABLED=1 just dev-pb)
+[group('quality')]
 test-integration:
     #!/usr/bin/env bash
     if ! curl -sf -o /dev/null http://127.0.0.1:8090/api/health; then
@@ -289,6 +298,7 @@ test-integration:
     pnpm --filter @paydirt/shared test:integration
 
 # Playwright dashboard tests — needs running, seeded PocketBase
+[group('quality')]
 test-e2e:
     #!/usr/bin/env bash
     if ! curl -sf -o /dev/null http://127.0.0.1:8090/api/health; then
@@ -298,6 +308,7 @@ test-e2e:
     pnpm --filter web test:e2e
 
 # Self-contained test run: ephemeral PB on :8091, migrate, seed, integration + e2e, teardown
+[group('quality')]
 test-all:
     #!/usr/bin/env bash
     set -euo pipefail
@@ -358,33 +369,49 @@ test-all:
     printf '\033[0;32mAll tests passed.\033[0m\n'
 
 # Type-check all workspaces (tsc --noEmit)
+[group('quality')]
 typecheck:
     @printf '\033[0;34mType-checking all workspaces...\033[0m\n'
     @pnpm -r typecheck
 
 # Lint all workspaces
+[group('quality')]
 lint:
     @pnpm -r lint
 
 # Auto-fix lint issues
+[group('quality')]
 lintfix:
     @pnpm -r lint:fix
 
 # --- Maintenance ---
 
 # Remove build artifacts, caches, node_modules
+[group('maintenance')]
 clean: cache-clean
     @printf '\033[0;34mRemoving node_modules and build outputs...\033[0m\n'
     @rm -rf node_modules apps/*/node_modules packages/*/node_modules
     @rm -rf apps/web/out apps/*/dist packages/*/dist
     @find . -name "*.tsbuildinfo" -delete 2>/dev/null || true
 
-# Build all apps for production (mobile production build requires EAS: eas build)
+# Clear Next.js/.expo/Metro caches
+[group('maintenance')]
+cache-clean:
+    @printf '\033[0;34mClearing build/bundler caches...\033[0m\n'
+    @rm -rf apps/web/.next
+    @rm -rf apps/mobile/.expo
+    @rm -rf /tmp/metro-* /tmp/haste-* 2>/dev/null || true
+    @rm -rf /tmp/paydirt-logs
+    @printf '\033[0;32mCaches cleared.\033[0m\n'
+
+# Build web app for production (mobile production build requires EAS: eas build)
+[group('maintenance')]
 build:
     @printf '\033[0;34mBuilding web app...\033[0m\n'
     @pnpm --filter web build
 
 # Sync AGENTS.md ↔ CLAUDE.md
+[group('maintenance')]
 sync-docs:
     #!/usr/bin/env bash
     if [ -f AGENTS.md ] && [ -f CLAUDE.md ]; then
