@@ -8,7 +8,9 @@ Chore CRUD, assignment, complete/approve flow, parentBucks earn + spend, ntfy no
 
 ## Recently Completed
 
-1. ✅ **Parent mobile chore creation (2026-06-15)** — Create-chore form added to ParentHome (name, reward, type/cadence, photo-required, race, reminder time) with collapsible toggle. Chore list below with tap-to-toggle kid chips for direct assignment.
+1. ✅ **Custom kid reminder times (2026-06-15)** — RemindDialog gains a freeform HH:MM text input alongside the 3 presets. Parses to today's date at that time, rolling to tomorrow if already past. Also added "In 30 min" preset.
+2. ✅ **Fix `withUnifiedPush.js` lint errors (2026-06-15)** — `plugins/` excluded from ESLint (CJS config plugins must use `require()`). `lib/unifiedpush.ts` migrated from removed `FileSystem.documentDirectory` to new `expo-file-system` v56 `File`/`Paths` API. Lint and tsc both clean.
+3. ✅ **Parent mobile chore creation (2026-06-15)** — Create-chore form added to ParentHome (name, reward, type/cadence, photo-required, race, reminder time) with collapsible toggle. Chore list below with tap-to-toggle kid chips for direct assignment.
 2. ✅ **Kid leaderboard / achievement wall (2026-06-15)** — Collapsible "🏆 Sibling leaderboard" accordion in KidHome. Shows each sibling sorted by streak (avatar, name, streak count, last 3 wins). Fetched lazily on expand; balances never exposed.
 3. ✅ **Multi-kid chore assignment (2026-06-15)** — `AssignControl` replaced with per-kid checkboxes; parents tick any subset and assign in one action. Race mechanic still driven by chore's `race` flag on backend.
 2. ✅ **Parent earnings/activity report (2026-06-15)** — Collapsible 📊 section in the web dashboard. Per-kid monthly cards: chores completed, earned, spent, streak peak (computed from consecutive approved days). Month/year navigation. Two new client methods: `listTransactionsForMonth`, `listApprovedAssignmentsForMonth`.
@@ -22,10 +24,8 @@ Chore CRUD, assignment, complete/approve flow, parentBucks earn + spend, ntfy no
 ## Recommended Next 3
 
 1. **Per-kid goods rate** — `goods_rate` is household-wide; `users.goods_rate` with fallback to household rate would let kids at different ages have different conversion displays. ~1 hr.
-2. **Custom kid reminder times** — freeform time input in addition to the 1h/3h/tomorrow presets; currently not exposed on mobile. ~1 hr.
-3. **Fix `withUnifiedPush.js` lint errors** — pre-existing `expo-file-system` API mismatch and `require()` import style; blocking clean lint runs. ~30 min.
-
-**Also queued:** Per-kid goods rate (~1 hr).
+2. **Parent mobile spend request detail** — spend cards show description + amount but no goods-rate conversion on mobile; parity with web. ~30 min.
+3. **Web chore edit** — currently chores can only be created/deleted, not edited; a quick edit form (same fields as create) would reduce the delete-and-recreate friction. ~1 hr.
 
 ## Phase 1 — Core Feature Set ✅ (completed 2026-06-10)
 

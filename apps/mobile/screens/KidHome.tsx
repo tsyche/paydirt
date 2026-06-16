@@ -743,7 +743,35 @@ function RemindDialog({
   onClose: () => void;
   onPick: (when: Date) => void;
 }) {
+  const [customTime, setCustomTime] = useState("");
+  const [customError, setCustomError] = useState("");
+
+  function reset() {
+    setCustomTime("");
+    setCustomError("");
+  }
+
+  function pickCustom() {
+    const match = customTime.trim().match(/^(\d{1,2}):(\d{2})$/);
+    if (!match) {
+      setCustomError("Use HH:MM format (e.g. 17:30)");
+      return;
+    }
+    const h = parseInt(match[1], 10);
+    const m = parseInt(match[2], 10);
+    if (h > 23 || m > 59) {
+      setCustomError("Invalid time");
+      return;
+    }
+    const d = new Date();
+    d.setHours(h, m, 0, 0);
+    if (d.getTime() <= Date.now()) d.setDate(d.getDate() + 1);
+    reset();
+    onPick(d);
+  }
+
   const presets: Array<[string, () => Date]> = [
+    ["In 30 min", () => new Date(Date.now() + 30 * 60e3)],
     ["In 1 hour", () => new Date(Date.now() + 3600e3)],
     ["In 3 hours", () => new Date(Date.now() + 3 * 3600e3)],
     [
@@ -759,17 +787,36 @@ function RemindDialog({
 
   return (
     <Portal>
-      <Dialog visible={!!assignment} onDismiss={onClose}>
+      <Dialog visible={!!assignment} onDismiss={() => { reset(); onClose(); }}>
         <Dialog.Title>Remind me ⏰</Dialog.Title>
         <Dialog.Content>
           {presets.map(([label, make]) => (
-            <Button key={label} style={styles.presetBtn} mode="outlined" onPress={() => onPick(make())}>
+            <Button key={label} style={styles.presetBtn} mode="outlined" onPress={() => { reset(); onPick(make()); }}>
               {label}
             </Button>
           ))}
+          <View style={styles.customTimeRow}>
+            <TextInput
+              mode="outlined"
+              label="Custom time (HH:MM)"
+              placeholder="e.g. 17:30"
+              value={customTime}
+              onChangeText={(v) => { setCustomTime(v); setCustomError(""); }}
+              keyboardType="numbers-and-punctuation"
+              dense
+              style={styles.customTimeInput}
+              error={!!customError}
+            />
+            <Button mode="contained-tonal" onPress={pickCustom} style={styles.customTimeBtn}>
+              Set
+            </Button>
+          </View>
+          {!!customError && (
+            <Text variant="bodySmall" style={styles.customTimeError}>{customError}</Text>
+          )}
         </Dialog.Content>
         <Dialog.Actions>
-          <Button onPress={onClose}>Cancel</Button>
+          <Button onPress={() => { reset(); onClose(); }}>Cancel</Button>
         </Dialog.Actions>
       </Dialog>
     </Portal>
@@ -866,4 +913,9 @@ const styles = StyleSheet.create({
   sibRow: { flexDirection: "row", alignItems: "center", gap: 10, marginBottom: 4 },
   sibAvatar: { fontSize: 28 },
   sibWins: { gap: 2, marginTop: 4 },
+
+  customTimeRow: { flexDirection: "row", alignItems: "center", gap: 8, marginTop: 8 },
+  customTimeInput: { flex: 1 },
+  customTimeBtn: { borderRadius: 12 },
+  customTimeError: { color: "red", marginTop: 2 },
 });
