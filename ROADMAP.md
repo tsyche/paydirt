@@ -8,11 +8,11 @@ Chore CRUD, assignment, complete/approve flow, parentBucks earn + spend, ntfy no
 
 ## Recently Completed
 
-1. ✅ **Currency ledger CSV export (2026-06-16)** — "Export CSV" button in the web `LedgerToggle`; downloads a kid's full transaction history. `buildLedgerCsv` extracted as a pure function with 7 unit tests.
-2. ✅ **Mobile chore template parity (2026-06-16)** — `ParentHome` now shows a collapsible template picker and "Save as template" button matching the web `ChoreTemplatesPanel`. Integration test covers create/list/delete.
-3. ✅ **golden-path.spec.ts e2e fixes (2026-06-16)** — fixed `.balance` → `.kid-balance` (too-broad CSS selector) and corrected "📣 Send" → "Send" button name mismatch.
-4. ✅ **Recurring chore auto-close (2026-06-16)** — `runDaily()` now respects `monthly` cadence (30-day gate), not just `weekly`. Added integration tests for weekly and monthly cadences.
-5. ✅ **Photo proof viewer + mobile proposal parity (2026-06-15)** — parent approval cards show photo inline; mobile parent got CHORE IDEAS section (approve/decline, reward prompt).
+1. ✅ **Chore edit on mobile (2026-06-16)** — inline edit form in each chore card with all fields (name, reward, type, cadence, photo, race, reminder, due date); pencil/archive icon buttons; `client.updateChore()` wired up; deactivate with Alert confirmation.
+2. ✅ **Due date on mobile create-chore form (2026-06-16)** — `due_at` text field (`YYYY-MM-DD`) added to both the create and edit forms in `ParentHome`. Due date renders in the chore list view.
+3. ✅ **Phase 2 scaffolding (2026-06-16)** — `FamilyLinkAccessibilityService.kt` created with full view-tree walker + broadcast receiver; registered in AndroidManifest; `accessibility_service_config.xml` added; UP notification payload extended with optional `type` field; spend-approval hook fires `spend_approved` type to parents' UP endpoints.
+4. ✅ **Currency ledger CSV export (2026-06-16)** — "Export CSV" button in the web `LedgerToggle`; downloads a kid's full transaction history. `buildLedgerCsv` extracted as a pure function with 7 unit tests.
+5. ✅ **Mobile chore template parity (2026-06-16)** — `ParentHome` now shows a collapsible template picker and "Save as template" button matching the web `ChoreTemplatesPanel`. Integration test covers create/list/delete.
 
 <details>
 <summary>Earlier completions (2026-06-10 — 2026-06-15)</summary>
@@ -32,8 +32,8 @@ _None currently._
 ## Recommended Next 3
 
 1. **Real-device smoke test** — emulator works; GrapheneOS/LineageOS hasn't been validated. Prerequisite for Phase 2. Run the full flow (login → chore → complete → approve → spend) on a physical device over wireless adb. ~2 hrs.
-2. **Chore edit on mobile** — `client.updateChore()` exists but `ParentHome` has no edit UI. Web has it; mobile parents can only deactivate. ~1-2 hrs.
-3. **Due date on mobile create-chore form** — `due_at` field exists and is displayed to kids (due chip) and handled by cron (escalating reminders), but `ParentHome`'s create-chore form has no date picker. Use `@react-native-community/datetimepicker` (already in Expo SDK). ~1 hr.
+2. **Enable-accessibility-service prompt in the app** — `FamilyLinkAccessibilityService` is registered but users must enable it manually. Add a banner/button in `ParentHome` that detects when the service is off and deep-links to `Settings → Accessibility`. Requires a NativeModule or reading the flag file via `expo-file-system`. ~2-3 hrs.
+3. **Phase 2 live test with Family Link** — build a release APK on a real device with Family Link installed. Manually enable the accessibility service, approve a spend request, and verify the service auto-taps "Grant Bonus Time". Tune button-label matching if Family Link's UI differs. ~half day.
 
 ## Phase 1 — Core Feature Set ✅ (completed 2026-06-10)
 
@@ -52,15 +52,14 @@ _None currently._
 
 ## Phase 2 — Family Link Automation
 
-**Status: not started. Prerequisite: real-device smoke test passes.**
+**Status: scaffolded. Prerequisite: real-device smoke test + Family Link live test.**
 
-The notification pipeline (`UnifiedPushReceiver.kt` + `up_endpoint` server-side delivery) is complete and working. What's missing is the Android Accessibility Service that watches for spend-approval notifications and programmatically taps Family Link's "Grant Bonus Time" UI.
+The notification pipeline (`UnifiedPushReceiver.kt` + `up_endpoint` server-side delivery) is complete. `FamilyLinkAccessibilityService.kt` is now written and registered — it listens for `ACTION_GRANT_SCREEN_TIME` broadcasts (fired by `UnifiedPushReceiver` when a `spend_approved` message arrives) and walks the view hierarchy to tap "Grant Bonus Time". Still needs:
 
-- **Android AccessibilityService** — watches for spend-approval notifications; auto-taps Family Link's "Grant Bonus Time" button. Needs Kotlin native code + AndroidManifest wiring. ~1-2 days.
+- **In-app enable prompt** — detect when service is off and deep-link to Accessibility Settings. ~2-3 hrs.
+- **Live device validation** — build APK, enable service, approve spend request, verify tap automation works. Tune button labels if Family Link's UI differs from assumed text. ~half day.
 - **Stretch: reverse-engineered Family Link API** — direct HTTP grant without the Accessibility Service; fragile but faster UX.
 - **Manual fallback** — retained regardless; users who don't have/need Family Link still get the approval flow.
-
-**Honest estimate: 2-4 days of native Android work after real-device validation.**
 
 ## Phase 3 — Custom MDM
 

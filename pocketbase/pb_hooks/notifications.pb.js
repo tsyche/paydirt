@@ -120,9 +120,9 @@ onRecordAfterCreateSuccess((e) => {
   e.next();
 }, "spend_requests");
 
-// ── Spend request resolved → notify kid ──────────────────────────────────────
+// ── Spend request resolved → notify kid + trigger Phase 2 automation ─────────
 onRecordAfterUpdateSuccess((e) => {
-  const { notifyUser } = require(`${__hooks}/lib/ntfy.js`);
+  const { notifyUser, notifyParents } = require(`${__hooks}/lib/ntfy.js`);
   const status = e.record.getString("status");
   const prev = e.record.original().getString("status");
   if (prev !== "pending" || (status !== "approved" && status !== "denied")) {
@@ -130,8 +130,12 @@ onRecordAfterUpdateSuccess((e) => {
     return;
   }
   const desc = e.record.getString("description");
+  const child = e.app.findRecordById("users", e.record.getString("child"));
   if (status === "approved") {
     notifyUser(e.app, e.record.getString("child"), "Spend approved! 🎉", desc);
+    // Phase 2: notify parents with type "spend_approved" so the AccessibilityService
+    // can trigger Family Link automation on their device.
+    notifyParents(e.app, child.getString("household"), "Spend approved", desc, "spend_approved");
   } else {
     notifyUser(e.app, e.record.getString("child"), "Spend denied", desc);
   }

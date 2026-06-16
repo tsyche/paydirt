@@ -23,17 +23,19 @@ function sendNtfy(app, topic, title, message) {
 
 // Sends a UnifiedPush message to a specific endpoint URL. The endpoint is
 // provided by ntfy (the UP distributor) and stored in users.up_endpoint.
-// The body is JSON {title, body} — decoded by UnifiedPushReceiver.kt.
-// The endpoint URL encodes the ntfy server, so self-hosted migration is
-// transparent: re-registration gives a new URL pointing to the new server.
-function sendViaEndpoint(app, endpoint, title, message) {
+// The body is JSON {title, body, type?} — decoded by UnifiedPushReceiver.kt.
+// `type` is optional; when present it lets the receiver trigger specific automations
+// (e.g. "spend_approved" fires ACTION_GRANT_SCREEN_TIME for Phase 2).
+function sendViaEndpoint(app, endpoint, title, message, type) {
   if (!endpoint) return;
   if ($os.getenv("NTFY_DISABLED")) return;
   try {
+    const payload = { title, body: message };
+    if (type) payload.type = type;
     $http.send({
       url: endpoint,
       method: "POST",
-      body: JSON.stringify({ title, body: message }),
+      body: JSON.stringify(payload),
       headers: { "Content-Type": "application/json" },
       timeout: 10,
     });
@@ -66,11 +68,12 @@ function isQuietHours(app, householdId) {
 
 // Notify a single user: prefer their UP endpoint (event-driven, no polling
 // overhead), fall back to ntfy topic if no endpoint is registered.
-function notifyUserRecord(app, user, title, message) {
+// `type` is an optional string passed through to the UP payload for Phase 2 triggers.
+function notifyUserRecord(app, user, title, message, type) {
   if (isQuietHours(app, user.getString("household"))) return;
   const endpoint = user.getString("up_endpoint");
   if (endpoint) {
-    sendViaEndpoint(app, endpoint, title, message);
+    sendViaEndpoint(app, endpoint, title, message, type);
   } else {
     sendNtfy(app, user.getString("ntfy_topic"), title, message);
   }
@@ -80,7 +83,7 @@ function notifyUser(app, userId, title, message) {
   notifyUserRecord(app, app.findRecordById("users", userId), title, message);
 }
 
-function notifyRole(app, householdId, role, title, message) {
+function notifyRole(app, householdId, role, title, message, type) {
   const members = app.findRecordsByFilter(
     "users",
     "household = {:hh} && role = {:role}",
@@ -90,16 +93,16 @@ function notifyRole(app, householdId, role, title, message) {
     { hh: householdId, role: role },
   );
   for (const m of members) {
-    notifyUserRecord(app, m, title, message);
+    notifyUserRecord(app, m, title, message, type);
   }
 }
 
-function notifyParents(app, householdId, title, message) {
-  notifyRole(app, householdId, "parent", title, message);
+function notifyParents(app, householdId, title, message, type) {
+  notifyRole(app, householdId, "parent", title, message, type);
 }
 
 function notifyChildren(app, householdId, title, message) {
   notifyRole(app, householdId, "child", title, message);
 }
 
-module.exports = { sendNtfy, notifyUser, notifyParents, notifyChildren };
+module.exports = { sendNtfy, notifyUser, notifyParents, notifyChildren, notifyUserRecord };

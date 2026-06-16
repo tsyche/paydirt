@@ -45,10 +45,25 @@ export function ParentHome({ user, onLogout }: { user: User; onLogout: () => voi
   const [choreReminder, setChoreReminder] = useState("");
   const [creatingChore, setCreatingChore] = useState(false);
 
+  // Due date for new chore
+  const [choreDueAt, setChoreDueAt] = useState("");
+
   // Template state
   const [templates, setTemplates] = useState<ChoreTemplate[]>([]);
   const [showTemplates, setShowTemplates] = useState(false);
   const [savingTemplate, setSavingTemplate] = useState(false);
+
+  // Inline chore edit state
+  const [editingChoreId, setEditingChoreId] = useState<string | null>(null);
+  const [editName, setEditName] = useState("");
+  const [editReward, setEditReward] = useState("10");
+  const [editType, setEditType] = useState<"oneoff" | "recurring">("oneoff");
+  const [editCadence, setEditCadence] = useState<"daily" | "weekly" | "monthly">("weekly");
+  const [editPhoto, setEditPhoto] = useState(false);
+  const [editRace, setEditRace] = useState(false);
+  const [editReminder, setEditReminder] = useState("");
+  const [editDueAt, setEditDueAt] = useState("");
+  const [savingEdit, setSavingEdit] = useState(false);
 
   // Assignment state: choreId → Set of selected kidIds
   const [assignSelections, setAssignSelections] = useState<Record<string, Set<string>>>({});
@@ -179,6 +194,7 @@ export function ParentHome({ user, onLogout }: { user: User; onLogout: () => voi
         photo_required: chorePhoto,
         race: choreRace,
         reminder_time: choreReminder.trim() || undefined,
+        due_at: choreDueAt.trim() || undefined,
         created_by: user.id,
         active: true,
       });
@@ -189,6 +205,7 @@ export function ParentHome({ user, onLogout }: { user: User; onLogout: () => voi
       setChorePhoto(false);
       setChoreRace(false);
       setChoreReminder("");
+      setChoreDueAt("");
       setShowCreateChore(false);
       setSnack("Chore created ✅");
       await reload();
@@ -233,6 +250,53 @@ export function ParentHome({ user, onLogout }: { user: User; onLogout: () => voi
     } finally {
       setSavingTemplate(false);
     }
+  }
+
+  function startEditChore(chore: Chore) {
+    setEditingChoreId(chore.id);
+    setEditName(chore.name);
+    setEditReward(String(chore.reward));
+    setEditType(chore.type);
+    setEditCadence((chore.cadence as "daily" | "weekly" | "monthly") ?? "weekly");
+    setEditPhoto(chore.photo_required ?? false);
+    setEditRace(chore.race ?? false);
+    setEditReminder(chore.reminder_time ?? "");
+    setEditDueAt(chore.due_at ? chore.due_at.slice(0, 10) : "");
+  }
+
+  async function saveChoreEdit(choreId: string) {
+    if (!editName.trim()) return;
+    setSavingEdit(true);
+    try {
+      await client.updateChore(choreId, {
+        name: editName.trim(),
+        reward: Number(editReward) || 0,
+        type: editType,
+        cadence: editType === "recurring" ? editCadence : undefined,
+        photo_required: editPhoto,
+        race: editRace,
+        reminder_time: editReminder.trim() || undefined,
+        due_at: editDueAt.trim() || undefined,
+      });
+      setEditingChoreId(null);
+      setSnack("Chore updated ✅");
+      await reload();
+    } catch (e) {
+      setSnack(String(e));
+    } finally {
+      setSavingEdit(false);
+    }
+  }
+
+  function confirmDeactivate(choreId: string, choreName: string) {
+    Alert.alert("Deactivate chore", `Deactivate "${choreName}"? It won't be assignable.`, [
+      { text: "Cancel", style: "cancel" },
+      {
+        text: "Deactivate",
+        style: "destructive",
+        onPress: () => void act(() => client.deactivateChore(choreId), "Deactivated."),
+      },
+    ]);
   }
 
   useEffect(() => {
@@ -633,6 +697,16 @@ export function ParentHome({ user, onLogout }: { user: User; onLogout: () => voi
                 dense
                 style={{ marginTop: 4 }}
               />
+              <TextInput
+                mode="outlined"
+                label="Due date (optional)"
+                value={choreDueAt}
+                onChangeText={setChoreDueAt}
+                keyboardType="numbers-and-punctuation"
+                placeholder="YYYY-MM-DD"
+                dense
+                style={{ marginTop: 4 }}
+              />
               <View style={styles.switchRow}>
                 <Text>📷 Photo required</Text>
                 <Switch value={chorePhoto} onValueChange={setChorePhoto} />
@@ -672,45 +746,97 @@ export function ParentHome({ user, onLogout }: { user: User; onLogout: () => voi
         {chores.map((chore) => {
           const sel = assignSelections[chore.id] ?? new Set<string>();
           const busy = assigning[chore.id] ?? false;
+          const isEditing = editingChoreId === chore.id;
           return (
             <Card key={chore.id} style={styles.approvalCard}>
               <Card.Content>
-                <View style={styles.choreRow}>
-                  <View style={{ flex: 1 }}>
-                    <Text variant="titleSmall" style={{ fontWeight: "700" }}>
-                      {chore.race ? "🏁 " : ""}{chore.name}
-                      {chore.photo_required ? " 📷" : ""}
-                    </Text>
-                    <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant }}>
-                      {chore.reward} {currencyName} · {chore.type}
-                      {chore.cadence ? ` (${chore.cadence})` : ""}
-                      {chore.reminder_time ? ` · ⏰ ${chore.reminder_time}` : ""}
-                    </Text>
+                {isEditing ? (
+                  <View style={styles.createChoreContent}>
+                    <Text variant="labelMedium" style={{ color: theme.colors.onSurfaceVariant }}>Editing: {chore.name}</Text>
+                    <TextInput mode="outlined" label="Chore name" value={editName} onChangeText={setEditName} dense />
+                    <TextInput mode="outlined" label="Reward" value={editReward} onChangeText={setEditReward} keyboardType="numeric" dense style={styles.rewardInput} />
+                    <Text variant="labelMedium" style={{ color: theme.colors.onSurfaceVariant, marginTop: 4 }}>Type</Text>
+                    <SegmentedButtons
+                      value={editType}
+                      onValueChange={(v) => setEditType(v as "oneoff" | "recurring")}
+                      buttons={[{ value: "oneoff", label: "One-off" }, { value: "recurring", label: "Recurring" }]}
+                      style={styles.segmented}
+                    />
+                    {editType === "recurring" && (
+                      <>
+                        <Text variant="labelMedium" style={{ color: theme.colors.onSurfaceVariant, marginTop: 4 }}>Cadence</Text>
+                        <SegmentedButtons
+                          value={editCadence}
+                          onValueChange={(v) => setEditCadence(v as "daily" | "weekly" | "monthly")}
+                          buttons={[{ value: "daily", label: "Daily" }, { value: "weekly", label: "Weekly" }, { value: "monthly", label: "Monthly" }]}
+                          style={styles.segmented}
+                        />
+                      </>
+                    )}
+                    <TextInput mode="outlined" label="Reminder time (HH:MM, optional)" value={editReminder} onChangeText={setEditReminder} keyboardType="numbers-and-punctuation" placeholder="e.g. 15:30" dense style={{ marginTop: 4 }} />
+                    <TextInput mode="outlined" label="Due date (optional)" value={editDueAt} onChangeText={setEditDueAt} keyboardType="numbers-and-punctuation" placeholder="YYYY-MM-DD" dense style={{ marginTop: 4 }} />
+                    <View style={styles.switchRow}>
+                      <Text>📷 Photo required</Text>
+                      <Switch value={editPhoto} onValueChange={setEditPhoto} />
+                    </View>
+                    <View style={styles.switchRow}>
+                      <Text>🏁 Race (first to finish wins)</Text>
+                      <Switch value={editRace} onValueChange={setEditRace} />
+                    </View>
+                    <View style={[styles.approvalActions, { marginTop: 8 }]}>
+                      <Button mode="contained" icon="check" onPress={() => void saveChoreEdit(chore.id)} disabled={savingEdit || !editName.trim()} style={[styles.approveBtn, { borderRadius: 12 }]}>
+                        {savingEdit ? "Saving…" : "Save"}
+                      </Button>
+                      <Button mode="outlined" onPress={() => setEditingChoreId(null)} style={[styles.rejectBtn, { borderRadius: 12 }]}>
+                        Cancel
+                      </Button>
+                    </View>
                   </View>
-                </View>
-                {kids.length > 0 && (
-                  <View style={styles.assignRow}>
-                    {kids.map((kid) => (
-                      <Chip
-                        key={kid.id}
-                        selected={sel.has(kid.id)}
-                        onPress={() => toggleKidForChore(chore.id, kid.id)}
-                        compact
-                        style={styles.kidAssignChip}
-                      >
-                        {kid.avatar_emoji || "🧒"} {kid.display_name}
-                      </Chip>
-                    ))}
-                    <Button
-                      mode="contained-tonal"
-                      onPress={() => void assignChore(chore.id)}
-                      disabled={busy || sel.size === 0}
-                      compact
-                      style={styles.assignBtn}
-                    >
-                      Assign
-                    </Button>
-                  </View>
+                ) : (
+                  <>
+                    <View style={styles.choreRow}>
+                      <View style={{ flex: 1 }}>
+                        <Text variant="titleSmall" style={{ fontWeight: "700" }}>
+                          {chore.race ? "🏁 " : ""}{chore.name}
+                          {chore.photo_required ? " 📷" : ""}
+                        </Text>
+                        <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant }}>
+                          {chore.reward} {currencyName} · {chore.type}
+                          {chore.cadence ? ` (${chore.cadence})` : ""}
+                          {chore.reminder_time ? ` · ⏰ ${chore.reminder_time}` : ""}
+                          {chore.due_at ? ` · 📅 ${chore.due_at.slice(0, 10)}` : ""}
+                        </Text>
+                      </View>
+                      <View style={{ flexDirection: "row", gap: 4 }}>
+                        <Button mode="text" compact onPress={() => startEditChore(chore)} icon="pencil" style={{ minWidth: 0 }}>{""}</Button>
+                        <Button mode="text" compact onPress={() => confirmDeactivate(chore.id, chore.name)} icon="archive-off-outline" textColor={theme.colors.error} style={{ minWidth: 0 }}>{""}</Button>
+                      </View>
+                    </View>
+                    {kids.length > 0 && (
+                      <View style={styles.assignRow}>
+                        {kids.map((kid) => (
+                          <Chip
+                            key={kid.id}
+                            selected={sel.has(kid.id)}
+                            onPress={() => toggleKidForChore(chore.id, kid.id)}
+                            compact
+                            style={styles.kidAssignChip}
+                          >
+                            {kid.avatar_emoji || "🧒"} {kid.display_name}
+                          </Chip>
+                        ))}
+                        <Button
+                          mode="contained-tonal"
+                          onPress={() => void assignChore(chore.id)}
+                          disabled={busy || sel.size === 0}
+                          compact
+                          style={styles.assignBtn}
+                        >
+                          Assign
+                        </Button>
+                      </View>
+                    )}
+                  </>
                 )}
               </Card.Content>
             </Card>
