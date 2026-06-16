@@ -8,8 +8,10 @@ Chore CRUD, assignment, complete/approve flow, parentBucks earn + spend, ntfy no
 
 ## Recently Completed
 
-1. ✅ **Custom kid reminder times (2026-06-15)** — RemindDialog gains a freeform HH:MM text input alongside the 3 presets. Parses to today's date at that time, rolling to tomorrow if already past. Also added "In 30 min" preset.
-2. ✅ **Fix `withUnifiedPush.js` lint errors (2026-06-15)** — `plugins/` excluded from ESLint (CJS config plugins must use `require()`). `lib/unifiedpush.ts` migrated from removed `FileSystem.documentDirectory` to new `expo-file-system` v56 `File`/`Paths` API. Lint and tsc both clean.
+1. ✅ **Per-kid goods rate (2026-06-15)** — `users.goods_rate` override field (migration `1717000013`). Dashboard edit control per kid; balance and spend request displays in web + both mobile screens use kid rate, falling back to household rate. Parent mobile spend cards also now use per-kid rate (parity with web).
+2. ✅ **Web chore edit (2026-06-15)** — Inline ✏️ edit button on every chore row expands to a full edit form (name, reward, type/cadence, photo, race, reminder). Archive button soft-deletes (sets `active: false`). No delete-and-recreate required.
+3. ✅ **Custom kid reminder times (2026-06-15)** — RemindDialog gains a freeform HH:MM text input alongside the 3 presets. Parses to today's date at that time, rolling to tomorrow if already past. Also added "In 30 min" preset.
+4. ✅ **Fix `withUnifiedPush.js` lint errors (2026-06-15)** — `plugins/` excluded from ESLint (CJS config plugins must use `require()`). `lib/unifiedpush.ts` migrated from removed `FileSystem.documentDirectory` to new `expo-file-system` v56 `File`/`Paths` API. Lint and tsc both clean.
 3. ✅ **Parent mobile chore creation (2026-06-15)** — Create-chore form added to ParentHome (name, reward, type/cadence, photo-required, race, reminder time) with collapsible toggle. Chore list below with tap-to-toggle kid chips for direct assignment.
 2. ✅ **Kid leaderboard / achievement wall (2026-06-15)** — Collapsible "🏆 Sibling leaderboard" accordion in KidHome. Shows each sibling sorted by streak (avatar, name, streak count, last 3 wins). Fetched lazily on expand; balances never exposed.
 3. ✅ **Multi-kid chore assignment (2026-06-15)** — `AssignControl` replaced with per-kid checkboxes; parents tick any subset and assign in one action. Race mechanic still driven by chore's `race` flag on backend.
@@ -23,9 +25,9 @@ Chore CRUD, assignment, complete/approve flow, parentBucks earn + spend, ntfy no
 
 ## Recommended Next 3
 
-1. **Per-kid goods rate** — `goods_rate` is household-wide; `users.goods_rate` with fallback to household rate would let kids at different ages have different conversion displays. ~1 hr.
-2. **Parent mobile spend request detail** — spend cards show description + amount but no goods-rate conversion on mobile; parity with web. ~30 min.
-3. **Web chore edit** — currently chores can only be created/deleted, not edited; a quick edit form (same fields as create) would reduce the delete-and-recreate friction. ~1 hr.
+1. **Photo proof viewer** — parent approval cards show the photo thumbnail if one was attached; currently parents have to navigate to PocketBase admin to see it. ~1 hr.
+2. **Kid-proposed chore auto-assign** — when a parent approves a proposal, prompt to immediately assign it back to the proposing kid. ~30 min.
+3. **Recurring chore auto-close** — approved recurring assignments should close and re-open on their cadence automatically; currently parents must manually re-assign each cycle. ~2 hrs.
 
 ## Phase 1 — Core Feature Set ✅ (completed 2026-06-10)
 
@@ -58,11 +60,7 @@ Chore CRUD, assignment, complete/approve flow, parentBucks earn + spend, ntfy no
 
 ## Ideas (unscheduled)
 
-- **Parent mobile: chore creation** — currently web-only; completing the mobile parent experience so parents can add chores from the phone. ~2 hrs.
-- **Parent earnings/activity report** — monthly summary (or exportable CSV): per-kid totals for chores completed, earned, spent, streak peak. ~2-3 hrs.
-- **Custom kid reminder times** — freeform time input in addition to the 1h/3h/tomorrow presets. ~1 hr.
-- **Streak/expiry tuning UI** — milestone amounts hard-coded in `lib/streaks.js`; surface in household settings. ~1-2 hrs.
-- **Multi-kid chore assignment** — currently one kid at a time; checkbox list would speed up race chore setup. ~1-2 hrs.
-- **Per-kid goods rate** — `goods_rate` is household-wide; `users.goods_rate` with fallback to household rate would let kids at different ages have different conversion displays. ~1 hr.
-- **Kid leaderboard / achievement wall** — siblings can see each other's streak and recent wins; light gamification without exposing balances. ~2-3 hrs.
+- **Photo proof viewer** — parent approval cards show the photo thumbnail; currently parents have to navigate to PocketBase admin to see it. ~1 hr.
+- **Recurring chore auto-close** — approved recurring assignments should close and re-open on cadence automatically; currently parents must manually re-assign. ~2 hrs.
+- **Kid-proposed chore auto-assign** — when a parent approves a proposal, prompt to immediately assign it to the proposing kid. ~30 min.
 - **UnifiedPush self-hosted ntfy** — when ready to move off ntfy.sh, re-register on device → new endpoint URL encodes the self-hosted server automatically. No server-side config needed.

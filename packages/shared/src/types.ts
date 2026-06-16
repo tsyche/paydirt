@@ -60,6 +60,8 @@ export interface User extends BaseRecord {
   simplified_mode: boolean;
   /** Consecutive days with an approved chore. Maintained by hooks + daily cron. */
   streak_count?: number;
+  /** Per-kid goods rate override (bucks per $1). 0/unset = use household rate. */
+  goods_rate?: number;
 }
 
 // ─── Chores ──────────────────────────────────────────────────────────────────

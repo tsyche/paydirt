@@ -181,9 +181,9 @@ export function KidHome({ user, onLogout }: { user: User; onLogout: () => void }
             <Text style={[styles.balance, { color: theme.colors.onSurface }]}>
               {me.balance}
             </Text>
-            {(household?.goods_rate ?? 0) > 0 ? (
+            {(me.goods_rate ?? household?.goods_rate ?? 0) > 0 ? (
               <Text variant="bodyMedium" style={[styles.dollarValue, { color: theme.colors.onSurfaceVariant }]}>
-                ${(me.balance / household!.goods_rate!).toFixed(2)}
+                ${(me.balance / (me.goods_rate ?? household!.goods_rate!)).toFixed(2)}
               </Text>
             ) : null}
             <Text variant="bodySmall" style={styles.todoLine}>
@@ -428,7 +428,7 @@ export function KidHome({ user, onLogout }: { user: User; onLogout: () => void }
 
       <SpendDialog
         currencyName={currencyName}
-        goodsRate={household?.goods_rate ?? 0}
+        goodsRate={me.goods_rate ?? household?.goods_rate ?? 0}
         visible={spendOpen}
         onClose={() => setSpendOpen(false)}
         onSubmit={async (amount, description) => {

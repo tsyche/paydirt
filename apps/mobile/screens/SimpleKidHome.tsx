@@ -17,27 +17,32 @@ type Expanded = Assignment & { expand?: { chore?: Chore } };
 
 export function SimpleKidHome({ user, onLogout }: { user: User; onLogout: () => void }) {
   const theme = useTheme();
+  const [me, setMe] = useState<User>(user);
   const [balance, setBalance] = useState(user.balance);
   const [assignments, setAssignments] = useState<Expanded[]>([]);
   const [currencyName, setCurrencyName] = useState("parentBucks");
-  const [goodsRate, setGoodsRate] = useState(0);
+  const [householdRate, setHouseholdRate] = useState(0);
   const [broadcasts, setBroadcasts] = useState<Broadcast[]>([]);
   const [refreshing, setRefreshing] = useState(false);
   const [snack, setSnack] = useState("");
 
+  const goodsRate = me.goods_rate ?? householdRate;
+
   const reload = useCallback(async () => {
     setRefreshing(true);
     try {
-      const [bal, list, household, bcs] = await Promise.all([
+      const [freshMe, bal, list, household, bcs] = await Promise.all([
+        client.pb.collection("users").getOne<User>(user.id),
         client.getBalance(user.id),
         client.listActiveAssignmentsForChild(user.id),
         client.getHousehold(user.household),
         client.getRecentBroadcasts(user.household, 3),
       ]);
+      setMe(freshMe);
       setBalance(bal);
       setAssignments(list as Expanded[]);
       setCurrencyName(household.currency_name?.trim() || "parentBucks");
-      setGoodsRate(household.goods_rate ?? 0);
+      setHouseholdRate(household.goods_rate ?? 0);
       setBroadcasts(bcs);
     } catch (e) {
       setSnack(String(e));

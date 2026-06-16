@@ -222,7 +222,7 @@ export function ParentHome({ user, onLogout }: { user: User; onLogout: () => voi
                   <Text style={styles.kidName}>{kid.display_name}</Text>
                   <Text style={[styles.kidBalance, { color: theme.colors.primary }]}>
                     {kid.balance} {currencyName}
-                    {goodsRate > 0 ? `  ·  $${(kid.balance / goodsRate).toFixed(2)}` : ""}
+                    {(kid.goods_rate ?? goodsRate) > 0 ? `  ·  $${(kid.balance / (kid.goods_rate ?? goodsRate)).toFixed(2)}` : ""}
                   </Text>
                 </View>
               </View>
@@ -364,7 +364,7 @@ export function ParentHome({ user, onLogout }: { user: User; onLogout: () => voi
                       )}
                       <Chip compact style={[styles.rewardChip, { backgroundColor: theme.colors.secondaryContainer }]}>
                         {s.amount} {currencyName}
-                        {goodsRate > 0 ? ` ≈ $${(s.amount / goodsRate).toFixed(2)}` : ""}
+                        {(child?.goods_rate ?? goodsRate) > 0 ? ` ≈ $${(s.amount / (child?.goods_rate ?? goodsRate)).toFixed(2)}` : ""}
                       </Chip>
                     </View>
                     <View style={styles.approvalActions}>

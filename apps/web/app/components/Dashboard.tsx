@@ -47,6 +47,7 @@ export function Dashboard({
 
   const currencyName = household?.currency_name?.trim() || "parentBucks";
   const goodsRate = household?.goods_rate ?? 0;
+  const kidRate = (kid: User) => kid.goods_rate ?? goodsRate;
 
   const reload = useCallback(async () => {
     try {
@@ -171,9 +172,9 @@ export function Dashboard({
                     {currencyName}
                   </span>
                 </div>
-                {goodsRate > 0 && (
+                {kidRate(kid) > 0 && (
                   <div className="muted" style={{ fontSize: 12 }}>
-                    ${(kid.balance / goodsRate).toFixed(2)}
+                    ${(kid.balance / kidRate(kid)).toFixed(2)}
                   </div>
                 )}
               </div>
@@ -316,7 +317,10 @@ export function Dashboard({
         {/* ── Spend requests ── */}
         <h2>💸 Spend requests ({spend.length})</h2>
         {spend.length === 0 && <p className="muted">Nothing waiting.</p>}
-        {spend.map((s) => (
+        {spend.map((s) => {
+          const spendKid = kids.find((k) => k.id === s.child);
+          const spendRate = kidRate(spendKid ?? {} as User);
+          return (
           <div className="card row" key={s.id} style={{ alignItems: "flex-start", flexWrap: "wrap" }}>
             <div>
               <div style={{ fontWeight: 600 }}>
@@ -326,7 +330,7 @@ export function Dashboard({
               <div className="muted">
                 <span className="balance" style={{ fontSize: 13 }}>{s.amount}</span>
                 {" "}{currencyName}
-                {goodsRate > 0 && ` (≈ $${(s.amount / goodsRate).toFixed(2)})`}
+                {spendRate > 0 && ` (≈ $${(s.amount / spendRate).toFixed(2)})`}
               </div>
             </div>
             <div className="inline" style={{ flexShrink: 0 }}>
@@ -344,7 +348,8 @@ export function Dashboard({
               </button>
             </div>
           </div>
-        ))}
+          );
+        })}
 
         {/* ── Recently approved ── */}
         <h2>🏆 Recently approved ({recentApproved.length})</h2>
@@ -415,25 +420,7 @@ export function Dashboard({
           onTemplateClear={() => setTemplateFill(null)}
         />
         {chores.map((c) => (
-          <div className="card row" key={c.id} style={{ flexWrap: "wrap", gap: 10 }}>
-            <div style={{ flex: 1, minWidth: 160 }}>
-              <div style={{ fontWeight: 600 }}>
-                {c.race ? "🏁 " : ""}
-                {c.name}
-                {c.photo_required && <span className="muted"> 📷</span>}
-              </div>
-              <div className="muted">
-                <span className="balance" style={{ fontSize: 13 }}>{c.reward}</span>
-                {" "}{currencyName} · {c.type}
-                {c.cadence ? ` (${c.cadence})` : ""}
-                {c.due_at
-                  ? ` · due ${new Date(c.due_at.replace(" ", "T")).toLocaleString()}`
-                  : ""}
-                {c.reminder_time ? ` · ⏰ ${c.reminder_time}` : ""}
-              </div>
-            </div>
-            <AssignControl chore={c} kids={kids} onAssigned={reload} />
-          </div>
+          <ChoreRow key={c.id} chore={c} kids={kids} currencyName={currencyName} onChanged={reload} />
         ))}
       </main>
     </div>
@@ -667,6 +654,161 @@ function AdjustControl({ kid, onAdjusted }: { kid: User; onAdjusted: () => void 
         Positive = bonus · Negative = deduction
       </p>
       {error && <p className="error">{error}</p>}
+    </div>
+  );
+}
+
+function ChoreRow({
+  chore,
+  kids,
+  currencyName,
+  onChanged,
+}: {
+  chore: Chore;
+  kids: User[];
+  currencyName: string;
+  onChanged: () => void;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [name, setName] = useState(chore.name);
+  const [reward, setReward] = useState(chore.reward);
+  const [type, setType] = useState<"oneoff" | "recurring">(chore.type);
+  const [cadence, setCadence] = useState<"daily" | "weekly" | "monthly">(
+    (chore.cadence as "daily" | "weekly" | "monthly") ?? "weekly"
+  );
+  const [photoRequired, setPhotoRequired] = useState(chore.photo_required);
+  const [race, setRace] = useState(chore.race ?? false);
+  const [remindAt, setRemindAt] = useState(chore.reminder_time ?? "");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+
+  function cancelEdit() {
+    setName(chore.name);
+    setReward(chore.reward);
+    setType(chore.type);
+    setCadence((chore.cadence as "daily" | "weekly" | "monthly") ?? "weekly");
+    setPhotoRequired(chore.photo_required);
+    setRace(chore.race ?? false);
+    setRemindAt(chore.reminder_time ?? "");
+    setError("");
+    setEditing(false);
+  }
+
+  async function save() {
+    if (!name.trim()) return;
+    setBusy(true);
+    setError("");
+    try {
+      await client.updateChore(chore.id, {
+        name: name.trim(),
+        reward,
+        type,
+        cadence: type === "recurring" ? cadence : undefined,
+        photo_required: photoRequired,
+        race,
+        reminder_time: remindAt,
+      });
+      setEditing(false);
+      onChanged();
+    } catch (e) {
+      setError(String(e));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function deactivate() {
+    if (!confirm(`Archive "${chore.name}"? It won't appear in the chore list anymore.`)) return;
+    setBusy(true);
+    try {
+      await client.deactivateChore(chore.id);
+      onChanged();
+    } catch (e) {
+      setError(String(e));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  if (!editing) {
+    return (
+      <div className="card row" style={{ flexWrap: "wrap", gap: 10 }}>
+        <div style={{ flex: 1, minWidth: 160 }}>
+          <div style={{ fontWeight: 600 }}>
+            {chore.race ? "🏁 " : ""}
+            {chore.name}
+            {chore.photo_required && <span className="muted"> 📷</span>}
+          </div>
+          <div className="muted">
+            <span className="balance" style={{ fontSize: 13 }}>{chore.reward}</span>
+            {" "}{currencyName} · {chore.type}
+            {chore.cadence ? ` (${chore.cadence})` : ""}
+            {chore.due_at
+              ? ` · due ${new Date(chore.due_at.replace(" ", "T")).toLocaleString()}`
+              : ""}
+            {chore.reminder_time ? ` · ⏰ ${chore.reminder_time}` : ""}
+          </div>
+        </div>
+        <div className="inline" style={{ gap: 6 }}>
+          <AssignControl chore={chore} kids={kids} onAssigned={onChanged} />
+          <button className="sm" onClick={() => setEditing(true)} title="Edit chore">✏️</button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="card-filled" style={{ marginBottom: 8 }}>
+      <div className="inline" style={{ marginBottom: 8 }}>
+        <input
+          placeholder="Chore name"
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          onKeyDown={(e) => { if (e.key === "Enter") void save(); }}
+          style={{ flex: 1 }}
+        />
+        <input
+          type="number"
+          min={0}
+          value={reward}
+          onChange={(e) => setReward(Number(e.target.value))}
+          style={{ width: 90 }}
+          placeholder="Reward"
+        />
+        <select value={type} onChange={(e) => setType(e.target.value as "oneoff" | "recurring")}>
+          <option value="oneoff">one-off</option>
+          <option value="recurring">recurring</option>
+        </select>
+        {type === "recurring" && (
+          <select value={cadence} onChange={(e) => setCadence(e.target.value as "daily" | "weekly" | "monthly")}>
+            <option value="daily">daily</option>
+            <option value="weekly">weekly</option>
+            <option value="monthly">monthly</option>
+          </select>
+        )}
+      </div>
+      <div className="inline" style={{ fontSize: 13, gap: 12, marginBottom: 8 }}>
+        <label className="inline" style={{ gap: 6, cursor: "pointer" }}>
+          <input type="checkbox" checked={photoRequired} onChange={(e) => setPhotoRequired(e.target.checked)} />
+          📷 Photo required
+        </label>
+        <label className="inline" style={{ gap: 6, cursor: "pointer" }}>
+          <input type="checkbox" checked={race} onChange={(e) => setRace(e.target.checked)} />
+          🏁 Race
+        </label>
+        <label className="inline" style={{ gap: 6 }}>
+          Daily reminder
+          <input type="time" value={remindAt} onChange={(e) => setRemindAt(e.target.value)} />
+        </label>
+      </div>
+      <div className="inline" style={{ gap: 8 }}>
+        <button className="primary sm" onClick={save} disabled={busy || !name.trim()}>Save</button>
+        <button className="sm" onClick={cancelEdit} disabled={busy}>Cancel</button>
+        <button className="danger sm" onClick={deactivate} disabled={busy} style={{ marginLeft: "auto" }}>
+          Archive
+        </button>
+      </div>
+      {error && <p className="error" style={{ marginTop: 8 }}>{error}</p>}
     </div>
   );
 }
@@ -947,18 +1089,19 @@ function AvatarControl({ kid, onSaved }: { kid: User; onSaved: () => void }) {
   const [open, setOpen] = useState(false);
   const [avatar, setAvatar] = useState(kid.avatar ?? "");
   const [color, setColor] = useState(kid.color ?? AVATAR_COLORS[0]);
+  const [goodsRateOverride, setGoodsRateOverride] = useState(String(kid.goods_rate ?? ""));
   const [busy, setBusy] = useState(false);
 
   if (!open) {
     return (
       <button className="sm" style={{ fontSize: 13 }} onClick={() => setOpen(true)}>
-        ✏️ Avatar
+        ✏️ Edit
       </button>
     );
   }
 
   return (
-    <div className="inline" style={{ flexWrap: "wrap", gap: 8, marginTop: 4 }}>
+    <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginTop: 4, alignItems: "center" }}>
       <input
         placeholder="Emoji (e.g. 🦊)"
         value={avatar}
@@ -983,13 +1126,26 @@ function AvatarControl({ kid, onSaved }: { kid: User; onSaved: () => void }) {
           />
         ))}
       </div>
+      <input
+        type="number"
+        placeholder="Goods rate (per $1)"
+        value={goodsRateOverride}
+        onChange={(e) => setGoodsRateOverride(e.target.value)}
+        style={{ width: 150 }}
+        min={0}
+      />
       <button
         className="primary sm"
         disabled={busy}
         onClick={async () => {
           setBusy(true);
           try {
-            await client.pb.collection("users").update(kid.id, { avatar: avatar.trim(), color });
+            const rate = parseFloat(goodsRateOverride);
+            await client.pb.collection("users").update(kid.id, {
+              avatar: avatar.trim(),
+              color,
+              goods_rate: isNaN(rate) || rate <= 0 ? null : rate,
+            });
             setOpen(false);
             onSaved();
           } finally {
