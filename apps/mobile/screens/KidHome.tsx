@@ -160,7 +160,7 @@ export function KidHome({ user, onLogout }: { user: User; onLogout: () => void }
   return (
     <SafeAreaView style={styles.container} edges={["top"]}>
       <Appbar.Header>
-        <Appbar.Content title={`${me.avatar ? me.avatar + " " : ""}Hi, ${user.display_name}`} />
+        <Appbar.Content title={`${me.avatar_emoji ? me.avatar_emoji + " " : ""}Hi, ${user.display_name}`} />
         {streak >= 2 ? <Chip compact style={styles.streakChip}>{`🔥 ${streak}-day streak`}</Chip> : null}
         <Appbar.Action icon="logout" onPress={onLogout} />
       </Appbar.Header>
@@ -171,7 +171,7 @@ export function KidHome({ user, onLogout }: { user: User; onLogout: () => void }
       >
         <Card style={styles.balanceCard}>
           <View style={[styles.balanceHeader, { backgroundColor: accentColor }]}>
-            <Text style={styles.balanceHeaderEmoji}>{me.avatar || "💰"}</Text>
+            <Text style={styles.balanceHeaderEmoji}>{me.avatar_emoji || "💰"}</Text>
             <Text style={styles.balanceHeaderName}>{me.display_name}</Text>
           </View>
           <Card.Content style={styles.balanceContent}>
@@ -360,7 +360,7 @@ export function KidHome({ user, onLogout }: { user: User; onLogout: () => void }
                   <Card key={sib.id} style={[styles.choreCard, styles.sibCard]}>
                     <Card.Content>
                       <View style={styles.sibRow}>
-                        <Text style={styles.sibAvatar}>{sib.avatar || "🧒"}</Text>
+                        <Text style={styles.sibAvatar}>{sib.avatar_emoji || "🧒"}</Text>
                         <View style={{ flex: 1 }}>
                           <Text variant="titleSmall" style={{ fontWeight: "700" }}>
                             {sib.display_name}

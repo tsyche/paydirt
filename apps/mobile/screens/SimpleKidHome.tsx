@@ -116,7 +116,7 @@ export function SimpleKidHome({ user, onLogout }: { user: User; onLogout: () => 
         {/* Balance hero card */}
         <Surface style={styles.balanceSurface} elevation={3}>
           <View style={[styles.avatarBand, { backgroundColor: accentColor }]}>
-            <Text style={styles.balanceEmoji}>{user.avatar || "💰"}</Text>
+            <Text style={styles.balanceEmoji}>{user.avatar_emoji || "💰"}</Text>
           </View>
           <View style={styles.balanceBody}>
             <Text style={[styles.balanceNumber, { color: theme.colors.onSurface }]}>
@@ -150,7 +150,7 @@ export function SimpleKidHome({ user, onLogout }: { user: User; onLogout: () => 
             </Text>
             {a.expand?.chore ? (
               <Text style={[styles.choreReward, { color: accentColor }]}>
-                +{a.expand.chore.reward} {user.avatar || "💰"}
+                +{a.expand.chore.reward} {user.avatar_emoji || "💰"}
               </Text>
             ) : null}
             <Button

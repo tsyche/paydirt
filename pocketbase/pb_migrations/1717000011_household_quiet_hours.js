@@ -1,19 +1,17 @@
 /// <reference path="../pb_data/types.d.ts" />
 migrate(
-  (db) => {
-    const dao = new Dao(db);
-    const col = dao.findCollectionByNameOrId("households");
-
-    col.schema.addField(new SchemaField({ name: "quiet_start", type: "text", options: { max: 5 } }));
-    col.schema.addField(new SchemaField({ name: "quiet_end", type: "text", options: { max: 5 } }));
-
-    dao.saveCollection(col);
+  (app) => {
+    const households = app.findCollectionByNameOrId("households");
+    households.fields.add(new TextField({ name: "quiet_start", max: 5 }));
+    households.fields.add(new TextField({ name: "quiet_end", max: 5 }));
+    app.save(households);
   },
-  (db) => {
-    const dao = new Dao(db);
-    const col = dao.findCollectionByNameOrId("households");
-    col.schema.removeField("quiet_start");
-    col.schema.removeField("quiet_end");
-    dao.saveCollection(col);
-  }
+  (app) => {
+    const households = app.findCollectionByNameOrId("households");
+    const start = households.fields.getByName("quiet_start");
+    if (start) households.fields.remove(start);
+    const end = households.fields.getByName("quiet_end");
+    if (end) households.fields.remove(end);
+    app.save(households);
+  },
 );

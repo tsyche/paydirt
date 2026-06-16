@@ -143,6 +143,12 @@ export class PaydirtClient {
     });
   }
 
+  /** Resolve the viewable URL for an assignment's photo proof file, if any. */
+  getPhotoUrl(assignment: Assignment): string {
+    if (!assignment.photo) return "";
+    return this.pb.files.getURL(assignment, assignment.photo);
+  }
+
   /** Child marks a chore done. Optional photo proof (FormData on the platform side). */
   markComplete(assignmentId: string, photo?: Blob): Promise<Assignment> {
     const data: Record<string, unknown> = {

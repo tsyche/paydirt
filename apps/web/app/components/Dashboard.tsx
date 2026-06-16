@@ -142,7 +142,7 @@ export function Dashboard({
                   className="kid-avatar"
                   style={{ backgroundColor: `color-mix(in srgb, ${kid.color ?? "#2f7d4f"} 18%, transparent)` }}
                 >
-                  {kid.avatar || "🧒"}
+                  {kid.avatar_emoji || "🧒"}
                 </div>
                 <div>
                   <div style={{ fontWeight: 700, fontSize: 15 }}>
@@ -290,6 +290,15 @@ export function Dashboard({
                     <div className="muted" style={{ fontSize: 12, marginTop: 2 }}>
                       💬 {a.kid_response}
                     </div>
+                  )}
+                  {a.photo && (
+                    <a href={client.getPhotoUrl(a)} target="_blank" rel="noreferrer">
+                      <img
+                        src={client.getPhotoUrl(a)}
+                        alt="Photo proof"
+                        style={{ marginTop: 6, maxWidth: 120, maxHeight: 120, borderRadius: 8, display: "block" }}
+                      />
+                    </a>
                   )}
                 </div>
               </div>
@@ -1087,7 +1096,7 @@ const AVATAR_COLORS = ["#e53935", "#8e24aa", "#1e88e5", "#00897b", "#f4511e", "#
 
 function AvatarControl({ kid, onSaved }: { kid: User; onSaved: () => void }) {
   const [open, setOpen] = useState(false);
-  const [avatar, setAvatar] = useState(kid.avatar ?? "");
+  const [avatar, setAvatar] = useState(kid.avatar_emoji ?? "");
   const [color, setColor] = useState(kid.color ?? AVATAR_COLORS[0]);
   const [goodsRateOverride, setGoodsRateOverride] = useState(String(kid.goods_rate ?? ""));
   const [busy, setBusy] = useState(false);
@@ -1142,7 +1151,7 @@ function AvatarControl({ kid, onSaved }: { kid: User; onSaved: () => void }) {
           try {
             const rate = parseFloat(goodsRateOverride);
             await client.pb.collection("users").update(kid.id, {
-              avatar: avatar.trim(),
+              avatar_emoji: avatar.trim(),
               color,
               goods_rate: isNaN(rate) || rate <= 0 ? null : rate,
             });
@@ -1208,7 +1217,7 @@ function AssignControl({
             onChange={() => toggle(k.id)}
             disabled={busy}
           />
-          {k.avatar ? `${k.avatar} ` : ""}{k.display_name}
+          {k.avatar_emoji ? `${k.avatar_emoji} ` : ""}{k.display_name}
         </label>
       ))}
       <button
@@ -1317,7 +1326,7 @@ function ActivityReport({
               {data.map(({ kid, chores, earned, spent, peak }) => (
                 <div key={kid.id} className="card" style={{ minWidth: 160 }}>
                   <div style={{ fontWeight: 600, marginBottom: 6 }}>
-                    {kid.avatar ? `${kid.avatar} ` : ""}{kid.display_name}
+                    {kid.avatar_emoji ? `${kid.avatar_emoji} ` : ""}{kid.display_name}
                   </div>
                   <div className="muted" style={{ lineHeight: 1.7 }}>
                     <div>✅ Chores: <strong>{chores}</strong></div>

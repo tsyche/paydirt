@@ -185,10 +185,13 @@ function runDaily(app) {
             { c: chore.id, kid: childId },
           );
           if (open.length > 0) continue;
-          // Weekly cadence: only re-assign after 7 days since the last was created.
-          if (cadence === "weekly") {
+          // Weekly/monthly cadence: only re-assign after that many days since
+          // the last was created. Daily (or anything else) re-assigns as soon
+          // as there's no open assignment.
+          const cadenceDays = cadence === "weekly" ? 7 : cadence === "monthly" ? 30 : 0;
+          if (cadenceDays > 0) {
             const lastCreated = new Date(lastByChild[childId].getString("created").replace(" ", "T"));
-            if ((now.getTime() - lastCreated.getTime()) < 7 * 86400e3) continue;
+            if ((now.getTime() - lastCreated.getTime()) < cadenceDays * 86400e3) continue;
           }
           const a = new Record(app.findCollectionByNameOrId("assignments"));
           a.set("chore", chore.id);

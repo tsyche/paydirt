@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { View, ScrollView, StyleSheet, RefreshControl, Alert } from "react-native";
+import { View, ScrollView, StyleSheet, RefreshControl, Alert, Image } from "react-native";
 import {
   Appbar,
   Card,
@@ -14,11 +14,12 @@ import {
   useTheme,
 } from "react-native-paper";
 import { SafeAreaView } from "react-native-safe-area-context";
-import type { Assignment, Chore, Household, SpendRequest, User } from "@paydirt/shared";
+import type { Assignment, Chore, ChoreProposal, Household, SpendRequest, User } from "@paydirt/shared";
 import { client } from "../lib/client";
 
 type ExpandedAssignment = Assignment & { expand?: { chore?: Chore; child?: User } };
 type ExpandedSpend = SpendRequest & { expand?: { child?: User } };
+type ExpandedProposal = ChoreProposal & { expand?: { child?: User } };
 
 export function ParentHome({ user, onLogout }: { user: User; onLogout: () => void }) {
   const theme = useTheme();
@@ -26,6 +27,7 @@ export function ParentHome({ user, onLogout }: { user: User; onLogout: () => voi
   const [kids, setKids] = useState<User[]>([]);
   const [approvals, setApprovals] = useState<ExpandedAssignment[]>([]);
   const [spend, setSpend] = useState<ExpandedSpend[]>([]);
+  const [proposals, setProposals] = useState<ExpandedProposal[]>([]);
   const [chores, setChores] = useState<Chore[]>([]);
   const [refreshing, setRefreshing] = useState(false);
   const [broadcastMsg, setBroadcastMsg] = useState("");
@@ -53,18 +55,20 @@ export function ParentHome({ user, onLogout }: { user: User; onLogout: () => voi
   const reload = useCallback(async () => {
     setRefreshing(true);
     try {
-      const [hh, k, a, s, c] = await Promise.all([
+      const [hh, k, a, s, c, p] = await Promise.all([
         client.getHousehold(user.household),
         client.listChildren(user.household),
         client.listPendingApprovals(user.household),
         client.listPendingSpendRequests(user.household),
         client.listChores(user.household),
+        client.listPendingProposals(user.household),
       ]);
       setHousehold(hh);
       setKids(k);
       setApprovals(a as ExpandedAssignment[]);
       setSpend(s as ExpandedSpend[]);
       setChores(c);
+      setProposals(p as ExpandedProposal[]);
     } catch (e) {
       setSnack(String(e));
     } finally {
@@ -116,6 +120,30 @@ export function ParentHome({ user, onLogout }: { user: User; onLogout: () => voi
         },
       ],
       "plain-text",
+    );
+  }
+
+  function confirmApproveProposal(proposal: ExpandedProposal) {
+    Alert.prompt(
+      `Reward for "${proposal.name}"?`,
+      "parentBucks to award on approval — assigns straight back to the kid who proposed it.",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Approve",
+          onPress: (value: string | undefined) => {
+            const reward = Number(value);
+            if (!(reward >= 0)) return;
+            void act(
+              () => client.approveProposal(proposal, user.id, reward),
+              "Approved — assigned! 🎉"
+            );
+          },
+        },
+      ],
+      "plain-text",
+      String(proposal.reward_requested),
+      "number-pad",
     );
   }
 
@@ -193,7 +221,7 @@ export function ParentHome({ user, onLogout }: { user: User; onLogout: () => voi
     }
   }
 
-  const pendingCount = approvals.length + spend.length;
+  const pendingCount = approvals.length + spend.length + proposals.length;
 
   return (
     <SafeAreaView style={styles.container} edges={["top"]}>
@@ -217,7 +245,7 @@ export function ParentHome({ user, onLogout }: { user: User; onLogout: () => voi
                 key={kid.id}
                 style={[styles.kidChipWrap, { borderLeftColor: kid.color ?? theme.colors.primary }]}
               >
-                <Text style={styles.kidAvatar}>{kid.avatar || "🧒"}</Text>
+                <Text style={styles.kidAvatar}>{kid.avatar_emoji || "🧒"}</Text>
                 <View>
                   <Text style={styles.kidName}>{kid.display_name}</Text>
                   <Text style={[styles.kidBalance, { color: theme.colors.primary }]}>
@@ -253,6 +281,59 @@ export function ParentHome({ user, onLogout }: { user: User; onLogout: () => voi
             </Button>
           </Card.Content>
         </Card>
+
+        {/* Chore ideas from kids */}
+        {proposals.length > 0 && (
+          <>
+            <Text variant="labelLarge" style={[styles.sectionLabel, { color: theme.colors.onSurfaceVariant }]}>
+              CHORE IDEAS ({proposals.length})
+            </Text>
+            {proposals.map((p) => {
+              const kid = p.expand?.child;
+              return (
+                <Card key={p.id} style={styles.approvalCard}>
+                  <Card.Content>
+                    <Text variant="titleMedium">
+                      💡 {p.name}
+                      {p.description ? ` — ${p.description}` : ""}
+                    </Text>
+                    <View style={styles.approvalMeta}>
+                      {kid && (
+                        <Chip compact style={styles.kidChip}>
+                          {kid.avatar_emoji || "🧒"} {kid.display_name}
+                        </Chip>
+                      )}
+                      <Chip compact style={[styles.rewardChip, { backgroundColor: theme.colors.secondaryContainer }]}>
+                        asks {p.reward_requested} {currencyName}
+                      </Chip>
+                    </View>
+                    <View style={styles.approvalActions}>
+                      <Button
+                        mode="contained"
+                        icon="check"
+                        onPress={() => confirmApproveProposal(p)}
+                        style={styles.approveBtn}
+                        contentStyle={styles.actionBtnContent}
+                      >
+                        Approve
+                      </Button>
+                      <Button
+                        mode="outlined"
+                        icon="close"
+                        onPress={() => act(() => client.declineProposal(p.id, user.id), "Declined.")}
+                        style={styles.rejectBtn}
+                        contentStyle={styles.actionBtnContent}
+                        textColor={theme.colors.error}
+                      >
+                        Decline
+                      </Button>
+                    </View>
+                  </Card.Content>
+                </Card>
+              );
+            })}
+          </>
+        )}
 
         {/* Pending approvals */}
         <Text variant="labelLarge" style={[styles.sectionLabel, { color: theme.colors.onSurfaceVariant }]}>
@@ -294,7 +375,7 @@ export function ParentHome({ user, onLogout }: { user: User; onLogout: () => voi
                         <View style={styles.approvalMeta}>
                           {child && (
                             <Chip compact style={styles.kidChip}>
-                              {child.avatar || "🧒"} {child.display_name}
+                              {child.avatar_emoji || "🧒"} {child.display_name}
                             </Chip>
                           )}
                           {chore && (
@@ -312,6 +393,12 @@ export function ParentHome({ user, onLogout }: { user: User; onLogout: () => voi
                           <Text variant="bodySmall" style={[styles.resubNote, { color: theme.colors.onSurfaceVariant }]}>
                             💬 {a.kid_response}
                           </Text>
+                        ) : null}
+                        {a.photo ? (
+                          <Image
+                            source={{ uri: client.getPhotoUrl(a) }}
+                            style={styles.photoThumb}
+                          />
                         ) : null}
                       </View>
                     </View>
@@ -359,7 +446,7 @@ export function ParentHome({ user, onLogout }: { user: User; onLogout: () => voi
                     <View style={styles.approvalMeta}>
                       {child && (
                         <Chip compact style={styles.kidChip}>
-                          {child.avatar || "🧒"} {child.display_name}
+                          {child.avatar_emoji || "🧒"} {child.display_name}
                         </Chip>
                       )}
                       <Chip compact style={[styles.rewardChip, { backgroundColor: theme.colors.secondaryContainer }]}>
@@ -524,7 +611,7 @@ export function ParentHome({ user, onLogout }: { user: User; onLogout: () => voi
                         compact
                         style={styles.kidAssignChip}
                       >
-                        {kid.avatar || "🧒"} {kid.display_name}
+                        {kid.avatar_emoji || "🧒"} {kid.display_name}
                       </Chip>
                     ))}
                     <Button
@@ -588,6 +675,7 @@ const styles = StyleSheet.create({
   kidChip: {},
   rewardChip: {},
   resubNote: { marginTop: 4, fontStyle: "italic" },
+  photoThumb: { width: 100, height: 100, borderRadius: 8, marginTop: 8 },
   approvalActions: { flexDirection: "row", gap: 8, marginTop: 10 },
   approveBtn: { flex: 1, borderRadius: 12 },
   rejectBtn: { flex: 1, borderRadius: 12 },

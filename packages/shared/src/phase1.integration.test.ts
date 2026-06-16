@@ -207,4 +207,23 @@ describe("Phase 1 features (live)", () => {
     const duplicates = activeAgain.filter((a) => a.chore === chore.id);
     expect(duplicates).toHaveLength(1);
   });
+
+  it.each(["weekly", "monthly"] as const)(
+    "recurring chore auto-assignment: %s cadence waits instead of re-creating same-day",
+    async (cadence) => {
+      const admin = new PaydirtClient(PB_URL);
+      await admin.pb.collection("_superusers").authWithPassword(ADMIN_EMAIL, ADMIN_PASSWORD);
+
+      const chore = await newChore(`Cadence test (${cadence})`, { type: "recurring", cadence });
+      const first = await parent.assignChore(chore.id, kid1User.id);
+      await kid1.markComplete(first.id);
+      await parent.approveAssignment(first.id);
+
+      // Same-day cron run should NOT re-assign yet (cadence period hasn't elapsed)
+      await admin.pb.send("/api/paydirt/cron/daily", { method: "POST" });
+      const active = await kid1.listActiveAssignmentsForChild(kid1User.id);
+      const reassigned = active.filter((a) => a.chore === chore.id);
+      expect(reassigned).toHaveLength(0);
+    },
+  );
 });

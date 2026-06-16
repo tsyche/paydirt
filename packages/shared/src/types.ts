@@ -47,7 +47,7 @@ export interface User extends BaseRecord {
   display_name: string;
   household: string; // -> households.id
   /** Emoji avatar shown on both apps (e.g. "🦊"). Set by parent. */
-  avatar?: string;
+  avatar_emoji?: string;
   /** Accent color hex for the avatar badge (e.g. "#8e24aa"). Set by parent. */
   color?: string;
   /** ntfy topic this user's devices subscribe to. */
@@ -75,7 +75,7 @@ export interface Chore extends BaseRecord {
   /** parentBucks awarded on parent approval. */
   reward: number;
   type: ChoreType;
-  /** "daily" | "weekly" | custom string; only meaningful when type === "recurring". */
+  /** "daily" | "weekly" | "monthly"; only meaningful when type === "recurring". */
   cadence?: string;
   photo_required: boolean;
   created_by: string; // -> users.id (parent)
