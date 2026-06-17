@@ -29,18 +29,20 @@ paydirt/
 
 ## Development
 
+Run `just` with no arguments for a scenario-based cheat sheet ("I want to do
+X → run Y"). It covers: first-time setup, day-to-day Expo+emulator dev, live
+Expo dev mode on a real phone, an already-installed APK that just needs the
+backend + web dashboard reachable, and shipping a release build. `just --list`
+shows every recipe (grouped); the commands below are the ones used outside
+those scenarios:
+
 ```bash
-just setup        # install workspace deps (pnpm)
-just dev-web      # Next.js dashboard
-just dev-mobile   # Expo app
-just dev-pb       # local PocketBase (needs binary in pocketbase/)
-just seed         # seed test household/users/chores (server must be RUNNING)
-just reset-db     # wipe + rebuild empty DB (server must be STOPPED)
-just test         # all workspace tests (unit; no server needed)
+just seed              # seed test household/users/chores (server must be RUNNING)
+just reset-db          # wipe + rebuild empty DB (server must be STOPPED)
+just test               # all workspace tests (unit; no server needed)
 just test-integration  # live API/hook tests (needs running, seeded PB)
-just test-e2e     # Playwright dashboard tests (needs running, seeded PB)
-just lint         # lint all workspaces
-just --list       # full recipe list
+just test-e2e           # Playwright dashboard tests (needs running, seeded PB)
+just lint               # lint all workspaces
 ```
 
 For the live test targets, start the backend with notifications muted so test

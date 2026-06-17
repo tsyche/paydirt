@@ -8,12 +8,12 @@ A private family chore tracking app. Kids do chores, earn **parentBucks**, and s
 
 ```bash
 just setup        # install dependencies
-just dev-web      # parent dashboard (Next.js)
-just dev-mobile   # mobile app (Expo)
-just dev-pb       # local PocketBase backend
 ```
 
-See `just --list` for all recipes.
+Then run `just` with no arguments — it prints a cheat sheet of common
+scenarios ("I want to do X → run Y"): first-time setup, day-to-day dev with
+Expo + an emulator, testing on a real phone, and shipping a release build.
+`just --list` shows every recipe.
 
 ## Stack
 

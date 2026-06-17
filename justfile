@@ -2,23 +2,38 @@
 
 # PocketBase binary location (downloaded separately, gitignored)
 pb := "pocketbase/pocketbase"
+pb-serve-args := "serve --dir pocketbase/pb_data --hooksDir pocketbase/pb_hooks --migrationsDir pocketbase/pb_migrations --http 0.0.0.0:8090"
 
-# Default: show available commands
+# Default: show the "what do I want to do" cheat sheet
 default:
-    @just --list --unsorted
+    #!/usr/bin/env bash
+    printf '\n\033[1mPayDirt — pick your scenario:\033[0m\n'
+    printf '\n\033[1mFirst time on this machine\033[0m\n'
+    printf '  just setup          install dependencies\n'
+    printf '  just pb-download    download the PocketBase binary\n'
+    printf '  just fresh          reset DB, seed data, start everything (needs an Android emulator running)\n'
+    printf '\n\033[1mDevelop with Expo + an Android emulator (day to day)\033[0m\n'
+    printf '  just fresh          reset DB + start PocketBase, web, and Expo together\n'
+    printf '  just stop           stop everything '\''fresh'\'' started\n'
+    printf '\n\033[1mTest on a real phone — live Expo dev mode (JS hot reload, scan a QR code)\033[0m\n'
+    printf '  just dev-device     start PocketBase (LAN-bound) + Expo for a physical device\n'
+    printf '\n\033[1mTest on a real phone — APK already installed, just need the backend + web UI\033[0m\n'
+    printf '  just dev-backend    start PocketBase (LAN-bound) + the web dashboard\n'
+    printf '  just install-apk    build + install a debug APK on a connected device/emulator\n'
+    printf '\n\033[1mShip a release build to family devices\033[0m\n'
+    printf '  just deploy-start          step-by-step pairing + install instructions\n'
+    printf '  just install-apk-release-all   build a signed release APK, install on every connected device\n'
+    printf '\n\033[1mIndividual services\033[0m (if you do not want a combined recipe above)\n'
+    printf '  just dev-pb   just dev-web   just dev-mobile\n'
+    printf '\n\033[1mEverything else\033[0m (tests, lint, db reset, cleanup, ...)\n'
+    printf '  just --list\n\n'
 
 # --- Quick Start ---
 
-# Print local dev setup steps
-dev-start:
-    @printf '\n\033[1mLocal dev — first time:\033[0m\n'
-    @printf '  just pb-download    # download PocketBase binary (one-time)\n'
-    @printf '  just fresh          # reset DB → seed → start all services\n'
-    @printf '\n\033[1mLocal dev — already set up:\033[0m\n'
-    @printf '  just dev-pb         # PocketBase only\n'
-    @printf '  just dev-web        # Next.js dashboard only\n'
-    @printf '  just dev-mobile     # Expo app only\n'
-    @printf '  just stop           # stop all services\n\n'
+# Install workspace dependencies (one-time, or after pulling new deps)
+[group('development')]
+setup:
+    @pnpm install
 
 # Print release APK deployment steps for real devices
 deploy-start:
@@ -60,8 +75,7 @@ fresh nuke="0":
     fi
     mkdir -p /tmp/paydirt-logs
     printf '\033[0;34mStarting PocketBase...\033[0m\n'
-    {{pb}} serve --dir pocketbase/pb_data --hooksDir pocketbase/pb_hooks --migrationsDir pocketbase/pb_migrations \
-        > /tmp/paydirt-logs/pb.log 2>&1 & echo $! > /tmp/paydirt-pb.pid
+    {{pb}} {{pb-serve-args}} > /tmp/paydirt-logs/pb.log 2>&1 & echo $! > /tmp/paydirt-pb.pid
     echo "  Waiting for PocketBase to be ready..."
     for i in $(seq 1 20); do
         if curl -sf -o /dev/null http://127.0.0.1:8090/api/health; then break; fi
@@ -116,7 +130,7 @@ dev-pb:
         echo "Run 'just pb-download' first."
         exit 1
     fi
-    {{pb}} serve --dir pocketbase/pb_data --hooksDir pocketbase/pb_hooks --migrationsDir pocketbase/pb_migrations --http 0.0.0.0:8090
+    {{pb}} {{pb-serve-args}}
 
 # Start Next.js parent dashboard only
 [group('development')]
@@ -145,14 +159,37 @@ dev-device:
     printf '\033[0;32mLAN IP: %s\033[0m\n' "${LAN_IP}"
     printf '\033[0;34mStarting PocketBase (listening on all interfaces)...\033[0m\n'
     mkdir -p /tmp/paydirt-logs
-    {{pb}} serve --dir pocketbase/pb_data --hooksDir pocketbase/pb_hooks --migrationsDir pocketbase/pb_migrations \
-        --http "0.0.0.0:8090" \
-        > /tmp/paydirt-logs/pb.log 2>&1 & echo $! > /tmp/paydirt-pb.pid
+    {{pb}} {{pb-serve-args}} > /tmp/paydirt-logs/pb.log 2>&1 & echo $! > /tmp/paydirt-pb.pid
     sleep 2
     printf '\033[0;34mStarting Expo (scan QR on device)...\033[0m\n'
     printf '\n  Device PB URL: http://%s:8090\n' "${LAN_IP}"
     printf '  Set in .env:   EXPO_PUBLIC_POCKETBASE_URL=http://%s:8090\n\n' "${LAN_IP}"
     EXPO_PUBLIC_POCKETBASE_URL="http://${LAN_IP}:8090" pnpm --filter mobile start
+
+# Start PocketBase (LAN-bound) + web dashboard only — for a real device with the APK already installed
+[group('development')]
+dev-backend:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    LAN_IP=$(ipconfig getifaddr en0 2>/dev/null || ip route get 1 2>/dev/null | awk '{print $7; exit}' || echo "")
+    if [ ! -f "{{pb}}" ]; then
+        printf '\033[0;33mPocketBase binary not found — run '\''just pb-download'\''.\033[0m\n'
+        exit 1
+    fi
+    mkdir -p /tmp/paydirt-logs
+    printf '\033[0;34mStarting PocketBase (listening on all interfaces)...\033[0m\n'
+    {{pb}} {{pb-serve-args}} > /tmp/paydirt-logs/pb.log 2>&1 & echo $! > /tmp/paydirt-pb.pid
+    sleep 1
+    printf '\033[0;34mStarting Next.js dashboard...\033[0m\n'
+    pnpm run dev:web > /tmp/paydirt-logs/web.log 2>&1 & echo $! > /tmp/paydirt-web.pid
+    printf '\n\033[0;32mRunning:\033[0m\n'
+    if [ -n "${LAN_IP}" ]; then
+        printf '  Device PB URL:    http://%s:8090  (must match EXPO_PUBLIC_POCKETBASE_URL baked into the APK)\n' "${LAN_IP}"
+    fi
+    printf '  PocketBase admin: http://localhost:8090/_/\n'
+    printf '  Web dashboard:    http://localhost:3000\n'
+    printf '\nPress Ctrl+C to stop (or run '\''just stop'\'' from another terminal).\n\n'
+    trap 'just stop' INT; wait
 
 # Tunnel device USB traffic → host port 8090 (run once after plugging in; lets device use 127.0.0.1)
 [group('development')]
