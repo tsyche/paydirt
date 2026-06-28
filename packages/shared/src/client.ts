@@ -34,10 +34,20 @@ export class PaydirtClient {
   // ── Auth ───────────────────────────────────────────────────────────────────
 
   async login(email: string, password: string): Promise<User> {
-    const auth = await this.pb
-      .collection(Collections.Users)
-      .authWithPassword(email, password);
-    return auth.record as unknown as User;
+    try {
+      const auth = await this.pb
+        .collection(Collections.Users)
+        .authWithPassword(email, password);
+      return auth.record as unknown as User;
+    } catch (e) {
+      console.error("[PaydirtClient.login] Full error:", e);
+      const error = e as any;
+      const msg = error?.response?.message || error?.message || error?.toString?.() || "Auth failed";
+      const status = error?.status || error?.response?.status || "";
+      const fullMsg = `${msg}${status ? ` (${status})` : ""}`;
+      console.error("[PaydirtClient.login] Throwing:", fullMsg);
+      throw new Error(fullMsg);
+    }
   }
 
   logout(): void {

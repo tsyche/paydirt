@@ -1,9 +1,9 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { View, StyleSheet } from "react-native";
 import { TextInput, Button, Text, useTheme } from "react-native-paper";
 import { SafeAreaView } from "react-native-safe-area-context";
 import type { User } from "@paydirt/shared";
-import { client } from "../lib/client";
+import { client, pbUrl } from "../lib/client";
 
 export function Login({ onLogin }: { onLogin: (u: User) => void }) {
   const [email, setEmail] = useState("");
@@ -12,14 +12,27 @@ export function Login({ onLogin }: { onLogin: (u: User) => void }) {
   const [busy, setBusy] = useState(false);
   const theme = useTheme();
 
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await fetch(`${pbUrl}/api/health`);
+        console.log(`[Login] PB health check: ${res.status} (URL: ${pbUrl})`);
+      } catch (e) {
+        console.error(`[Login] PB unreachable at ${pbUrl}: ${e}`);
+      }
+    })();
+  }, []);
+
   async function submit() {
     setBusy(true);
     setError("");
     try {
       const user = await client.login(email.trim(), password);
       onLogin(user);
-    } catch {
-      setError("Login failed — check your email and password.");
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      console.error(`[Login] Auth failed: ${msg}`, e);
+      setError(`Login failed: ${msg}`);
     } finally {
       setBusy(false);
     }

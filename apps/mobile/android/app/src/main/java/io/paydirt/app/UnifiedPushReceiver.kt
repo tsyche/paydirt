@@ -32,20 +32,11 @@ class UnifiedPushReceiver : BroadcastReceiver() {
                 val bytes = intent.getByteArrayExtra("bytesMessage") ?: return
                 try {
                     val json = JSONObject(String(bytes, Charsets.UTF_8))
-                    val title = json.optString("title", "PayDirt")
-                    val body = json.optString("body", "")
-                    showNotification(context, title, body)
-
-                    // Phase 2: spend-approval notifications trigger Family Link automation.
-                    // The AccessibilityService handles the broadcast if it is enabled.
-                    val msgType = json.optString("type", "")
-                    if (msgType == "spend_approved") {
-                        context.sendBroadcast(
-                            Intent(FamilyLinkAccessibilityService.ACTION_GRANT_SCREEN_TIME).apply {
-                                setPackage(context.packageName)
-                            }
-                        )
-                    }
+                    showNotification(
+                        context,
+                        json.optString("title", "PayDirt"),
+                        json.optString("body", ""),
+                    )
                 } catch (_: JSONException) { }
             }
 

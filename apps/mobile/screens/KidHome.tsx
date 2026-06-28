@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { View, ScrollView, StyleSheet, RefreshControl } from "react-native";
 import {
   Appbar,
+  BottomNavigation,
   Card,
   Text,
   Button,
@@ -19,6 +20,16 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import type { Assignment, Broadcast, Chore, Household, SavingsGoal, User } from "@paydirt/shared";
 import { client } from "../lib/client";
 import { takePhotoAndComplete } from "../lib/completeWithPhoto";
+import { AppearanceButton } from "../components/AppearanceButton";
+import { ChunkyButton } from "../components/ChunkyButton";
+import { ClaimHero } from "../components/ClaimHero";
+
+const KID_TABS = [
+  { key: "home", title: "Home", focusedIcon: "home", unfocusedIcon: "home-outline" },
+  { key: "chores", title: "Chores", focusedIcon: "check-circle", unfocusedIcon: "check-circle-outline" },
+  { key: "goals", title: "Goals", focusedIcon: "target", unfocusedIcon: "target-variant" },
+  { key: "family", title: "Family", focusedIcon: "account-group", unfocusedIcon: "account-group-outline" },
+];
 
 type Expanded = Assignment & { expand?: { chore?: Chore; child?: User } };
 
@@ -57,9 +68,12 @@ export function KidHome({ user, onLogout }: { user: User; onLogout: () => void }
   const [remindFor, setRemindFor] = useState<Expanded | null>(null);
   const [swapFor, setSwapFor] = useState<Expanded | null>(null);
   const [snack, setSnack] = useState("");
+  const [tab, setTab] = useState("home");
 
   const currencyName = household?.currency_name?.trim() || "parentBucks";
   const accentColor = me.color ?? theme.colors.primary;
+  const goodsRate = me.goods_rate ?? household?.goods_rate ?? 0;
+  const dollarValue = goodsRate > 0 ? (me.balance / goodsRate).toFixed(2) : null;
 
   const reload = useCallback(async () => {
     setRefreshing(true);
@@ -162,6 +176,7 @@ export function KidHome({ user, onLogout }: { user: User; onLogout: () => void }
       <Appbar.Header>
         <Appbar.Content title={`${me.avatar_emoji ? me.avatar_emoji + " " : ""}Hi, ${user.display_name}`} />
         {streak >= 2 ? <Chip compact style={styles.streakChip}>{`🔥 ${streak}-day streak`}</Chip> : null}
+        <AppearanceButton />
         <Appbar.Action icon="logout" onPress={onLogout} />
       </Appbar.Header>
 
@@ -169,36 +184,18 @@ export function KidHome({ user, onLogout }: { user: User; onLogout: () => void }
         contentContainerStyle={styles.content}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={reload} />}
       >
-        <Card style={styles.balanceCard}>
-          <View style={[styles.balanceHeader, { backgroundColor: accentColor }]}>
-            <Text style={styles.balanceHeaderEmoji}>{me.avatar_emoji || "💰"}</Text>
-            <Text style={styles.balanceHeaderName}>{me.display_name}</Text>
-          </View>
-          <Card.Content style={styles.balanceContent}>
-            <Text variant="labelMedium" style={[styles.balanceCurrencyLabel, { color: theme.colors.onSurfaceVariant }]}>
-              Your {currencyName}
-            </Text>
-            <Text style={[styles.balance, { color: theme.colors.onSurface }]}>
-              {me.balance}
-            </Text>
-            {(me.goods_rate ?? household?.goods_rate ?? 0) > 0 ? (
-              <Text variant="bodyMedium" style={[styles.dollarValue, { color: theme.colors.onSurfaceVariant }]}>
-                ${(me.balance / (me.goods_rate ?? household!.goods_rate!)).toFixed(2)}
-              </Text>
-            ) : null}
-            <Text variant="bodySmall" style={styles.todoLine}>
-              {toDo.length === 0 ? "Nothing to do — go play! 🎉" : `${toDo.length} chore${toDo.length === 1 ? "" : "s"} to do`}
-            </Text>
-            <Button
-              mode="contained-tonal"
-              onPress={() => setSpendOpen(true)}
-              contentStyle={styles.spendButtonContent}
-              labelStyle={styles.spendButtonLabel}
-            >
-              Ask to spend
-            </Button>
-          </Card.Content>
-        </Card>
+        {tab === "home" && (
+          <>
+            <ClaimHero
+              name={me.display_name}
+              avatar={me.avatar_emoji || "🧒"}
+              balance={me.balance}
+              currencyName={currencyName}
+              dollarValue={dollarValue}
+              toDoLabel={toDo.length === 0 ? "Nothing to do — go play! 🎉" : `${toDo.length} chore${toDo.length === 1 ? "" : "s"} to do`}
+              accent={accentColor}
+              onSpend={() => setSpendOpen(true)}
+            />
 
         {swapsIn.length > 0 && (
           <>
@@ -226,7 +223,11 @@ export function KidHome({ user, onLogout }: { user: User; onLogout: () => void }
             ))}
           </>
         )}
+          </>
+        )}
 
+        {tab === "chores" && (
+          <>
         <View style={styles.headingRow}>
           <Text variant="titleMedium" style={styles.heading}>
             My chores
@@ -279,27 +280,19 @@ export function KidHome({ user, onLogout }: { user: User; onLogout: () => void }
                 {a.status === "assigned" ? (
                   <>
                     {chore?.photo_required ? (
-                      <Button
-                        mode="contained"
+                      <ChunkyButton
+                        label="Take photo & mark done"
                         onPress={() => markDoneWithPhoto(a.id)}
-                        style={styles.doneBtn}
-                        contentStyle={styles.doneBtnContent}
-                        labelStyle={styles.doneBtnLabel}
                         icon="camera"
-                      >
-                        Take photo & mark done
-                      </Button>
-                    ) : (
-                      <Button
-                        mode="contained"
-                        onPress={() => markDone(a.id)}
                         style={styles.doneBtn}
-                        contentStyle={styles.doneBtnContent}
-                        labelStyle={styles.doneBtnLabel}
+                      />
+                    ) : (
+                      <ChunkyButton
+                        label="Mark done"
+                        onPress={() => markDone(a.id)}
                         icon="check-circle"
-                      >
-                        Mark done
-                      </Button>
+                        style={styles.doneBtn}
+                      />
                     )}
                     <View style={styles.utilityRow}>
                       <IconButton icon="alarm" size={18} onPress={() => setRemindFor(a)} />
@@ -315,7 +308,11 @@ export function KidHome({ user, onLogout }: { user: User; onLogout: () => void }
             </Card>
           );
         })}
+          </>
+        )}
 
+        {tab === "goals" && (
+          <>
         <Text variant="titleMedium" style={styles.heading}>
           My goals 🎯
         </Text>
@@ -326,7 +323,11 @@ export function KidHome({ user, onLogout }: { user: User; onLogout: () => void }
           onCreate={(name, target) => act(() => client.createGoal(user.id, name, target), "Goal added!")()}
           onDelete={(id) => act(() => client.deleteGoal(id))()}
         />
+          </>
+        )}
 
+        {tab === "family" && (
+          <>
         {broadcasts.length > 0 && (
           <>
             <Text variant="titleMedium" style={styles.heading}>
@@ -424,7 +425,17 @@ export function KidHome({ user, onLogout }: { user: User; onLogout: () => void }
             ))}
           </List.Accordion>
         )}
+          </>
+        )}
       </ScrollView>
+
+      <BottomNavigation.Bar
+        navigationState={{
+          index: Math.max(0, KID_TABS.findIndex((t) => t.key === tab)),
+          routes: KID_TABS,
+        }}
+        onTabPress={({ route }) => setTab(route.key)}
+      />
 
       <SpendDialog
         currencyName={currencyName}

@@ -53,11 +53,13 @@ deploy-start:
 fresh nuke="0":
     #!/usr/bin/env bash
     set -euo pipefail
+    CLEAR_FLAG=""
     if [ "{{nuke}}" = "1" ]; then
         printf '\033[0;34mNuking caches and node_modules...\033[0m\n'
         just clean
         printf '\033[0;34mReinstalling dependencies...\033[0m\n'
         pnpm install
+        CLEAR_FLAG="--clear"   # force Metro to rebuild its transform cache on a nuke
     fi
     printf '\033[0;34mResetting database...\033[0m\n'
     if curl -sf -o /dev/null http://127.0.0.1:8090/api/health; then
@@ -90,8 +92,18 @@ fresh nuke="0":
     printf '\033[0;34mStarting Next.js dashboard...\033[0m\n'
     pnpm run dev:web > /tmp/paydirt-logs/web.log 2>&1 & echo $! > /tmp/paydirt-web.pid
     sleep 3
-    printf '\033[0;34mStarting Expo (mobile) → pushing to Android emulator...\033[0m\n'
-    pnpm --filter mobile start -- --android > /tmp/paydirt-logs/mobile.log 2>&1 & echo $! > /tmp/paydirt-mobile.pid
+    printf '\033[0;34mStarting Metro bundler...\033[0m\n'
+    # Start Metro only — do NOT pass --android (that opens Expo Go, which can't
+    # run this app's native modules: expo-notifications remote push, background
+    # actions, UnifiedPush). We launch the installed dev build instead.
+    pnpm --filter mobile start -- $CLEAR_FLAG > /tmp/paydirt-logs/mobile.log 2>&1 & echo $! > /tmp/paydirt-mobile.pid
+    sleep 4
+    if adb shell pm list packages 2>/dev/null | grep -q "io.paydirt.app"; then
+        printf '\033[0;34mLaunching PayDirt dev build on the emulator...\033[0m\n'
+        adb shell monkey -p io.paydirt.app -c android.intent.category.LAUNCHER 1 >/dev/null 2>&1 || true
+    else
+        printf '\033[0;33mDev build (io.paydirt.app) not installed — run "just install-apk", then open PayDirt on the emulator. (Expo Go will NOT work for this app.)\033[0m\n'
+    fi
     printf '\n\033[0;32mAll services running. Logs:\033[0m\n'
     echo "  PocketBase:  /tmp/paydirt-logs/pb.log"
     echo "  Dashboard:   /tmp/paydirt-logs/web.log  (http://localhost:3000)"
@@ -100,6 +112,33 @@ fresh nuke="0":
     echo ""
     echo "Press Ctrl+C to stop all services (or run 'just stop' from another terminal)."
     trap 'just stop' INT; wait
+
+# Install release build on all real devices + start backend + web (one command)
+[group('development')]
+release-all:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    printf '\033[0;34mBuilding and installing release APK on all devices...\033[0m\n'
+    just install-apk-release-all
+    printf '\n\033[0;34mStarting PocketBase...\033[0m\n'
+    mkdir -p /tmp/paydirt-logs
+    NTFY_DISABLED=1 {{pb}} {{pb-serve-args}} > /tmp/paydirt-logs/pb.log 2>&1 & echo $! > /tmp/paydirt-pb.pid
+    sleep 3
+    printf '\033[0;34mSeeding test data...\033[0m\n'
+    node pocketbase/seed.mjs
+    printf '\033[0;34mStarting web dashboard...\033[0m\n'
+    pnpm run dev:web > /tmp/paydirt-logs/web.log 2>&1 & echo $! > /tmp/paydirt-web.pid
+    printf '\n\033[0;32m✓ All set!\033[0m\n'
+    echo ""
+    echo "  Mobile app: Open PayDirt on your real device"
+    echo "  Parent UI:  http://localhost:3000 (parent@test.local / password123)"
+    echo "  Admin UI:   http://localhost:8090/_ (admin@paydirt.local / password123)"
+    echo ""
+    echo "All services running in background. Logs:"
+    echo "  PocketBase: /tmp/paydirt-logs/pb.log"
+    echo "  Dashboard:  /tmp/paydirt-logs/web.log"
+    echo ""
+    echo "Stop with: just stop"
 
 # Stop all PayDirt dev services
 [group('development')]
@@ -257,14 +296,13 @@ install-apk-release-all: build-apk-release
     #!/usr/bin/env bash
     set -euo pipefail
     APK="apps/mobile/android/app/build/outputs/apk/release/app-release.apk"
-    devices=$(adb devices | awk 'NR>1 && $2=="device" {print $1}')
-    if [ -z "$devices" ]; then
-        printf '\033[0;33mNo devices connected (check `adb devices`).\033[0m\n'
-        exit 1
-    fi
-    for d in $devices; do
-        printf '\033[0;34mInstalling on %s...\033[0m\n' "$d"
-        adb -s "$d" install -r "$APK"
+    # Extract device serials: match lines ending with "device", remove "device" and
+    # trailing whitespace, filter out emulator. Use while-read to preserve spaces in serials.
+    adb devices | grep -E 'device$' | grep -v emulator | sed 's/[[:space:]]*device$//' | while read d; do
+        if [ -n "$d" ]; then
+            printf '\033[0;34mInstalling on %s...\033[0m\n' "$d"
+            adb -s "$d" install -r "$APK"
+        fi
     done
     printf '\033[0;32mDone.\033[0m\n'
 
@@ -435,7 +473,8 @@ cache-clean:
     @printf '\033[0;34mClearing build/bundler caches...\033[0m\n'
     @rm -rf apps/web/.next
     @rm -rf apps/mobile/.expo
-    @rm -rf /tmp/metro-* /tmp/haste-* 2>/dev/null || true
+    # Metro caches live in $TMPDIR on macOS (/var/folders/.../T), /tmp on Linux — clear both.
+    @rm -rf "${TMPDIR:-/tmp}"/metro-* "${TMPDIR:-/tmp}"/haste-* /tmp/metro-* /tmp/haste-* 2>/dev/null || true
     @rm -rf /tmp/paydirt-logs
     @printf '\033[0;32mCaches cleared.\033[0m\n'
 

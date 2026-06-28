@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { View, ScrollView, StyleSheet, RefreshControl, Alert, Image } from "react-native";
 import {
   Appbar,
+  BottomNavigation,
   Card,
   Text,
   Button,
@@ -16,6 +17,18 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import type { Assignment, Chore, ChoreProposal, ChoreTemplate, Household, SpendRequest, User } from "@paydirt/shared";
 import { client } from "../lib/client";
+import { AppearanceButton } from "../components/AppearanceButton";
+import { AppearanceControls } from "../components/AppearanceControls";
+import { ChunkyButton } from "../components/ChunkyButton";
+import { Celebration } from "../components/Celebration";
+import { KidDetail } from "../components/KidDetail";
+
+const PARENT_TABS = [
+  { key: "approvals", title: "Approvals", focusedIcon: "inbox", unfocusedIcon: "inbox-outline" },
+  { key: "kids", title: "Kids", focusedIcon: "account-child", unfocusedIcon: "account-child-outline" },
+  { key: "chores", title: "Chores", focusedIcon: "clipboard-list", unfocusedIcon: "clipboard-list-outline" },
+  { key: "settings", title: "Settings", focusedIcon: "cog", unfocusedIcon: "cog-outline" },
+];
 
 type ExpandedAssignment = Assignment & { expand?: { chore?: Chore; child?: User } };
 type ExpandedSpend = SpendRequest & { expand?: { child?: User } };
@@ -33,6 +46,10 @@ export function ParentHome({ user, onLogout }: { user: User; onLogout: () => voi
   const [broadcastMsg, setBroadcastMsg] = useState("");
   const [broadcasting, setBroadcasting] = useState(false);
   const [snack, setSnack] = useState("");
+  const [tab, setTab] = useState("approvals");
+  const [detailKid, setDetailKid] = useState<string | null>(null);
+  const [celebrate, setCelebrate] = useState(0);
+  const party = () => setCelebrate((n) => n + 1);
 
   // Create chore form state
   const [showCreateChore, setShowCreateChore] = useState(false);
@@ -334,6 +351,19 @@ export function ParentHome({ user, onLogout }: { user: User; onLogout: () => voi
 
   const pendingCount = approvals.length + spend.length + proposals.length;
 
+  if (detailKid) {
+    return (
+      <KidDetail
+        kidId={detailKid}
+        household={household}
+        onClose={() => {
+          setDetailKid(null);
+          void reload();
+        }}
+      />
+    );
+  }
+
   return (
     <SafeAreaView style={styles.container} edges={["top"]}>
       <Appbar.Header>
@@ -341,6 +371,7 @@ export function ParentHome({ user, onLogout }: { user: User; onLogout: () => voi
           title="PayDirt"
           subtitle={pendingCount > 0 ? `${pendingCount} item${pendingCount === 1 ? "" : "s"} waiting` : "All clear 🎉"}
         />
+        <AppearanceButton />
         <Appbar.Action icon="logout" onPress={onLogout} />
       </Appbar.Header>
 
@@ -348,28 +379,32 @@ export function ParentHome({ user, onLogout }: { user: User; onLogout: () => voi
         contentContainerStyle={styles.content}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={reload} />}
       >
-        {/* Kids overview */}
-        {kids.length > 0 && (
+        {/* Kids tab */}
+        {tab === "kids" && kids.length > 0 && (
           <View style={styles.kidsRow}>
             {kids.map((kid) => (
-              <View
+              <Card
                 key={kid.id}
+                onPress={() => setDetailKid(kid.id)}
                 style={[styles.kidChipWrap, { borderLeftColor: kid.color ?? theme.colors.primary }]}
               >
                 <Text style={styles.kidAvatar}>{kid.avatar_emoji || "🧒"}</Text>
-                <View>
+                <View style={styles.flex1}>
                   <Text style={styles.kidName}>{kid.display_name}</Text>
                   <Text style={[styles.kidBalance, { color: theme.colors.primary }]}>
                     {kid.balance} {currencyName}
                     {(kid.goods_rate ?? goodsRate) > 0 ? `  ·  $${(kid.balance / (kid.goods_rate ?? goodsRate)).toFixed(2)}` : ""}
                   </Text>
                 </View>
-              </View>
+                <Text style={[styles.kidChevron, { color: theme.colors.onSurfaceVariant }]}>›</Text>
+              </Card>
             ))}
           </View>
         )}
 
-        {/* Broadcast */}
+        {/* Settings tab: broadcast + appearance */}
+        {tab === "settings" && (
+          <>
         <Card style={styles.broadcastCard}>
           <Card.Content style={styles.broadcastContent}>
             <TextInput
@@ -392,7 +427,17 @@ export function ParentHome({ user, onLogout }: { user: User; onLogout: () => voi
             </Button>
           </Card.Content>
         </Card>
+        <Card style={styles.broadcastCard}>
+          <Card.Content>
+            <AppearanceControls />
+          </Card.Content>
+        </Card>
+          </>
+        )}
 
+        {/* Approvals tab: proposals + approvals + spend */}
+        {tab === "approvals" && (
+          <>
         {/* Chore ideas from kids */}
         {proposals.length > 0 && (
           <>
@@ -462,12 +507,13 @@ export function ParentHome({ user, onLogout }: { user: User; onLogout: () => voi
                 mode="contained"
                 icon="check-all"
                 style={styles.approveAllBtn}
-                onPress={() =>
-                  act(
+                onPress={() => {
+                  party();
+                  void act(
                     () => Promise.all(approvals.map((a) => client.approveAssignment(a.id))).then(() => {}),
                     `Approved all ${approvals.length}! 🎉`
-                  )
-                }
+                  );
+                }}
               >
                 Approve all ({approvals.length})
               </Button>
@@ -514,15 +560,15 @@ export function ParentHome({ user, onLogout }: { user: User; onLogout: () => voi
                       </View>
                     </View>
                     <View style={styles.approvalActions}>
-                      <Button
-                        mode="contained"
+                      <ChunkyButton
+                        label="Approve"
                         icon="check"
-                        onPress={() => act(() => client.approveAssignment(a.id), "Approved! 🎉")}
+                        onPress={() => {
+                          party();
+                          void act(() => client.approveAssignment(a.id), "Approved! 🎉");
+                        }}
                         style={styles.approveBtn}
-                        contentStyle={styles.actionBtnContent}
-                      >
-                        Approve
-                      </Button>
+                      />
                       <Button
                         mode="outlined"
                         icon="close"
@@ -596,8 +642,12 @@ export function ParentHome({ user, onLogout }: { user: User; onLogout: () => voi
             })}
           </>
         )}
-        {/* Chores */}
-        <Divider style={styles.divider} />
+          </>
+        )}
+
+        {/* Chores tab */}
+        {tab === "chores" && (
+          <>
         <View style={styles.sectionHeader}>
           <Text variant="labelLarge" style={[styles.sectionLabel, { color: theme.colors.onSurfaceVariant }]}>
             CHORES ({chores.length})
@@ -842,12 +892,24 @@ export function ParentHome({ user, onLogout }: { user: User; onLogout: () => voi
             </Card>
           );
         })}
+          </>
+        )}
 
       </ScrollView>
+
+      <BottomNavigation.Bar
+        navigationState={{
+          index: Math.max(0, PARENT_TABS.findIndex((t) => t.key === tab)),
+          routes: PARENT_TABS,
+        }}
+        onTabPress={({ route }) => setTab(route.key)}
+      />
 
       <Snackbar visible={!!snack} onDismiss={() => setSnack("")} duration={4000}>
         {snack}
       </Snackbar>
+
+      <Celebration trigger={celebrate} />
     </SafeAreaView>
   );
 }
@@ -861,11 +923,12 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 10,
-    backgroundColor: "rgba(0,0,0,0.04)",
-    borderRadius: 12,
-    padding: 10,
-    borderLeftWidth: 4,
+    borderRadius: 16,
+    padding: 14,
+    borderLeftWidth: 5,
   },
+  flex1: { flex: 1 },
+  kidChevron: { fontSize: 28, opacity: 0.6 },
   kidAvatar: { fontSize: 28 },
   kidName: { fontSize: 14, fontWeight: "700" },
   kidBalance: { fontSize: 13, fontWeight: "600" },

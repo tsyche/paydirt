@@ -1,32 +1,43 @@
-@import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;0,9..40,800;1,9..40,400&family=DM+Mono:wght@400;500&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;0,9..40,800;1,9..40,400&family=DM+Mono:wght@400;500&family=Fredoka:wght@400;500;600;700&display=swap');
 
-/* ─── MD3 Color Tokens — Light ───────────────────────────────────────────── */
+
+/* ─── MD3 Color Tokens — Light ───────────────────────────────────────────────
+   The Paydirt (green) pack is the default, defined here on the bare :root. Each
+   alternate pack below overrides --pack-tint + the primary/secondary families.
+   Surfaces are mixed with --pack-tint so switching a pack washes the whole page
+   in its mood, not just the buttons. */
 :root {
-  --md-primary:                   #2f7d4f;
-  --md-on-primary:                #ffffff;
-  --md-primary-container:         #b7f1cb;
-  --md-on-primary-container:      #002113;
-  --md-primary-container-dim:     color-mix(in srgb, #b7f1cb 35%, transparent);
+  /* Fredoka = the rounded display face that gives PayDirt its playful, tactile
+     identity (headings, brand, the balance "claim"). DM Sans stays the clean
+     body so parents never feel they're inside a toy. */
+  --font-display:                 'Fredoka', 'DM Sans', system-ui, sans-serif;
+  --pack-tint:                    #c8911e;
 
-  --md-secondary:                 #4f6b57;
+  --md-primary:                   #8a5a00;
+  --md-on-primary:                #ffffff;
+  --md-primary-container:         #ffddb0;
+  --md-on-primary-container:      #2b1700;
+  --md-primary-container-dim:     color-mix(in srgb, var(--md-primary-container) 35%, transparent);
+
+  --md-secondary:                 #6f5b40;
   --md-on-secondary:              #ffffff;
-  --md-secondary-container:       #d1f0d8;
-  --md-on-secondary-container:    #0d1f12;
+  --md-secondary-container:       #fadfbc;
+  --md-on-secondary-container:    #261904;
 
   --md-error:                     #b3433a;
   --md-on-error:                  #ffffff;
   --md-error-container:           #ffdad6;
   --md-on-error-container:        #410002;
 
-  --md-surface:                   #f6faf7;
+  --md-surface:                   color-mix(in srgb, var(--pack-tint) 7%, #f6faf7);
   --md-on-surface:                #181d19;
-  --md-surface-variant:           #dce5de;
+  --md-surface-variant:           color-mix(in srgb, var(--pack-tint) 7%, #dce5de);
   --md-on-surface-variant:        #404944;
-  --md-surface-container-lowest:  #ffffff;
-  --md-surface-container-low:     #f0f4f1;
-  --md-surface-container:         #eaeeeb;
-  --md-surface-container-high:    #e4e9e5;
-  --md-surface-container-highest: #dfe3e0;
+  --md-surface-container-lowest:  color-mix(in srgb, var(--pack-tint) 5%, #ffffff);
+  --md-surface-container-low:     color-mix(in srgb, var(--pack-tint) 7%, #f0f4f1);
+  --md-surface-container:         color-mix(in srgb, var(--pack-tint) 8%, #eaeeeb);
+  --md-surface-container-high:    color-mix(in srgb, var(--pack-tint) 9%, #e4e9e5);
+  --md-surface-container-highest: color-mix(in srgb, var(--pack-tint) 10%, #dfe3e0);
 
   --md-outline:                   #707973;
   --md-outline-variant:           #c0c9c1;
@@ -35,11 +46,11 @@
   --md-elevation-2: 0 1px 2px rgba(0,0,0,.10), 0 2px 6px 2px rgba(0,0,0,.07);
   --md-elevation-3: 0 4px 8px 3px rgba(0,0,0,.09), 0 1px 3px rgba(0,0,0,.10);
 
-  --md-shape-xs:   4px;
-  --md-shape-sm:   8px;
-  --md-shape-md:   12px;
-  --md-shape-lg:   16px;
-  --md-shape-xl:   24px;
+  --md-shape-xs:   6px;
+  --md-shape-sm:   10px;
+  --md-shape-md:   14px;
+  --md-shape-lg:   20px;
+  --md-shape-xl:   28px;
   --md-shape-full: 9999px;
 
   /* Legacy aliases — keeps any remaining className references working */
@@ -53,42 +64,104 @@
   --line:       var(--md-outline-variant);
 }
 
-/* ─── MD3 Color Tokens — Dark ────────────────────────────────────────────── */
-@media (prefers-color-scheme: dark) {
-  :root {
-    --md-primary:                   #5cb87a;
-    --md-on-primary:                #003820;
-    --md-primary-container:         #005232;
-    --md-on-primary-container:      #77db96;
-    --md-primary-container-dim:     color-mix(in srgb, #005232 55%, transparent);
+/* ─── MD3 Color Tokens — Dark ────────────────────────────────────────────────
+   Driven by [data-theme="dark"], set before paint by the inline script in
+   layout.tsx (which resolves "system" from prefers-color-scheme). Light is the
+   bare-:root default above, so no-JS still renders sensibly. */
+:root[data-theme="dark"] {
+  --md-primary:                   #f4bd6e;
+  --md-on-primary:                #462b00;
+  --md-primary-container:         #653e00;
+  --md-on-primary-container:      #ffddb0;
+  --md-primary-container-dim:     color-mix(in srgb, var(--md-primary-container) 55%, transparent);
 
-    --md-secondary:                 #b5ccba;
-    --md-on-secondary:              #213527;
-    --md-secondary-container:       #374b3d;
-    --md-on-secondary-container:    #d1f0d8;
+  --md-secondary:                 #ddc3a1;
+  --md-on-secondary:              #3e2d16;
+  --md-secondary-container:       #56432b;
+  --md-on-secondary-container:    #fadfbc;
 
-    --md-error:                     #ffb4ab;
-    --md-on-error:                  #690005;
-    --md-error-container:           #93000a;
-    --md-on-error-container:        #ffdad6;
+  --md-error:                     #ffb4ab;
+  --md-on-error:                  #690005;
+  --md-error-container:           #93000a;
+  --md-on-error-container:        #ffdad6;
 
-    --md-surface:                   #101410;
-    --md-on-surface:                #e0e4e0;
-    --md-surface-variant:           #404944;
-    --md-on-surface-variant:        #c0c9c1;
-    --md-surface-container-lowest:  #0b0f0c;
-    --md-surface-container-low:     #181d19;
-    --md-surface-container:         #1c211d;
-    --md-surface-container-high:    #272b27;
-    --md-surface-container-highest: #313530;
+  --md-surface:                   color-mix(in srgb, var(--pack-tint) 10%, #101410);
+  --md-on-surface:                #e0e4e0;
+  --md-surface-variant:           color-mix(in srgb, var(--pack-tint) 10%, #404944);
+  --md-on-surface-variant:        #c0c9c1;
+  --md-surface-container-lowest:  color-mix(in srgb, var(--pack-tint) 8%, #0b0f0c);
+  --md-surface-container-low:     color-mix(in srgb, var(--pack-tint) 9%, #181d19);
+  --md-surface-container:         color-mix(in srgb, var(--pack-tint) 10%, #1c211d);
+  --md-surface-container-high:    color-mix(in srgb, var(--pack-tint) 11%, #272b27);
+  --md-surface-container-highest: color-mix(in srgb, var(--pack-tint) 12%, #313530);
 
-    --md-outline:                   #8a938c;
-    --md-outline-variant:           #404944;
+  --md-outline:                   #8a938c;
+  --md-outline-variant:           #404944;
 
-    --md-elevation-1: 0 1px 2px rgba(0,0,0,.25), 0 1px 3px 1px rgba(0,0,0,.18);
-    --md-elevation-2: 0 1px 2px rgba(0,0,0,.30), 0 2px 6px 2px rgba(0,0,0,.22);
-    --md-elevation-3: 0 4px 8px 3px rgba(0,0,0,.28), 0 1px 3px rgba(0,0,0,.30);
-  }
+  --md-elevation-1: 0 1px 2px rgba(0,0,0,.25), 0 1px 3px 1px rgba(0,0,0,.18);
+  --md-elevation-2: 0 1px 2px rgba(0,0,0,.30), 0 2px 6px 2px rgba(0,0,0,.22);
+  --md-elevation-3: 0 4px 8px 3px rgba(0,0,0,.28), 0 1px 3px rgba(0,0,0,.30);
+}
+
+/* ─── Palette packs ──────────────────────────────────────────────────────────
+   Paydirt (green) is the default (the bare token blocks above). Each pack is a
+   coordinated mood: it sets --pack-tint (washes the surfaces) plus the primary
+   and secondary families, once per theme. Hex mirrors packages/shared/src/
+   theme.ts — the single source of truth; theme.css.test keeps them in sync. */
+:root[data-palette="green"] {
+  --pack-tint: #c79a3e;
+  --md-primary: #2f7d4f; --md-on-primary: #ffffff;
+  --md-primary-container: #b7f1cb; --md-on-primary-container: #002113;
+  --md-secondary: #8a6d2f; --md-on-secondary: #ffffff;
+  --md-secondary-container: #fbe2a8; --md-on-secondary-container: #2a1d00;
+}
+:root[data-theme="dark"][data-palette="green"] {
+  --md-primary: #5cb87a; --md-on-primary: #003820;
+  --md-primary-container: #005232; --md-on-primary-container: #77db96;
+  --md-secondary: #e6c27a; --md-on-secondary: #3f2e00;
+  --md-secondary-container: #5a4420; --md-on-secondary-container: #fbe2a8;
+}
+
+:root[data-palette="bubblegum"] {
+  --pack-tint: #c07cd8;
+  --md-primary: #6a42a8; --md-on-primary: #ffffff;
+  --md-primary-container: #ecddff; --md-on-primary-container: #23005c;
+  --md-secondary: #b41d61; --md-on-secondary: #ffffff;
+  --md-secondary-container: #ffd9e2; --md-on-secondary-container: #3e001d;
+}
+:root[data-theme="dark"][data-palette="bubblegum"] {
+  --md-primary: #d3bbff; --md-on-primary: #390094;
+  --md-primary-container: #5126a0; --md-on-primary-container: #ecddff;
+  --md-secondary: #ffb1c8; --md-on-secondary: #5e1133;
+  --md-secondary-container: #7d2949; --md-on-secondary-container: #ffd9e2;
+}
+
+:root[data-palette="tide"] {
+  --pack-tint: #4a90d9;
+  --md-primary: #1560c4; --md-on-primary: #ffffff;
+  --md-primary-container: #d6e3ff; --md-on-primary-container: #001b3d;
+  --md-secondary: #006a6a; --md-on-secondary: #ffffff;
+  --md-secondary-container: #6ff7f6; --md-on-secondary-container: #002020;
+}
+:root[data-theme="dark"][data-palette="tide"] {
+  --md-primary: #a9c7ff; --md-on-primary: #002f64;
+  --md-primary-container: #00468c; --md-on-primary-container: #d6e3ff;
+  --md-secondary: #4cdada; --md-on-secondary: #003737;
+  --md-secondary-container: #004f4f; --md-on-secondary-container: #6ff7f6;
+}
+
+:root[data-palette="slate"] {
+  --pack-tint: #6b8095;
+  --md-primary: #44607a; --md-on-primary: #ffffff;
+  --md-primary-container: #cce0f9; --md-on-primary-container: #001d33;
+  --md-secondary: #4d6357; --md-on-secondary: #ffffff;
+  --md-secondary-container: #d0e8da; --md-on-secondary-container: #0a1f15;
+}
+:root[data-theme="dark"][data-palette="slate"] {
+  --md-primary: #a9c8e6; --md-on-primary: #11324a;
+  --md-primary-container: #2c4962; --md-on-primary-container: #cce0f9;
+  --md-secondary: #b3ccbd; --md-on-secondary: #1e352a;
+  --md-secondary-container: #354b3f; --md-on-secondary-container: #d0e8da;
 }
 
 /* ─── Reset ──────────────────────────────────────────────────────────────── */
@@ -135,9 +208,10 @@ body {
 }
 
 .app-bar-title {
-  font-size: 20px;
-  font-weight: 800;
-  letter-spacing: -0.4px;
+  font-family: var(--font-display);
+  font-size: 21px;
+  font-weight: 600;
+  letter-spacing: -0.2px;
   color: var(--md-on-surface);
   display: flex;
   align-items: center;
@@ -159,9 +233,10 @@ main {
 
 /* ─── Typography ─────────────────────────────────────────────────────────── */
 h1 {
-  font-size: 22px;
-  font-weight: 800;
-  letter-spacing: -0.4px;
+  font-family: var(--font-display);
+  font-size: 23px;
+  font-weight: 600;
+  letter-spacing: -0.2px;
   margin: 0;
   color: var(--md-on-surface);
 }
@@ -209,8 +284,8 @@ p { margin: 0; }
 
 /* ─── Buttons ────────────────────────────────────────────────────────────── */
 button {
-  font-family: inherit;
-  font-size: 14px;
+  font-family: var(--font-display);
+  font-size: 14.5px;
   font-weight: 500;
   letter-spacing: 0.1px;
   cursor: pointer;
@@ -570,9 +645,10 @@ input[type="checkbox"]:focus-visible {
 }
 
 .login-title {
-  font-size: 28px;
-  font-weight: 800;
-  letter-spacing: -0.5px;
+  font-family: var(--font-display);
+  font-size: 30px;
+  font-weight: 700;
+  letter-spacing: -0.2px;
   color: var(--md-primary);
   text-align: center;
   margin: 0 0 4px;
@@ -589,12 +665,22 @@ input[type="checkbox"]:focus-visible {
 }
 
 /* ─── Settings Panel ─────────────────────────────────────────────────────── */
+/* Centered modal. It's rendered inline in the app bar, so without fixed
+   positioning the tall form overflows the 64px bar and runs off the top of the
+   screen. The big box-shadow spread doubles as a backdrop scrim (no extra DOM). */
 .settings-panel {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: min(460px, calc(100vw - 32px));
+  max-height: calc(100vh - 48px);
+  overflow-y: auto;
+  z-index: 100;
   background: var(--md-surface-container-lowest);
   border-radius: var(--md-shape-xl);
   padding: 20px 20px 16px;
-  margin-bottom: 8px;
-  box-shadow: var(--md-elevation-2);
+  box-shadow: 0 0 0 100vmax rgba(0, 0, 0, 0.45), var(--md-elevation-3);
   border: 1px solid var(--md-outline-variant);
 }
 
@@ -630,4 +716,206 @@ input[type="checkbox"]:focus-visible {
   background: var(--md-surface-container-high);
   transform: scale(1.2);
   box-shadow: none;
+}
+
+/* ─── Appearance Switcher ────────────────────────────────────────────────────
+   Palette dots + light/dark toggle. Lives in the app bar; popover anchored by
+   the AppearanceControls component. */
+.appearance {
+  position: relative;
+}
+
+.appearance-popover {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  z-index: 60;
+  width: 240px;
+  background: var(--md-surface-container-high);
+  border: 1px solid var(--md-outline-variant);
+  border-radius: var(--md-shape-lg);
+  box-shadow: var(--md-elevation-3);
+  padding: 14px 16px 16px;
+}
+
+.appearance-popover h3 {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 1.4px;
+  text-transform: uppercase;
+  color: var(--md-on-surface-variant);
+  margin: 0 0 8px;
+}
+
+.appearance-popover h3:not(:first-child) { margin-top: 16px; }
+
+.palette-dots {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.palette-dot {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  border: 3px solid transparent;
+  padding: 0;
+  cursor: pointer;
+  transition: transform 0.15s;
+  box-shadow: none;
+}
+
+.palette-dot:hover:not(:disabled) {
+  transform: scale(1.15);
+  box-shadow: none;
+  background: var(--dot-color);
+}
+
+/* Active ring tracks the current palette via the :root attribute — no JS. */
+:root:not([data-palette]) .palette-dot[data-palette="goldrush"],
+:root[data-palette="goldrush"]  .palette-dot[data-palette="goldrush"],
+:root[data-palette="green"]     .palette-dot[data-palette="green"],
+:root[data-palette="bubblegum"] .palette-dot[data-palette="bubblegum"],
+:root[data-palette="tide"]      .palette-dot[data-palette="tide"],
+:root[data-palette="slate"]     .palette-dot[data-palette="slate"] {
+  border-color: var(--md-on-surface);
+}
+
+.mode-toggle {
+  display: flex;
+  gap: 4px;
+  background: var(--md-surface-container-lowest);
+  border: 1px solid var(--md-outline-variant);
+  border-radius: var(--md-shape-full);
+  padding: 3px;
+}
+
+.mode-toggle button {
+  flex: 1;
+  background: transparent;
+  color: var(--md-on-surface-variant);
+  border-radius: var(--md-shape-full);
+  padding: 6px 8px;
+  font-size: 12px;
+  box-shadow: none;
+  justify-content: center;
+}
+
+.mode-toggle button:hover:not(:disabled) {
+  background: var(--md-surface-container);
+  box-shadow: none;
+}
+
+.mode-toggle button[aria-pressed="true"] {
+  background: var(--md-primary);
+  color: var(--md-on-primary);
+}
+
+/* ─── Tabs ───────────────────────────────────────────────────────────────────
+   Mirrors the mobile bottom-nav IA (Approvals / Kids / Chores) so the parent
+   dashboard stops being one endless scroll. */
+.tabs {
+  display: flex;
+  gap: 6px;
+  margin: 4px 0 8px;
+  padding: 5px;
+  background: var(--md-surface-container);
+  border-radius: var(--md-shape-full);
+  position: sticky;
+  top: 72px;
+  z-index: 40;
+}
+
+.tab {
+  flex: 1;
+  background: transparent;
+  color: var(--md-on-surface-variant);
+  border-radius: var(--md-shape-full);
+  padding: 9px 14px;
+  font-size: 14px;
+  box-shadow: none;
+  justify-content: center;
+}
+
+.tab:hover:not(:disabled) { background: var(--md-surface-container-high); box-shadow: none; }
+
+.tab-active,
+.tab-active:hover:not(:disabled) {
+  background: var(--md-primary);
+  color: var(--md-on-primary);
+}
+
+/* ─── Celebration ────────────────────────────────────────────────────────────
+   Coin-pop on approval — the playful payoff. */
+.celebration {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+  z-index: 200;
+}
+
+.celebration-bit {
+  position: absolute;
+  font-size: 42px;
+  animation: coin-pop 1.05s cubic-bezier(0.2, 0, 0, 1) forwards;
+}
+
+@keyframes coin-pop {
+  0%   { opacity: 0; transform: translate(0, 0) scale(0.2); }
+  15%  { opacity: 1; }
+  60%  { opacity: 1; transform: translate(calc(var(--i) * 56px), -116px) scale(1.1); }
+  100% { opacity: 0; transform: translate(calc(var(--i) * 62px), -150px) scale(0.9); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .celebration-bit { animation-duration: 0.4s; }
+  @keyframes coin-pop {
+    0%   { opacity: 0; transform: scale(0.5); }
+    30%  { opacity: 1; transform: scale(1.1); }
+    100% { opacity: 0; transform: scale(1); }
+  }
+}
+
+/* ─── Tactile filled buttons ─────────────────────────────────────────────────
+   PayDirt's signature feel: filled actions sit on a solid bottom "lip" (a
+   darker shade of themselves) and physically press down when tapped. This is
+   the playful, Duolingo-ish depth cue that sets PayDirt apart from ProfitPath's
+   flat, sleek buttons. Chunkier radius reinforces it. */
+button.primary       { --lip: color-mix(in srgb, var(--md-primary) 62%, black); }
+button.tonal         { --lip: color-mix(in srgb, var(--md-secondary-container) 70%, black); }
+button.danger-filled { --lip: color-mix(in srgb, var(--md-error) 62%, black); }
+
+button.primary,
+button.tonal,
+button.danger-filled {
+  border-radius: 16px;
+  box-shadow: 0 6px 0 var(--lip);
+  transition: transform 0.06s ease, box-shadow 0.06s ease, background 0.15s;
+}
+
+button.primary:hover:not(:disabled),
+button.tonal:hover:not(:disabled),
+button.danger-filled:hover:not(:disabled) {
+  box-shadow: 0 6px 0 var(--lip);
+}
+
+button.primary:active:not(:disabled),
+button.tonal:active:not(:disabled),
+button.danger-filled:active:not(:disabled) {
+  transform: translateY(5px);
+  box-shadow: 0 1px 0 var(--lip);
+}
+
+button.primary:disabled,
+button.tonal:disabled,
+button.danger-filled:disabled { box-shadow: none; }
+
+@media (prefers-reduced-motion: reduce) {
+  button.primary,
+  button.tonal,
+  button.danger-filled { transition: background 0.15s; }
 }

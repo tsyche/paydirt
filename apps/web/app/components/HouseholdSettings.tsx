@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { createPortal } from "react-dom";
 import type { Household } from "@paydirt/shared";
 import { client } from "../lib/client";
 
@@ -56,7 +57,9 @@ export function HouseholdSettings({
 
   const num = (v: string) => (Number(v) >= 0 ? Number(v) : 0);
 
-  return (
+  // Portal to <body> so the modal escapes the app bar's backdrop-filter, which
+  // would otherwise make position:fixed anchor to the 64px bar (clipping the top).
+  return createPortal(
     <div className="settings-panel">
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
         <span style={{ fontWeight: 700, fontSize: 15 }}>Household settings</span>
@@ -174,6 +177,7 @@ export function HouseholdSettings({
         </button>
       </div>
       {error && <p className="error" style={{ marginTop: 8 }}>{error}</p>}
-    </div>
+    </div>,
+    document.body,
   );
 }

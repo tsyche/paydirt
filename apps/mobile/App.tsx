@@ -1,14 +1,20 @@
 import { useEffect, useState } from "react";
-import { useColorScheme } from "react-native";
 import { StatusBar } from "expo-status-bar";
 import { SafeAreaProvider } from "react-native-safe-area-context";
-import { PaperProvider, MD3LightTheme, MD3DarkTheme } from "react-native-paper";
+import { PaperProvider } from "react-native-paper";
+import {
+  useFonts,
+  Fredoka_500Medium,
+  Fredoka_600SemiBold,
+  Fredoka_700Bold,
+} from "@expo-google-fonts/fredoka";
 import type { User } from "@paydirt/shared";
 import { client, pbUrl } from "./lib/client";
 import { Login } from "./screens/Login";
 import { KidHome } from "./screens/KidHome";
 import { SimpleKidHome } from "./screens/SimpleKidHome";
 import { ParentHome } from "./screens/ParentHome";
+import { AppearanceProvider, useAppearance } from "./lib/appearance";
 import {
   requestNotificationPermissions,
   setupNotificationChannels,
@@ -19,22 +25,18 @@ import {
   storePbUrl,
 } from "./lib/backgroundService";
 import { syncUnifiedPushEndpoint } from "./lib/unifiedpush";
+import { NtfySetup } from "./components/NtfySetup";
 
-const lightTheme = {
-  ...MD3LightTheme,
-  colors: { ...MD3LightTheme.colors, primary: "#2f7d4f", secondary: "#b3433a" },
-};
-
-const darkTheme = {
-  ...MD3DarkTheme,
-  colors: { ...MD3DarkTheme.colors, primary: "#5cb87a", secondary: "#e07b72" },
-};
-
-export default function App() {
-  const colorScheme = useColorScheme();
-  const theme = colorScheme === "dark" ? darkTheme : lightTheme;
+function AppContent() {
+  const { theme, scheme } = useAppearance();
+  const [fontsLoaded] = useFonts({
+    Fredoka_500Medium,
+    Fredoka_600SemiBold,
+    Fredoka_700Bold,
+  });
   const [user, setUser] = useState<User | null>(null);
   const [ready, setReady] = useState(false);
+  const [ntfySetupDone, setNtfySetupDone] = useState(false);
 
   useEffect(() => {
     // One-time setup: notification channels, permissions, store the PB URL so
@@ -77,7 +79,7 @@ export default function App() {
   }
 
   function renderScreen() {
-    if (!ready) return null;
+    if (!ready || !fontsLoaded) return null;
     if (!user) return <Login onLogin={setUser} />;
     if (user.role === "child") {
       return user.simplified_mode
@@ -87,12 +89,28 @@ export default function App() {
     return <ParentHome user={user} onLogout={logout} />;
   }
 
+  if (!ntfySetupDone) {
+    return (
+      <PaperProvider theme={theme}>
+        <NtfySetup onComplete={() => setNtfySetupDone(true)} />
+      </PaperProvider>
+    );
+  }
+
+  return (
+    <PaperProvider theme={theme}>
+      {renderScreen()}
+      <StatusBar style={scheme === "dark" ? "light" : "dark"} />
+    </PaperProvider>
+  );
+}
+
+export default function App() {
   return (
     <SafeAreaProvider>
-      <PaperProvider theme={theme}>
-        {renderScreen()}
-        <StatusBar style="auto" />
-      </PaperProvider>
+      <AppearanceProvider>
+        <AppContent />
+      </AppearanceProvider>
     </SafeAreaProvider>
   );
 }

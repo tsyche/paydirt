@@ -12,8 +12,12 @@ async function signIn(page: Page) {
   await page.getByPlaceholder("Email").fill("parent@test.local");
   await page.getByPlaceholder("Password").fill(PW);
   await page.getByRole("button", { name: "Sign in" }).click();
-  await expect(page.getByRole("heading", { name: "Kids" })).toBeVisible();
+  // The dashboard is tabbed (Approvals / Kids / Chores); land on Approvals.
+  await expect(page.getByRole("tab", { name: /Approvals/ })).toBeVisible();
 }
+
+const goTab = (page: Page, name: RegExp) =>
+  page.getByRole("tab", { name }).click();
 
 test("approve a kid's chore idea at a negotiated reward", async ({ page }) => {
   const ideaName = `E2E idea ${Date.now()}`;
@@ -25,11 +29,14 @@ test("approve a kid's chore idea at a negotiated reward", async ({ page }) => {
   page.on("dialog", (d) => void d.accept("12"));
   await signIn(page);
 
+  // Chore ideas surface in the Approvals tab (the default landing tab).
   const ideaRow = page.locator(".card.row").filter({ hasText: ideaName });
   await expect(ideaRow).toBeVisible();
   await ideaRow.getByRole("button", { name: "Approve" }).click();
 
-  // The idea becomes a real chore at the negotiated reward, assigned to the kid
+  // The idea becomes a real chore at the negotiated reward, assigned to the
+  // kid — it now lives in the Chores tab.
+  await goTab(page, /Chores/);
   const choreRow = page
     .locator(".card.row")
     .filter({ hasText: ideaName })

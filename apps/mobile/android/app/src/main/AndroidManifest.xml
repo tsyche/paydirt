@@ -1,7 +1,5 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android" xmlns:tools="http://schemas.android.com/tools">
   <uses-permission android:name="android.permission.INTERNET"/>
-  <uses-permission android:name="android.permission.FOREGROUND_SERVICE"/>
-  <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC"/>
   <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" android:maxSdkVersion="32" tools:replace="android:maxSdkVersion"/>
   <uses-permission android:name="android.permission.RECORD_AUDIO"/>
   <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW"/>
@@ -13,10 +11,9 @@
       <category android:name="android.intent.category.BROWSABLE"/>
       <data android:scheme="https"/>
     </intent>
-    <!-- UnifiedPush distributor (ntfy) -->
     <package android:name="io.heckel.ntfy"/>
   </queries>
-  <application android:name=".MainApplication" android:label="@string/app_name" android:icon="@mipmap/ic_launcher" android:roundIcon="@mipmap/ic_launcher_round" android:allowBackup="true" android:theme="@style/AppTheme" android:supportsRtl="true" android:enableOnBackInvokedCallback="false">
+  <application android:name=".MainApplication" android:label="@string/app_name" android:icon="@mipmap/ic_launcher" android:roundIcon="@mipmap/ic_launcher_round" android:allowBackup="true" android:theme="@style/AppTheme" android:supportsRtl="true" android:enableOnBackInvokedCallback="false" android:networkSecurityConfig="@xml/network_security_config">
     <meta-data android:name="com.google.firebase.messaging.default_notification_color" android:resource="@color/notification_icon_color"/>
     <meta-data android:name="com.google.firebase.messaging.default_notification_icon" android:resource="@drawable/notification_icon"/>
     <meta-data android:name="expo.modules.notifications.default_notification_color" android:resource="@color/notification_icon_color"/>
@@ -31,12 +28,7 @@
         <category android:name="android.intent.category.LAUNCHER"/>
       </intent-filter>
     </activity>
-    <service
-      android:name="com.asterinet.react.bgactions.RNBackgroundActionsTask"
-      android:foregroundServiceType="dataSync"/>
-    <receiver
-      android:name=".UnifiedPushReceiver"
-      android:exported="true">
+    <receiver android:name=".UnifiedPushReceiver" android:exported="true">
       <intent-filter>
         <action android:name="org.unifiedpush.android.connector.NEW_ENDPOINT"/>
         <action android:name="org.unifiedpush.android.connector.UNREGISTERED"/>
@@ -44,19 +36,7 @@
         <action android:name="org.unifiedpush.android.connector.REGISTRATION_FAILED"/>
       </intent-filter>
     </receiver>
-    <!-- Phase 2: Family Link automation via AccessibilityService. -->
-    <!-- User must enable manually: Settings → Accessibility → PayDirt. -->
-    <service
-      android:name=".FamilyLinkAccessibilityService"
-      android:exported="true"
-      android:label="@string/app_name"
-      android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE">
-      <intent-filter>
-        <action android:name="android.accessibilityservice.AccessibilityService"/>
-      </intent-filter>
-      <meta-data
-        android:name="android.accessibilityservice"
-        android:resource="@xml/accessibility_service_config"/>
-    </service>
+    <!-- Background actions service disabled — causing startup crash. Re-enable when needed. -->
+    <!-- service android:name="com.asterinet.react.bgactions.RNBackgroundActionsTask" android:exported="false" / -->
   </application>
 </manifest>

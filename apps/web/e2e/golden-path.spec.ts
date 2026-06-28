@@ -13,8 +13,12 @@ async function signIn(page: Page) {
   await page.getByPlaceholder("Email").fill("parent@test.local");
   await page.getByPlaceholder("Password").fill(PW);
   await page.getByRole("button", { name: "Sign in" }).click();
-  await expect(page.getByRole("heading", { name: "Kids" })).toBeVisible();
+  // The dashboard is tabbed (Approvals / Kids / Chores); land on Approvals.
+  await expect(page.getByRole("tab", { name: /Approvals/ })).toBeVisible();
 }
+
+const goTab = (page: Page, name: RegExp) =>
+  page.getByRole("tab", { name }).click();
 
 test("create → assign → kid completes → approve → undo", async ({ page }) => {
   const choreName = `E2E chore ${Date.now()}`;
@@ -28,20 +32,22 @@ test("create → assign → kid completes → approve → undo", async ({ page }
   await signIn(page);
 
   // Balance is "<number> <currencyName>" — parse the leading integer so a
-  // renamed currency doesn't break the test.
+  // renamed currency doesn't break the test. Kid cards live in the Kids tab.
   const kidBalance = page
     .locator(".card")
     .filter({ hasText: "Kid 1" })
     .locator(".kid-balance");
   const readBalance = async () => parseInt((await kidBalance.innerText()).trim(), 10);
+  await goTab(page, /Kids/);
   const startBalance = await readBalance();
 
-  // Create the chore
+  // Create the chore (Chores tab). The create form is a `.card-filled` block.
+  await goTab(page, /Chores/);
   await page.getByPlaceholder("New chore name").fill(choreName);
   const createCard = page
-    .locator(".card")
+    .locator(".card-filled")
     .filter({ has: page.getByPlaceholder("New chore name") });
-  await createCard.locator('input[type="number"]').fill(String(REWARD));
+  await createCard.getByPlaceholder("Reward").fill(String(REWARD));
   await page.getByRole("button", { name: "Add chore" }).click();
 
   // Assign it to Kid 1
@@ -50,7 +56,7 @@ test("create → assign → kid completes → approve → undo", async ({ page }
     .filter({ hasText: choreName })
     .filter({ has: page.getByRole("button", { name: "Assign" }) });
   await expect(choreRow).toBeVisible();
-  await choreRow.getByRole("combobox").selectOption({ label: "Kid 1" });
+  await choreRow.getByRole("checkbox", { name: /Kid 1/ }).check();
   await choreRow.getByRole("button", { name: "Assign" }).click();
 
   // Kid completes it (via API — the kid app is mobile)
@@ -69,7 +75,7 @@ test("create → assign → kid completes → approve → undo", async ({ page }
     .not.toBe("");
   await api.markComplete(assignmentId);
 
-  // Approve it in the dashboard
+  // Approve it in the dashboard (reload resets to the Approvals tab)
   await page.reload();
   const approvalRow = page
     .locator(".card.row")
@@ -77,15 +83,18 @@ test("create → assign → kid completes → approve → undo", async ({ page }
     .filter({ has: page.getByRole("button", { name: "Approve" }) });
   await expect(approvalRow).toBeVisible();
   await approvalRow.getByRole("button", { name: "Approve" }).click();
+  await goTab(page, /Kids/);
   await expect.poll(readBalance).toBe(startBalance + REWARD);
 
-  // Undo from "Recently approved" — balance must come back
+  // Undo from "Recently approved" (Approvals tab) — balance must come back
+  await goTab(page, /Approvals/);
   const undoRow = page
     .locator(".card.row")
     .filter({ hasText: choreName })
     .filter({ has: page.getByRole("button", { name: "Undo" }) });
   await expect(undoRow).toBeVisible();
   await undoRow.getByRole("button", { name: "Undo" }).click();
+  await goTab(page, /Kids/);
   await expect.poll(readBalance).toBe(startBalance);
 
   // Cleanup: close out the assignment and retire the chore
@@ -95,6 +104,7 @@ test("create → assign → kid completes → approve → undo", async ({ page }
 
 test("broadcast a message to all kids", async ({ page }) => {
   await signIn(page);
+  await goTab(page, /Kids/);
   await page
     .getByPlaceholder("Message all kids (e.g. Dinner in 10 minutes!)")
     .fill("E2E broadcast test");

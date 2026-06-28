@@ -14,6 +14,15 @@ import type {
 } from "@paydirt/shared";
 import { client } from "../lib/client";
 import { HouseholdSettings } from "./HouseholdSettings";
+import { AppearanceControls } from "./AppearanceControls";
+import { Celebration } from "./Celebration";
+
+type TabKey = "approvals" | "kids" | "chores";
+const TABS: { key: TabKey; label: string }[] = [
+  { key: "approvals", label: "📥 Approvals" },
+  { key: "kids", label: "🧒 Kids" },
+  { key: "chores", label: "📋 Chores" },
+];
 
 type Expanded<T> = T & { expand?: Record<string, User | Chore> };
 
@@ -61,6 +70,9 @@ export function Dashboard({
   const [recentApproved, setRecentApproved] = useState<Expanded<Assignment>[]>([]);
   const [error, setError] = useState("");
   const [templateFill, setTemplateFill] = useState<ChoreTemplate | null>(null);
+  const [tab, setTab] = useState<TabKey>("approvals");
+  const [celebrate, setCelebrate] = useState(0);
+  const party = () => setCelebrate((n) => n + 1);
 
   const currencyName = household?.currency_name?.trim() || "parentBucks";
   const goodsRate = household?.goods_rate ?? 0;
@@ -129,6 +141,7 @@ export function Dashboard({
             PayDirt
           </div>
           <div className="inline">
+            <AppearanceControls />
             {household && (
               <HouseholdSettings household={household} onSaved={reload} />
             )}
@@ -142,6 +155,21 @@ export function Dashboard({
       <main>
         {error && <p className="error" style={{ marginBottom: 12 }}>⚠️ {error}</p>}
 
+        <div className="tabs" role="tablist">
+          {TABS.map((t) => (
+            <button
+              key={t.key}
+              role="tab"
+              aria-selected={tab === t.key}
+              className={`tab${tab === t.key ? " tab-active" : ""}`}
+              onClick={() => setTab(t.key)}
+            >
+              {t.label}
+            </button>
+          ))}
+        </div>
+
+        {tab === "kids" && (<>
         {/* ── Kids ── */}
         <h2>Kids</h2>
         {kids.length === 0 && (
@@ -207,7 +235,9 @@ export function Dashboard({
         {kids.length > 0 && (
           <BroadcastControl householdId={householdId} senderId={user.id} />
         )}
+        </>)}
 
+        {tab === "approvals" && (<>
         {/* ── Chore proposals ── */}
         {proposals.length > 0 && (
           <>
@@ -235,26 +265,28 @@ export function Dashboard({
                 {selectedApprovals.size > 0 && (
                   <button
                     className="primary sm"
-                    onClick={() =>
+                    onClick={() => {
+                      party();
                       act(() =>
                         Promise.all(
                           [...selectedApprovals].map((id) => client.approveAssignment(id))
                         ).then(() => {})
-                      )
-                    }
+                      );
+                    }}
                   >
                     Approve selected ({selectedApprovals.size})
                   </button>
                 )}
                 <button
                   className="primary sm"
-                  onClick={() =>
+                  onClick={() => {
+                    party();
                     act(() =>
                       Promise.all(approvals.map((a) => client.approveAssignment(a.id))).then(
                         () => {}
                       )
-                    )
-                  }
+                    );
+                  }}
                 >
                   Approve all
                 </button>
@@ -322,7 +354,10 @@ export function Dashboard({
               <div className="inline" style={{ flexShrink: 0 }}>
                 <button
                   className="primary sm"
-                  onClick={() => act(() => client.approveAssignment(a.id))}
+                  onClick={() => {
+                    party();
+                    act(() => client.approveAssignment(a.id));
+                  }}
                 >
                   Approve
                 </button>
@@ -428,7 +463,9 @@ export function Dashboard({
             </div>
           );
         })}
+        </>)}
 
+        {tab === "chores" && (<>
         {/* ── Activity report ── */}
         <ActivityReport kids={kids} currencyName={currencyName} />
 
@@ -448,7 +485,10 @@ export function Dashboard({
         {chores.map((c) => (
           <ChoreRow key={c.id} chore={c} kids={kids} currencyName={currencyName} onChanged={reload} />
         ))}
+        </>)}
       </main>
+
+      <Celebration trigger={celebrate} />
     </div>
   );
 }
