@@ -81,6 +81,33 @@ export class PaydirtClient {
     });
   }
 
+  listParents(householdId: string): Promise<User[]> {
+    return this.pb.collection(Collections.Users).getFullList<User>({
+      filter: this.pb.filter("household = {:hh} && role = 'parent'", { hh: householdId }),
+      sort: "display_name",
+    });
+  }
+
+  async createCoParent(
+    email: string,
+    displayName: string,
+    password: string,
+    ntfyTopic?: string,
+  ): Promise<User> {
+    const householdId = this.currentUser?.household;
+    if (!householdId) throw new Error("Not logged in");
+    return this.pb.collection(Collections.Users).create<User>({
+      email,
+      password,
+      passwordConfirm: password,
+      emailVisibility: false,
+      display_name: displayName,
+      role: "parent",
+      household: householdId,
+      ...(ntfyTopic ? { ntfy_topic: ntfyTopic } : {}),
+    });
+  }
+
   listChores(householdId: string): Promise<Chore[]> {
     return this.pb.collection(Collections.Chores).getFullList<Chore>({
       filter: this.pb.filter("household = {:hh} && active = true", { hh: householdId }),

@@ -89,6 +89,14 @@ export function ParentHome({ user, onLogout }: { user: User; onLogout: () => voi
 
   const [a11yEnabled, setA11yEnabled] = useState<boolean | null>(null);
 
+  // Co-parent management
+  const [coParents, setCoParents] = useState<User[]>([]);
+  const [showAddParent, setShowAddParent] = useState(false);
+  const [newParentEmail, setNewParentEmail] = useState("");
+  const [newParentName, setNewParentName] = useState("");
+  const [newParentPass, setNewParentPass] = useState("");
+  const [addingParent, setAddingParent] = useState(false);
+
   const currencyName = household?.currency_name?.trim() || "parentBucks";
   const goodsRate = household?.goods_rate ?? 0;
 
@@ -185,6 +193,25 @@ export function ParentHome({ user, onLogout }: { user: User; onLogout: () => voi
       String(proposal.reward_requested),
       "number-pad",
     );
+  }
+
+  async function addCoParent() {
+    if (!newParentEmail.trim() || !newParentName.trim() || !newParentPass) return;
+    setAddingParent(true);
+    try {
+      await client.createCoParent(newParentEmail.trim(), newParentName.trim(), newParentPass);
+      const updated = await client.listParents(user.household);
+      setCoParents(updated);
+      setShowAddParent(false);
+      setNewParentEmail("");
+      setNewParentName("");
+      setNewParentPass("");
+      setSnack("Co-parent added ✅");
+    } catch (e) {
+      setSnack("Failed: " + (e instanceof Error ? e.message : String(e)));
+    } finally {
+      setAddingParent(false);
+    }
   }
 
   async function broadcast() {
@@ -326,14 +353,17 @@ export function ParentHome({ user, onLogout }: { user: User; onLogout: () => voi
   }, [showCreateChore, user.household]);
 
   useEffect(() => {
-    if (tab === "settings" && Platform.OS === "android") {
-      try {
-        setA11yEnabled(isAccessibilityServiceEnabled());
-      } catch {
-        setA11yEnabled(false);
+    if (tab === "settings") {
+      if (Platform.OS === "android") {
+        try {
+          setA11yEnabled(isAccessibilityServiceEnabled());
+        } catch {
+          setA11yEnabled(false);
+        }
       }
+      client.listParents(user.household).then(setCoParents).catch(() => {});
     }
-  }, [tab]);
+  }, [tab, user.household]);
 
   function toggleKidForChore(choreId: string, kidId: string) {
     setAssignSelections((prev) => {
@@ -446,6 +476,88 @@ export function ParentHome({ user, onLogout }: { user: User; onLogout: () => voi
             </Card.Content>
           </Card>
         )}
+        <Card style={styles.broadcastCard}>
+          <Card.Content>
+            <Text variant="labelLarge" style={[styles.sectionLabel, { color: theme.colors.onSurfaceVariant }]}>
+              CO-PARENTS
+            </Text>
+            {coParents.filter((p) => p.id !== user.id).length === 0 ? (
+              <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant, marginBottom: 8 }}>
+                No co-parents yet. Add one so another parent can log in.
+              </Text>
+            ) : (
+              coParents
+                .filter((p) => p.id !== user.id)
+                .map((p) => (
+                  <Text key={p.id} variant="bodyMedium" style={{ marginBottom: 4 }}>
+                    {p.display_name} — {p.email}
+                  </Text>
+                ))
+            )}
+            {!showAddParent ? (
+              <Button
+                mode="text"
+                icon="account-plus"
+                compact
+                onPress={() => setShowAddParent(true)}
+              >
+                Add co-parent
+              </Button>
+            ) : (
+              <View style={{ gap: 8, marginTop: 4 }}>
+                <TextInput
+                  mode="outlined"
+                  label="Email"
+                  value={newParentEmail}
+                  onChangeText={setNewParentEmail}
+                  autoCapitalize="none"
+                  keyboardType="email-address"
+                  dense
+                />
+                <TextInput
+                  mode="outlined"
+                  label="Display name"
+                  value={newParentName}
+                  onChangeText={setNewParentName}
+                  dense
+                />
+                <TextInput
+                  mode="outlined"
+                  label="Password"
+                  value={newParentPass}
+                  onChangeText={setNewParentPass}
+                  secureTextEntry
+                  dense
+                />
+                <View style={styles.rowBtns}>
+                  <Button
+                    onPress={() => {
+                      setShowAddParent(false);
+                      setNewParentEmail("");
+                      setNewParentName("");
+                      setNewParentPass("");
+                    }}
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    mode="contained"
+                    onPress={addCoParent}
+                    loading={addingParent}
+                    disabled={
+                      addingParent ||
+                      !newParentEmail.trim() ||
+                      !newParentName.trim() ||
+                      !newParentPass
+                    }
+                  >
+                    Add
+                  </Button>
+                </View>
+              </View>
+            )}
+          </Card.Content>
+        </Card>
         <Card style={styles.broadcastCard}>
           <Card.Content style={styles.broadcastContent}>
             <TextInput
@@ -982,6 +1094,7 @@ const styles = StyleSheet.create({
   a11yBannerBtn: { alignSelf: "flex-start", borderRadius: 10 },
   a11yEnabledCard: { borderWidth: 1, borderColor: "#10B981" },
   broadcastContent: { gap: 8 },
+  rowBtns: { flexDirection: "row", justifyContent: "flex-end", gap: 8 },
   broadcastInput: { flex: 1 },
   broadcastBtn: { borderRadius: 12, alignSelf: "flex-end" },
 

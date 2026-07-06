@@ -143,11 +143,18 @@ async function main() {
   const hh = household.id;
 
   // Users
-  const parent = await upsertUser("parent@test.local", {
+  // Two parent accounts so multi-device testing works out of the box.
+  const parent = await upsertUser("parent1@test.local", {
     role: "parent",
-    display_name: "Parent",
+    display_name: "Parent 1",
     household: hh,
-    ntfy_topic: "paydirt-parent",
+    ntfy_topic: "paydirt-parent1",
+  });
+  await upsertUser("parent2@test.local", {
+    role: "parent",
+    display_name: "Parent 2",
+    household: hh,
+    ntfy_topic: "paydirt-parent2",
   });
   const kid1 = await upsertUser("child1@test.local", {
     role: "child",
@@ -199,8 +206,9 @@ async function main() {
 
   console.log("\nDone. Logins (all password: " + PW + "):");
   console.log("  admin@paydirt.local   (superuser)");
-  console.log("  parent@test.local     (parent)");
-  console.log("  child1@test.local      (Kid 1)");
+  console.log("  parent1@test.local    (Parent 1)");
+  console.log("  parent2@test.local    (Parent 2)");
+  console.log("  child1@test.local     (Kid 1)");
   console.log("  child2@test.local     (Kid 2)");
 }
 

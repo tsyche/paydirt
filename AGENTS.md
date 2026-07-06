@@ -49,10 +49,11 @@ For the live test targets, start the backend with notifications muted so test
 runs don't blast the real ntfy.sh topics: `NTFY_DISABLED=1 just dev-pb`, then
 `just seed`.
 
-Test data: `just seed` (idempotent) populates a "Test Family" household with a
-parent, two kids, chores, and sample activity. It talks to the running server's
+Test data: `just seed` (idempotent) populates a "Test Family" household with two
+parents, two kids, chores, and sample activity. It talks to the running server's
 API. For a clean, ledger-consistent slate: stop the server, `just reset-db`,
-start the server, then `just seed`. All seeded logins use password `password123`.
+start the server, then `just seed`. All seeded logins use password `password123`:
+`parent1@test.local`, `parent2@test.local`, `child1@test.local`, `child2@test.local`.
 
 PocketBase binary is not committed — run `just pb-download` (or grab it from the [releases page](https://github.com/pocketbase/pocketbase/releases)) into `pocketbase/`.
 
