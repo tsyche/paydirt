@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Configuration for FamilyLinkAccessibilityService.
+  - packageNames: watch only Family Link parental app windows.
+  - accessibilityEventTypes: window state changes (dialogs/screens) + notifications.
+  - accessibilityFeedbackType: generic (we do not use audio/haptic feedback).
+  - canRetrieveWindowContent: required to inspect view hierarchy and find buttons.
+  - notificationTimeout: minimum ms between redundant events (keep low for responsiveness).
+-->
+<accessibility-service
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    android:accessibilityEventTypes="typeWindowStateChanged|typeNotificationStateChanged|typeWindowContentChanged"
+    android:accessibilityFeedbackType="feedbackGeneric"
+    android:accessibilityFlags="flagDefault|flagRetrieveInteractiveWindows"
+    android:canRetrieveWindowContent="true"
+    android:description="@string/accessibility_service_description"
+    android:notificationTimeout="100"
+    android:packageNames="com.google.android.apps.kids.familylinkparental" />

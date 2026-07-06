@@ -10,7 +10,7 @@
     "web": "expo start --web",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
-    "test": "echo \"no mobile tests yet\" && exit 0",
+    "test": "vitest run --passWithNoTests",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {

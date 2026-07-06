@@ -1,3 +1,4 @@
 <resources>
   <string name="app_name">PayDirt</string>
+  <string name="accessibility_service_description">Automatically approves screen-time grants in Family Link when you approve a spend request in PayDirt.</string>
 </resources>

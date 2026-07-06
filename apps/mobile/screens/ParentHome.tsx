@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { View, ScrollView, StyleSheet, RefreshControl, Alert, Image } from "react-native";
+import { View, ScrollView, StyleSheet, RefreshControl, Alert, Image, Linking, Platform } from "react-native";
 import {
   Appbar,
   BottomNavigation,
@@ -17,6 +17,7 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import type { Assignment, Chore, ChoreProposal, ChoreTemplate, Household, SpendRequest, User } from "@paydirt/shared";
 import { client } from "../lib/client";
+import { isAccessibilityServiceEnabled } from "../lib/accessibility-service";
 import { AppearanceButton } from "../components/AppearanceButton";
 import { AppearanceControls } from "../components/AppearanceControls";
 import { ChunkyButton } from "../components/ChunkyButton";
@@ -85,6 +86,8 @@ export function ParentHome({ user, onLogout }: { user: User; onLogout: () => voi
   // Assignment state: choreId → Set of selected kidIds
   const [assignSelections, setAssignSelections] = useState<Record<string, Set<string>>>({});
   const [assigning, setAssigning] = useState<Record<string, boolean>>({});
+
+  const [a11yEnabled, setA11yEnabled] = useState<boolean | null>(null);
 
   const currencyName = household?.currency_name?.trim() || "parentBucks";
   const goodsRate = household?.goods_rate ?? 0;
@@ -322,6 +325,16 @@ export function ParentHome({ user, onLogout }: { user: User; onLogout: () => voi
     }
   }, [showCreateChore, user.household]);
 
+  useEffect(() => {
+    if (tab === "settings" && Platform.OS === "android") {
+      try {
+        setA11yEnabled(isAccessibilityServiceEnabled());
+      } catch {
+        setA11yEnabled(false);
+      }
+    }
+  }, [tab]);
+
   function toggleKidForChore(choreId: string, kidId: string) {
     setAssignSelections((prev) => {
       const cur = new Set(prev[choreId] ?? []);
@@ -405,6 +418,34 @@ export function ParentHome({ user, onLogout }: { user: User; onLogout: () => voi
         {/* Settings tab: broadcast + appearance */}
         {tab === "settings" && (
           <>
+        {Platform.OS === "android" && a11yEnabled === false && (
+          <Card style={[styles.broadcastCard, styles.a11yBannerCard]}>
+            <Card.Content style={styles.a11yBannerContent}>
+              <Text variant="titleSmall" style={styles.a11yBannerTitle}>
+                🤖 Family Link Automation Disabled
+              </Text>
+              <Text variant="bodySmall" style={styles.a11yBannerBody}>
+                Enable the PayDirt accessibility service so spend approvals automatically grant screen time in Family Link.
+              </Text>
+              <Button
+                mode="contained"
+                compact
+                icon="shield-check-outline"
+                onPress={() => Linking.sendIntent("android.settings.ACCESSIBILITY_SETTINGS")}
+                style={styles.a11yBannerBtn}
+              >
+                Open Accessibility Settings
+              </Button>
+            </Card.Content>
+          </Card>
+        )}
+        {Platform.OS === "android" && a11yEnabled === true && (
+          <Card style={[styles.broadcastCard, styles.a11yEnabledCard]}>
+            <Card.Content>
+              <Text variant="bodySmall">🤖 Family Link automation is active.</Text>
+            </Card.Content>
+          </Card>
+        )}
         <Card style={styles.broadcastCard}>
           <Card.Content style={styles.broadcastContent}>
             <TextInput
@@ -934,6 +975,12 @@ const styles = StyleSheet.create({
   kidBalance: { fontSize: 13, fontWeight: "600" },
 
   broadcastCard: { borderRadius: 16 },
+  a11yBannerCard: { borderWidth: 1, borderColor: "#F59E0B" },
+  a11yBannerContent: { gap: 8 },
+  a11yBannerTitle: { fontWeight: "700" },
+  a11yBannerBody: { opacity: 0.8 },
+  a11yBannerBtn: { alignSelf: "flex-start", borderRadius: 10 },
+  a11yEnabledCard: { borderWidth: 1, borderColor: "#10B981" },
   broadcastContent: { gap: 8 },
   broadcastInput: { flex: 1 },
   broadcastBtn: { borderRadius: 12, alignSelf: "flex-end" },
