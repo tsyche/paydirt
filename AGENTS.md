@@ -58,7 +58,7 @@ PocketBase binary is not committed — run `just pb-download` (or grab it from t
 
 ## Toolchain notes (non-obvious)
 
-- **Node** via asdf (`.tool-versions` → nodejs 24.7.0). **pnpm** via corepack; if `pnpm` isn't found after enabling, run `asdf reshim nodejs`.
+- **Node** via asdf (`.tool-versions` → nodejs 26.4.0). **pnpm** via corepack; if `pnpm` isn't found after enabling, run `asdf reshim nodejs`. Note: Node 26+ doesn't bundle corepack — run `npm install -g corepack && corepack enable && asdf reshim nodejs` once after installing a new Node version.
 - **`node-linker=hoisted`** (in `.npmrc`) is required — React Native / Expo's Metro bundler assumes a flat `node_modules`, and pnpm's default symlinked layout breaks resolution of transitive deps (`@babel/runtime`, `expo-modules-core`).
 - **React is pinned to 19.2.3 workspace-wide** via `pnpm.overrides` (root `package.json`). Expo SDK 56 needs that exact version; without the override, hoisting mixes React versions and Next's prerender fails with a null `useContext`.
 - **`@paydirt/shared`** is consumed as TypeScript source (no build step). Imports are extensionless so vitest, Next/webpack, and Metro all resolve them. Next transpiles it via `transpilePackages`.

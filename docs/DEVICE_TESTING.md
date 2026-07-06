@@ -86,11 +86,6 @@ adb install -r apps/mobile/android/app/build/outputs/apk/debug/app-debug.apk
 - [ ] Chore cards with large "I did it!" buttons
 - [ ] Broadcast cards show in blue
 
-### Persistent service indicator
-The notification shade will show a small "PayDirt — Watching for chore updates"
-entry. This is expected — it's what keeps notifications working when the app is
-in the background. Importance is set to LOW so it makes no sound and stays quiet.
-
 ## Useful adb commands
 
 ```bash

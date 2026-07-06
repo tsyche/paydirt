@@ -41,9 +41,9 @@ export class PaydirtClient {
       return auth.record as unknown as User;
     } catch (e) {
       console.error("[PaydirtClient.login] Full error:", e);
-      const error = e as any;
-      const msg = error?.response?.message || error?.message || error?.toString?.() || "Auth failed";
-      const status = error?.status || error?.response?.status || "";
+      const error = e as Record<string, unknown> & { response?: Record<string, unknown> };
+      const msg = (error?.response?.message as string) || (error?.message as string) || String(e) || "Auth failed";
+      const status = (error?.status as string) || (error?.response?.status as string) || "";
       const fullMsg = `${msg}${status ? ` (${status})` : ""}`;
       console.error("[PaydirtClient.login] Throwing:", fullMsg);
       throw new Error(fullMsg);

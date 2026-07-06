@@ -39,7 +39,7 @@ Current scope tracker. See [ROADMAP.md](./ROADMAP.md) for phasing and the full p
 - **Weekly digest** — Sunday-evening ntfy summary to parents (per-kid chores, earned/spent, balances, pending approvals).
 - **Vacation mode** — household pause switch suspends cron reminders, nudges, digest, and expiry.
 - **Household settings panel** — currency name, bank threshold, expiry days, goods rate, nudge hours, vacation mode — all in the dashboard.
-- **Dev tooling** — `just dev-all` starts PB + web + Expo in one command with emulator check, health polling, and cache clear; `just stop` kills everything including the emulator app; `just dev-all reset=1` wipes and reseeds. `just seed`, `just reset-db`, `just lint`, `just typecheck`.
+- **Dev tooling** — `just fresh` starts PB + web + Expo in one command with emulator check, health polling, and cache clear; `just stop` kills everything including the emulator app; `just fresh nuke=1` wipes node_modules and reseeds. `just seed`, `just reset-db`, `just lint`, `just typecheck`.
 
 ## Not Yet Implemented
 
