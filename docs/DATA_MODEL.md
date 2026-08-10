@@ -4,10 +4,12 @@ Authoritative spec for the PocketBase collections. The TypeScript mirror lives i
 `packages/shared/src/types.ts`; the migrations that create these live in
 `pocketbase/pb_migrations/`. Keep all three in sync.
 
-All base collections also carry `created` and `updated` autodate fields (added in
-`1717000002_add_timestamps.js`). PocketBase v0.23+ does **not** add these
-automatically — they're declared explicitly so sorting/filtering by timestamp
-works (omitting them previously caused `sort=created` queries to 400).
+All base collections also carry `created` and `updated` autodate fields. PocketBase
+v0.23+ does **not** add these automatically, so they're declared explicitly: the
+original five collections got them retrofitted in `1717000002_add_timestamps.js`,
+and later collections (`broadcasts`, `savings_goals`, `chore_proposals`, etc.)
+declare them in their own creation migration. Omitting them previously caused
+`sort=created` queries to 400.
 
 ## Collections
 

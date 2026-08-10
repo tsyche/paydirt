@@ -9,7 +9,7 @@ A private family chore tracking app. Parents assign chores; kids complete them o
 - **apps/web** — Next.js parent dashboard
 - **apps/mobile** — Expo (React Native) + react-native-paper (Material Design 3); single binary, role-gated parent/kid views; no Google Play Services dependency (runs on GrapheneOS / LineageOS)
 - **packages/shared** — shared TypeScript types, API clients, business logic, validation
-- **pocketbase/** — PocketBase backend (auth, SQLite, real-time, file storage, JS hooks for business logic). Binary downloaded separately; `pb_hooks/` and `pb_migrations/` are version-controlled
+- **pocketbase/** — PocketBase backend (auth, SQLite, real-time, file storage, JS hooks for business logic). Binary downloaded separately; `pb_hooks/` and `pb_migrations/` are version-controlled. Setup details: [pocketbase/README.md](./pocketbase/README.md)
 - **ntfy** — all push notifications (no FCM); public ntfy.sh for now, self-hosted on VPS later
 
 ## Project Structure

@@ -22,6 +22,8 @@ just test-e2e           # Playwright dashboard tests (needs running, seeded PB)
 
 For live tests: `NTFY_DISABLED=1 just dev-pb`, then `just seed`.
 
+For physical Android device testing, see [docs/DEVICE_TESTING.md](./docs/DEVICE_TESTING.md).
+
 ## Lint + typecheck
 
 ```bash

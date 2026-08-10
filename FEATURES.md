@@ -32,8 +32,8 @@ Current scope tracker. See [ROADMAP.md](./ROADMAP.md) for phasing and status. Or
 - **Goods conversion display** — household `goods_rate` (bucks per $1) shown on spend requests and the kid's spend dialog.
 - **Scheduled chore reminders** — per-chore "HH:MM"; cron reminds assigned kids once a day.
 - **Approval nudges** — parents pinged when a completion sits unapproved longer than `nudge_hours`.
-- **Approval reactions** — parents react with an emoji from "Recently approved"; kid gets pinged and sees it in history.
-- **Kid reminders** — kids set one-shot reminders (1h / 3h / tomorrow) on their own chores.
+- **Approval reactions** — parents react with an emoji from "Recently approved"; shown in the kid's history.
+- **Kid reminders** — kids set one-shot reminders (30m / 1h / 3h / tomorrow morning) on their own chores.
 - **Chore swap** — kid offers a chore to a sibling, who accepts (takes ownership) or declines; guarded server-side.
 - **Streak bonuses** — consecutive earn-days tracked per kid (🔥 shown in both apps); milestone bonuses at 3/7/14/30 days.
 - **Weekly digest** — Sunday-evening ntfy summary to parents (per-kid chores, earned/spent, balances, pending approvals).

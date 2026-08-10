@@ -22,4 +22,4 @@ Expo + an emulator, testing on a real phone, and shipping a release build.
 - **Backend**: PocketBase (auth, DB, real-time, file storage, JS hooks)
 - **Notifications**: ntfy (no FCM / no Google Play Services)
 
-Detailed dev docs: [CLAUDE.md](./CLAUDE.md) · Scope: [FEATURES.md](./FEATURES.md) · [ROADMAP.md](./ROADMAP.md)
+Detailed dev docs: [CLAUDE.md](./CLAUDE.md) · Scope: [FEATURES.md](./FEATURES.md) · [ROADMAP.md](./ROADMAP.md) · [CONTRIBUTING.md](./CONTRIBUTING.md) · [CHANGELOG.md](./CHANGELOG.md)
