@@ -103,7 +103,7 @@ The notification pipeline (`UnifiedPushReceiver.kt` + `up_endpoint` server-side 
 
 ## Quality & Infrastructure
 
-Added 2026-08-10. All four are agent-doable — no hardware, no new accounts.
+Added 2026-08-10. Items 1-4 are fully agent-doable — no hardware, no new accounts.
 
 1. **CI pipeline (GitHub Actions)**
    - There is no CI at all today. 9 test files plus integration and e2e suites run only when someone remembers to type `just test`.
@@ -128,6 +128,16 @@ Added 2026-08-10. All four are agent-doable — no hardware, no new accounts.
    - Detect unreachable backend, show a plain "can't reach home" state instead of an error, retry on reconnect, and keep the last-known balance visible rather than blanking it.
    - Done when the app degrades legibly with PocketBase stopped.
    - ~2-3 hours effort
+
+5. **App auto-updates (no Play Store)**
+   - Kids' devices currently only update by plugging in a cable. No Play Services means no Play Store auto-update, no Play Core in-app update API, no Firebase App Distribution — the whole conventional path is out.
+   - **Tier 1 — `expo-updates` OTA.** Covers JS/TS, components, business logic, styling. Does *not* require EAS; point `updates.url` at a self-hosted manifest (PocketBase can serve it). Silent, no user interaction — which is the entire point, since the users are 6 and 11 and will not reliably tap through an installer.
+   - **Tier 2 — version check + APK prompt.** For native changes (`FamilyLinkAccessibilityService.kt`, new native deps, SDK bumps) that OTA structurally cannot deliver. App polls a version endpoint, downloads, fires an install intent. Needs `REQUEST_INSTALL_PACKAGES`; Android forces a user tap, no way around it.
+   - **Configure rollback as part of tier 1, not after.** A bad JS bundle remotely bricks the app on every kid's device simultaneously. `expo-updates` supports rollback but only if set up deliberately.
+   - Alternatives considered: self-hosted F-Droid repo (proper no-Google answer, but real infrastructure and the kids need the F-Droid client) and Obtainium pointed at GitHub releases (near-zero server work, fiddly against a private repo).
+   - **Sequence after the real-device smoke test and off-LAN access** — the update check needs to reach a server, and building a delivery pipeline before confirming the app runs on GrapheneOS is backwards.
+   - ~3-4 hrs per tier, ~1 day for both
+   - 🧑 needs-human: final validation that an update actually lands on a GrapheneOS device. The client wiring, manifest endpoint, and rollback config are all agent-doable.
 
 ## Backlog (unscheduled)
 
