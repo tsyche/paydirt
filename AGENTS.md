@@ -61,7 +61,7 @@ PocketBase binary is not committed — run `just pb-download` (or grab it from t
 
 - **Node** via asdf (`.tool-versions` → nodejs 26.4.0). **pnpm** via corepack; if `pnpm` isn't found after enabling, run `asdf reshim nodejs`. Note: Node 26+ doesn't bundle corepack — run `npm install -g corepack && corepack enable && asdf reshim nodejs` once after installing a new Node version.
 - **`node-linker=hoisted`** (in `.npmrc`) is required — React Native / Expo's Metro bundler assumes a flat `node_modules`, and pnpm's default symlinked layout breaks resolution of transitive deps (`@babel/runtime`, `expo-modules-core`).
-- **React is pinned to 19.2.3 workspace-wide** via `pnpm.overrides` (root `package.json`). Expo SDK 56 needs that exact version; without the override, hoisting mixes React versions and Next's prerender fails with a null `useContext`.
+- **React is pinned to 19.2.3 workspace-wide** via `pnpm.overrides` (root `package.json`). Expo SDK 57 needs that exact version; without the override, hoisting mixes React versions and Next's prerender fails with a null `useContext`.
 - **`@paydirt/shared`** is consumed as TypeScript source (no build step). Imports are extensionless so vitest, Next/webpack, and Metro all resolve them. Next transpiles it via `transpilePackages`.
 - The PostToolUse hook syncs `AGENTS.md` → `CLAUDE.md`; edit **AGENTS.md**, not CLAUDE.md.
 
@@ -74,4 +74,4 @@ PocketBase binary is not committed — run `just pb-download` (or grab it from t
 - **No Google**: Stack deliberately avoids Play Services. ntfy over FCM, PocketBase over Firebase.
 - **Family Link automation** is a future phase (Accessibility Service, then custom MDM) — see plan.
 
-Full phased plan: `~/.windsurf/plans/choregalore-plan.md` (codename was "choregalore"). See `ROADMAP.md` and `FEATURES.md` for current scope.
+`ROADMAP.md` is the authoritative source for phase and status; `FEATURES.md` tracks scope. The original design scratchpad (rationale + alternatives, archived 2026-08-10) is at `~/.claude/plans/archive/paydirt-plan.md` — codename was "choregalore".

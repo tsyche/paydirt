@@ -1,6 +1,14 @@
 # Roadmap
 
-Full detail and rationale: `~/.windsurf/plans/choregalore-plan.md`. Scope checklist: [FEATURES.md](./FEATURES.md).
+Scope checklist: [FEATURES.md](./FEATURES.md). **This file is the authoritative
+status tracker.**
+
+Original design scratchpad (rationale + alternatives considered, not status):
+`~/.claude/plans/archive/paydirt-plan.md` — archived 2026-08-10, formerly
+`~/.windsurf/plans/choregalore-plan.md`.
+
+**Doability tags:** items an agent can't start on its own are marked
+`🧑 needs-human:` with the reason. No tag means agent-doable.
 
 ## ✅ MVP — Shipped
 
@@ -8,15 +16,19 @@ Chore CRUD, assignment, complete/approve flow, parentBucks earn + spend, ntfy no
 
 ## Recently Completed
 
-0. ✅ **ntfy onboarding flow (2026-06-28)** — detects if ntfy app is installed on first launch; if not, prompts "Install ntfy" (opens Play Store); once installed, config wizard lets parent choose public ntfy.sh vs. self-hosted endpoint, persisted via AsyncStorage. `NtfySetup` component + `lib/ntfy-onboarding.ts`.
-1. ✅ **Accessibility service in-app prompt (2026-07-06)** — Settings tab in `ParentHome` detects whether `FamilyLinkAccessibilityService` is enabled via flag file (`lib/accessibility-service.ts`); shows amber banner with "Open Accessibility Settings" deep-link when off, green status card when active. `backgroundService.ts` dead import cleaned up; mobile vitest wired up.
-2. ✅ **Design system overhaul (2026-06-17)** — Fredoka display face; `ChunkyButton` tactile buttons; claim balance hero; coin-pop `Celebration`; tabbed IA on both surfaces; 5 coordinated palette packs + System/Light/Dark; `KidDetail` drill-in; CSS-sync test.
-3. ✅ **Phase 2 scaffolding (2026-06-16)** — `FamilyLinkAccessibilityService.kt` with view-tree walker + broadcast receiver; registered in AndroidManifest; UP notification payload `type` field; spend-approval hook fires `spend_approved`.
-4. ✅ **Currency ledger CSV export (2026-06-16)** — "Export CSV" in web `LedgerToggle`; `buildLedgerCsv` pure function with 7 unit tests.
-5. ✅ **Mobile chore template parity (2026-06-16)** — collapsible template picker + "Save as template" in `ParentHome`; integration test covers create/list/delete.
+1. ✅ **Toolchain upgrade (2026-07-06)** — TypeScript 6, vitest 4, Expo SDK 57, Next.js 16. React stays pinned at 19.2.3 via `pnpm.overrides`.
+2. ✅ **Co-parent support (2026-07-06)** — migration adds a create rule so any parent can add a co-parent in Settings; seed ships `parent1@test.local` + `parent2@test.local`; `notifyParents` already fanned out to all parents.
+3. ✅ **Node 26.4.0 upgrade (2026-07-06)** — `.tool-versions` bump, minor dep bumps, doc staleness pass. Note: Node 26+ no longer bundles corepack.
+4. ✅ **Accessibility service in-app prompt (2026-07-06)** — Settings tab in `ParentHome` detects whether `FamilyLinkAccessibilityService` is enabled via flag file (`lib/accessibility-service.ts`); shows amber banner with "Open Accessibility Settings" deep-link when off, green status card when active. `backgroundService.ts` dead import cleaned up; mobile vitest wired up.
+5. ✅ **ntfy onboarding flow (2026-06-28)** — detects if the ntfy app is installed on first launch; if not, prompts "Install ntfy" (opens Play Store); once installed, a config wizard lets the parent choose public ntfy.sh vs. self-hosted, persisted via AsyncStorage. `NtfySetup` component + `lib/ntfy-onboarding.ts`.
 
 <details>
-<summary>Earlier completions (2026-06-10 — 2026-06-15)</summary>
+<summary>Earlier completions (2026-06-10 — 2026-06-17)</summary>
+
+- Design system overhaul (2026-06-17) — Fredoka display face, `ChunkyButton`, claim balance hero, coin-pop `Celebration`, tabbed IA, 5 palette packs + System/Light/Dark, `KidDetail` drill-in, CSS-sync test
+- Phase 2 scaffolding (2026-06-16) — `FamilyLinkAccessibilityService.kt` view-tree walker + broadcast receiver, registered in AndroidManifest; UP payload `type` field; spend-approval hook fires `spend_approved`
+- Currency ledger CSV export (2026-06-16) — `buildLedgerCsv` + 7 unit tests
+- Mobile chore template parity (2026-06-16) — collapsible template picker + "Save as template"
 
 - Chore edit on mobile, due date on create-chore form
 - Per-kid goods rate, web chore edit, custom kid reminder times, parent mobile chore creation + sibling leaderboard
@@ -29,13 +41,27 @@ Chore CRUD, assignment, complete/approve flow, parentBucks earn + spend, ntfy no
 
 ## Known Issues
 
-_None currently._
+- **No CI.** Nothing runs automatically on push. Addressed by *Quality & Infrastructure* #1.
+_Doc drift (dangling plan references, stale Expo SDK number) was fixed 2026-08-10._
 
 ## Recommended Next 3
 
+**⚠️ All three require a human.** They're still genuinely the top priorities —
+nothing ships to the family without them — but no autonomous run can start any
+of them. See *Best agent-doable next* below for parallel work.
+
 1. **Real-device smoke test** — emulator works; GrapheneOS/LineageOS hasn't been validated. Prerequisite for Phase 2. Run the full flow (login → chore → complete → approve → spend) on a physical device over wireless adb. ~2 hrs.
+   - 🧑 needs-human: physical GrapheneOS/LineageOS device + manual observation
 2. **Phase 2 live test with Family Link** — build a release APK on a real device with Family Link installed. Enable the accessibility service via the new in-app prompt, approve a spend request, and verify the service auto-taps "Grant Bonus Time". Tune button-label matching if Family Link's UI differs. ~half day.
+   - 🧑 needs-human: physical device + a real Family Link account
 3. **Off-LAN access (Tailscale)** — `EXPO_PUBLIC_POCKETBASE_URL` is a LAN IP; devices can't reach PocketBase on 5G or outside the home. Tailscale is the lowest-friction fix: private mesh VPN, no public exposure, point the URL at the Tailscale hostname. Required before the family can use the app outside the house. ~2-4 hrs.
+   - 🧑 needs-human: Tailscale account + per-device enrollment (the env-var change itself is trivial)
+
+### Best agent-doable next
+
+1. **CI pipeline** — highest impact of the unblocked work; everything else gets safer once it exists.
+2. **Ledger integrity verifier** — small, self-contained, directly protects the currency invariant.
+3. **Offline / unreachable-backend UX** — partial mitigation for #3 above that needs no Tailscale account.
 
 ## Phase 1 — Core Feature Set ✅ (completed 2026-06-10)
 
@@ -60,24 +86,58 @@ The notification pipeline (`UnifiedPushReceiver.kt` + `up_endpoint` server-side 
 
 - ✅ **In-app enable prompt** — banner in `ParentHome` Settings tab detects service state via flag file; deep-links to Accessibility Settings.
 - **Live device validation** — build APK, enable service, approve spend request, verify tap automation works. Tune button labels if Family Link's UI differs from assumed text. ~half day.
+  - 🧑 needs-human: physical device + a real Family Link account
 - **Stretch: reverse-engineered Family Link API** — direct HTTP grant without the Accessibility Service; fragile but faster UX.
+  - 🧑 needs-human: requires a live Family Link account to observe the traffic
 - **Manual fallback** — retained regardless; users who don't have/need Family Link still get the approval flow.
 
 ## Phase 3 — Custom MDM
 
 - Android Device Policy Controller; programmatic screen time without Family Link
+  - 🧑 needs-human: device enrollment and provisioning can't be validated without hardware
 
 ## Phase 4 — Allowance / Payments
 
 - Configurable reward types: in-app currency, Venmo, bank transfer, manual — all with in-app record-keeping
+  - 🧑 needs-human: Venmo/bank integrations need real accounts and credentials. The in-app-currency and manual record-keeping paths are agent-doable on their own
+
+## Quality & Infrastructure
+
+Added 2026-08-10. All four are agent-doable — no hardware, no new accounts.
+
+1. **CI pipeline (GitHub Actions)**
+   - There is no CI at all today. 9 test files plus integration and e2e suites run only when someone remembers to type `just test`.
+   - Lint + typecheck + unit tests on every push and PR. Integration and e2e behind `workflow_dispatch` (both need a running, seeded PocketBase).
+   - Done when a pushed branch reports pass/fail without anyone running anything locally.
+   - ~2-3 hours effort
+
+2. **Ledger integrity verifier**
+   - Currency drift is currently silent. If a PocketBase hook throws mid-transaction, the cached balance and the ledger entries diverge with nothing to catch it.
+   - `just verify-ledger` recomputes every kid's balance from `currency_ledger` entries and diffs it against the cached value; non-zero exit on mismatch. Wire into CI once that exists.
+   - Done when a deliberately corrupted balance is detected by the command.
+   - ~2-3 hours effort
+
+3. **Cron/scheduled-job test coverage**
+   - Reminders, deadline escalation, weekly digest, currency expiry, and streak milestones are all time-dependent, all untested, and all fail *silently* — a broken cron just quietly stops notifying.
+   - Inject the clock rather than sleeping. Cover vacation-mode gating for each job, since that's the shared branch most likely to regress.
+   - Done when each scheduled job has a test that advances a fake clock and asserts fire/no-fire.
+   - ~3-4 hours effort
+
+4. **Offline / unreachable-backend UX**
+   - `EXPO_PUBLIC_POCKETBASE_URL` is a LAN IP, so a kid opening the app on 5G hits an unhandled failure today. This is the cheap half of the Tailscale item and needs no account.
+   - Detect unreachable backend, show a plain "can't reach home" state instead of an error, retry on reconnect, and keep the last-known balance visible rather than blanking it.
+   - Done when the app degrades legibly with PocketBase stopped.
+   - ~2-3 hours effort
 
 ## Backlog (unscheduled)
 
 - **Deeper gamification (full "playful" mode)** — the design refresh landed a playful-but-grown-up baseline (tactile buttons, claim hero, coin-pop on approval). Architecture (`Celebration`, `ChunkyButton`, palette packs) is built to dial *up* toward a fuller Duolingo-style experience. Candidate additions: a household mascot, richer celebration sequences (XP-style count-up on the claim hero), badge/achievement shelf, streak-freeze mechanic, sound effects (opt-in), and an optional per-kid "max playful" intensity. Keep parent surfaces calm (the Slate pack); scope playful escalation to the kid views. Gate behind a setting so parents control the dial. ~1-2 days.
 - **On-theme currency presets** — `currency_name` is already per-household configurable; consider shipping themed default suggestions (e.g. Nuggets, Gold, Grit, Karats) and a richer default than "parentBucks" to match the Goldrush identity. ~1 hr.
-- **Notification deep links** — tapping a push notification opens the relevant screen (e.g. approval notification → approvals section). Currently notifications are fire-and-forget with no intent payload. Needs `PendingIntent` in `UnifiedPushReceiver.kt` + React Native Linking. ~2-3 hrs.
+- **Notification deep links** — tapping a push notification opens the relevant screen (e.g. approval notification → approvals section). Currently notifications are fire-and-forget with no intent payload. Needs `PendingIntent` in `UnifiedPushReceiver.kt` + React Native Linking. ~2-3 hrs. *Writable and unit-testable without hardware, but final confirmation needs a real device — don't call it done on green tests alone.*
 - ✅ **Second parent support** — migration adds create rule so any parent can add a co-parent in Settings; seed includes `parent1@test.local` + `parent2@test.local`; `notifyParents` already fans out to all parents.
 - ✅ **ntfy onboarding flow** — shipped 2026-06-28; `NtfySetup` modal + `lib/ntfy-onboarding.ts`.
 - **UnifiedPush self-hosted ntfy** — when ready to move off ntfy.sh, re-register on device → new endpoint URL encodes the self-hosted server automatically. No server-side config needed.
+  - 🧑 needs-human: VPS provisioning + on-device re-registration
 - **iOS build** — Expo project is cross-platform; main blocker is Apple developer account + TestFlight distribution. No code changes needed.
-- **Off-LAN access (Tailscale)** — see Recommended Next 3.
+  - 🧑 needs-human: paid Apple developer account
+- **Off-LAN access (Tailscale)** — see Recommended Next 3. 🧑 needs-human: Tailscale account + per-device enrollment

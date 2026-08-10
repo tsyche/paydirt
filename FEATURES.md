@@ -1,6 +1,6 @@
 # Features
 
-Current scope tracker. See [ROADMAP.md](./ROADMAP.md) for phasing and the full plan at `~/.windsurf/plans/choregalore-plan.md`.
+Current scope tracker. See [ROADMAP.md](./ROADMAP.md) for phasing and status. Original design scratchpad (archived): `~/.claude/plans/archive/paydirt-plan.md`.
 
 ## Implemented
 

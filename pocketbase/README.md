@@ -30,4 +30,4 @@ All seeded logins use password `password123`.
 
 ## Production (future)
 
-Deploy the same binary + `pb_hooks/` + `pb_migrations/` to the VPS. See `~/.windsurf/plans/choregalore-plan.md` and the audit-notifications memory for the self-hosting migration.
+Deploy the same binary + `pb_hooks/` + `pb_migrations/` to the VPS. See `~/.claude/plans/archive/paydirt-plan.md` (archived design scratchpad) and the audit-notifications memory for the self-hosting migration.
