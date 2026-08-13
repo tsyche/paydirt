@@ -18,6 +18,7 @@ Run `just` with no arguments for a scenario cheat sheet. `just --list` shows all
 just test               # all unit tests (no server needed)
 just test-integration   # live API/hook tests (needs running, seeded PB)
 just test-e2e           # Playwright dashboard tests (needs running, seeded PB)
+just verify-ledger      # recompute balances from currency_transactions, diff vs. cache (needs running PB)
 ```
 
 For live tests: `NTFY_DISABLED=1 just dev-pb`, then `just seed`.

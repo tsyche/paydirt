@@ -74,7 +74,7 @@ One per (chore, child). Status: `assigned` → `completed` → `approved`/`rejec
 | swap_to | relation → users | pending swap offer to a sibling |
 
 ### `currency_transactions`
-Append-only ledger. `+` earn, `−` spend. Sum = balance.
+Append-only ledger. `+` earn, `−` spend. Sum = balance. `just verify-ledger` recomputes and diffs this invariant against every user's cached `balance`.
 
 | Field | Type | Notes |
 |-------|------|-------|

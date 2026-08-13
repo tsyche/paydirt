@@ -16,9 +16,10 @@ Chore CRUD, assignment, complete/approve flow, parentBucks earn + spend, ntfy no
 
 ## Recently Completed
 
-1. ✅ **CI pipeline (2026-08-12)** — `.github/workflows/ci.yml`: `checks` job runs `just lint`, `just typecheck`, `just test` on every push and PR; `integration-e2e` job (`workflow_dispatch`) runs `just test-all` against a self-contained ephemeral PocketBase. See *Quality & Infrastructure* #1.
-2. ✅ **Toolchain upgrade (2026-07-06)** — TypeScript 6, vitest 4, Expo SDK 57, Next.js 16. React stays pinned at 19.2.3 via `pnpm.overrides`.
-3. ✅ **Co-parent support (2026-07-06)** — migration adds a create rule so any parent can add a co-parent in Settings; seed ships `parent1@test.local` + `parent2@test.local`; `notifyParents` already fanned out to all parents.
+1. ✅ **Ledger integrity verifier (2026-08-12)** — `just verify-ledger` recomputes balances from `currency_transactions` and diffs against the cache; wired into `just test-all`/CI. See *Quality & Infrastructure* #2.
+2. ✅ **CI pipeline (2026-08-12)** — `.github/workflows/ci.yml`: `checks` job runs `just lint`, `just typecheck`, `just test` on every push and PR; `integration-e2e` job (`workflow_dispatch`) runs `just test-all` against a self-contained ephemeral PocketBase. See *Quality & Infrastructure* #1.
+3. ✅ **Toolchain upgrade (2026-07-06)** — TypeScript 6, vitest 4, Expo SDK 57, Next.js 16. React stays pinned at 19.2.3 via `pnpm.overrides`.
+4. ✅ **Co-parent support (2026-07-06)** — migration adds a create rule so any parent can add a co-parent in Settings; seed ships `parent1@test.local` + `parent2@test.local`; `notifyParents` already fanned out to all parents.
 4. ✅ **Node 26.4.0 upgrade (2026-07-06)** — `.tool-versions` bump, minor dep bumps, doc staleness pass. Note: Node 26+ no longer bundles corepack.
 5. ✅ **Accessibility service in-app prompt (2026-07-06)** — Settings tab in `ParentHome` detects whether `FamilyLinkAccessibilityService` is enabled via flag file (`lib/accessibility-service.ts`); shows amber banner with "Open Accessibility Settings" deep-link when off, green status card when active. `backgroundService.ts` dead import cleaned up; mobile vitest wired up.
 6. ✅ **ntfy onboarding flow (2026-06-28)** — detects if the ntfy app is installed on first launch; if not, prompts "Install ntfy" (opens Play Store); once installed, a config wizard lets the parent choose public ntfy.sh vs. self-hosted, persisted via AsyncStorage. `NtfySetup` component + `lib/ntfy-onboarding.ts`.
@@ -59,8 +60,7 @@ of them. See *Best agent-doable next* below for parallel work.
 
 ### Best agent-doable next
 
-1. **Ledger integrity verifier** — small, self-contained, directly protects the currency invariant.
-2. **Offline / unreachable-backend UX** — partial mitigation for #3 above that needs no Tailscale account.
+1. **Offline / unreachable-backend UX** — partial mitigation for #3 above that needs no Tailscale account.
 
 ## Phase 1 — Core Feature Set ✅ (completed 2026-06-10)
 
@@ -102,16 +102,13 @@ The notification pipeline (`UnifiedPushReceiver.kt` + `up_endpoint` server-side 
 
 ## Quality & Infrastructure
 
-Added 2026-08-10. Items 1-4 are fully agent-doable — no hardware, no new accounts. Item 1 shipped 2026-08-12.
+Added 2026-08-10. Items 1-4 are fully agent-doable — no hardware, no new accounts. Items 1-2 shipped 2026-08-12.
 
 1. ✅ **CI pipeline (GitHub Actions)** (2026-08-12)
    - `.github/workflows/ci.yml`: `checks` job runs `just lint`, `just typecheck`, `just test` on every push and PR. `integration-e2e` job (gated on `workflow_dispatch`) runs `just test-all`, which boots its own ephemeral PocketBase, seeds, and runs integration + e2e — no manual setup, no secrets.
 
-2. **Ledger integrity verifier**
-   - Currency drift is currently silent. If a PocketBase hook throws mid-transaction, the cached balance and the ledger entries diverge with nothing to catch it.
-   - `just verify-ledger` recomputes every kid's balance from `currency_ledger` entries and diffs it against the cached value; non-zero exit on mismatch. Wire into CI once that exists.
-   - Done when a deliberately corrupted balance is detected by the command.
-   - ~2-3 hours effort
+2. ✅ **Ledger integrity verifier (2026-08-12)**
+   - `just verify-ledger` (`pocketbase/verify-ledger.mjs`) recomputes every user's balance from `currency_transactions` and diffs it against the cached value; non-zero exit on mismatch. Diff logic lives in `packages/shared/src/ledger.ts` (unit-tested, including a deliberately-corrupted-balance case). Wired into `just test-all`, so it runs in CI's `integration-e2e` job alongside the other integration checks.
 
 3. **Cron/scheduled-job test coverage**
    - Reminders, deadline escalation, weekly digest, currency expiry, and streak milestones are all time-dependent, all untested, and all fail *silently* — a broken cron just quietly stops notifying.

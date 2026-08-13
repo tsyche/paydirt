@@ -42,6 +42,7 @@ just reset-db          # wipe + rebuild empty DB (server must be STOPPED)
 just test               # all workspace tests (unit; no server needed)
 just test-integration  # live API/hook tests (needs running, seeded PB)
 just test-e2e           # Playwright dashboard tests (needs running, seeded PB)
+just verify-ledger      # recompute balances from currency_transactions, diff vs. cache (needs running PB)
 just lint               # lint all workspaces
 just typecheck          # type-check all workspaces (tsc --noEmit)
 ```
@@ -54,7 +55,8 @@ CI (GitHub Actions, `.github/workflows/ci.yml`) runs `just lint`, `just
 typecheck`, and `just test` on every push and PR. Integration + e2e run via
 `just test-all` (self-contained — boots its own ephemeral PocketBase) gated
 behind `workflow_dispatch`, since they're slower and don't need to run on
-every push.
+every push. `just test-all` also runs `just verify-ledger` against the
+ephemeral instance.
 
 Test data: `just seed` (idempotent) populates a "Test Family" household with two
 parents, two kids, chores, and sample activity. It talks to the running server's

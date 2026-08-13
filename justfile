@@ -432,6 +432,9 @@ test-all:
     printf '\033[0;34mRunning integration tests...\033[0m\n'
     PB_URL="${TEST_URL}" pnpm --filter @paydirt/shared test:integration
 
+    printf '\033[0;34mVerifying ledger integrity...\033[0m\n'
+    PB_URL="${TEST_URL}" node pocketbase/verify-ledger.mjs
+
     if lsof -ti :3000 &>/dev/null; then
         printf '\033[0;33mNote: port 3000 already in use — Playwright will reuse that server.\033[0m\n'
         printf '\033[0;33m      If it is a dev server pointed at 8090, e2e results may be unreliable.\033[0m\n'
@@ -440,6 +443,17 @@ test-all:
     PB_URL="${TEST_URL}" NEXT_PUBLIC_POCKETBASE_URL="${TEST_URL}" pnpm --filter web test:e2e
 
     printf '\033[0;32mAll tests passed.\033[0m\n'
+
+# Recompute every user's balance from currency_transactions and diff against the
+# cached value — needs running, seeded PocketBase (use NTFY_DISABLED=1 just dev-pb)
+[group('quality')]
+verify-ledger:
+    #!/usr/bin/env bash
+    if ! curl -sf -o /dev/null http://127.0.0.1:8090/api/health; then
+        printf '\033[0;33mPocketBase is not running. Start it ('\''just dev-pb'\'') first.\033[0m\n'
+        exit 1
+    fi
+    node pocketbase/verify-ledger.mjs
 
 # Type-check all workspaces (tsc --noEmit)
 [group('quality')]
