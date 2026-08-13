@@ -31,6 +31,13 @@ just lint
 just typecheck
 ```
 
+## CI
+
+`.github/workflows/ci.yml` runs `just lint`, `just typecheck`, and `just test`
+on every push and PR. Integration + e2e (`just test-all`, self-contained —
+boots its own ephemeral PocketBase, no manual setup) run via `workflow_dispatch`
+instead of on every push, since they're slower.
+
 ## Branches + commits
 
 - Work on feature branches; merge to `main` when done.

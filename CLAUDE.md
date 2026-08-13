@@ -43,11 +43,18 @@ just test               # all workspace tests (unit; no server needed)
 just test-integration  # live API/hook tests (needs running, seeded PB)
 just test-e2e           # Playwright dashboard tests (needs running, seeded PB)
 just lint               # lint all workspaces
+just typecheck          # type-check all workspaces (tsc --noEmit)
 ```
 
 For the live test targets, start the backend with notifications muted so test
 runs don't blast the real ntfy.sh topics: `NTFY_DISABLED=1 just dev-pb`, then
 `just seed`.
+
+CI (GitHub Actions, `.github/workflows/ci.yml`) runs `just lint`, `just
+typecheck`, and `just test` on every push and PR. Integration + e2e run via
+`just test-all` (self-contained — boots its own ephemeral PocketBase) gated
+behind `workflow_dispatch`, since they're slower and don't need to run on
+every push.
 
 Test data: `just seed` (idempotent) populates a "Test Family" household with two
 parents, two kids, chores, and sample activity. It talks to the running server's

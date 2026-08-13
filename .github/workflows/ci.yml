@@ -1,0 +1,63 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  checks:
+    name: Lint, typecheck, unit tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Read Node version from .tool-versions
+        run: echo "NODE_VERSION=$(grep '^nodejs' .tool-versions | awk '{print $2}')" >> "$GITHUB_ENV"
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+
+      - uses: extractions/setup-just@v2
+
+      - run: pnpm install --frozen-lockfile
+
+      - run: just lint
+
+      - run: just typecheck
+
+      - run: just test
+
+  integration-e2e:
+    name: Integration + e2e (self-contained PocketBase)
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Read Node version from .tool-versions
+        run: echo "NODE_VERSION=$(grep '^nodejs' .tool-versions | awk '{print $2}')" >> "$GITHUB_ENV"
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+
+      - uses: extractions/setup-just@v2
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Download PocketBase binary
+        run: just pb-download
+
+      - name: Install Playwright browser
+        run: pnpm --filter web exec playwright install --with-deps chromium
+
+      - name: Run integration + e2e tests (ephemeral PocketBase)
+        run: just test-all
