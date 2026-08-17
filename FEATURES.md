@@ -42,6 +42,9 @@ Current scope tracker. See [ROADMAP.md](./ROADMAP.md) for phasing and status. Or
 - **Dev tooling** — `just fresh` starts PB + web + Expo in one command with emulator check, health polling, and cache clear; `just stop` kills everything including the emulator app; `just fresh nuke=1` wipes node_modules and reseeds. `just seed`, `just reset-db`, `just lint`, `just typecheck`.
 - **CI pipeline** — GitHub Actions runs lint + typecheck + unit tests on every push/PR; integration + e2e (against a self-contained ephemeral PocketBase) run on `workflow_dispatch`.
 - **Ledger integrity verifier** — `just verify-ledger` recomputes every user's balance from `currency_transactions` and diffs it against the cached value; non-zero exit on mismatch. Runs as part of `just test-all` / CI.
+- **Scheduled-job test coverage** — fire/no-fire decision logic for reminders, deadline escalation, currency expiry, weekly digest, and streak milestones extracted into `packages/shared` as pure, clock-injectable functions, with vacation-mode-gated unit tests. `pb_hooks` can't import `packages/shared` (Goja has no TS/ESM support), so `scheduler.js`/`streaks.js`/`goals.pb.js` mirror the same logic by hand, each pointing back at its tested counterpart.
+- **Offline/unreachable-backend UX** — mobile app detects an unreachable PocketBase (`apps/mobile/lib/reachability.ts`), shows a banner with manual retry, retries automatically on reconnect, and keeps last-known balance/data visible instead of blanking.
+- **Notification deep links (Android)** — tapping a push notification opens the relevant screen via a `paydirt://` deep link (`apps/mobile/lib/deepLinks.ts`); JS routing logic is unit-tested, native tap-through is not yet confirmed on a device.
 
 ## Not Yet Implemented
 

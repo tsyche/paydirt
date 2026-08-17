@@ -79,7 +79,11 @@ adb install -r apps/mobile/android/app/build/outputs/apk/debug/app-debug.apk
 - [ ] Background: lock the screen, have parent approve a chore → notification appears from **PayDirt** (not ntfy)
 - [ ] Background: parent broadcasts a message → notification appears
 - [ ] Foreground: app open, approve a chore → UI updates silently (no duplicate notification)
-- [ ] Notification tap opens the app
+- [ ] Notification tap opens the app and lands on the relevant screen (e.g. an approvals notification opens the Approvals tab) — cold start and warm start (app already running in background)
+
+### Connectivity
+- [ ] Stop PocketBase (or disable Wi-Fi) → offline banner appears within a few seconds; last-known balance/data stays visible instead of blanking
+- [ ] Restart PocketBase (or re-enable Wi-Fi) → banner clears and the screen reloads automatically, without a manual pull-to-refresh
 
 ### Simplified mode (youngest kid)
 - [ ] Giant balance card visible

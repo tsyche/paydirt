@@ -16,17 +16,20 @@ Chore CRUD, assignment, complete/approve flow, parentBucks earn + spend, ntfy no
 
 ## Recently Completed
 
-1. ✅ **Ledger integrity verifier (2026-08-12)** — `just verify-ledger` recomputes balances from `currency_transactions` and diffs against the cache; wired into `just test-all`/CI. See *Quality & Infrastructure* #2.
-2. ✅ **CI pipeline (2026-08-12)** — `.github/workflows/ci.yml`: `checks` job runs `just lint`, `just typecheck`, `just test` on every push and PR; `integration-e2e` job (`workflow_dispatch`) runs `just test-all` against a self-contained ephemeral PocketBase. See *Quality & Infrastructure* #1.
-3. ✅ **Toolchain upgrade (2026-07-06)** — TypeScript 6, vitest 4, Expo SDK 57, Next.js 16. React stays pinned at 19.2.3 via `pnpm.overrides`.
-4. ✅ **Co-parent support (2026-07-06)** — migration adds a create rule so any parent can add a co-parent in Settings; seed ships `parent1@test.local` + `parent2@test.local`; `notifyParents` already fanned out to all parents.
-4. ✅ **Node 26.4.0 upgrade (2026-07-06)** — `.tool-versions` bump, minor dep bumps, doc staleness pass. Note: Node 26+ no longer bundles corepack.
-5. ✅ **Accessibility service in-app prompt (2026-07-06)** — Settings tab in `ParentHome` detects whether `FamilyLinkAccessibilityService` is enabled via flag file (`lib/accessibility-service.ts`); shows amber banner with "Open Accessibility Settings" deep-link when off, green status card when active. `backgroundService.ts` dead import cleaned up; mobile vitest wired up.
-6. ✅ **ntfy onboarding flow (2026-06-28)** — detects if the ntfy app is installed on first launch; if not, prompts "Install ntfy" (opens Play Store); once installed, a config wizard lets the parent choose public ntfy.sh vs. self-hosted, persisted via AsyncStorage. `NtfySetup` component + `lib/ntfy-onboarding.ts`.
+1. ✅ **Notification deep links (2026-08-17)** — `UnifiedPushReceiver.kt` attaches a `PendingIntent` carrying the payload's `type` as a `paydirt://` deep link; `App.tsx` wires `Linking` (cold + warm start) to route to the relevant screen. JS routing logic is unit-tested; native tap-through is **not yet confirmed on a device**. See *Phase 2* for a related, still-open gap this work does **not** close.
+2. ✅ **Offline/unreachable-backend UX (2026-08-17)** — mobile app detects an unreachable PocketBase (`apps/mobile/lib/reachability.ts`), shows a banner with manual retry, retries automatically on reconnect, and keeps last-known data visible instead of blanking. See *Quality & Infrastructure* #4.
+3. ✅ **Scheduled-job test coverage (2026-08-17)** — fire/no-fire decision logic for reminders, deadline escalation, currency expiry, weekly digest, and streak milestones extracted into `packages/shared` as pure, clock-injectable functions, with vacation-mode-gated unit tests. `pb_hooks` mirrors the same logic by hand (Goja has no TS/ESM support). See *Quality & Infrastructure* #3.
+4. ✅ **Ledger integrity verifier (2026-08-12)** — `just verify-ledger` recomputes balances from `currency_transactions` and diffs against the cache; wired into `just test-all`/CI. See *Quality & Infrastructure* #2.
+5. ✅ **CI pipeline (2026-08-12)** — `.github/workflows/ci.yml`: `checks` job runs `just lint`, `just typecheck`, `just test` on every push and PR; `integration-e2e` job (`workflow_dispatch`) runs `just test-all` against a self-contained ephemeral PocketBase. See *Quality & Infrastructure* #1.
 
 <details>
-<summary>Earlier completions (2026-06-10 — 2026-06-17)</summary>
+<summary>Earlier completions (2026-06-10 — 2026-07-06)</summary>
 
+- Toolchain upgrade (2026-07-06) — TypeScript 6, vitest 4, Expo SDK 57, Next.js 16. React stays pinned at 19.2.3 via `pnpm.overrides`.
+- Co-parent support (2026-07-06) — migration adds a create rule so any parent can add a co-parent in Settings; seed ships `parent1@test.local` + `parent2@test.local`; `notifyParents` already fanned out to all parents.
+- Node 26.4.0 upgrade (2026-07-06) — `.tool-versions` bump, minor dep bumps, doc staleness pass. Note: Node 26+ no longer bundles corepack.
+- Accessibility service in-app prompt (2026-07-06) — Settings tab in `ParentHome` detects whether `FamilyLinkAccessibilityService` is enabled via flag file (`lib/accessibility-service.ts`); shows amber banner with "Open Accessibility Settings" deep-link when off, green status card when active. `backgroundService.ts` dead import cleaned up; mobile vitest wired up.
+- ntfy onboarding flow (2026-06-28) — detects if the ntfy app is installed on first launch; if not, prompts "Install ntfy" (opens Play Store); once installed, a config wizard lets the parent choose public ntfy.sh vs. self-hosted, persisted via AsyncStorage. `NtfySetup` component + `lib/ntfy-onboarding.ts`.
 - Design system overhaul (2026-06-17) — Fredoka display face, `ChunkyButton`, claim balance hero, coin-pop `Celebration`, tabbed IA, 5 palette packs + System/Light/Dark, `KidDetail` drill-in, CSS-sync test
 - Phase 2 scaffolding (2026-06-16) — `FamilyLinkAccessibilityService.kt` view-tree walker + broadcast receiver, registered in AndroidManifest; UP payload `type` field; spend-approval hook fires `spend_approved`
 - Currency ledger CSV export (2026-06-16) — `buildLedgerCsv` + 7 unit tests
@@ -45,6 +48,8 @@ Chore CRUD, assignment, complete/approve flow, parentBucks earn + spend, ntfy no
 
 _Doc drift (dangling plan references, stale Expo SDK number) was fixed 2026-08-10._
 
+- **`pocketbase/pocketbase` has zero GitHub Releases (found 2026-08-17)** — the upstream repo currently has tags (e.g. `v0.39.11`) but no Release objects. `just pb-download` calls `releases/latest` via the GitHub API and gets nothing back, so it fails; the `releases` links in `README.md` and `pocketbase/README.md` 404 for the same reason. Immediate workaround: `brew install pocketbase` (the Homebrew formula builds from the tag's source tarball, unaffected) then `ln -sf $(brew --prefix)/bin/pocketbase pocketbase/pocketbase`. Fixing `pb-download` itself (e.g. building from the tag tarball via `go build`) is a job for `/audit-workflow`.
+
 ## Recommended Next 3
 
 **⚠️ All three require a human.** They're still genuinely the top priorities —
@@ -53,14 +58,15 @@ of them. See *Best agent-doable next* below for parallel work.
 
 1. **Real-device smoke test** — emulator works; GrapheneOS/LineageOS hasn't been validated. Prerequisite for Phase 2. Run the full flow (login → chore → complete → approve → spend) on a physical device over wireless adb. ~2 hrs.
    - 🧑 needs-human: physical GrapheneOS/LineageOS device + manual observation
-2. **Phase 2 live test with Family Link** — build a release APK on a real device with Family Link installed. Enable the accessibility service via the new in-app prompt, approve a spend request, and verify the service auto-taps "Grant Bonus Time". Tune button-label matching if Family Link's UI differs. ~half day.
+2. **Phase 2 live test with Family Link** — build a release APK on a real device with Family Link installed. Enable the accessibility service via the new in-app prompt, approve a spend request, and verify the service auto-taps "Grant Bonus Time". Tune button-label matching if Family Link's UI differs. **Blocked until *Phase 2*'s "Wire the trigger" item ships** — right now no broadcast ever fires, so this test would fail trivially regardless of device/account setup. ~half day.
    - 🧑 needs-human: physical device + a real Family Link account
 3. **Off-LAN access (Tailscale)** — `EXPO_PUBLIC_POCKETBASE_URL` is a LAN IP; devices can't reach PocketBase on 5G or outside the home. Tailscale is the lowest-friction fix: private mesh VPN, no public exposure, point the URL at the Tailscale hostname. Required before the family can use the app outside the house. ~2-4 hrs.
    - 🧑 needs-human: Tailscale account + per-device enrollment (the env-var change itself is trivial)
 
 ### Best agent-doable next
 
-1. **Offline / unreachable-backend UX** — partial mitigation for #3 above that needs no Tailscale account.
+1. **Wire the Phase 2 notification trigger** — see *Phase 2*'s "Wire the trigger" item. Small (~30 min) but it's the one piece standing between the accessibility service and ever actually firing.
+2. **On-theme currency presets** — see *Backlog*. ~1 hr, no dependencies.
 
 ## Phase 1 — Core Feature Set ✅ (completed 2026-06-10)
 
@@ -79,12 +85,13 @@ of them. See *Best agent-doable next* below for parallel work.
 
 ## Phase 2 — Family Link Automation
 
-**Status: scaffolded. Prerequisite: real-device smoke test + Family Link live test.**
+**Status: scaffolded, but the trigger wiring itself is still unbuilt — this was previously (and inaccurately) described as complete.** Prerequisite for live validation: real-device smoke test + Family Link live test.
 
-The notification pipeline (`UnifiedPushReceiver.kt` + `up_endpoint` server-side delivery) is complete. `FamilyLinkAccessibilityService.kt` is now written and registered — it listens for `ACTION_GRANT_SCREEN_TIME` broadcasts (fired by `UnifiedPushReceiver` when a `spend_approved` message arrives) and walks the view hierarchy to tap "Grant Bonus Time". Still needs:
+Server-side delivery is correct: the spend-approval hook already sends `type: "spend_approved"` in the ntfy payload (`notifications.pb.js`). `FamilyLinkAccessibilityService.kt` is written and registered, listening for a local `ACTION_GRANT_SCREEN_TIME` broadcast. **But nothing has ever sent that broadcast** — `UnifiedPushReceiver.kt` didn't parse the payload's `type` field at all until the notification-deep-links work (2026-08-17), and even now it only uses `type` to build the tap-to-open deep link, not to drive the accessibility service. The `notification → broadcast → accessibility tap` chain has never actually connected end to end. Still needs:
 
+- **Wire the trigger** — in `UnifiedPushReceiver.kt`, send a local `ACTION_GRANT_SCREEN_TIME` broadcast when the payload's `type` is `spend_approved` (alongside the existing deep-link handling, not instead of it). This is the missing link; no hardware needed to write or unit-test the JS/Kotlin logic around it. ~30 min.
 - ✅ **In-app enable prompt** — banner in `ParentHome` Settings tab detects service state via flag file; deep-links to Accessibility Settings.
-- **Live device validation** — build APK, enable service, approve spend request, verify tap automation works. Tune button labels if Family Link's UI differs from assumed text. ~half day.
+- **Live device validation** — build APK, enable service, approve spend request, verify tap automation works. Tune button labels if Family Link's UI differs from assumed text. Blocked on "Wire the trigger" above — without it, this test fails trivially (no broadcast ever fires). ~half day.
   - 🧑 needs-human: physical device + a real Family Link account
 - **Stretch: reverse-engineered Family Link API** — direct HTTP grant without the Accessibility Service; fragile but faster UX.
   - 🧑 needs-human: requires a live Family Link account to observe the traffic
@@ -102,7 +109,7 @@ The notification pipeline (`UnifiedPushReceiver.kt` + `up_endpoint` server-side 
 
 ## Quality & Infrastructure
 
-Added 2026-08-10. Items 1-4 are fully agent-doable — no hardware, no new accounts. Items 1-2 shipped 2026-08-12.
+Added 2026-08-10. Items 1-4 were fully agent-doable — no hardware, no new accounts — and all four shipped 2026-08-12 – 2026-08-17. Item 5 remains.
 
 1. ✅ **CI pipeline (GitHub Actions)** (2026-08-12)
    - `.github/workflows/ci.yml`: `checks` job runs `just lint`, `just typecheck`, `just test` on every push and PR. `integration-e2e` job (gated on `workflow_dispatch`) runs `just test-all`, which boots its own ephemeral PocketBase, seeds, and runs integration + e2e — no manual setup, no secrets.
@@ -110,17 +117,11 @@ Added 2026-08-10. Items 1-4 are fully agent-doable — no hardware, no new accou
 2. ✅ **Ledger integrity verifier (2026-08-12)**
    - `just verify-ledger` (`pocketbase/verify-ledger.mjs`) recomputes every user's balance from `currency_transactions` and diffs it against the cached value; non-zero exit on mismatch. Diff logic lives in `packages/shared/src/ledger.ts` (unit-tested, including a deliberately-corrupted-balance case). Wired into `just test-all`, so it runs in CI's `integration-e2e` job alongside the other integration checks.
 
-3. **Cron/scheduled-job test coverage**
-   - Reminders, deadline escalation, weekly digest, currency expiry, and streak milestones are all time-dependent, all untested, and all fail *silently* — a broken cron just quietly stops notifying.
-   - Inject the clock rather than sleeping. Cover vacation-mode gating for each job, since that's the shared branch most likely to regress.
-   - Done when each scheduled job has a test that advances a fake clock and asserts fire/no-fire.
-   - ~3-4 hours effort
+3. ✅ **Cron/scheduled-job test coverage (2026-08-17)**
+   - Fire/no-fire decision logic for reminders, deadline escalation, weekly digest, currency expiry, and streak milestones extracted into `packages/shared/src/{scheduling,streaks}.ts` as pure, clock-injectable functions, vacation-mode-gated tests included. `pb_hooks` can't import `packages/shared` (Goja has no TS/ESM support), so `scheduler.js`/`streaks.js`/`goals.pb.js` mirror the same logic by hand, each pointing back at its tested counterpart.
 
-4. **Offline / unreachable-backend UX**
-   - `EXPO_PUBLIC_POCKETBASE_URL` is a LAN IP, so a kid opening the app on 5G hits an unhandled failure today. This is the cheap half of the Tailscale item and needs no account.
-   - Detect unreachable backend, show a plain "can't reach home" state instead of an error, retry on reconnect, and keep the last-known balance visible rather than blanking it.
-   - Done when the app degrades legibly with PocketBase stopped.
-   - ~2-3 hours effort
+4. ✅ **Offline / unreachable-backend UX (2026-08-17)**
+   - `apps/mobile/lib/reachability.ts` detects an unreachable backend, shows a plain "can't reach home" banner instead of an error toast, retries automatically on reconnect, and keeps last-known data visible rather than blanking it.
 
 5. **App auto-updates (no Play Store)**
    - Kids' devices currently only update by plugging in a cable. No Play Services means no Play Store auto-update, no Play Core in-app update API, no Firebase App Distribution — the whole conventional path is out.
@@ -136,7 +137,7 @@ Added 2026-08-10. Items 1-4 are fully agent-doable — no hardware, no new accou
 
 - **Deeper gamification (full "playful" mode)** — the design refresh landed a playful-but-grown-up baseline (tactile buttons, claim hero, coin-pop on approval). Architecture (`Celebration`, `ChunkyButton`, palette packs) is built to dial *up* toward a fuller Duolingo-style experience. Candidate additions: a household mascot, richer celebration sequences (XP-style count-up on the claim hero), badge/achievement shelf, streak-freeze mechanic, sound effects (opt-in), and an optional per-kid "max playful" intensity. Keep parent surfaces calm (the Slate pack); scope playful escalation to the kid views. Gate behind a setting so parents control the dial. ~1-2 days.
 - **On-theme currency presets** — `currency_name` is already per-household configurable; consider shipping themed default suggestions (e.g. Nuggets, Gold, Grit, Karats) and a richer default than "parentBucks" to match the Goldrush identity. ~1 hr.
-- **Notification deep links** — tapping a push notification opens the relevant screen (e.g. approval notification → approvals section). Currently notifications are fire-and-forget with no intent payload. Needs `PendingIntent` in `UnifiedPushReceiver.kt` + React Native Linking. ~2-3 hrs. *Writable and unit-testable without hardware, but final confirmation needs a real device — don't call it done on green tests alone.*
+- ✅ **Notification deep links** — shipped 2026-08-17; see *Recently Completed*.
 - ✅ **Second parent support** — migration adds create rule so any parent can add a co-parent in Settings; seed includes `parent1@test.local` + `parent2@test.local`; `notifyParents` already fans out to all parents.
 - ✅ **ntfy onboarding flow** — shipped 2026-06-28; `NtfySetup` modal + `lib/ntfy-onboarding.ts`.
 - **UnifiedPush self-hosted ntfy** — when ready to move off ntfy.sh, re-register on device → new endpoint URL encodes the self-hosted server automatically. No server-side config needed.
