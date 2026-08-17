@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { View, ScrollView, StyleSheet, RefreshControl, Alert, Image, Linking, Platform } from "react-native";
 import {
   Appbar,
@@ -18,11 +18,14 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import type { Assignment, Chore, ChoreProposal, ChoreTemplate, Household, SpendRequest, User } from "@paydirt/shared";
 import { client } from "../lib/client";
 import { isAccessibilityServiceEnabled } from "../lib/accessibility-service";
+import { isNetworkError } from "../lib/reachability";
+import { useReachability } from "../lib/useReachability";
 import { AppearanceButton } from "../components/AppearanceButton";
 import { AppearanceControls } from "../components/AppearanceControls";
 import { ChunkyButton } from "../components/ChunkyButton";
 import { Celebration } from "../components/Celebration";
 import { KidDetail } from "../components/KidDetail";
+import { OfflineBanner } from "../components/OfflineBanner";
 
 const PARENT_TABS = [
   { key: "approvals", title: "Approvals", focusedIcon: "inbox", unfocusedIcon: "inbox-outline" },
@@ -118,7 +121,9 @@ export function ParentHome({ user, onLogout }: { user: User; onLogout: () => voi
       setChores(c);
       setProposals(p as ExpandedProposal[]);
     } catch (e) {
-      setSnack(String(e));
+      // Network failures already surface via the offline banner — an extra
+      // toast on top would just be noise. Anything else still gets one.
+      if (!isNetworkError(e)) setSnack(String(e));
     } finally {
       setRefreshing(false);
     }
@@ -140,6 +145,14 @@ export function ParentHome({ user, onLogout }: { user: User; onLogout: () => voi
       unsub?.();
     };
   }, [reload, user.household]);
+
+  // Retry automatically on reconnect instead of waiting for pull-to-refresh.
+  const reachable = useReachability();
+  const wasReachable = useRef(reachable);
+  useEffect(() => {
+    if (reachable === "online" && wasReachable.current === "offline") void reload();
+    wasReachable.current = reachable;
+  }, [reachable, reload]);
 
   const act = async (fn: () => Promise<unknown>, ok?: string) => {
     try {
@@ -417,6 +430,8 @@ export function ParentHome({ user, onLogout }: { user: User; onLogout: () => voi
         <AppearanceButton />
         <Appbar.Action icon="logout" onPress={onLogout} />
       </Appbar.Header>
+
+      <OfflineBanner />
 
       <ScrollView
         contentContainerStyle={styles.content}

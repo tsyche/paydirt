@@ -2,6 +2,7 @@ import EventSource from "react-native-sse";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import PocketBase, { AsyncAuthStore } from "pocketbase";
 import { PaydirtClient } from "@paydirt/shared";
+import { createReachabilityMonitor } from "./reachability";
 
 // PocketBase realtime subscriptions ride on SSE, and React Native has no
 // native EventSource — install the polyfill before the SDK is used.
@@ -23,3 +24,8 @@ const store = new AsyncAuthStore({
 });
 
 export const client = new PaydirtClient(new PocketBase(pbUrl, store));
+
+// Single shared reachability poller — see reachability.ts for why. Screens read
+// its status via the useReachability() hook instead of probing individually.
+export const reachability = createReachabilityMonitor(`${pbUrl}/api/health`);
+reachability.start();

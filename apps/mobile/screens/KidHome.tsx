@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { View, ScrollView, StyleSheet, RefreshControl } from "react-native";
 import {
   Appbar,
@@ -19,10 +19,13 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import type { Assignment, Broadcast, Chore, Household, SavingsGoal, User } from "@paydirt/shared";
 import { client } from "../lib/client";
+import { isNetworkError } from "../lib/reachability";
+import { useReachability } from "../lib/useReachability";
 import { takePhotoAndComplete } from "../lib/completeWithPhoto";
 import { AppearanceButton } from "../components/AppearanceButton";
 import { ChunkyButton } from "../components/ChunkyButton";
 import { ClaimHero } from "../components/ClaimHero";
+import { OfflineBanner } from "../components/OfflineBanner";
 
 const KID_TABS = [
   { key: "home", title: "Home", focusedIcon: "home", unfocusedIcon: "home-outline" },
@@ -97,7 +100,9 @@ export function KidHome({ user, onLogout }: { user: User; onLogout: () => void }
       setHousehold(hh);
       setBroadcasts(bcs);
     } catch (e) {
-      setSnack(String(e));
+      // Network failures already surface via the offline banner — an extra
+      // toast on top would just be noise. Anything else still gets one.
+      if (!isNetworkError(e)) setSnack(String(e));
     } finally {
       setRefreshing(false);
     }
@@ -106,6 +111,14 @@ export function KidHome({ user, onLogout }: { user: User; onLogout: () => void }
   useEffect(() => {
     void reload();
   }, [reload]);
+
+  // Retry automatically on reconnect instead of waiting for pull-to-refresh.
+  const reachable = useReachability();
+  const wasReachable = useRef(reachable);
+  useEffect(() => {
+    if (reachable === "online" && wasReachable.current === "offline") void reload();
+    wasReachable.current = reachable;
+  }, [reachable, reload]);
 
   // Realtime: re-fetch when this kid's assignments, goals, or balance change,
   // so approvals show up without pull-to-refresh. Best-effort — if the
@@ -179,6 +192,8 @@ export function KidHome({ user, onLogout }: { user: User; onLogout: () => void }
         <AppearanceButton />
         <Appbar.Action icon="logout" onPress={onLogout} />
       </Appbar.Header>
+
+      <OfflineBanner />
 
       <ScrollView
         contentContainerStyle={styles.content}

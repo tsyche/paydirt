@@ -1,27 +1,22 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { View, StyleSheet } from "react-native";
 import { TextInput, Button, Text, useTheme } from "react-native-paper";
 import { SafeAreaView } from "react-native-safe-area-context";
 import type { User } from "@paydirt/shared";
-import { client, pbUrl } from "../lib/client";
+import { client } from "../lib/client";
+import { OfflineBanner } from "../components/OfflineBanner";
 
+// Reuses the shared reachability poller (started in lib/client.ts, see
+// reachability.ts) via <OfflineBanner /> instead of the old one-off health
+// probe that only logged to the console — it already retries in the
+// background, so by the time a kid taps "Sign in" after walking back into
+// wifi range, the banner has cleared on its own.
 export function Login({ onLogin }: { onLogin: (u: User) => void }) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const theme = useTheme();
-
-  useEffect(() => {
-    (async () => {
-      try {
-        const res = await fetch(`${pbUrl}/api/health`);
-        console.log(`[Login] PB health check: ${res.status} (URL: ${pbUrl})`);
-      } catch (e) {
-        console.error(`[Login] PB unreachable at ${pbUrl}: ${e}`);
-      }
-    })();
-  }, []);
 
   async function submit() {
     setBusy(true);
@@ -40,6 +35,7 @@ export function Login({ onLogin }: { onLogin: (u: User) => void }) {
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]}>
+      <OfflineBanner />
       <View style={styles.hero}>
         <Text style={styles.coin}>💰</Text>
         <Text

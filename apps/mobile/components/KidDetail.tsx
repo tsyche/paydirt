@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { View, ScrollView, StyleSheet, RefreshControl } from "react-native";
 import {
   Appbar,
@@ -16,8 +16,11 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import type { Assignment, Chore, Household, SavingsGoal, User } from "@paydirt/shared";
 import { client } from "../lib/client";
+import { isNetworkError } from "../lib/reachability";
+import { useReachability } from "../lib/useReachability";
 import { ClaimHero } from "./ClaimHero";
 import { ChunkyButton } from "./ChunkyButton";
+import { OfflineBanner } from "./OfflineBanner";
 
 type Expanded = Assignment & { expand?: { chore?: Chore } };
 
@@ -75,7 +78,9 @@ export function KidDetail({
       setGoals(gs);
       setHistory(hist as Expanded[]);
     } catch (e) {
-      setSnack(String(e));
+      // Network failures already surface via the offline banner — an extra
+      // toast on top would just be noise. Anything else still gets one.
+      if (!isNetworkError(e)) setSnack(String(e));
     } finally {
       setRefreshing(false);
     }
@@ -84,6 +89,14 @@ export function KidDetail({
   useEffect(() => {
     void reload();
   }, [reload]);
+
+  // Retry automatically on reconnect instead of waiting for pull-to-refresh.
+  const reachable = useReachability();
+  const wasReachable = useRef(reachable);
+  useEffect(() => {
+    if (reachable === "online" && wasReachable.current === "offline") void reload();
+    wasReachable.current = reachable;
+  }, [reachable, reload]);
 
   function openAdjust(sign: 1 | -1) {
     setAdjustSign(sign);
@@ -117,6 +130,8 @@ export function KidDetail({
         <Appbar.BackAction onPress={onClose} />
         <Appbar.Content title={kid?.display_name ?? "Kid"} />
       </Appbar.Header>
+
+      <OfflineBanner />
 
       <ScrollView
         contentContainerStyle={styles.content}
