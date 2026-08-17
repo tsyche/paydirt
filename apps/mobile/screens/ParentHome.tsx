@@ -20,6 +20,7 @@ import { client } from "../lib/client";
 import { isAccessibilityServiceEnabled } from "../lib/accessibility-service";
 import { isNetworkError } from "../lib/reachability";
 import { useReachability } from "../lib/useReachability";
+import { tabForNotificationType } from "../lib/deepLinks";
 import { AppearanceButton } from "../components/AppearanceButton";
 import { AppearanceControls } from "../components/AppearanceControls";
 import { ChunkyButton } from "../components/ChunkyButton";
@@ -38,7 +39,17 @@ type ExpandedAssignment = Assignment & { expand?: { chore?: Chore; child?: User 
 type ExpandedSpend = SpendRequest & { expand?: { child?: User } };
 type ExpandedProposal = ChoreProposal & { expand?: { child?: User } };
 
-export function ParentHome({ user, onLogout }: { user: User; onLogout: () => void }) {
+export function ParentHome({
+  user,
+  onLogout,
+  notificationRoute,
+}: {
+  user: User;
+  onLogout: () => void;
+  // A tapped push notification's routing info (see App.tsx + lib/deepLinks.ts). Optional
+  // so ParentHome stays usable standalone (e.g. in tests) without a Linking listener.
+  notificationRoute?: { type: string | null; nonce: number } | null;
+}) {
   const theme = useTheme();
   const [household, setHousehold] = useState<Household | null>(null);
   const [kids, setKids] = useState<User[]>([]);
@@ -153,6 +164,15 @@ export function ParentHome({ user, onLogout }: { user: User; onLogout: () => voi
     if (reachable === "online" && wasReachable.current === "offline") void reload();
     wasReachable.current = reachable;
   }, [reachable, reload]);
+
+  // Switch to the tab a tapped notification targets (see App.tsx's Linking wiring). Keyed
+  // off notificationRoute's nonce, not its tab, so tapping the same notification type twice
+  // in a row still re-navigates even though the resolved tab didn't change.
+  useEffect(() => {
+    if (!notificationRoute) return;
+    const target = tabForNotificationType(notificationRoute.type);
+    if (target) setTab(target);
+  }, [notificationRoute]);
 
   const act = async (fn: () => Promise<unknown>, ok?: string) => {
     try {

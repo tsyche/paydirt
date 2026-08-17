@@ -1,5 +1,6 @@
 package io.paydirt.app
 
+import android.content.Intent
 import android.os.Build
 import android.os.Bundle
 
@@ -24,6 +25,17 @@ class MainActivity : ReactActivity() {
    * rendering of the component.
    */
   override fun getMainComponentName(): String = "main"
+
+  /**
+   * Keeps getIntent() current when a new intent arrives while the app is already running
+   * (e.g. tapping a notification's PendingIntent, see UnifiedPushReceiver) — RN's Linking
+   * module (getInitialURL / the "url" event) relies on this to see the deep link on a warm
+   * start, not just cold start.
+   */
+  override fun onNewIntent(intent: Intent) {
+    super.onNewIntent(intent)
+    setIntent(intent)
+  }
 
   /**
    * Returns the instance of the [ReactActivityDelegate]. We use [DefaultReactActivityDelegate]
