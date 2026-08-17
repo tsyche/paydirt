@@ -10,7 +10,7 @@
 
 onRecordAfterCreateSuccess((e) => {
   const { notifyUser, notifyParents } = require(`${__hooks}/lib/ntfy.js`);
-  const { STREAK_MILESTONES, computeStreak } = require(`${__hooks}/lib/streaks.js`);
+  const { STREAK_MILESTONES, computeStreak, getMilestoneBonus } = require(`${__hooks}/lib/streaks.js`);
   const amount = e.record.getFloat("amount");
   const child = e.app.findRecordById("users", e.record.getString("user"));
   if (child.getString("role") !== "child") {
@@ -71,8 +71,8 @@ onRecordAfterCreateSuccess((e) => {
       const override = household.getFloat(`streak_bonus_${days}`);
       milestones[days] = override > 0 ? override : def;
     }
-    const bonus = milestones[streak];
-    if (bonus && streak > prevStreak) {
+    const bonus = getMilestoneBonus(streak, prevStreak, milestones);
+    if (bonus) {
       const tx = new Record(e.app.findCollectionByNameOrId("currency_transactions"));
       tx.set("user", child.id);
       tx.set("amount", bonus);

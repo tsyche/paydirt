@@ -2,6 +2,16 @@
 // All times are server-local for the HH:MM comparisons and UTC for date
 // arithmetic; dedupe markers are stored on the records themselves so a
 // 10-minute tick can't double-send.
+//
+// The fire/no-fire decision helpers below mirror
+// packages/shared/src/scheduling.ts, which is the tested source of truth
+// (vitest + a fake clock). PocketBase's embedded Goja runtime can't import
+// that package — require() here only resolves local .js files, no
+// node_modules/TS/ESM support — so this is a hand-ported, behavior-identical
+// mirror. Keep the two in sync if the fire/no-fire rules ever change.
+
+const HOUR_MS = 3600e3;
+const DAY_MS = 86400e3;
 
 function pbDate(d) {
   return d.toISOString().replace("T", " ");
@@ -9,6 +19,52 @@ function pbDate(d) {
 
 function listHouseholds(app) {
   return app.findRecordsByFilter("households", "id != ''", "", 0, 0, {});
+}
+
+// ── pure fire/no-fire decisions (mirrors packages/shared/src/scheduling.ts) ──
+
+function shouldFireNudge(now, completedAt, nudgedAt, nudgeHours, vacationMode) {
+  if (vacationMode || nudgeHours <= 0) return false;
+  const cutoff = now.getTime() - nudgeHours * HOUR_MS;
+  if (completedAt.getTime() > cutoff) return false;
+  if (nudgedAt && nudgedAt.getTime() >= completedAt.getTime()) return false;
+  return true;
+}
+
+function shouldFireReminder(now, reminderTime, lastRemindedAt, vacationMode) {
+  if (vacationMode) return false;
+  const pad = (n) => String(n).padStart(2, "0");
+  const nowHM = pad(now.getHours()) + ":" + pad(now.getMinutes());
+  if (nowHM < reminderTime) return false;
+  if (lastRemindedAt) {
+    const today = now.toISOString().slice(0, 10);
+    const lastRemindedDay = lastRemindedAt.toISOString().slice(0, 10);
+    if (lastRemindedDay === today) return false;
+  }
+  return true;
+}
+
+function computeDueStage(now, dueAt) {
+  const msLeft = dueAt.getTime() - now.getTime();
+  if (msLeft <= 0) return 3;
+  if (msLeft <= 2 * HOUR_MS) return 2;
+  if (msLeft <= 24 * HOUR_MS) return 1;
+  return 0;
+}
+
+function shouldEscalate(stage, prevStage, vacationMode) {
+  if (vacationMode) return false;
+  return stage > 0 && stage > prevStage;
+}
+
+function isCurrencyExpired(now, createdAt, expiryDays, vacationMode) {
+  if (vacationMode || expiryDays <= 0) return false;
+  const cutoff = now.getTime() - expiryDays * DAY_MS;
+  return createdAt.getTime() <= cutoff;
+}
+
+function shouldSendWeeklyDigest(vacationMode) {
+  return !vacationMode;
 }
 
 // ── tick (every 10 min): nudges, scheduled reminders, deadlines, kid alarms ──
@@ -24,7 +80,7 @@ function runTick(app) {
     // One nudge per completion (nudged_at < completed_at handles resubmits).
     const nudgeHours = hh.getFloat("nudge_hours");
     if (nudgeHours > 0) {
-      const cutoff = pbDate(new Date(now.getTime() - nudgeHours * 3600 * 1000));
+      const cutoff = pbDate(new Date(now.getTime() - nudgeHours * HOUR_MS));
       const waiting = app.findRecordsByFilter(
         "assignments",
         "status = 'completed' && completed_at != '' && completed_at <= {:cutoff} && chore.household = {:hh}",
@@ -34,8 +90,12 @@ function runTick(app) {
         { cutoff: cutoff, hh: hh.id },
       );
       for (const a of waiting) {
-        const nudgedAt = a.getString("nudged_at");
-        if (nudgedAt && nudgedAt >= a.getString("completed_at")) continue;
+        const completedAt = new Date(a.getString("completed_at").replace(" ", "T"));
+        const nudgedAtStr = a.getString("nudged_at");
+        const nudgedAt = nudgedAtStr ? new Date(nudgedAtStr.replace(" ", "T")) : null;
+        // vacationMode is always false here — the household-level `paused`
+        // check above already skipped this iteration otherwise.
+        if (!shouldFireNudge(now, completedAt, nudgedAt, nudgeHours, false)) continue;
         const chore = app.findRecordById("chores", a.getString("chore"));
         const kid = app.findRecordById("users", a.getString("child"));
         notifyParents(
@@ -50,10 +110,11 @@ function runTick(app) {
     }
 
     // Parent-scheduled chore reminders ("HH:MM", server-local): once per day
-    // per assignment, fired on the first tick at/after the set time.
+    // per assignment, fired on the first tick at/after the set time. The
+    // chore-level nowHM check is a query-avoidance guard; shouldFireReminder
+    // is the authoritative decision (also re-checks nowHM).
     const pad = (n) => String(n).padStart(2, "0");
     const nowHM = pad(now.getHours()) + ":" + pad(now.getMinutes());
-    const today = now.toISOString().slice(0, 10);
     const remindChores = app.findRecordsByFilter(
       "chores",
       "household = {:hh} && active = true && reminder_time != ''",
@@ -63,7 +124,8 @@ function runTick(app) {
       { hh: hh.id },
     );
     for (const chore of remindChores) {
-      if (nowHM < chore.getString("reminder_time")) continue;
+      const reminderTime = chore.getString("reminder_time");
+      if (nowHM < reminderTime) continue;
       const open = app.findRecordsByFilter(
         "assignments",
         "chore = {:c} && status = 'assigned'",
@@ -73,7 +135,9 @@ function runTick(app) {
         { c: chore.id },
       );
       for (const a of open) {
-        if (a.getString("last_reminded").slice(0, 10) === today) continue;
+        const lastRemindedStr = a.getString("last_reminded");
+        const lastRemindedAt = lastRemindedStr ? new Date(lastRemindedStr.replace(" ", "T")) : null;
+        if (!shouldFireReminder(now, reminderTime, lastRemindedAt, false)) continue;
         notifyUser(app, a.getString("child"), "Chore time! 🧹", chore.getString("name"));
         a.set("last_reminded", nowStr);
         app.save(a);
@@ -92,8 +156,7 @@ function runTick(app) {
     );
     for (const chore of dueChores) {
       const due = new Date(chore.getString("due_at").replace(" ", "T"));
-      const msLeft = due.getTime() - now.getTime();
-      const stage = msLeft <= 0 ? 3 : msLeft <= 2 * 3600e3 ? 2 : msLeft <= 24 * 3600e3 ? 1 : 0;
+      const stage = computeDueStage(now, due);
       if (stage === 0) continue;
       const open = app.findRecordsByFilter(
         "assignments",
@@ -104,7 +167,8 @@ function runTick(app) {
         { c: chore.id },
       );
       for (const a of open) {
-        if (stage <= a.getFloat("reminder_stage")) continue;
+        const prevStage = a.getFloat("reminder_stage");
+        if (!shouldEscalate(stage, prevStage, false)) continue;
         const name = chore.getString("name");
         if (stage === 1) {
           notifyUser(app, a.getString("child"), "Due soon ⏰", name + " is due within a day");
@@ -207,8 +271,9 @@ function runDaily(app) {
     // negative adjustment, capped at the current balance (already-spent
     // rewards can't expire twice). Skipped while on vacation.
     const expiryDays = hh.getFloat("expiry_days");
-    if (expiryDays > 0 && !hh.getBool("paused")) {
-      const cutoff = pbDate(new Date(now.getTime() - expiryDays * 86400e3));
+    const vacationMode = hh.getBool("paused");
+    if (expiryDays > 0 && !vacationMode) {
+      const cutoff = pbDate(new Date(now.getTime() - expiryDays * DAY_MS));
       const stale = app.findRecordsByFilter(
         "currency_transactions",
         "type = 'earn' && expiry_processed = false && created <= {:cutoff} && user.household = {:hh}",
@@ -219,6 +284,8 @@ function runDaily(app) {
       );
       const byChild = {};
       for (const t of stale) {
+        const createdAt = new Date(t.getString("created").replace(" ", "T"));
+        if (!isCurrencyExpired(now, createdAt, expiryDays, vacationMode)) continue;
         const uid = t.getString("user");
         byChild[uid] = (byChild[uid] || 0) + t.getFloat("amount");
         t.set("expiry_processed", true);
@@ -255,7 +322,7 @@ function runWeeklyDigest(app) {
   const weekAgo = pbDate(new Date(Date.now() - 7 * 86400e3));
 
   for (const hh of listHouseholds(app)) {
-    if (hh.getBool("paused")) continue;
+    if (!shouldSendWeeklyDigest(hh.getBool("paused"))) continue;
     const currency = hh.getString("currency_name") || "parentBucks";
     const kids = app.findRecordsByFilter(
       "users",
