@@ -247,7 +247,21 @@ pb-download:
         ver=$(curl -sL https://api.github.com/repos/pocketbase/pocketbase/releases/latest | jq -r '.tag_name' | sed 's/^v//')
     fi
     if [ -z "$ver" ] || [ "$ver" = "null" ]; then
-        printf '\033[0;33mCould not resolve PocketBase version. Set PB_VERSION=x.y.z manually.\033[0m\n'
+        # pocketbase/pocketbase has had stretches with zero GitHub Releases (tags only) —
+        # releases/latest returns nothing in that case. Fall back to Homebrew on macOS,
+        # since its formula builds from the tag's source tarball and isn't affected.
+        if [ "$os" = "darwin" ] && command -v brew >/dev/null 2>&1; then
+            printf '\033[0;33mNo GitHub Release found for pocketbase/pocketbase; falling back to Homebrew...\033[0m\n'
+            brew install pocketbase
+            ln -sf "$(brew --prefix)/bin/pocketbase" {{pb}}
+            printf '\033[0;32mInstalled %s (via Homebrew)\033[0m\n' "$({{pb}} --version)"
+            exit 0
+        fi
+        printf '\033[0;31mCould not resolve a PocketBase release (pocketbase/pocketbase currently has no GitHub Releases, tags only).\033[0m\n'
+        printf 'Options:\n'
+        printf '  - macOS: brew install pocketbase && ln -sf "$(brew --prefix)/bin/pocketbase" pocketbase/pocketbase\n'
+        printf '  - Set PB_VERSION=x.y.z manually if a release reappears\n'
+        printf '  - Build from source: git clone --branch v<ver> --depth 1 https://github.com/pocketbase/pocketbase && cd pocketbase && go build\n'
         exit 1
     fi
     url="https://github.com/pocketbase/pocketbase/releases/download/v${ver}/pocketbase_${ver}_${os}_${arch}.zip"

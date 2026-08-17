@@ -64,7 +64,7 @@ API. For a clean, ledger-consistent slate: stop the server, `just reset-db`,
 start the server, then `just seed`. All seeded logins use password `password123`:
 `parent1@test.local`, `parent2@test.local`, `child1@test.local`, `child2@test.local`.
 
-PocketBase binary is not committed — run `just pb-download` (or grab it from the [releases page](https://github.com/pocketbase/pocketbase/releases)) into `pocketbase/`.
+PocketBase binary is not committed — run `just pb-download` (falls back to Homebrew on macOS if [GitHub Releases](https://github.com/pocketbase/pocketbase/releases) has none available — see `ROADMAP.md`'s Known Issues) into `pocketbase/`.
 
 ## Toolchain notes (non-obvious)
 

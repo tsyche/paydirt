@@ -4,7 +4,7 @@ The PocketBase binary is **not** committed (gitignored). Version-controlled here
 
 ## Local setup
 
-1. Download the binary for your platform from the [PocketBase releases](https://github.com/pocketbase/pocketbase/releases) and place it at `pocketbase/pocketbase`.
+1. Run `just pb-download` from the repo root (falls back to Homebrew on macOS if [GitHub Releases](https://github.com/pocketbase/pocketbase/releases) has none available — see `ROADMAP.md`'s Known Issues), or download the binary manually for your platform and place it at `pocketbase/pocketbase`.
 2. Run it:
 
    ```bash
