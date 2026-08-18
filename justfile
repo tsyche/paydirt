@@ -243,8 +243,16 @@ pb-download:
     os=$(uname -s | tr '[:upper:]' '[:lower:]')
     arch=$(uname -m | sed 's/x86_64/amd64/; s/aarch64/arm64/')
     ver="${PB_VERSION:-}"
+    token="${GITHUB_TOKEN:-${GH_TOKEN:-}}"
+    if [ -z "$token" ] && command -v gh >/dev/null 2>&1; then
+        token=$(gh auth token 2>/dev/null || true)
+    fi
+    auth_header=()
+    if [ -n "$token" ]; then
+        auth_header=(-H "Authorization: Bearer ${token}")
+    fi
     if [ -z "$ver" ]; then
-        ver=$(curl -sL https://api.github.com/repos/pocketbase/pocketbase/releases/latest | jq -r '.tag_name' | sed 's/^v//')
+        ver=$(curl -sL "${auth_header[@]}" https://api.github.com/repos/pocketbase/pocketbase/releases/latest | jq -r '.tag_name' | sed 's/^v//')
     fi
     if [ -z "$ver" ] || [ "$ver" = "null" ]; then
         # pocketbase/pocketbase has had stretches with zero GitHub Releases (tags only) —

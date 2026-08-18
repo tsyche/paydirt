@@ -23,6 +23,8 @@ jobs:
           cache: pnpm
 
       - uses: extractions/setup-just@v2
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
 
       - run: pnpm install --frozen-lockfile
 
@@ -50,10 +52,14 @@ jobs:
           cache: pnpm
 
       - uses: extractions/setup-just@v2
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
 
       - run: pnpm install --frozen-lockfile
 
       - name: Download PocketBase binary
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: just pb-download
 
       - name: Install Playwright browser
