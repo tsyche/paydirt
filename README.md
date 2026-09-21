@@ -2,7 +2,7 @@
 
 > *Do. The. Thing.*
 
-A private family chore tracking app. Kids do chores, earn **parentBucks**, and spend them on screen time, savings goals, or real-world treats — with parent approval at every step.
+A self-hosted chore and allowance tracker for households. Kids do chores, earn **parentBucks**, and spend them on screen time, savings goals, or real-world treats, with parent approval at every step. Built with Expo, Next.js, and PocketBase.
 
 ## Setup
 

@@ -34,6 +34,7 @@ default:
 [group('development')]
 setup:
     @pnpm install
+    @[ -f apps/mobile/android/app/debug.keystore ] || ! command -v keytool >/dev/null || keytool -genkeypair -storetype PKCS12 -keystore apps/mobile/android/app/debug.keystore -storepass android -alias androiddebugkey -keypass android -keyalg RSA -keysize 2048 -validity 10000 -dname 'CN=Android Debug,O=Android,C=US' >/dev/null 2>&1
 
 # Print release APK deployment steps for real devices
 deploy-start:

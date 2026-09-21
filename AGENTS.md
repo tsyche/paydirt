@@ -2,7 +2,7 @@
 
 *Do. The. Thing.*
 
-A private family chore tracking app. Parents assign chores; kids complete them on Android devices and mark them done; parents approve. Rewards are virtual currency (**parentBucks**) that kids spend on screen time (manually granted), bank toward thresholds, or exchange for physical goods. Family-only — not a public app.
+A self-hosted family chore tracking app. Parents assign chores; kids complete them on Android devices and mark them done; parents approve. Rewards are virtual currency (**parentBucks**) that kids spend on screen time (manually granted), bank toward thresholds, or exchange for physical goods. Built for one household, published as a showcase — not a hosted service.
 
 ## Tech Stack
 
