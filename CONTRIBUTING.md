@@ -1,6 +1,6 @@
 # Contributing
 
-Private family project — no external contributions. This file documents the dev workflow for future reference.
+Personal project, built for one household — not accepting external contributions. This file documents the dev workflow for future reference.
 
 ## Getting started
 
