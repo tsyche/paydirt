@@ -2,7 +2,7 @@
 
 > *Do. The. Thing.*
 
-A self-hosted chore and allowance tracker for households. Kids do chores, earn **parentBucks**, and spend them on screen time, savings goals, or real-world treats, with parent approval at every step. Built with Expo, Next.js, and PocketBase.
+A self-hosted chore and allowance tracker for a single household, built to teach real money habits. Kids get their own app to track and complete chores; parents get a dashboard with push notifications for approvals. Kids earn **parentBucks** (Grit) for chores, then redeem them for screen time, real-world purchases, or bank toward savings goals — with parent approval at every step. Built with Expo, Next.js, and PocketBase.
 
 ## Setup
 
