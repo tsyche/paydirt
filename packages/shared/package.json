@@ -21,7 +21,7 @@
   "devDependencies": {
     "@types/node": "^22.10.0",
     "eslint": "^10.6.0",
-    "eventsource": "^4.1.0",
+    "eventsource": "^5.1.2",
     "typescript": "^6.0.0",
     "typescript-eslint": "^8.63.0",
     "vite": "^6.0.0",
