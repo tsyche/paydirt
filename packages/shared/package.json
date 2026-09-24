@@ -19,7 +19,7 @@
     "pocketbase": "^0.27.0"
   },
   "devDependencies": {
-    "@types/node": "^22.10.0",
+    "@types/node": "^26.6.2",
     "eslint": "^10.6.0",
     "eventsource": "^4.1.0",
     "typescript": "^6.0.0",
