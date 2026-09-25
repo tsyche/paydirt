@@ -67,7 +67,7 @@ function AppContent() {
   // launched by the tap); the "url" listener covers a warm start (app already running,
   // relies on MainActivity.onNewIntent forwarding the new intent).
   useEffect(() => {
-    function handleUrl(url: string | null) {
+    function handleUrl(url: string | null | undefined) {
       if (!url?.startsWith("paydirt://")) return;
       setNotificationRoute({ type: parseNotificationType(url), nonce: Date.now() });
     }
