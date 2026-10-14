@@ -8,6 +8,12 @@ export default defineConfig({
   timeout: 30_000,
   // Tests mutate the same seeded household — keep them sequential.
   workers: 1,
+  // One CI retry classifies a test as flaky without hiding stateful failures.
+  retries: process.env.CI ? 1 : 0,
+  // CI also writes a JSON report; Playwright marks a retried pass as "flaky".
+  reporter: process.env.CI
+    ? [["list"], ["json", { outputFile: "e2e-results/report.json" }]]
+    : [["list"]],
   use: {
     baseURL: "http://localhost:3000",
   },

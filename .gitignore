@@ -54,6 +54,7 @@ pnpm-debug.log*
 coverage/
 .nyc_output/
 test-results/
+e2e-results/
 playwright-report/
 blob-report/
 
