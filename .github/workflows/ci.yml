@@ -87,6 +87,15 @@ jobs:
       - name: Run integration + e2e tests (ephemeral PocketBase)
         run: just test-all
 
+      - name: Playwright JSON report (flake tracking)
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: e2e-results
+          path: apps/web/e2e-results/report.json
+          retention-days: 30
+          if-no-files-found: ignore
+
   secrets:
     name: Secret scan (full history)
     runs-on: ubuntu-26.04
