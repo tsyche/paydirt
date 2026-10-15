@@ -4,7 +4,7 @@ import { PaydirtClient } from "@paydirt/shared";
 // Parent dashboard golden path against a running, seeded PocketBase.
 // The PaydirtClient plays the kid's part (completing the chore) and cleans up.
 
-const PB_URL = process.env.PB_URL ?? "http://127.0.0.1:8090";
+const PB_URL = process.env.PB_URL ?? "http://127.0.0.1:3111";
 const PW = "password123";
 const REWARD = 7;
 

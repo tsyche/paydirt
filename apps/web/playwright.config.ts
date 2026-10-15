@@ -15,12 +15,13 @@ export default defineConfig({
     ? [["list"], ["json", { outputFile: "e2e-results/report.json" }]]
     : [["list"]],
   use: {
-    baseURL: "http://localhost:3000",
+    baseURL: "http://localhost:3110",
   },
   webServer: {
     command: "pnpm dev",
-    url: "http://localhost:3000",
-    reuseExistingServer: true,
+    url: "http://localhost:3110",
+    // Never reuse: a dev server on this port points at the dev PocketBase, not the test one.
+    reuseExistingServer: false,
     timeout: 60_000,
   },
 });

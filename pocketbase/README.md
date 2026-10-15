@@ -11,9 +11,9 @@ The PocketBase binary is **not** committed (gitignored). Version-controlled here
    just dev-pb
    ```
 
-   This serves on `http://localhost:8090` using the local `pb_data/`, `pb_hooks/`, and `pb_migrations/` directories.
+   This serves on `http://localhost:3111` using the local `pb_data/`, `pb_hooks/`, and `pb_migrations/` directories.
 
-3. Open the admin UI at `http://localhost:8090/_/` to create the first admin account.
+3. Open the admin UI at `http://localhost:3111/_/` to create the first admin account.
 
 ## Layout
 

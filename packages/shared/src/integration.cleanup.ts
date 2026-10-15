@@ -7,7 +7,7 @@ import PocketBase from "pocketbase";
 // (the append-only rows themselves stay), delete assignments, delete chores.
 // Same env defaults as pocketbase/seed.mjs.
 
-const PB_URL = process.env.PB_URL ?? "http://127.0.0.1:8090";
+const PB_URL = process.env.PB_URL ?? "http://127.0.0.1:3111";
 const ADMIN_EMAIL = process.env.PB_ADMIN_EMAIL ?? "admin@paydirt.local";
 const ADMIN_PASSWORD = process.env.PB_ADMIN_PASSWORD ?? "password123";
 

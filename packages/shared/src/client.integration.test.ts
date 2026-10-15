@@ -8,7 +8,7 @@ import type { User } from "./types";
 // users (parent1@test.local / child1@test.local, pw password123). Run `just seed`.
 // Excluded from the default `test` script; run with `pnpm test:integration`.
 
-const PB_URL = process.env.PB_URL ?? "http://127.0.0.1:8090";
+const PB_URL = process.env.PB_URL ?? "http://127.0.0.1:3111";
 const PW = "password123";
 
 describe("PaydirtClient (live)", () => {

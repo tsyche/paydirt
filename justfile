@@ -2,7 +2,7 @@
 
 # PocketBase binary location (downloaded separately, gitignored)
 pb := "pocketbase/pocketbase"
-pb-serve-args := "serve --dir pocketbase/pb_data --hooksDir pocketbase/pb_hooks --migrationsDir pocketbase/pb_migrations --http 0.0.0.0:8090"
+pb-serve-args := "serve --dir pocketbase/pb_data --hooksDir pocketbase/pb_hooks --migrationsDir pocketbase/pb_migrations --http 0.0.0.0:3111"
 
 # Default: show the "what do I want to do" cheat sheet
 default:
@@ -63,7 +63,7 @@ fresh nuke="0":
         CLEAR_FLAG="--clear"   # force Metro to rebuild its transform cache on a nuke
     fi
     printf '\033[0;34mResetting database...\033[0m\n'
-    if curl -sf -o /dev/null http://127.0.0.1:8090/api/health; then
+    if curl -sf -o /dev/null http://127.0.0.1:3111/api/health; then
         printf '\033[0;33mPocketBase is running — stop it first (just stop).\033[0m\n'
         exit 1
     fi
@@ -81,7 +81,7 @@ fresh nuke="0":
     {{pb}} {{pb-serve-args}} > /tmp/paydirt-logs/pb.log 2>&1 & echo $! > /tmp/paydirt-pb.pid
     echo "  Waiting for PocketBase to be ready..."
     for i in $(seq 1 20); do
-        if curl -sf -o /dev/null http://127.0.0.1:8090/api/health; then break; fi
+        if curl -sf -o /dev/null http://127.0.0.1:3111/api/health; then break; fi
         if [ "$i" = "20" ]; then
             printf '\033[0;33mPocketBase did not start in time — check /tmp/paydirt-logs/pb.log\033[0m\n'
             exit 1
@@ -107,9 +107,9 @@ fresh nuke="0":
     fi
     printf '\n\033[0;32mAll services running. Logs:\033[0m\n'
     echo "  PocketBase:  /tmp/paydirt-logs/pb.log"
-    echo "  Dashboard:   /tmp/paydirt-logs/web.log  (http://localhost:3000)"
+    echo "  Dashboard:   /tmp/paydirt-logs/web.log  (http://localhost:3110)"
     echo "  Mobile/Expo: /tmp/paydirt-logs/mobile.log"
-    echo "  PocketBase admin: http://localhost:8090/_/"
+    echo "  PocketBase admin: http://localhost:3111/_/"
     echo ""
     echo "Press Ctrl+C to stop all services (or run 'just stop' from another terminal)."
     trap 'just stop' INT; wait
@@ -132,8 +132,8 @@ release-all:
     printf '\n\033[0;32m✓ All set!\033[0m\n'
     echo ""
     echo "  Mobile app: Open PayDirt on your real device"
-    echo "  Parent UI:  http://localhost:3000 (parent@test.local / password123)"
-    echo "  Admin UI:   http://localhost:8090/_ (admin@paydirt.local / password123)"
+    echo "  Parent UI:  http://localhost:3110 (parent@test.local / password123)"
+    echo "  Admin UI:   http://localhost:3111/_ (admin@paydirt.local / password123)"
     echo ""
     echo "All services running in background. Logs:"
     echo "  PocketBase: /tmp/paydirt-logs/pb.log"
@@ -202,9 +202,9 @@ dev-device:
     {{pb}} {{pb-serve-args}} > /tmp/paydirt-logs/pb.log 2>&1 & echo $! > /tmp/paydirt-pb.pid
     sleep 2
     printf '\033[0;34mStarting Expo (scan QR on device)...\033[0m\n'
-    printf '\n  Device PB URL: http://%s:8090\n' "${LAN_IP}"
-    printf '  Set in .env:   EXPO_PUBLIC_POCKETBASE_URL=http://%s:8090\n\n' "${LAN_IP}"
-    EXPO_PUBLIC_POCKETBASE_URL="http://${LAN_IP}:8090" pnpm --filter mobile start
+    printf '\n  Device PB URL: http://%s:3111\n' "${LAN_IP}"
+    printf '  Set in .env:   EXPO_PUBLIC_POCKETBASE_URL=http://%s:3111\n\n' "${LAN_IP}"
+    EXPO_PUBLIC_POCKETBASE_URL="http://${LAN_IP}:3111" pnpm --filter mobile start
 
 # Start PocketBase (LAN-bound) + web dashboard only — for a real device with the APK already installed
 [group('development')]
@@ -224,18 +224,18 @@ dev-backend:
     pnpm run dev:web > /tmp/paydirt-logs/web.log 2>&1 & echo $! > /tmp/paydirt-web.pid
     printf '\n\033[0;32mRunning:\033[0m\n'
     if [ -n "${LAN_IP}" ]; then
-        printf '  Device PB URL:    http://%s:8090  (must match EXPO_PUBLIC_POCKETBASE_URL baked into the APK)\n' "${LAN_IP}"
+        printf '  Device PB URL:    http://%s:3111  (must match EXPO_PUBLIC_POCKETBASE_URL baked into the APK)\n' "${LAN_IP}"
     fi
-    printf '  PocketBase admin: http://localhost:8090/_/\n'
-    printf '  Web dashboard:    http://localhost:3000\n'
+    printf '  PocketBase admin: http://localhost:3111/_/\n'
+    printf '  Web dashboard:    http://localhost:3110\n'
     printf '\nPress Ctrl+C to stop (or run '\''just stop'\'' from another terminal).\n\n'
     trap 'just stop' INT; wait
 
-# Tunnel device USB traffic → host port 8090 (run once after plugging in; lets device use 127.0.0.1)
+# Tunnel device USB traffic → host port 3111 (run once after plugging in; lets device use 127.0.0.1)
 [group('development')]
 adb-tunnel:
-    @adb reverse tcp:8090 tcp:8090
-    @printf '\033[0;32mTunnel set: device:8090 → host:8090. Use EXPO_PUBLIC_POCKETBASE_URL=http://127.0.0.1:8090\033[0m\n'
+    @adb reverse tcp:3111 tcp:3111
+    @printf '\033[0;32mTunnel set: device:3111 → host:3111. Use EXPO_PUBLIC_POCKETBASE_URL=http://127.0.0.1:3111\033[0m\n'
 
 # Download the PocketBase binary (latest, or PB_VERSION=x.y.z)
 [group('development')]
@@ -289,7 +289,7 @@ prebuild:
     set -euo pipefail
     if [ ! -f apps/mobile/.env ] && [ -z "${EXPO_PUBLIC_POCKETBASE_URL:-}" ]; then
         printf '\033[0;33mSet EXPO_PUBLIC_POCKETBASE_URL before prebuilding.\033[0m\n'
-        printf '\033[0;33mExample: echo "EXPO_PUBLIC_POCKETBASE_URL=http://192.168.1.50:8090" > apps/mobile/.env\033[0m\n'
+        printf '\033[0;33mExample: echo "EXPO_PUBLIC_POCKETBASE_URL=http://192.168.1.50:3111" > apps/mobile/.env\033[0m\n'
         exit 1
     fi
     printf '\033[0;34mInstalling mobile dependencies...\033[0m\n'
@@ -366,7 +366,7 @@ reset-db:
         printf '\033[0;33mPocketBase binary not found — run '\''just pb-download'\''.\033[0m\n'
         exit 1
     fi
-    if curl -sf -o /dev/null http://127.0.0.1:8090/api/health; then
+    if curl -sf -o /dev/null http://127.0.0.1:3111/api/health; then
         printf '\033[0;33mPocketBase is running. Stop '\''just dev-pb'\'' first, then re-run '\''just reset-db'\''.\033[0m\n'
         exit 1
     fi
@@ -387,7 +387,7 @@ test:
 [group('quality')]
 test-integration:
     #!/usr/bin/env bash
-    if ! curl -sf -o /dev/null http://127.0.0.1:8090/api/health; then
+    if ! curl -sf -o /dev/null http://127.0.0.1:3111/api/health; then
         printf '\033[0;33mPocketBase is not running. Start it ('\''just dev-pb'\'', ideally with NTFY_DISABLED=1) and '\''just seed'\'' first.\033[0m\n'
         exit 1
     fi
@@ -397,18 +397,18 @@ test-integration:
 [group('quality')]
 test-e2e:
     #!/usr/bin/env bash
-    if ! curl -sf -o /dev/null http://127.0.0.1:8090/api/health; then
+    if ! curl -sf -o /dev/null http://127.0.0.1:3111/api/health; then
         printf '\033[0;33mPocketBase is not running. Start it ('\''just dev-pb'\'', ideally with NTFY_DISABLED=1) and '\''just seed'\'' first.\033[0m\n'
         exit 1
     fi
     pnpm --filter web test:e2e
 
-# Self-contained test run: ephemeral PB on :8091, migrate, seed, integration + e2e, teardown
+# Self-contained test run: ephemeral PB on :3112, migrate, seed, integration + e2e, teardown
 [group('quality')]
 test-all:
     #!/usr/bin/env bash
     set -euo pipefail
-    TEST_PORT=8091
+    TEST_PORT=3112
     TEST_URL="http://127.0.0.1:${TEST_PORT}"
     EDIR=$(mktemp -d)
 
@@ -458,9 +458,9 @@ test-all:
     printf '\033[0;34mVerifying ledger integrity...\033[0m\n'
     PB_URL="${TEST_URL}" node pocketbase/verify-ledger.mjs
 
-    if lsof -ti :3000 &>/dev/null; then
-        printf '\033[0;33mNote: port 3000 already in use — Playwright will reuse that server.\033[0m\n'
-        printf '\033[0;33m      If it is a dev server pointed at 8090, e2e results may be unreliable.\033[0m\n'
+    if lsof -ti :3110 &>/dev/null; then
+        printf '\033[0;33mPort 3110 is in use (dev server?). Stop it first (just stop).\033[0m\n'
+        exit 1
     fi
     printf '\033[0;34mRunning e2e tests...\033[0m\n'
     PB_URL="${TEST_URL}" NEXT_PUBLIC_POCKETBASE_URL="${TEST_URL}" pnpm --filter web test:e2e
@@ -472,7 +472,7 @@ test-all:
 [group('quality')]
 verify-ledger:
     #!/usr/bin/env bash
-    if ! curl -sf -o /dev/null http://127.0.0.1:8090/api/health; then
+    if ! curl -sf -o /dev/null http://127.0.0.1:3111/api/health; then
         printf '\033[0;33mPocketBase is not running. Start it ('\''just dev-pb'\'') first.\033[0m\n'
         exit 1
     fi

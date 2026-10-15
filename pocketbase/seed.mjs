@@ -6,14 +6,14 @@
 // Requires a RUNNING PocketBase (talks to the HTTP API). Run via `make seed`.
 //
 // Env overrides (all optional, defaults target local dev):
-//   PB_URL            default http://127.0.0.1:8090
+//   PB_URL            default http://127.0.0.1:3111
 //   PB_ADMIN_EMAIL    default admin@paydirt.local
 //   PB_ADMIN_PASSWORD default password123
 //   SEED_PASSWORD     default password123  (shared by all seeded users)
 
 import PocketBase from "pocketbase";
 
-const PB_URL = process.env.PB_URL ?? "http://127.0.0.1:8090";
+const PB_URL = process.env.PB_URL ?? "http://127.0.0.1:3111";
 const ADMIN_EMAIL = process.env.PB_ADMIN_EMAIL ?? "admin@paydirt.local";
 const ADMIN_PASSWORD = process.env.PB_ADMIN_PASSWORD ?? "password123";
 const PW = process.env.SEED_PASSWORD ?? "password123";

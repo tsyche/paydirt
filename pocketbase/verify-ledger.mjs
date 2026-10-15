@@ -6,14 +6,14 @@
 // Requires a RUNNING PocketBase (talks to the HTTP API). Run via `just verify-ledger`.
 //
 // Env overrides (all optional, defaults target local dev):
-//   PB_URL            default http://127.0.0.1:8090
+//   PB_URL            default http://127.0.0.1:3111
 //   PB_ADMIN_EMAIL    default admin@paydirt.local
 //   PB_ADMIN_PASSWORD default password123
 
 import PocketBase from "pocketbase";
 import { verifyLedger } from "../packages/shared/src/ledger.ts";
 
-const PB_URL = process.env.PB_URL ?? "http://127.0.0.1:8090";
+const PB_URL = process.env.PB_URL ?? "http://127.0.0.1:3111";
 const ADMIN_EMAIL = process.env.PB_ADMIN_EMAIL ?? "admin@paydirt.local";
 const ADMIN_PASSWORD = process.env.PB_ADMIN_PASSWORD ?? "password123";
 

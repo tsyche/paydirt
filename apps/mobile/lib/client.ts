@@ -10,10 +10,10 @@ import { createReachabilityMonitor } from "./reachability";
 
 // On a physical device, 127.0.0.1 is the device itself.
 // Set EXPO_PUBLIC_POCKETBASE_URL in apps/mobile/.env before running `just prebuild`:
-//   EXPO_PUBLIC_POCKETBASE_URL=http://192.168.1.50:8090  (your server's LAN IP)
+//   EXPO_PUBLIC_POCKETBASE_URL=http://192.168.1.50:3111  (your server's LAN IP)
 // Or use `just adb-tunnel` over USB and keep the 127.0.0.1 default.
 export const pbUrl =
-  process.env.EXPO_PUBLIC_POCKETBASE_URL ?? "http://10.0.2.2:8090";
+  process.env.EXPO_PUBLIC_POCKETBASE_URL ?? "http://10.0.2.2:3111";
 
 // AsyncAuthStore persists the auth token across restarts (via AsyncStorage)
 // and makes it readable by the background notification service.

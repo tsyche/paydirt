@@ -26,11 +26,11 @@ Create `apps/mobile/.env` with your PocketBase server address:
 
 ```bash
 # LAN IP (find with: ipconfig getifaddr en0 on macOS Wi-Fi)
-echo "EXPO_PUBLIC_POCKETBASE_URL=http://192.168.1.50:8090" > apps/mobile/.env
+echo "EXPO_PUBLIC_POCKETBASE_URL=http://192.168.1.50:3111" > apps/mobile/.env
 
 # Or use adb reverse (USB tunnel) and keep 127.0.0.1:
 just adb-tunnel
-echo "EXPO_PUBLIC_POCKETBASE_URL=http://127.0.0.1:8090" > apps/mobile/.env
+echo "EXPO_PUBLIC_POCKETBASE_URL=http://127.0.0.1:3111" > apps/mobile/.env
 ```
 
 ### 2. Generate native project + build APK
@@ -98,7 +98,7 @@ adb install -r path/to/app-debug.apk           # install / update APK
 adb logcat -s ReactNative ReactNativeJS        # stream JS console output
 adb logcat | grep -i "error\|crash"            # filter for errors
 adb shell am force-stop io.paydirt.app         # kill the app
-adb reverse tcp:8090 tcp:8090                  # tunnel device → host (run once after plugging in)
+adb reverse tcp:3111 tcp:3111                  # tunnel device → host (run once after plugging in)
 ```
 
 ## Rebuilding after code changes

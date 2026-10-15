@@ -18,7 +18,7 @@ if (!globalThis.EventSource) {
 // Run with `pnpm test:integration` (files run sequentially — both suites
 // mutate the seeded kids' balances).
 
-const PB_URL = process.env.PB_URL ?? "http://127.0.0.1:8090";
+const PB_URL = process.env.PB_URL ?? "http://127.0.0.1:3111";
 const PW = "password123";
 
 describe("PocketBase hooks & guards (live)", () => {

@@ -9,7 +9,7 @@ import type { User } from "./types";
 // races, savings goals, streaks, proposals, swaps, and the cron trigger
 // endpoints. Same prerequisites as the other *.integration.test.ts files.
 
-const PB_URL = process.env.PB_URL ?? "http://127.0.0.1:8090";
+const PB_URL = process.env.PB_URL ?? "http://127.0.0.1:3111";
 const PW = "password123";
 const ADMIN_EMAIL = process.env.PB_ADMIN_EMAIL ?? "admin@paydirt.local";
 const ADMIN_PASSWORD = process.env.PB_ADMIN_PASSWORD ?? "password123";

@@ -4,7 +4,7 @@ import { PaydirtClient } from "@paydirt/shared";
 // Phase 1 dashboard surfaces: kid chore proposals and approval reactions.
 // Prereqs: running, seeded PocketBase (same as golden-path.spec.ts).
 
-const PB_URL = process.env.PB_URL ?? "http://127.0.0.1:8090";
+const PB_URL = process.env.PB_URL ?? "http://127.0.0.1:3111";
 const PW = "password123";
 
 async function signIn(page: Page) {
