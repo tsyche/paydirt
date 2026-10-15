@@ -10,7 +10,7 @@ const REWARD = 7;
 
 async function signIn(page: Page) {
   await page.goto("/");
-  await page.getByPlaceholder("Email").fill("parent@test.local");
+  await page.getByPlaceholder("Email").fill("parent1@test.local");
   await page.getByPlaceholder("Password").fill(PW);
   await page.getByRole("button", { name: "Sign in" }).click();
   // The dashboard is tabbed (Approvals / Kids / Chores); land on Approvals.
@@ -23,7 +23,7 @@ const goTab = (page: Page, name: RegExp) =>
 test("create → assign → kid completes → approve → undo", async ({ page }) => {
   const choreName = `E2E chore ${Date.now()}`;
   const api = new PaydirtClient(PB_URL);
-  await api.login("parent@test.local", PW);
+  await api.login("parent1@test.local", PW);
   const kids = await api.listChildren(api.currentUser!.household);
   const kid1 = kids.find((k) => k.display_name === "Kid 1");
   expect(kid1).toBeDefined();

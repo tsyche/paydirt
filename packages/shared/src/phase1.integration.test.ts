@@ -27,7 +27,7 @@ describe("Phase 1 features (live)", () => {
     parent = new PaydirtClient(PB_URL);
     kid1 = new PaydirtClient(PB_URL);
     kid2 = new PaydirtClient(PB_URL);
-    await parent.login("parent@test.local", PW);
+    await parent.login("parent1@test.local", PW);
     kid1User = await kid1.login("child1@test.local", PW);
     kid2User = await kid2.login("child2@test.local", PW);
     householdId = parent.currentUser!.household;

@@ -9,7 +9,7 @@ const PW = "password123";
 
 async function signIn(page: Page) {
   await page.goto("/");
-  await page.getByPlaceholder("Email").fill("parent@test.local");
+  await page.getByPlaceholder("Email").fill("parent1@test.local");
   await page.getByPlaceholder("Password").fill(PW);
   await page.getByRole("button", { name: "Sign in" }).click();
   // The dashboard is tabbed (Approvals / Kids / Chores); land on Approvals.
@@ -46,7 +46,7 @@ test("approve a kid's chore idea at a negotiated reward", async ({ page }) => {
 
   // Cleanup via API (no money moved — plain deletes are fine)
   const parent = new PaydirtClient(PB_URL);
-  await parent.login("parent@test.local", PW);
+  await parent.login("parent1@test.local", PW);
   const assignments = await parent.listActiveAssignmentsForChild(kidUser.id);
   const created = assignments.find(
     (a) => (a as { expand?: { chore?: { name?: string } } }).expand?.chore?.name === ideaName,
@@ -61,7 +61,7 @@ test("approve a kid's chore idea at a negotiated reward", async ({ page }) => {
 test("react to a recently approved chore", async ({ page }) => {
   const choreName = `E2E reaction ${Date.now()}`;
   const api = new PaydirtClient(PB_URL);
-  await api.login("parent@test.local", PW);
+  await api.login("parent1@test.local", PW);
   const kids = await api.listChildren(api.currentUser!.household);
   const kid1 = kids.find((k) => k.display_name === "Kid 1")!;
 

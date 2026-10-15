@@ -32,7 +32,7 @@ describe("PocketBase hooks & guards (live)", () => {
   beforeAll(async () => {
     parent = new PaydirtClient(PB_URL);
     kid = new PaydirtClient(PB_URL);
-    await parent.login("parent@test.local", PW);
+    await parent.login("parent1@test.local", PW);
     kidUser = await kid.login("child2@test.local", PW);
     householdId = parent.currentUser!.household;
   });

@@ -5,7 +5,7 @@ import { cleanupChores, cleanupSpendRequests } from "./integration.cleanup";
 import type { User } from "./types";
 
 // Live integration test — requires a running PocketBase at PB_URL with the seed
-// users (parent@test.local / child1@test.local, pw password123). Run `just seed`.
+// users (parent1@test.local / child1@test.local, pw password123). Run `just seed`.
 // Excluded from the default `test` script; run with `pnpm test:integration`.
 
 const PB_URL = process.env.PB_URL ?? "http://127.0.0.1:8090";
@@ -21,7 +21,7 @@ describe("PaydirtClient (live)", () => {
   beforeAll(async () => {
     parent = new PaydirtClient(PB_URL);
     child = new PaydirtClient(PB_URL);
-    await parent.login("parent@test.local", PW);
+    await parent.login("parent1@test.local", PW);
     childUser = await child.login("child1@test.local", PW);
   });
 
