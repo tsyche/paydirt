@@ -39,6 +39,6 @@
   "devDependencies": {
     "@types/react": "~19.2.18",
     "typescript": "~6.0.3",
-    "typescript-eslint": "^8.70.1"
+    "typescript-eslint": "^8.71.0"
   }
 }
