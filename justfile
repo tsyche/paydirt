@@ -584,6 +584,27 @@ lintfix:
 
 # --- Maintenance ---
 
+# Publish a JS-only OTA update (expo export → pb_data/updates/<ver>/<epoch>/).
+# Native/Kotlin changes still need a new APK — this only ships JS/TS/assets.
+[group('android')]
+update-publish:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    printf '\033[0;34mPublishing OTA update (expo export --platform android)...\033[0m\n'
+    node --experimental-strip-types scripts/publish-update.mjs
+
+# Mark the newest published update as rolled back (protocol v1 clients → embedded bundle).
+# Pass clear=1 to remove the marker instead: just update-rollback clear=1
+[group('android')]
+update-rollback clear="0":
+    #!/usr/bin/env bash
+    set -euo pipefail
+    if [ "{{clear}}" = "1" ]; then
+        node scripts/rollback-update.mjs --clear
+    else
+        node scripts/rollback-update.mjs
+    fi
+
 # Remove build artifacts, caches, node_modules
 [group('maintenance')]
 clean: cache-clean

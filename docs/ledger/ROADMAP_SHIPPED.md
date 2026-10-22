@@ -4,6 +4,7 @@
 
 ## Shipped index
 
+- [x] 2026-10-21 — App auto-updates (Tier 1 — expo-updates OTA)
 - [x] 2026-10-21 — Deeper gamification ("playful" mode)
 - [x] 2026-10-21 — Suppress foreground notifications
 - [x] 2026-10-21 — Realtime resubscribe on resume
@@ -17,9 +18,36 @@
 - [x] 2026-08-12 — CI pipeline (GitHub Actions)
 - [x] 2026-07-06 — Second parent support (co-parent)
 - [x] 2026-06-28 — ntfy onboarding flow
+- [x] 2026-06-10 — MVP, Phase 1, and Phase 1.5 (migrated 2026-10-21)
 
 ## Archived entries
 
+### 2026-10-21 — App auto-updates (Tier 1 — expo-updates OTA)
+
+- **App auto-updates (no Play Store)** — kids' devices currently only update by plugging in a cable. No Play Services means no Play Store auto-update, no Play Core in-app update API, no Firebase App Distribution. **Tier 1 — `expo-updates` OTA.** Covers JS/TS, components, business logic, styling. Does *not* require EAS; point `updates.url` at a self-hosted manifest (PocketBase can serve it). Silent, no user interaction. **Configure rollback as part of tier 1, not after.** A bad JS bundle remotely bricks the app on every kid's device simultaneously. **Tier 2 — version check + APK prompt** (native changes OTA structurally cannot deliver) remains unshipped. ~3-4 hrs per tier.
+
+Shipped: `apps/mobile/app.config.js` layers `updates.url` (from `EXPO_PUBLIC_POCKETBASE_URL` + `/api/updates/manifest`) and `runtimeVersion.policy: "appVersion"` on top of `app.json`. `pocketbase/pb_hooks/updates.pb.js` implements the Expo Updates protocol: plain-JSON manifests for protocol 0/1, multipart `rollBackToEmbedded`/`noUpdateAvailable` directives on protocol v1, md5-keyed immutable asset serving, superuser-only `/api/updates/config` debug endpoint. Publish via `just update-publish` (`scripts/publish-update.mjs`: expo export → `pb_data/updates/<ver>/<epoch>/` with `manifest.json`, `metadata.json`, `expoConfig.json`, `assets/`); roll back via `just update-rollback` (`scripts/rollback-update.mjs` drops a `rollback` marker; protocol v1 clients fall back to the embedded bundle on next check; `clear=1` removes the marker). Pure helpers (`buildServerManifest`, `decideManifestResponse`, asset hashing, `sha256HexToUuid`) live in `packages/shared/src/updates.ts` — deliberately *not* re-exported from the shared index because they use `node:crypto`/`Buffer` and would break mobile/web typechecks; consumed by the publish script via `node --experimental-strip-types`. Regression tests: `updates.test.ts` (15 cases across hashing, manifest building, and the decision table). Tier 2 (version check + APK prompt) and final on-device validation (does an update actually land on GrapheneOS?) remain open — the latter is 🧑 needs-human.
+
+### 2026-06-10 — MVP, Phase 1, and Phase 1.5 (migrated from active roadmap 2026-10-21)
+
+**MVP — Shipped**
+
+Chore CRUD, assignment, complete/approve flow, parentBucks earn + spend, ntfy notification wiring, shared typed client, Next.js parent dashboard, Expo kid app (role-gated), live ntfy delivery confirmed end-to-end.
+
+**Phase 1 — Core Feature Set ✅ (completed 2026-06-10)**
+
+- **Chores**: ✅ one-off deadlines + escalating reminders, ✅ photo-required flag, ✅ race mechanic (first approval wins), ✅ kid-proposed chores, ✅ recurring cadence selector in web UI
+- **Currency**: ✅ configurable currency name, ✅ bank thresholds, ✅ spontaneous bonus/deduction, ✅ optional expiry (off by default), ✅ physical goods exchange rate (conversion display)
+- **Savings goals**: ✅ named goals with progress bars, multiple goals, fulfilled notifications
+- **Kid UX**: ✅ glanceable home screen (balance + to-do count + streak + due chips), ✅ chore history (collapsible, capped), ✅ simplified mode, ✅ kid-added reminders
+- **Parent UX**: ✅ scheduled chore reminders, ✅ approval nudges, ✅ approval undo, ✅ household broadcast, ✅ approval reactions
+
+**Phase 1.5 — Gamification & Reporting ✅ (completed 2026-06-10)**
+
+- ✅ Streak bonuses (3/7/14/30-day milestones, 🔥 shown in both apps)
+- ✅ Weekly digest (Sunday 6pm ntfy summary to parents)
+- ✅ Pause/vacation mode (suspends reminders, nudges, digest, expiry)
+- ✅ Chore swap between siblings (offer → accept/decline, server-guarded)
 ### 2026-10-21 — Deeper gamification ("playful" mode)
 
 - **Deeper gamification (full "playful" mode)** — the design refresh landed a playful-but-grown-up baseline (tactile buttons, claim hero, coin-pop on approval). Architecture (`Celebration`, `ChunkyButton`, palette packs) is built to dial *up* toward a fuller Duolingo-style experience. Candidate additions: a household mascot, richer celebration sequences (XP-style count-up on the claim hero), badge/achievement shelf, streak-freeze mechanic, sound effects (opt-in), and an optional per-kid "max playful" intensity. Keep parent surfaces calm (the Slate pack); scope playful escalation to the kid views. Gate behind a setting so parents control the dial. ~1-2 days.
