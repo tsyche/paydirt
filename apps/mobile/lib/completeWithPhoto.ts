@@ -1,15 +1,19 @@
 import * as ImagePicker from "expo-image-picker";
-import * as FileSystem from "expo-file-system";
+import * as FileSystem from "expo-file-system/legacy";
 import { Collections } from "@paydirt/shared";
-import { client } from "./client";
+import { client, pbUrl } from "./client";
 
 export type PhotoCompleteResult = "done" | "cancelled" | "no-permission";
 
 /**
  * Take a photo and mark the assignment completed with it attached.
- * Uses base64 data URI via JSON — more reliable than FormData on Android,
- * where content:// URIs from the camera can't be read by the native HTTP client.
- * PocketBase accepts "data:{mime};base64,{data}" for file fields in JSON.
+ *
+ * Uploads via expo-file-system's native multipart uploader instead of the
+ * PocketBase SDK's fetch path. Both prior approaches failed on real devices:
+ * FormData/{uri} descriptors and base64 data URIs die in JS fetch on Android
+ * (content:// URIs, ClientResponseError 0 = fetch threw with no HTTP response).
+ * Native uploadAsync hands the file URI to OkHttp directly and never touches
+ * Hermes fetch for the body.
  */
 export async function takePhotoAndComplete(assignmentId: string): Promise<PhotoCompleteResult> {
   const perm = await ImagePicker.requestCameraPermissionsAsync();
@@ -18,16 +22,28 @@ export async function takePhotoAndComplete(assignmentId: string): Promise<PhotoC
   if (result.canceled) return "cancelled";
 
   const asset = result.assets[0];
-  const base64 = await FileSystem.readAsStringAsync(asset.uri, {
-    encoding: FileSystem.EncodingType.Base64,
-  });
-  const mimeType = asset.mimeType ?? "image/jpeg";
+  const res = await FileSystem.uploadAsync(
+    `${pbUrl}/api/collections/${Collections.Assignments}/records/${assignmentId}`,
+    asset.uri,
+    {
+      httpMethod: "PATCH",
+      uploadType: FileSystem.FileSystemUploadType.MULTIPART,
+      fieldName: "photo",
+      mimeType: asset.mimeType ?? "image/jpeg",
+      parameters: {
+        status: "completed",
+        completed_at: new Date().toISOString(),
+      },
+      headers: {
+        Authorization: client.pb.authStore.token,
+        Accept: "application/json",
+      },
+    },
+  );
 
-  await client.pb.collection(Collections.Assignments).update(assignmentId, {
-    status: "completed",
-    completed_at: new Date().toISOString(),
-    photo: `data:${mimeType};base64,${base64}`,
-  });
+  if (res.status >= 400) {
+    throw new Error(`Photo upload failed (${res.status}): ${res.body}`);
+  }
 
   return "done";
 }

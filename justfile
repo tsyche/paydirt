@@ -22,6 +22,8 @@ default:
     printf '  just install-apk    build + install a debug APK on a connected device/emulator\n'
     printf '\n\033[1mShip a release build to family devices\033[0m\n'
     printf '  just deploy-start          step-by-step pairing + install instructions\n'
+    printf '  just push-remote           connect tablets from deploy-devices + push release APK (Wi-Fi, no cable)\n'
+    printf '  just push                  alias of push-remote; just push-debug pushes the DEBUG APK (logcat logs)\n'
     printf '  just install-apk-release-all   build a signed release APK, install on every connected device\n'
     printf '\n\033[1mIndividual services\033[0m (if you do not want a combined recipe above)\n'
     printf '  just dev-pb   just dev-web   just dev-mobile\n'
@@ -43,9 +45,13 @@ deploy-start:
     @printf '     then tap "Pair device with pairing code" and run:\n'
     @printf '       adb pair <ip>:<pair-port>    (enter pairing code)\n'
     @printf '       adb connect <ip>:<port>       (the main debug port shown on device)\n'
-    @printf '  2. Verify: adb devices             (should list each device)\n'
-    @printf '  3. Install: just install-apk-release-all\n'
-    @printf '     (builds a signed release APK and pushes to every connected device)\n\n'
+    @printf '  2. Save each device to deploy-devices (repo root), one per line:\n'
+    @printf '       192.168.20.152:46057\n'
+    @printf '  3. Verify: adb devices             (should list each device)\n'
+    @printf '  4. Pin a fixed port (survives sleep, until reboot): adb -s <serial> tcpip 5555\n'
+    @printf '  5. Install: just push          (connects both tablets + builds + installs)\n'
+    @printf '     or: just conn               (connect only, no build)\n'
+    @printf '     or: just install-apk-release-all (every already-connected device)\n\n'
 
 # --- Development ---
 
@@ -303,6 +309,18 @@ prebuild:
 build-apk-release:
     #!/usr/bin/env bash
     set -euo pipefail
+    # JDK 24+ prints a JNI "restricted method" warning from the prefab CLI child
+    # process, and AGP treats any WARNING line in that process's stderr as a
+    # build failure (GeneratePrefabPackages.kt). Suppress the warning so builds
+    # pass on modern JDKs (mise's default moved to Temurin 26).
+    export JAVA_TOOL_OPTIONS="${JAVA_TOOL_OPTIONS:+${JAVA_TOOL_OPTIONS} }--enable-native-access=ALL-UNNAMED"
+    # Gradle doesn't track .env as a task input — a changed EXPO_PUBLIC_* URL
+    # would silently keep the stale bundle. Drop the bundle if .env is newer.
+    BUNDLE="apps/mobile/android/app/build/generated/assets/react/release/index.android.bundle"
+    if [ -f apps/mobile/.env ] && { [ ! -f "${BUNDLE}" ] || [ apps/mobile/.env -nt "${BUNDLE}" ]; }; then
+        printf '\033[0;34m.env changed since last bundle — forcing JS rebundle...\033[0m\n'
+        rm -rf apps/mobile/android/app/build/generated/assets/react
+    fi
     if [ ! -d "apps/mobile/android" ]; then
         printf '\033[0;33mandroid/ not found — run '\''just prebuild'\'' first.\033[0m\n'
         exit 1
@@ -329,11 +347,81 @@ install-apk-release-all: build-apk-release
     done
     printf '\033[0;32mDone.\033[0m\n'
 
+# Connect to all tablets in deploy-devices (no build/install)
+[group('android')]
+conn:
+    @bash scripts/tablet-connect.sh
+    @adb devices | awk '$2=="device" && $1 !~ /^emulator/ {printf "  ready: %s\n", $1}'
+
+# Connect to all tablets + build + install the latest release APK
+[group('android')]
+push: push-remote
+
+# Connect to all tablets + build + install the DEBUG APK (console → logcat)
+[group('android')]
+push-debug:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    APK="apps/mobile/android/app/build/outputs/apk/debug/app-debug.apk"
+    if ! bash scripts/tablet-connect.sh; then
+        if ! adb devices 2>/dev/null | awk '$2=="device" && $1 !~ /^emulator/' | grep -q .; then
+            printf '\033[0;33mNo devices configured or connected.\033[0m\n'
+            printf 'Create deploy-devices (repo root), one "ip:port" or bare IP per line —\n'
+            printf 'pair first per just deploy-start, then adb -s <serial> tcpip 5555.\n'
+            exit 1
+        fi
+        printf '\033[0;33mConnect script found no configured devices — using already-connected ones.\033[0m\n'
+    fi
+    if ! adb devices 2>/dev/null | awk '$2=="device" && $1 !~ /^emulator/' | grep -q .; then
+        printf '\033[0;31mNo physical devices connected — nothing to install.\033[0m\n'
+        exit 1
+    fi
+    just build-apk
+    adb devices | awk '$2=="device" && $1 !~ /^emulator/ {print $1}' | while read -r d; do
+        printf '\033[0;34mInstalling debug on %s...\033[0m\n' "${d}"
+        adb -s "${d}" install -r "${APK}"
+    done
+    printf '\033[0;32mDone. Watch app logs with: adb logcat -s ReactNativeJS:*\033[0m\n'
+
+# Reconnect tablets from deploy-devices over Wi-Fi, then build + push the release APK (no USB)
+[group('android')]
+push-remote:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    APK="apps/mobile/android/app/build/outputs/apk/release/app-release.apk"
+    if ! bash scripts/tablet-connect.sh; then
+        if ! adb devices 2>/dev/null | awk '$2=="device" && $1 !~ /^emulator/' | grep -q .; then
+            printf '\033[0;33mNo devices configured or connected.\033[0m\n'
+            printf 'Create deploy-devices (repo root), one "ip:port" or bare IP per line —\n'
+            printf 'pair first per just deploy-start, then adb -s <serial> tcpip 5555.\n'
+            exit 1
+        fi
+        printf '\033[0;33mConnect script found no configured devices — using already-connected ones.\033[0m\n'
+    fi
+    if ! adb devices 2>/dev/null | awk '$2=="device" && $1 !~ /^emulator/' | grep -q .; then
+        printf '\033[0;31mNo physical devices connected — nothing to install.\033[0m\n'
+        exit 1
+    fi
+    just build-apk-release
+    adb devices | awk '$2=="device" && $1 !~ /^emulator/ {print $1}' | while read -r d; do
+        printf '\033[0;34mInstalling on %s...\033[0m\n' "${d}"
+        adb -s "${d}" install -r "${APK}"
+    done
+    printf '\033[0;32mDone.\033[0m\n'
+
 # Build a debug APK (faster, no signing — for emulator/dev use only)
 [group('android')]
 build-apk:
     #!/usr/bin/env bash
     set -euo pipefail
+    # See build-apk-release: JDK 24+ JNI warning trips AGP's prefab stderr check.
+    export JAVA_TOOL_OPTIONS="${JAVA_TOOL_OPTIONS:+${JAVA_TOOL_OPTIONS} }--enable-native-access=ALL-UNNAMED"
+    # Same .env staleness guard as build-apk-release (release bundle path).
+    BUNDLE="apps/mobile/android/app/build/generated/assets/react/debug/index.android.bundle"
+    if [ -f apps/mobile/.env ] && { [ ! -f "${BUNDLE}" ] || [ apps/mobile/.env -nt "${BUNDLE}" ]; }; then
+        printf '\033[0;34m.env changed since last bundle — forcing JS rebundle...\033[0m\n'
+        rm -rf apps/mobile/android/app/build/generated/assets/react
+    fi
     if [ ! -d "apps/mobile/android" ]; then
         printf '\033[0;33mandroid/ not found — run '\''just prebuild'\'' first.\033[0m\n'
         exit 1

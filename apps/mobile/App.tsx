@@ -28,6 +28,7 @@ import {
 import { syncUnifiedPushEndpoint } from "./lib/unifiedpush";
 import { parseNotificationType } from "./lib/deepLinks";
 import { NtfySetup } from "./components/NtfySetup";
+import { getNtfyConfig, isSetupComplete } from "./lib/ntfy-onboarding";
 
 // A notification tap, tagged with a nonce so the same type/tab re-triggers navigation
 // even if it's identical to the last one (e.g. two "spend_approved" taps in a row).
@@ -43,6 +44,8 @@ function AppContent() {
   const [user, setUser] = useState<User | null>(null);
   const [ready, setReady] = useState(false);
   const [ntfySetupDone, setNtfySetupDone] = useState(false);
+  const [ntfySetupLoaded, setNtfySetupLoaded] = useState(false);
+  const [ntfySetupVisible, setNtfySetupVisible] = useState(false);
   const [notificationRoute, setNotificationRoute] = useState<NotificationRoute | null>(null);
 
   useEffect(() => {
@@ -60,6 +63,18 @@ function AppContent() {
     });
     setReady(true);
     return () => unsub();
+  }, []);
+
+  // Notification setup status: incomplete until the topic is subscribed AND a
+  // test delivery landed (v2 gate — the old wizard's "done" never subscribed
+  // anything). Auto-opens once after login; the ParentHome banner reopens it.
+  useEffect(() => {
+    void getNtfyConfig().then((c) => {
+      const done = isSetupComplete(c);
+      setNtfySetupDone(done);
+      setNtfySetupLoaded(true);
+      if (!done) setNtfySetupVisible(true);
+    });
   }, []);
 
   // Notification deep links: UnifiedPushReceiver.kt attaches a paydirt://notification
@@ -80,9 +95,15 @@ function AppContent() {
   // Notification strategy for kids: prefer UnifiedPush (event-driven, no
   // persistent notification). Fall back to the polling service if the UP
   // endpoint hasn't been registered yet (first launch before ntfy responds).
+  // Deps are the id/role values, not the user object: updating the child's own
+  // auth record (up_endpoint sync) makes the SDK fire authStore.onChange with
+  // a NEW user object, and depending on [user] identity re-ran this effect →
+  // endless update/reload loop.
+  const userId = user?.id;
+  const userRole = user?.role;
   useEffect(() => {
-    if (user?.role === "child") {
-      void syncUnifiedPushEndpoint(user.id).then((hasUp) => {
+    if (userRole === "child" && userId) {
+      void syncUnifiedPushEndpoint(userId).then((hasUp) => {
         if (hasUp) {
           void stopBackgroundService();
         } else {
@@ -92,7 +113,7 @@ function AppContent() {
     } else {
       void stopBackgroundService();
     }
-  }, [user]);
+  }, [userId, userRole]);
 
   function logout() {
     client.logout();
@@ -108,20 +129,29 @@ function AppContent() {
         ? <SimpleKidHome user={user} onLogout={logout} />
         : <KidHome user={user} onLogout={logout} />;
     }
-    return <ParentHome user={user} onLogout={logout} notificationRoute={notificationRoute} />;
-  }
-
-  if (!ntfySetupDone) {
-    return (
-      <PaperProvider theme={theme}>
-        <NtfySetup onComplete={() => setNtfySetupDone(true)} />
-      </PaperProvider>
-    );
+    return <ParentHome
+      user={user}
+      onLogout={logout}
+      notificationRoute={notificationRoute}
+      notificationSetupNeeded={ntfySetupLoaded && !ntfySetupDone}
+      onOpenNotificationSetup={() => setNtfySetupVisible(true)}
+    />;
   }
 
   return (
     <PaperProvider theme={theme}>
       {renderScreen()}
+      {user && ntfySetupLoaded && !ntfySetupDone && ntfySetupVisible && (
+        <NtfySetup
+          visible
+          user={user}
+          onComplete={() => {
+            setNtfySetupDone(true);
+            setNtfySetupVisible(false);
+          }}
+          onDismiss={() => setNtfySetupVisible(false)}
+        />
+      )}
       <StatusBar style={scheme === "dark" ? "light" : "dark"} />
     </PaperProvider>
   );

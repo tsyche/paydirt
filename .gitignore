@@ -61,3 +61,7 @@ blob-report/
 # Audit marker (local only)
 .last-audit
 .audit-log
+
+# Test tablets for `just push-remote` — LAN-specific, one ip:port per line
+/deploy-devices
+apps/web/.pw-browsers/

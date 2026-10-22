@@ -1,12 +1,14 @@
 // Expo Config Plugin: wires up UnifiedPush support after expo prebuild.
 //
-// Applies three changes to the generated Android project:
+// Applies four changes to the generated Android project:
 //   1. Adds .UnifiedPushReceiver to AndroidManifest.xml with UP intent filters
 //   2. Adds io.heckel.ntfy to <queries> for package visibility (Android 11+)
-//   3. Copies native-src/UnifiedPushReceiver.kt into the app package directory
-//   4. Patches MainApplication.kt to call registerWithNtfy() on startup
+//   3. Copies native-src/{UnifiedPushReceiver,PayDirtNativeModule}.kt into the
+//      app package directory
+//   4. Patches MainApplication.kt to call registerAppWithNtfy() on startup and
+//      register PayDirtPackage (JS-callable re-registration)
 //
-// Keep this plugin in sync with native-src/UnifiedPushReceiver.kt.
+// Keep this plugin in sync with native-src/*.kt.
 // The android/ directory is gitignored (generated); this plugin is the
 // authoritative source for these native customisations.
 
@@ -71,19 +73,26 @@ function addNativeFiles(config) {
         "app/src/main/java/io/paydirt/app",
       );
 
-      // Copy UnifiedPushReceiver.kt
-      const srcKt = path.join(__dirname, "../native-src/UnifiedPushReceiver.kt");
-      fs.copyFileSync(srcKt, path.join(packageDir, "UnifiedPushReceiver.kt"));
+      // Copy UnifiedPushReceiver.kt + PayDirtNativeModule.kt
+      const srcDir = path.join(__dirname, "../native-src");
+      for (const name of ["UnifiedPushReceiver.kt", "PayDirtNativeModule.kt"]) {
+        fs.copyFileSync(path.join(srcDir, name), path.join(packageDir, name));
+      }
 
-      // Patch MainApplication.kt — add registerWithNtfy(this) after
-      // ApplicationLifecycleDispatcher.onApplicationCreate(this)
+      // Patch MainApplication.kt — add registerAppWithNtfy(this) after
+      // ApplicationLifecycleDispatcher.onApplicationCreate(this), and add
+      // PayDirtPackage() to the autolinked package list.
       const mainAppPath = path.join(packageDir, "MainApplication.kt");
       let src = fs.readFileSync(mainAppPath, "utf8");
       const anchor = "ApplicationLifecycleDispatcher.onApplicationCreate(this)";
-      if (src.includes(anchor) && !src.includes("registerWithNtfy")) {
-        src = src.replace(anchor, anchor + "\n    registerWithNtfy(this)");
-        fs.writeFileSync(mainAppPath, src);
+      if (src.includes(anchor) && !src.includes("registerAppWithNtfy")) {
+        src = src.replace(anchor, anchor + "\n    registerAppWithNtfy(this)");
       }
+      const packagesAnchor = "PackageList(this).packages.apply {";
+      if (src.includes(packagesAnchor) && !src.includes("PayDirtPackage()")) {
+        src = src.replace(packagesAnchor, packagesAnchor + "\n          add(PayDirtPackage())");
+      }
+      fs.writeFileSync(mainAppPath, src);
 
       return cfg;
     },

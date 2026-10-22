@@ -8,6 +8,7 @@ import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import android.os.Build
+import android.util.Log
 import androidx.core.app.NotificationCompat
 import org.json.JSONException
 import org.json.JSONObject
@@ -23,6 +24,7 @@ class UnifiedPushReceiver : BroadcastReceiver() {
     companion object {
         const val CHANNEL_ID = "paydirt-alerts"
         const val ENDPOINT_FILE = "up_endpoint.txt"
+        private const val TAG = "PayDirtUP"
 
         // paydirt://notification?type=<type> — read by the RN Linking listener in App.tsx,
         // which maps `type` to the screen/tab to open. Unknown/absent types still open the
@@ -42,19 +44,30 @@ class UnifiedPushReceiver : BroadcastReceiver() {
                 val bytes = intent.getByteArrayExtra("bytesMessage") ?: return
                 try {
                     val json = JSONObject(String(bytes, Charsets.UTF_8))
+                    val type = json.optString("type", "")
                     showNotification(
                         context,
                         json.optString("title", "PayDirt"),
                         json.optString("body", ""),
-                        json.optString("type", ""),
+                        type,
                     )
+                    // Phase 2 trigger: a spend approval should mirror into Family
+                    // Link. The accessibility service registers its receiver only
+                    // while enabled — without it this broadcast is a harmless no-op.
+                    if (type == "spend_approved") {
+                        Log.d(TAG, "spend_approved payload — broadcasting ${FamilyLinkAccessibilityService.ACTION_GRANT_SCREEN_TIME}")
+                        context.sendBroadcast(
+                            Intent(FamilyLinkAccessibilityService.ACTION_GRANT_SCREEN_TIME)
+                                .setPackage(context.packageName),
+                        )
+                    }
                 } catch (_: JSONException) { }
             }
 
             "org.unifiedpush.android.connector.UNREGISTERED" -> {
                 File(context.filesDir, ENDPOINT_FILE).delete()
                 // Re-register so we get a fresh endpoint on next app start.
-                registerWithNtfy(context)
+                registerAppWithNtfy(context)
             }
         }
     }
@@ -109,10 +122,13 @@ class UnifiedPushReceiver : BroadcastReceiver() {
 
 // Sends a REGISTER broadcast to ntfy. Ntfy returns the existing endpoint if
 // still valid, or a fresh one — either way NEW_ENDPOINT fires and updates the file.
+// Note the action: client→distributor uses org.unifiedpush.android.distributor.*
+// (the old org.unifiedpush.android.connector.REGISTER is silently ignored by
+// modern ntfy). Distributor→client replies keep the connector.* prefix.
 // Package is hardcoded to io.heckel.ntfy; switching to a self-hosted instance
 // only requires re-registering (the endpoint URL itself encodes the server).
-internal fun registerWithNtfy(context: Context) {
-    val intent = Intent("org.unifiedpush.android.connector.REGISTER").apply {
+internal fun registerAppWithNtfy(context: Context) {
+    val intent = Intent("org.unifiedpush.android.distributor.REGISTER").apply {
         setPackage("io.heckel.ntfy")
         putExtra("token", context.packageName)
         putExtra("application", context.packageName)
