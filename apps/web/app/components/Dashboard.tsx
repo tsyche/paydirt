@@ -12,6 +12,7 @@ import type {
   SpendRequest,
   User,
 } from "@paydirt/shared";
+import { currencyDisplayName } from "@paydirt/shared";
 import { client } from "../lib/client";
 import { HouseholdSettings } from "./HouseholdSettings";
 import { AppearanceControls } from "./AppearanceControls";
@@ -74,7 +75,7 @@ export function Dashboard({
   const [celebrate, setCelebrate] = useState(0);
   const party = () => setCelebrate((n) => n + 1);
 
-  const currencyName = household?.currency_name?.trim() || "parentBucks";
+  const currencyName = currencyDisplayName(household);
   const goodsRate = household?.goods_rate ?? 0;
   const kidRate = (kid: User) => kid.goods_rate ?? goodsRate;
 

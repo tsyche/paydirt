@@ -17,7 +17,7 @@ declare them in their own creation migration. Omitting them previously caused
 | Field | Type | Notes |
 |-------|------|-------|
 | name | text | required |
-| currency_name | text | display name for the currency; empty = "parentBucks" |
+| currency_name | text | display name for the currency; empty = "Grit" (see `packages/shared/src/currency.ts`) |
 | bank_threshold | number | notify kid when balance crosses it; 0 = off |
 | expiry_days | number | earn entries lapse after N days (daily cron); 0 = off |
 | goods_rate | number | bucks per $1 for conversion display; 0 = off |

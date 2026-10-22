@@ -323,7 +323,7 @@ function runWeeklyDigest(app) {
 
   for (const hh of listHouseholds(app)) {
     if (!shouldSendWeeklyDigest(hh.getBool("paused"))) continue;
-    const currency = hh.getString("currency_name") || "parentBucks";
+    const currency = hh.getString("currency_name") || "Grit";
     const kids = app.findRecordsByFilter(
       "users",
       "household = {:hh} && role = 'child'",

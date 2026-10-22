@@ -20,7 +20,7 @@ onRecordAfterCreateSuccess((e) => {
   const balance = child.getFloat("balance"); // already updated by currency.pb.js
   const prevBalance = balance - amount;
   const household = e.app.findRecordById("households", child.getString("household"));
-  const currency = household.getString("currency_name") || "parentBucks";
+  const currency = household.getString("currency_name") || "Grit";
 
   // ── savings goals: mark achieved + celebrate when the target is crossed ────
   if (amount > 0) {

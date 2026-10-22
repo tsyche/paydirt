@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { createPortal } from "react-dom";
 import type { Household } from "@paydirt/shared";
+import { CURRENCY_PRESETS, DEFAULT_CURRENCY_NAME } from "@paydirt/shared";
 import { client } from "../lib/client";
 
 export function HouseholdSettings({
@@ -71,10 +72,30 @@ export function HouseholdSettings({
           <label>Currency name</label>
           <input
             value={form.currency_name}
-            placeholder="parentBucks"
+            placeholder={DEFAULT_CURRENCY_NAME}
             onChange={(e) => setForm({ ...form, currency_name: e.target.value })}
             style={{ width: 140 }}
           />
+        </div>
+        <div className="settings-row">
+          <label aria-label="Currency presets">Presets</label>
+          <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+            {CURRENCY_PRESETS.map((preset) => (
+              <button
+                key={preset}
+                className="sm"
+                aria-pressed={form.currency_name.trim() === preset}
+                onClick={() => setForm({ ...form, currency_name: preset })}
+                style={
+                  form.currency_name.trim() === preset
+                    ? { fontWeight: 700, textDecoration: "underline" }
+                    : undefined
+                }
+              >
+                {preset}
+              </button>
+            ))}
+          </div>
         </div>
         <div className="settings-row">
           <label>Bank threshold <span className="muted">(0 = off)</span></label>
