@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Linking } from "react-native";
+import { Alert, Linking } from "react-native";
 import { StatusBar } from "expo-status-bar";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { PaperProvider } from "react-native-paper";
@@ -11,6 +11,7 @@ import {
 } from "@expo-google-fonts/fredoka";
 import type { User } from "@paydirt/shared";
 import { client, pbUrl } from "./lib/client";
+import { fetchLatestVersion, getInstalledVersionCode, shouldUpdate, triggerApkDownload } from "./lib/appUpdate";
 import { Login } from "./screens/Login";
 import { KidHome } from "./screens/KidHome";
 import { SimpleKidHome } from "./screens/SimpleKidHome";
@@ -90,6 +91,31 @@ function AppContent() {
     Linking.getInitialURL().then(handleUrl).catch(() => {});
     const sub = Linking.addEventListener("url", ({ url }) => handleUrl(url));
     return () => sub.remove();
+  }, []);
+
+  // Tier 2 app auto-update: check for a newer native APK on start and on
+  // resume; prompt the user to download + install if one is available.
+  useEffect(() => {
+    let cancelled = false;
+    async function check() {
+      const latest = await fetchLatestVersion(pbUrl);
+      if (cancelled || !latest || !latest.downloadUrl) return;
+      const installed = await getInstalledVersionCode();
+      if (!shouldUpdate(installed, latest.versionCode)) return;
+      Alert.alert(
+        "Update available",
+        `PayDirt ${latest.versionName} is available. Download and install now?`,
+        [
+          { text: "Later", style: "cancel" },
+          {
+            text: "Update",
+            onPress: () => { void triggerApkDownload(latest.downloadUrl); },
+          },
+        ],
+      );
+    }
+    void check();
+    return () => { cancelled = true; };
   }, []);
 
   // Notification strategy for kids: prefer UnifiedPush (event-driven, no

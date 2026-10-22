@@ -16,7 +16,7 @@ MVP, Phase 1, and Phase 1.5 all shipped by 2026-06-10 — full entries preserved
 
 ## Recently Completed
 
-Completed work is indexed in [docs/ledger/ROADMAP_SHIPPED.md](./docs/ledger/ROADMAP_SHIPPED.md) (most recent: 2026-10-21 — app auto-updates Tier 1 (expo-updates OTA), deeper gamification, suppress foreground notifications, realtime resubscribe on resume, on-theme currency presets, real-device smoke test, Phase 2 spend-approved trigger).
+Completed work is indexed in [docs/ledger/ROADMAP_SHIPPED.md](./docs/ledger/ROADMAP_SHIPPED.md) (most recent: 2026-10-22 — app auto-updates Tier 2 (version check + APK prompt); 2026-10-21 — app auto-updates Tier 1 (expo-updates OTA), deeper gamification, suppress foreground notifications, realtime resubscribe on resume, on-theme currency presets, real-device smoke test, Phase 2 spend-approved trigger).
 
 Last audit 2026-10-21: retired the stale pb-download Known Issue to a fixed-with-workaround note, migrated MVP/Phase 1/1.5 rollups into the shipped ledger, removed Phase 2's already-archived ✅ bullets, surfaced the orphaned force-stopped-push finding, and added 14 gated backlog/infra items.
 
@@ -32,7 +32,7 @@ Last audit 2026-10-21: retired the stale pb-download Known Issue to a fixed-with
    - 🧑 needs-human: physical device + a real Family Link account
 2. **Off-LAN access (Tailscale)** — `EXPO_PUBLIC_POCKETBASE_URL` is a LAN IP; devices can't reach PocketBase on 5G or outside the home. Tailscale is the lowest-friction fix: private mesh VPN, no public exposure, point the URL at the Tailscale hostname. Required before the family can use the app outside the house, and a prerequisite for app auto-updates to reach devices off-LAN. ~2-4 hrs.
    - 🧑 needs-human: Tailscale account + per-device enrollment (the env-var change itself is trivial)
-3. **Tier 2 app auto-updates (version check + APK prompt)** — Tier 1 (expo-updates OTA for JS/TS) shipped 2026-10-21; native changes (Kotlin, SDK bumps, new native deps) still need a cable. Poll a version endpoint, download the APK, fire an install intent (`REQUEST_INSTALL_PACKAGES`). ~3-4 hrs.
+3. **Tier 2 app auto-updates (on-device validation)** — agent-doable pieces shipped 2026-10-22 (endpoint, poll, download, install intent, `just publish-apk`); remaining work is confirming the install prompt lands and the APK actually installs on GrapheneOS. 🧑 needs-human.
 
 ### Best agent-doable next
 
@@ -72,11 +72,9 @@ Server-side delivery is correct: the spend-approval hook already sends `type: "s
 Added 2026-08-10. Items 1-4 were fully agent-doable — no hardware, no new accounts — and all four shipped 2026-08-12 – 2026-08-17 (CI pipeline, ledger integrity verifier, cron/scheduled-job test coverage, offline/unreachable-backend UX — entries preserved in [docs/ledger/ROADMAP_SHIPPED.md](./docs/ledger/ROADMAP_SHIPPED.md)). Item 5 was split: Tier 1 (expo-updates OTA) shipped 2026-10-21 — see the shipped ledger; Tier 2 (native APK prompt) remains. Items 6-7 added 2026-10-21.
 
 5. **App auto-updates Tier 2 — version check + APK prompt (no Play Store)**
-   - Tier 1 (`expo-updates` OTA for JS/TS/components) shipped 2026-10-21. It covers everything JS can reach, but native changes (`FamilyLinkAccessibilityService.kt`, new native deps, SDK bumps, `app.json` version bumps that change `runtimeVersion`) structurally cannot ship over the air — those still need a cable or a store.
-   - App polls a version endpoint (PocketBase can serve it), downloads the APK, fires an install intent. Needs `REQUEST_INSTALL_PACKAGES`; Android forces a user tap, no way around it. Silent push is impossible by design — this is the fallback, not a replacement for Tier 1.
-   - Reuse the same PocketBase host + auth model as Tier 1; endpoint can live next to `/api/updates/manifest`.
-   - ~3-4 hrs.
-   - 🧑 needs-human: final validation that the install prompt lands and the APK actually installs on GrapheneOS. The endpoint, poll, download, and intent wiring are agent-doable.
+   - Tier 1 (`expo-updates` OTA for JS/TS/components) shipped 2026-10-21. Tier 2 agent-doable pieces shipped 2026-10-22: `GET /api/updates/version` + `GET /api/updates/apk` endpoints (PocketBase hook, `lib/updates.js`), mobile polling (`apps/mobile/lib/appUpdate.ts`), DownloadManager install intent (`PayDirtNative.downloadAndInstallApk` + `REQUEST_INSTALL_PACKAGES`), and `just publish-apk`. The updates hook was refactored into `lib/updates.js` (top-level bindings aren't visible inside routerAdd handlers in this Goja runtime) and its root corrected to `$app.dataDir()/updates`.
+   - Native changes (`FamilyLinkAccessibilityService.kt`, new native deps, SDK bumps) still need a cable or this fallback; Android forces a user tap on install, no way around it.
+   - 🧑 needs-human: final validation that the install prompt lands and the APK actually installs on GrapheneOS. The endpoint, poll, download, and intent wiring are done.
 
 6. **Wire Android unit tests into `just test` + CI** — `ForegroundTrackerTest.kt` (4 JUnit cases) runs via `./gradlew :app:testDebugUnitTest` only; the shipped entry (2026-10-21) noted it isn't in `just test`/CI. Add a justfile target, call it from `just test` or CI (CI has no JDK today — add a setup-java step if wired into the workflow). ~1-2 hrs.
 7. **PocketBase backup recipe** — once real family data lives here, there's no automated backup. Add `just backup` (PocketBase `pb export`/`pb dump` of SQLite + storage into a timestamped artifact) and document a cron/launchd line in `pocketbase/README.md`. Restore path should be smoke-tested once. ~1-2 hrs.

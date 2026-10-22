@@ -466,10 +466,25 @@ reset-db:
 
 # --- Quality ---
 
-# Run all workspace tests
+# Run all workspace tests (JS/TS + Android unit tests when JDK/gradle available)
 [group('quality')]
-test:
+test: test-android
     @pnpm -r test
+
+# Android unit tests (ForegroundTrackerTest.kt) via Gradle
+[group('quality')]
+test-android:
+    #!/usr/bin/env bash
+    if [ ! -f apps/mobile/android/gradlew ]; then
+        printf '\033[0;33mNo android/ project — skipping Android unit tests.\033[0m\n'
+        exit 0
+    fi
+    if ! command -v java >/dev/null 2>&1; then
+        printf '\033[0;33mNo JDK on PATH — skipping Android unit tests.\033[0m\n'
+        exit 0
+    fi
+    printf '\033[0;34mRunning Android unit tests...\033[0m\n'
+    cd apps/mobile/android && ./gradlew :app:testDebugUnitTest
 
 # Live API/hook tests — needs running, seeded PocketBase (use NTFY_DISABLED=1 just dev-pb)
 [group('quality')]
@@ -581,6 +596,39 @@ lint:
 [group('quality')]
 lintfix:
     @pnpm -r lint:fix
+
+# Back up PocketBase data (SQLite + storage) to a timestamped directory
+[group('maintenance')]
+backup:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    if [ ! -f "{{pb}}" ]; then
+        printf '\033[0;33mPocketBase binary not found.\033[0m\n'
+        exit 1
+    fi
+    STAMP=$(date +%Y%m%d-%H%M%S)
+    OUT="backups/paydirt-${STAMP}"
+    mkdir -p "$OUT"
+    if curl -sf -o /dev/null http://127.0.0.1:3111/api/health 2>/dev/null; then
+        printf '\033[0;33mPocketBase is running — backup may be inconsistent; stop it for a clean snapshot.\033[0m\n'
+    fi
+    cp -R pocketbase/pb_data "${OUT}/pb_data"
+    printf '\033[0;32mBackup written to %s\033[0m\n' "$OUT"
+
+# Publish a native APK for Tier 2 auto-update (drop version.json + APK into pb_data/updates).
+# Usage: just publish-apk versionCode=2 versionName=1.0.1 apk=apps/mobile/android/app/build/outputs/apk/release/app-release.apk
+[group('android')]
+publish-apk versionCode versionName apk:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    if [ ! -f "{{apk}}" ]; then
+        printf '\033[0;31mAPK not found: {{apk}}\033[0m\n'
+        exit 1
+    fi
+    mkdir -p pocketbase/pb_data/updates
+    cp "{{apk}}" pocketbase/pb_data/updates/app-release.apk
+    node -e "const fs=require('fs');fs.writeFileSync('pocketbase/pb_data/updates/version.json',JSON.stringify({versionCode:{{versionCode}},versionName:'{{versionName}}',downloadUrl:'/api/updates/apk',publishedAt:new Date().toISOString()},null,2));"
+    printf '\033[0;32mPublished APK v{{versionName}} (code {{versionCode}}) → pocketbase/pb_data/updates/\033[0m\n'
 
 # --- Maintenance ---
 

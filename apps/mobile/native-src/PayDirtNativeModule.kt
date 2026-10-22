@@ -1,5 +1,9 @@
 package io.paydirt.app
 
+import android.app.DownloadManager
+import android.content.Context
+import android.net.Uri
+import android.os.Environment
 import com.facebook.react.ReactPackage
 import com.facebook.react.bridge.NativeModule
 import com.facebook.react.bridge.Promise
@@ -8,10 +12,7 @@ import com.facebook.react.bridge.ReactContextBaseJavaModule
 import com.facebook.react.bridge.ReactMethod
 import com.facebook.react.uimanager.ViewManager
 
-// Exposes registerWithNtfy() to JS. Registration normally only runs at app
-// startup (MainApplication.onCreate), so if ntfy was installed or its
-// distributor approval was missed after launch, the kid "Check connection"
-// flow had no way to re-send the REGISTER broadcast — a permanent dead end.
+// Exposes registerWithNtfy() and downloadAndInstallApk() to JS.
 class PayDirtNativeModule(reactContext: ReactApplicationContext) :
   ReactContextBaseJavaModule(reactContext) {
 
@@ -20,11 +21,27 @@ class PayDirtNativeModule(reactContext: ReactApplicationContext) :
   @ReactMethod
   fun registerWithNtfy(promise: Promise) {
     try {
-      // Calls the top-level helper — a member with this name would shadow it.
       registerAppWithNtfy(reactApplicationContext)
       promise.resolve(true)
     } catch (e: Exception) {
       promise.reject("register_failed", e.message, e)
+    }
+  }
+
+  @ReactMethod
+  fun downloadAndInstallApk(url: String, promise: Promise) {
+    try {
+      val request = DownloadManager.Request(Uri.parse(url))
+        .setTitle("PayDirt update")
+        .setDescription("Downloading update...")
+        .setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED)
+        .setDestinationInExternalPublicDir(Environment.DIRECTORY_DOWNLOADS, "paydirt-update.apk")
+        .setMimeType("application/vnd.android.package-archive")
+      val dm = reactApplicationContext.getSystemService(Context.DOWNLOAD_SERVICE) as DownloadManager
+      dm.enqueue(request)
+      promise.resolve(true)
+    } catch (e: Exception) {
+      promise.reject("download_failed", e.message, e)
     }
   }
 }

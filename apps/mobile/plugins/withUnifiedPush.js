@@ -25,6 +25,18 @@ const UP_ACTIONS = [
   "org.unifiedpush.android.connector.REGISTRATION_FAILED",
 ];
 
+function addInstallPermission(config) {
+  return withAndroidManifest(config, (cfg) => {
+    const manifest = cfg.modResults.manifest;
+    if (!manifest["uses-permission"]) manifest["uses-permission"] = [];
+    const perms = manifest["uses-permission"];
+    const name = "android.permission.REQUEST_INSTALL_PACKAGES";
+    const already = perms.some((p) => p.$?.["android:name"] === name);
+    if (!already) perms.push({ $: { "android:name": name } });
+    return cfg;
+  });
+}
+
 function addNtfyToQueries(config) {
   return withAndroidManifest(config, (cfg) => {
     const manifest = cfg.modResults.manifest;
@@ -100,6 +112,7 @@ function addNativeFiles(config) {
 }
 
 module.exports = (config) => {
+  config = addInstallPermission(config);
   config = addNtfyToQueries(config);
   config = addUpReceiver(config);
   config = addNativeFiles(config);

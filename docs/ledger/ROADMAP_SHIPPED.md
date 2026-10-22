@@ -5,6 +5,7 @@
 ## Shipped index
 
 - [x] 2026-10-21 — App auto-updates (Tier 1 — expo-updates OTA)
+- [x] 2026-10-22 — App auto-updates (Tier 2 — version check + APK prompt)
 - [x] 2026-10-21 — Deeper gamification ("playful" mode)
 - [x] 2026-10-21 — Suppress foreground notifications
 - [x] 2026-10-21 — Realtime resubscribe on resume
@@ -27,6 +28,10 @@
 - **App auto-updates (no Play Store)** — kids' devices currently only update by plugging in a cable. No Play Services means no Play Store auto-update, no Play Core in-app update API, no Firebase App Distribution. **Tier 1 — `expo-updates` OTA.** Covers JS/TS, components, business logic, styling. Does *not* require EAS; point `updates.url` at a self-hosted manifest (PocketBase can serve it). Silent, no user interaction. **Configure rollback as part of tier 1, not after.** A bad JS bundle remotely bricks the app on every kid's device simultaneously. **Tier 2 — version check + APK prompt** (native changes OTA structurally cannot deliver) remains unshipped. ~3-4 hrs per tier.
 
 Shipped: `apps/mobile/app.config.js` layers `updates.url` (from `EXPO_PUBLIC_POCKETBASE_URL` + `/api/updates/manifest`) and `runtimeVersion.policy: "appVersion"` on top of `app.json`. `pocketbase/pb_hooks/updates.pb.js` implements the Expo Updates protocol: plain-JSON manifests for protocol 0/1, multipart `rollBackToEmbedded`/`noUpdateAvailable` directives on protocol v1, md5-keyed immutable asset serving, superuser-only `/api/updates/config` debug endpoint. Publish via `just update-publish` (`scripts/publish-update.mjs`: expo export → `pb_data/updates/<ver>/<epoch>/` with `manifest.json`, `metadata.json`, `expoConfig.json`, `assets/`); roll back via `just update-rollback` (`scripts/rollback-update.mjs` drops a `rollback` marker; protocol v1 clients fall back to the embedded bundle on next check; `clear=1` removes the marker). Pure helpers (`buildServerManifest`, `decideManifestResponse`, asset hashing, `sha256HexToUuid`) live in `packages/shared/src/updates.ts` — deliberately *not* re-exported from the shared index because they use `node:crypto`/`Buffer` and would break mobile/web typechecks; consumed by the publish script via `node --experimental-strip-types`. Regression tests: `updates.test.ts` (15 cases across hashing, manifest building, and the decision table). Tier 2 (version check + APK prompt) and final on-device validation (does an update actually land on GrapheneOS?) remain open — the latter is 🧑 needs-human.
+
+### 2026-10-22 — App auto-updates (Tier 2 — version check + APK prompt)
+
+- **Tier 2 (native APK)** — agent-doable pieces shipped: `GET /api/updates/version` + `GET /api/updates/apk` (PocketBase, `lib/updates.js`), mobile polling (`apps/mobile/lib/appUpdate.ts`), DownloadManager install intent (`PayDirtNative.downloadAndInstallApk` + `REQUEST_INSTALL_PACKAGES`), `just publish-apk`. Tier 1 hook refactored into `lib/updates.js` (top-level bindings invisible inside routerAdd handlers in this Goja runtime) and root corrected to `$app.dataDir()/updates`. On-device validation (install prompt lands + APK installs on GrapheneOS) remains human-gated.
 
 ### 2026-06-10 — MVP, Phase 1, and Phase 1.5 (migrated from active roadmap 2026-10-21)
 
