@@ -1,7 +1,9 @@
 package io.paydirt.app
 
+import android.app.Activity
 import android.app.Application
 import android.content.res.Configuration
+import android.os.Bundle
 
 import com.facebook.react.PackageList
 import com.facebook.react.ReactApplication
@@ -37,6 +39,19 @@ class MainApplication : Application(), ReactApplication {
     }
     loadReactNative(this)
     ApplicationLifecycleDispatcher.onApplicationCreate(this)
+
+    // Feed ForegroundTracker so UnifiedPushReceiver can stay silent while the
+    // app is open (the screen already shows the update live).
+    registerActivityLifecycleCallbacks(object : ActivityLifecycleCallbacks {
+      override fun onActivityCreated(activity: Activity, savedInstanceState: Bundle?) {}
+      override fun onActivityStarted(activity: Activity) = ForegroundTracker.counter.onActivityStarted()
+      override fun onActivityResumed(activity: Activity) {}
+      override fun onActivityPaused(activity: Activity) {}
+      override fun onActivityStopped(activity: Activity) = ForegroundTracker.counter.onActivityStopped()
+      override fun onActivitySaveInstanceState(activity: Activity, outState: Bundle) {}
+      override fun onActivityDestroyed(activity: Activity) {}
+    })
+
     registerAppWithNtfy(this)
   }
 

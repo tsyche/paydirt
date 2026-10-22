@@ -179,4 +179,7 @@ dependencies {
     } else {
         implementation jscFlavor
     }
+
+    // JVM unit tests for the pure-Kotlin native logic (ForegroundTracker).
+    testImplementation("junit:junit:4.13.2")
 }

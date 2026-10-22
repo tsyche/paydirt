@@ -4,6 +4,7 @@
 
 ## Shipped index
 
+- [x] 2026-10-21 — Suppress foreground notifications
 - [x] 2026-10-21 — Realtime resubscribe on resume
 - [x] 2026-10-21 — On-theme currency presets
 - [x] 2026-10-21 — Real-device smoke test (Pixel 8 / GrapheneOS)
@@ -17,6 +18,12 @@
 - [x] 2026-06-28 — ntfy onboarding flow
 
 ## Archived entries
+
+### 2026-10-21 — Suppress foreground notifications
+
+- **Suppress foreground notifications** — smoke-test finding (2026-10-21): approving while the kid app is foregrounded still posts a system notification; the checklist expects a silent in-app update when the app is open. Fix: `UnifiedPushReceiver.kt` checks foreground/process state (or an in-memory flag set by the JS side) before calling `notify()`. Native Kotlin — no repo test harness for it, so verification is a manual on-device check (or a later Robolectric investment). ~1 hr.
+
+Shipped: pure-Kotlin `ForegroundCounter` (no Android imports) fed by `ActivityLifecycleCallbacks` on `MainApplication`; `UnifiedPushReceiver` skips `notify()` while any activity is started — live realtime updates already cover the screen. Phase 2's `spend_approved` broadcast still fires regardless. Regression tests: `ForegroundTrackerTest.kt` (4 JUnit cases incl. config-change activity overlap and negative-counter guard), run via `./gradlew :app:testDebugUnitTest` (not wired into `just test`/CI — gradle-only; on-device heads-up suppression still deserves a manual check next device session).
 
 ### 2026-10-21 — Realtime resubscribe on resume
 
