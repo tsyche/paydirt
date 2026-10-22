@@ -1173,6 +1173,7 @@ function AvatarControl({ kid, onSaved }: { kid: User; onSaved: () => void }) {
   const [avatar, setAvatar] = useState(kid.avatar_emoji ?? "");
   const [color, setColor] = useState(kid.color ?? AVATAR_COLORS[0]);
   const [goodsRateOverride, setGoodsRateOverride] = useState(String(kid.goods_rate ?? ""));
+  const [calmMode, setCalmMode] = useState(!!kid.calm_mode);
   const [busy, setBusy] = useState(false);
 
   if (!open) {
@@ -1217,6 +1218,13 @@ function AvatarControl({ kid, onSaved }: { kid: User; onSaved: () => void }) {
         style={{ width: 150 }}
         min={0}
       />
+      <label
+        style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 13, cursor: "pointer" }}
+        title="Quieter kid home: no badge shelf, confetti, or count-up"
+      >
+        <input type="checkbox" checked={calmMode} onChange={(e) => setCalmMode(e.target.checked)} />
+        Calm mode
+      </label>
       <button
         className="primary sm"
         disabled={busy}
@@ -1228,6 +1236,7 @@ function AvatarControl({ kid, onSaved }: { kid: User; onSaved: () => void }) {
               avatar_emoji: avatar.trim(),
               color,
               goods_rate: isNaN(rate) || rate <= 0 ? null : rate,
+              calm_mode: calmMode,
             });
             setOpen(false);
             onSaved();

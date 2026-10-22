@@ -161,6 +161,7 @@ async function main() {
     display_name: "Kid 1",
     household: hh,
     simplified_mode: false,
+    calm_mode: false,
     ntfy_topic: "paydirt-kid1",
   });
   const kid2 = await upsertUser("child2@test.local", {
@@ -168,6 +169,7 @@ async function main() {
     display_name: "Kid 2",
     household: hh,
     simplified_mode: true,
+    calm_mode: false,
     ntfy_topic: "paydirt-kid2",
   });
 

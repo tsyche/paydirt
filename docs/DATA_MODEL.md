@@ -33,6 +33,7 @@ declare them in their own creation migration. Omitting them previously caused
 | ntfy_topic | text | optional; devices subscribe to this |
 | balance | number | cached parentBucks; maintained by hook (children) |
 | simplified_mode | bool | default false; on for youngest child |
+| calm_mode | bool | default false; parent dial-back silences playful extras (badges, confetti, count-up) |
 | streak_count | number | consecutive earn-days; maintained by hook + daily cron |
 
 ### `chores`

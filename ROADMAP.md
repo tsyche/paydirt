@@ -38,7 +38,6 @@ _Doc drift (dangling plan references, stale Expo SDK number) was fixed 2026-08-1
 ### Best agent-doable next
 
 1. **Feature explanation tooltips** — see *Backlog*. Settings don't explain themselves; ~2-3 hrs.
-2. **Deeper gamification (full "playful" mode)** — see *Backlog*. ~1-2 days, self-contained.
 
 ## Phase 1 — Core Feature Set ✅ (completed 2026-06-10)
 
@@ -101,7 +100,6 @@ Added 2026-08-10. Items 1-4 were fully agent-doable — no hardware, no new acco
 ## Backlog (unscheduled)
 
 - **Feature explanation tooltips** — settings and controls don't explain themselves (hard to know what each setting is for). Web: hover tooltips on HouseholdSettings fields, dashboard controls, and any non-obvious button. Mobile: small info (ⓘ) affordance next to settings labels that opens a one-line explanation dialog — hover doesn't exist on touch. Candidates to cover first: currency name/presets, goods rate, bank thresholds, recurring cadence, quiet hours, simplified mode, race mechanic. Copy lives in one shared map so web and mobile stay in sync. ~2-3 hrs.
-- **Deeper gamification (full "playful" mode)** — the design refresh landed a playful-but-grown-up baseline (tactile buttons, claim hero, coin-pop on approval). Architecture (`Celebration`, `ChunkyButton`, palette packs) is built to dial *up* toward a fuller Duolingo-style experience. Candidate additions: a household mascot, richer celebration sequences (XP-style count-up on the claim hero), badge/achievement shelf, streak-freeze mechanic, sound effects (opt-in), and an optional per-kid "max playful" intensity. Keep parent surfaces calm (the Slate pack); scope playful escalation to the kid views. Gate behind a setting so parents control the dial. ~1-2 days.
 - **UnifiedPush self-hosted ntfy** — when ready to move off ntfy.sh, re-register on device → new endpoint URL encodes the self-hosted server automatically. No server-side config needed.
   - 🧑 needs-human: VPS provisioning + on-device re-registration
 - **iOS build** — Expo project is cross-platform; main blocker is Apple developer account + TestFlight distribution. No code changes needed.

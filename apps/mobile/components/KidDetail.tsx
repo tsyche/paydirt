@@ -8,6 +8,7 @@ import {
   ProgressBar,
   Portal,
   Dialog,
+  Switch,
   TextInput,
   Button,
   Snackbar,
@@ -154,6 +155,29 @@ export function KidDetail({
           <ChunkyButton label="Bonus" icon="plus" onPress={() => openAdjust(1)} style={styles.adjustBtn} />
           <ChunkyButton label="Deduct" icon="minus" tone="danger" onPress={() => openAdjust(-1)} style={styles.adjustBtn} />
         </View>
+
+        {kid && (
+          <Card style={styles.card}>
+            <Card.Content style={styles.rowBetween}>
+              <View style={styles.flex}>
+                <Text variant="titleSmall">Calm mode</Text>
+                <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant }}>
+                  Quieter home screen: no badge shelf, confetti, or count-up.
+                </Text>
+              </View>
+              <Switch
+                value={!!kid.calm_mode}
+                onValueChange={(next) =>
+                  void client.pb
+                    .collection("users")
+                    .update(kid.id, { calm_mode: next })
+                    .then(() => reload())
+                    .catch((e) => setSnack(String(e)))
+                }
+              />
+            </Card.Content>
+          </Card>
+        )}
 
         <Text variant="labelLarge" style={[styles.section, { color: theme.colors.onSurfaceVariant }]}>
           ACTIVE CHORES {assignments.length > 0 ? `(${assignments.length})` : ""}

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { View, ScrollView, StyleSheet, RefreshControl } from "react-native";
 import {
   Appbar,
@@ -10,10 +10,12 @@ import {
 } from "react-native-paper";
 import { SafeAreaView } from "react-native-safe-area-context";
 import type { Assignment, Broadcast, Chore, User } from "@paydirt/shared";
-import { currencyDisplayName, DEFAULT_CURRENCY_NAME } from "@paydirt/shared";
+import { currencyDisplayName, DEFAULT_CURRENCY_NAME, shouldCelebrate } from "@paydirt/shared";
 import { client } from "../lib/client";
 import { takePhotoAndComplete } from "../lib/completeWithPhoto";
+import { useCountUp } from "../lib/useCountUp";
 import { useRealtimeResume } from "../lib/useRealtimeResume";
+import { Celebration } from "../components/Celebration";
 
 type Expanded = Assignment & { expand?: { chore?: Chore } };
 
@@ -27,8 +29,12 @@ export function SimpleKidHome({ user, onLogout }: { user: User; onLogout: () => 
   const [broadcasts, setBroadcasts] = useState<Broadcast[]>([]);
   const [refreshing, setRefreshing] = useState(false);
   const [snack, setSnack] = useState("");
+  const [celebrate, setCelebrate] = useState(0);
+  const prevBalance = useRef<number | null>(null);
 
   const goodsRate = me.goods_rate ?? householdRate;
+  const calm = !!me.calm_mode;
+  const shownBalance = useCountUp(balance, !calm);
 
   const reload = useCallback(async () => {
     setRefreshing(true);
@@ -46,6 +52,10 @@ export function SimpleKidHome({ user, onLogout }: { user: User; onLogout: () => 
       setCurrencyName(currencyDisplayName(household));
       setHouseholdRate(household.goods_rate ?? 0);
       setBroadcasts(bcs);
+      if (shouldCelebrate(prevBalance.current, bal, !!freshMe.calm_mode)) {
+        setCelebrate((n) => n + 1);
+      }
+      prevBalance.current = bal;
     } catch (e) {
       setSnack(String(e));
     } finally {
@@ -127,7 +137,7 @@ export function SimpleKidHome({ user, onLogout }: { user: User; onLogout: () => 
           </View>
           <View style={styles.balanceBody}>
             <Text style={[styles.balanceNumber, { color: theme.colors.onSurface }]}>
-              {balance}
+              {shownBalance}
             </Text>
             {goodsRate > 0 ? (
               <Text style={[styles.dollarValue, { color: theme.colors.onSurfaceVariant }]}>
@@ -233,6 +243,8 @@ export function SimpleKidHome({ user, onLogout }: { user: User; onLogout: () => 
       <Snackbar visible={!!snack} onDismiss={() => setSnack("")} duration={5000}>
         {snack}
       </Snackbar>
+
+      <Celebration trigger={celebrate} />
     </SafeAreaView>
   );
 }

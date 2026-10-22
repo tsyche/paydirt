@@ -7,3 +7,4 @@ export * from "./realtime";
 export * from "./scheduling";
 export * from "./streaks";
 export * from "./theme";
+export * from "./badges";

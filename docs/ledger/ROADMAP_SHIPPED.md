@@ -4,6 +4,7 @@
 
 ## Shipped index
 
+- [x] 2026-10-21 — Deeper gamification ("playful" mode)
 - [x] 2026-10-21 — Suppress foreground notifications
 - [x] 2026-10-21 — Realtime resubscribe on resume
 - [x] 2026-10-21 — On-theme currency presets
@@ -18,6 +19,12 @@
 - [x] 2026-06-28 — ntfy onboarding flow
 
 ## Archived entries
+
+### 2026-10-21 — Deeper gamification ("playful" mode)
+
+- **Deeper gamification (full "playful" mode)** — the design refresh landed a playful-but-grown-up baseline (tactile buttons, claim hero, coin-pop on approval). Architecture (`Celebration`, `ChunkyButton`, palette packs) is built to dial *up* toward a fuller Duolingo-style experience. Candidate additions: a household mascot, richer celebration sequences (XP-style count-up on the claim hero), badge/achievement shelf, streak-freeze mechanic, sound effects (opt-in), and an optional per-kid "max playful" intensity. Keep parent surfaces calm (the Slate pack); scope playful escalation to the kid views. Gate behind a setting so parents control the dial. ~1-2 days.
+
+Shipped: badge shelf (pure `computeBadges` in `packages/shared/src/badges.ts` — first chore, 10/50 chores, 3/7/30-day streaks, first/3 goals, 100/500 bank; `BadgeShelf.tsx` shows earned + next-locked with progress), XP-style count-up on ClaimHero and the SimpleKidHome balance (`useCountUp`, reduce-motion aware), and coin-pop celebration when a kid's balance ticks up (`shouldCelebrate` gates increase-only). All three silenced by a new per-kid `users.calm_mode` bool (migration `1717000015`), toggled from mobile KidDetail and the web avatar editor. Parent surfaces unchanged. Regression tests: `badges.test.ts` (7 cases across computeBadges/earnedBadges/shouldCelebrate); not-yet-shipped candidates (mascot, sounds, streak-freeze) stay out of scope.
 
 ### 2026-10-21 — Suppress foreground notifications
 

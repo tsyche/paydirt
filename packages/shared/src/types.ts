@@ -58,6 +58,8 @@ export interface User extends BaseRecord {
   balance: number;
   /** Larger tap targets, icon-heavy UI, minimal reading. Default on for youngest. */
   simplified_mode: boolean;
+  /** Parent dial-back: silences playful extras (count-up, celebration, badges). Default off. */
+  calm_mode?: boolean;
   /** Consecutive days with an approved chore. Maintained by hooks + daily cron. */
   streak_count?: number;
   /** Per-kid goods rate override (bucks per $1). 0/unset = use household rate. */

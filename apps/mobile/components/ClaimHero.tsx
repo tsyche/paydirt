@@ -1,12 +1,17 @@
 import { View, StyleSheet } from "react-native";
 import { Text, useTheme } from "react-native-paper";
 import { ChunkyButton } from "./ChunkyButton";
+import { useCountUp } from "../lib/useCountUp";
 
 /**
  * The "claim" — PayDirt's signature balance hero. A kid's parentBucks struck
  * like gold: a big rounded display number on the kid's own accent band. This is
  * the one thing on screen that should feel like treasure, so everything else
  * stays quiet around it.
+ *
+ * When `animated` is on and the balance ticks up (an approval landed), the
+ * number counts up from the old value — the XP-style payoff. Reduced-motion and
+ * `animated={false}` (calm mode) jump straight to the new value.
  */
 export function ClaimHero({
   name,
@@ -17,6 +22,7 @@ export function ClaimHero({
   toDoLabel,
   accent,
   onSpend,
+  animated = false,
 }: {
   name: string;
   avatar: string;
@@ -26,8 +32,11 @@ export function ClaimHero({
   toDoLabel: string;
   accent: string;
   onSpend?: () => void;
+  /** Count the number up when the balance increases. Off in calm mode. */
+  animated?: boolean;
 }) {
   const theme = useTheme();
+  const shown = useCountUp(balance, animated);
   return (
     <View style={[styles.card, { backgroundColor: theme.colors.surfaceVariant }]}>
       <View style={[styles.header, { backgroundColor: accent }]}>
@@ -40,7 +49,7 @@ export function ClaimHero({
         </Text>
         <View style={styles.amountRow}>
           <Text style={styles.coin}>🪙</Text>
-          <Text style={[styles.amount, { color: theme.colors.onSurface }]}>{balance}</Text>
+          <Text style={[styles.amount, { color: theme.colors.onSurface }]}>{shown}</Text>
         </View>
         {dollarValue ? (
           <Text style={[styles.dollar, { color: theme.colors.onSurfaceVariant }]}>

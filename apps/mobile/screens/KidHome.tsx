@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { View, ScrollView, StyleSheet, RefreshControl } from "react-native";
 import {
   Appbar,
@@ -18,14 +18,16 @@ import {
 } from "react-native-paper";
 import { SafeAreaView } from "react-native-safe-area-context";
 import type { Assignment, Broadcast, Chore, Household, SavingsGoal, User } from "@paydirt/shared";
-import { currencyDisplayName } from "@paydirt/shared";
+import { currencyDisplayName, computeBadges, shouldCelebrate } from "@paydirt/shared";
 import { client } from "../lib/client";
 import { isNetworkError } from "../lib/reachability";
 import { useRealtimeResume } from "../lib/useRealtimeResume";
 import { takePhotoAndComplete } from "../lib/completeWithPhoto";
 import { AppearanceButton } from "../components/AppearanceButton";
+import { BadgeShelf } from "../components/BadgeShelf";
 import { ChunkyButton } from "../components/ChunkyButton";
 import { ClaimHero } from "../components/ClaimHero";
+import { Celebration } from "../components/Celebration";
 import { OfflineBanner } from "../components/OfflineBanner";
 
 const KID_TABS = [
@@ -73,6 +75,8 @@ export function KidHome({ user, onLogout }: { user: User; onLogout: () => void }
   const [swapFor, setSwapFor] = useState<Expanded | null>(null);
   const [snack, setSnack] = useState("");
   const [tab, setTab] = useState("home");
+  const [celebrate, setCelebrate] = useState(0);
+  const prevBalance = useRef<number | null>(null);
 
   const currencyName = currencyDisplayName(household);
   const accentColor = me.color ?? theme.colors.primary;
@@ -100,6 +104,10 @@ export function KidHome({ user, onLogout }: { user: User; onLogout: () => void }
       setSiblings(kids.filter((k) => k.id !== user.id));
       setHousehold(hh);
       setBroadcasts(bcs);
+      if (shouldCelebrate(prevBalance.current, freshMe.balance, !!freshMe.calm_mode)) {
+        setCelebrate((n) => n + 1);
+      }
+      prevBalance.current = freshMe.balance;
     } catch (e) {
       // Network failures already surface via the offline banner — an extra
       // toast on top would just be noise. Anything else still gets one.
@@ -181,6 +189,13 @@ export function KidHome({ user, onLogout }: { user: User; onLogout: () => void }
 
   const toDo = assignments.filter((a) => a.status === "assigned");
   const streak = me.streak_count ?? 0;
+  const calm = !!me.calm_mode;
+  const badges = computeBadges({
+    approvedCount: history.length,
+    streakDays: streak,
+    goalsAchieved: goals.filter((g) => g.achieved).length,
+    balance: me.balance,
+  });
 
   return (
     <SafeAreaView style={styles.container} edges={["top"]}>
@@ -208,7 +223,9 @@ export function KidHome({ user, onLogout }: { user: User; onLogout: () => void }
               toDoLabel={toDo.length === 0 ? "Nothing to do — go play! 🎉" : `${toDo.length} chore${toDo.length === 1 ? "" : "s"} to do`}
               accent={accentColor}
               onSpend={() => setSpendOpen(true)}
+              animated={!calm}
             />
+            {!calm && <BadgeShelf badges={badges} />}
 
         {swapsIn.length > 0 && (
           <>
@@ -533,6 +550,8 @@ export function KidHome({ user, onLogout }: { user: User; onLogout: () => void }
       <Snackbar visible={!!snack} onDismiss={() => setSnack("")} duration={5000}>
         {snack}
       </Snackbar>
+
+      <Celebration trigger={celebrate} />
     </SafeAreaView>
   );
 }

@@ -5,6 +5,7 @@ All notable changes to PayDirt. Format loosely follows [Keep a Changelog](https:
 ## [Unreleased]
 
 ### Added
+- Deeper gamification ("playful mode") for kid screens: a badge shelf (milestones computed by pure `computeBadges` in `@paydirt/shared` — first chore, streak tiers, goals, bank thresholds), XP-style balance count-up on approval, and a coin-pop celebration when the balance ticks up. All three sit behind a parent-controlled per-kid **Calm mode** dial (new `users.calm_mode` field; toggled in the mobile kid detail and the web avatar editor) so a sensitive kid's home screen can stay quiet.
 - On-theme currency presets: the household currency default is now **Grit** (was "parentBucks"), with one-click presets (Grit, Nuggets, Gold, Karats) in household settings. Display fallback is centralized in `packages/shared/src/currency.ts`.
 - Phase 2 trigger: a spend-approval push (`type: "spend_approved"`) now broadcasts `ACTION_GRANT_SCREEN_TIME` locally so the Family Link accessibility service can launch Family Link and auto-tap its grant button. The notification, deep link, and broadcast all fire together; chain verified on-device (broadcast reaches the service in ~10 ms; the final Family Link tap still needs a real Family Link account to validate).
 - Notification deep links (Android): tapping a push notification opens the relevant screen instead of just dismissing. Verified on-device 2026-10-21 (warm: lands KidHome; cold: process killed → tap → cold start).
