@@ -1,5 +1,6 @@
 import PocketBase from "pocketbase";
 import { Collections } from "./collections";
+import { resumeRealtime as forceRealtimeResume, type RealtimeLike } from "./realtime";
 import type {
   Assignment,
   Broadcast,
@@ -516,6 +517,21 @@ export class PaydirtClient {
   // PocketBase realtime rides on SSE. On React Native there is no native
   // EventSource — the mobile app installs the react-native-sse polyfill before
   // constructing the client (see apps/mobile/lib/client.ts).
+
+  /**
+   * Force the realtime SSE connection to rebuild. The SDK auto-reconnects on
+   * EventSource errors, but RN half-open sockets (backgrounded app, network
+   * switches) die silently — no error fires, the SDK thinks it's connected,
+   * and events stop flowing. Registered subscription listeners survive the
+   * rebuild, so existing subscribe() callers keep receiving events.
+   */
+  resumeRealtime(): void {
+    // The SDK's RealtimeService.connect() is runtime-public but typed
+    // private — cast to the structural shape realtime.ts works against.
+    forceRealtimeResume({
+      realtime: this.pb.realtime as unknown as RealtimeLike,
+    });
+  }
 
   /**
    * Subscribe to everything a kid's home screen shows: their assignments

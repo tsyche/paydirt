@@ -200,6 +200,46 @@ describe("PocketBase hooks & guards (live)", () => {
     await kid.pb.realtime.unsubscribe();
   });
 
+  it("resumeRealtime: events flow again after the socket is silently dropped", async () => {
+    // Reproduces the mobile failure mode: the SSE socket dies without an
+    // EventSource error (backgrounded app, half-open TCP), so the SDK never
+    // auto-reconnects and events stop. resumeRealtime() must force a rebuild
+    // and re-deliver — the same path useRealtimeResume takes on AppState
+    // "active" / offline→online.
+    let events = 0;
+    const unsub = await kid.subscribeToKidUpdates(kidUser.id, () => {
+      events += 1;
+    });
+    await new Promise((r) => setTimeout(r, 500));
+
+    // Silent drop: the SDK's disconnect() is runtime-public but typed
+    // private — it tears the socket down with no error event, exactly the
+    // half-open death mobile sockets produce.
+    (kid.pb.realtime as unknown as { disconnect: () => void }).disconnect();
+    await new Promise((r) => setTimeout(r, 200));
+
+    kid.resumeRealtime();
+    // Allow reconnect + subscription re-submit to settle before triggering.
+    await new Promise((r) => setTimeout(r, 1500));
+
+    const chore = await createTestChore(1, "Resume test chore");
+    await parent.assignChore(chore.id, kidUser.id);
+
+    await expect(
+      Promise.race([
+        (async () => {
+          while (events === 0) await new Promise((r) => setTimeout(r, 100));
+        })(),
+        new Promise((_, reject) =>
+          setTimeout(() => reject(new Error("no realtime event after resume within 5s")), 5000),
+        ),
+      ]),
+    ).resolves.toBeUndefined();
+    expect(events).toBeGreaterThan(0);
+
+    await unsub();
+  });
+
   it("moves the cached balance in lockstep with the ledger", async () => {
     // Delta-based so historical data can't fail it: every balance change in
     // this block must be mirrored by ledger entries of the same total.

@@ -10,8 +10,10 @@ import {
 } from "react-native-paper";
 import { SafeAreaView } from "react-native-safe-area-context";
 import type { Assignment, Broadcast, Chore, User } from "@paydirt/shared";
+import { currencyDisplayName, DEFAULT_CURRENCY_NAME } from "@paydirt/shared";
 import { client } from "../lib/client";
 import { takePhotoAndComplete } from "../lib/completeWithPhoto";
+import { useRealtimeResume } from "../lib/useRealtimeResume";
 
 type Expanded = Assignment & { expand?: { chore?: Chore } };
 
@@ -20,7 +22,7 @@ export function SimpleKidHome({ user, onLogout }: { user: User; onLogout: () => 
   const [me, setMe] = useState<User>(user);
   const [balance, setBalance] = useState(user.balance);
   const [assignments, setAssignments] = useState<Expanded[]>([]);
-  const [currencyName, setCurrencyName] = useState("parentBucks");
+  const [currencyName, setCurrencyName] = useState(DEFAULT_CURRENCY_NAME);
   const [householdRate, setHouseholdRate] = useState(0);
   const [broadcasts, setBroadcasts] = useState<Broadcast[]>([]);
   const [refreshing, setRefreshing] = useState(false);
@@ -41,7 +43,7 @@ export function SimpleKidHome({ user, onLogout }: { user: User; onLogout: () => 
       setMe(freshMe);
       setBalance(bal);
       setAssignments(list as Expanded[]);
-      setCurrencyName(household.currency_name?.trim() || "parentBucks");
+      setCurrencyName(currencyDisplayName(household));
       setHouseholdRate(household.goods_rate ?? 0);
       setBroadcasts(bcs);
     } catch (e) {
@@ -54,6 +56,11 @@ export function SimpleKidHome({ user, onLogout }: { user: User; onLogout: () => 
   useEffect(() => {
     void reload();
   }, [reload]);
+
+  // Rebuild the realtime socket + re-fetch on foreground and on reconnect —
+  // a dead SSE socket fires no error, so without this events silently stop
+  // after backgrounding or a network blip (see useRealtimeResume).
+  useRealtimeResume(reload);
 
   useEffect(() => {
     let unsub: (() => void) | undefined;

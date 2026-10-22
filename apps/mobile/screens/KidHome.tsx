@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { View, ScrollView, StyleSheet, RefreshControl } from "react-native";
 import {
   Appbar,
@@ -18,9 +18,10 @@ import {
 } from "react-native-paper";
 import { SafeAreaView } from "react-native-safe-area-context";
 import type { Assignment, Broadcast, Chore, Household, SavingsGoal, User } from "@paydirt/shared";
+import { currencyDisplayName } from "@paydirt/shared";
 import { client } from "../lib/client";
 import { isNetworkError } from "../lib/reachability";
-import { useReachability } from "../lib/useReachability";
+import { useRealtimeResume } from "../lib/useRealtimeResume";
 import { takePhotoAndComplete } from "../lib/completeWithPhoto";
 import { AppearanceButton } from "../components/AppearanceButton";
 import { ChunkyButton } from "../components/ChunkyButton";
@@ -73,7 +74,7 @@ export function KidHome({ user, onLogout }: { user: User; onLogout: () => void }
   const [snack, setSnack] = useState("");
   const [tab, setTab] = useState("home");
 
-  const currencyName = household?.currency_name?.trim() || "parentBucks";
+  const currencyName = currencyDisplayName(household);
   const accentColor = me.color ?? theme.colors.primary;
   const goodsRate = me.goods_rate ?? household?.goods_rate ?? 0;
   const dollarValue = goodsRate > 0 ? (me.balance / goodsRate).toFixed(2) : null;
@@ -112,13 +113,10 @@ export function KidHome({ user, onLogout }: { user: User; onLogout: () => void }
     void reload();
   }, [reload]);
 
-  // Retry automatically on reconnect instead of waiting for pull-to-refresh.
-  const reachable = useReachability();
-  const wasReachable = useRef(reachable);
-  useEffect(() => {
-    if (reachable === "online" && wasReachable.current === "offline") void reload();
-    wasReachable.current = reachable;
-  }, [reachable, reload]);
+  // Rebuild the realtime socket + re-fetch on foreground and on reconnect —
+  // a dead SSE socket fires no error, so without this events silently stop
+  // after backgrounding or a network blip (see useRealtimeResume).
+  useRealtimeResume(reload);
 
   // Realtime: re-fetch when this kid's assignments, goals, or balance change,
   // so approvals show up without pull-to-refresh. Best-effort — if the

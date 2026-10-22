@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { View, ScrollView, StyleSheet, RefreshControl, Alert, Image, Linking, Platform } from "react-native";
 import {
   Appbar,
@@ -16,10 +16,11 @@ import {
 } from "react-native-paper";
 import { SafeAreaView } from "react-native-safe-area-context";
 import type { Assignment, Chore, ChoreProposal, ChoreTemplate, Household, SpendRequest, User } from "@paydirt/shared";
+import { currencyDisplayName } from "@paydirt/shared";
 import { client } from "../lib/client";
 import { isAccessibilityServiceEnabled } from "../lib/accessibility-service";
 import { isNetworkError } from "../lib/reachability";
-import { useReachability } from "../lib/useReachability";
+import { useRealtimeResume } from "../lib/useRealtimeResume";
 import { tabForNotificationType } from "../lib/deepLinks";
 import { AppearanceButton } from "../components/AppearanceButton";
 import { AppearanceControls } from "../components/AppearanceControls";
@@ -43,12 +44,18 @@ export function ParentHome({
   user,
   onLogout,
   notificationRoute,
+  notificationSetupNeeded,
+  onOpenNotificationSetup,
 }: {
   user: User;
   onLogout: () => void;
   // A tapped push notification's routing info (see App.tsx + lib/deepLinks.ts). Optional
   // so ParentHome stays usable standalone (e.g. in tests) without a Linking listener.
   notificationRoute?: { type: string | null; nonce: number } | null;
+  // True while ntfy notification setup is incomplete (no subscribed topic /
+  // unconfirmed delivery) — shows a persistent banner that reopens the wizard.
+  notificationSetupNeeded?: boolean;
+  onOpenNotificationSetup?: () => void;
 }) {
   const theme = useTheme();
   const [household, setHousehold] = useState<Household | null>(null);
@@ -111,7 +118,7 @@ export function ParentHome({
   const [newParentPass, setNewParentPass] = useState("");
   const [addingParent, setAddingParent] = useState(false);
 
-  const currencyName = household?.currency_name?.trim() || "parentBucks";
+  const currencyName = currencyDisplayName(household);
   const goodsRate = household?.goods_rate ?? 0;
 
   const reload = useCallback(async () => {
@@ -157,13 +164,10 @@ export function ParentHome({
     };
   }, [reload, user.household]);
 
-  // Retry automatically on reconnect instead of waiting for pull-to-refresh.
-  const reachable = useReachability();
-  const wasReachable = useRef(reachable);
-  useEffect(() => {
-    if (reachable === "online" && wasReachable.current === "offline") void reload();
-    wasReachable.current = reachable;
-  }, [reachable, reload]);
+  // Rebuild the realtime socket + re-fetch on foreground and on reconnect —
+  // a dead SSE socket fires no error, so without this events silently stop
+  // after backgrounding or a network blip (see useRealtimeResume).
+  useRealtimeResume(reload);
 
   // Switch to the tab a tapped notification targets (see App.tsx's Linking wiring). Keyed
   // off notificationRoute's nonce, not its tab, so tapping the same notification type twice
@@ -207,7 +211,7 @@ export function ParentHome({
   function confirmApproveProposal(proposal: ExpandedProposal) {
     Alert.prompt(
       `Reward for "${proposal.name}"?`,
-      "parentBucks to award on approval — assigns straight back to the kid who proposed it.",
+      `${currencyName} to award on approval — assigns straight back to the kid who proposed it.`,
       [
         { text: "Cancel", style: "cancel" },
         {
@@ -452,6 +456,29 @@ export function ParentHome({
       </Appbar.Header>
 
       <OfflineBanner />
+
+      {notificationSetupNeeded && onOpenNotificationSetup && (
+        <Card style={[styles.broadcastCard, styles.a11yBannerCard]}>
+          <Card.Content style={styles.a11yBannerContent}>
+            <Text variant="titleSmall" style={styles.a11yBannerTitle}>
+              🔔 Notifications not set up
+            </Text>
+            <Text variant="bodySmall" style={styles.a11yBannerBody}>
+              Approvals, spend requests, and broadcasts won&apos;t reach this device until you
+              subscribe the ntfy app to your topic.
+            </Text>
+            <Button
+              mode="contained"
+              compact
+              icon="bell-ring-outline"
+              onPress={onOpenNotificationSetup}
+              style={styles.a11yBannerBtn}
+            >
+              Set up notifications
+            </Button>
+          </Card.Content>
+        </Card>
+      )}
 
       <ScrollView
         contentContainerStyle={styles.content}
