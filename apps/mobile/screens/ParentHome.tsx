@@ -29,11 +29,13 @@ import { Celebration } from "../components/Celebration";
 import { KidDetail } from "../components/KidDetail";
 import { OfflineBanner } from "../components/OfflineBanner";
 import { HouseholdSettings } from "../components/HouseholdSettings";
+import { LedgerView } from "../components/LedgerView";
 
 const PARENT_TABS = [
   { key: "approvals", title: "Approvals", focusedIcon: "inbox", unfocusedIcon: "inbox-outline" },
   { key: "kids", title: "Kids", focusedIcon: "account-child", unfocusedIcon: "account-child-outline" },
   { key: "chores", title: "Chores", focusedIcon: "clipboard-list", unfocusedIcon: "clipboard-list-outline" },
+  { key: "ledger", title: "Ledger", focusedIcon: "book-open", unfocusedIcon: "book-open-outline" },
   { key: "settings", title: "Settings", focusedIcon: "cog", unfocusedIcon: "cog-outline" },
 ];
 
@@ -510,6 +512,7 @@ export function ParentHome({
           </View>
         )}
 
+        {tab === "ledger" && household && <LedgerView household={household} />}
         {/* Settings tab: broadcast + appearance */}
         {tab === "settings" && (
           <>
