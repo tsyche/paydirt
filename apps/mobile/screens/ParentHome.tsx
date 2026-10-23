@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { View, ScrollView, StyleSheet, RefreshControl, Alert, Image, Linking, Platform } from "react-native";
+import { View, ScrollView, StyleSheet, RefreshControl, Alert, Image, Linking, Platform, Modal, TouchableOpacity } from "react-native";
 import {
   Appbar,
   BottomNavigation,
@@ -61,6 +61,7 @@ export function ParentHome({
   const [household, setHousehold] = useState<Household | null>(null);
   const [kids, setKids] = useState<User[]>([]);
   const [approvals, setApprovals] = useState<ExpandedAssignment[]>([]);
+  const [photoPreview, setPhotoPreview] = useState<string | null>(null);
   const [spend, setSpend] = useState<ExpandedSpend[]>([]);
   const [proposals, setProposals] = useState<ExpandedProposal[]>([]);
   const [chores, setChores] = useState<Chore[]>([]);
@@ -767,10 +768,12 @@ export function ParentHome({
                           </Text>
                         ) : null}
                         {a.photo ? (
-                          <Image
-                            source={{ uri: client.getPhotoUrl(a) }}
-                            style={styles.photoThumb}
-                          />
+                          <TouchableOpacity onPress={() => setPhotoPreview(client.getPhotoUrl(a))}>
+                            <Image
+                              source={{ uri: client.getPhotoUrl(a) }}
+                              style={styles.photoThumb}
+                            />
+                          </TouchableOpacity>
                         ) : null}
                       </View>
                     </View>
@@ -1120,7 +1123,14 @@ export function ParentHome({
         onTabPress={({ route }) => setTab(route.key)}
       />
 
-      <Snackbar visible={!!snack} onDismiss={() => setSnack("")} duration={4000}>
+            <Modal visible={photoPreview !== null} transparent onRequestClose={() => setPhotoPreview(null)}>
+        <TouchableOpacity style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.8)", justifyContent: "center", alignItems: "center" }} onPress={() => setPhotoPreview(null)} activeOpacity={1}>
+          {photoPreview ? (
+            <Image source={{ uri: photoPreview }} style={{ width: "90%", height: "80%", resizeMode: "contain" }} />
+          ) : null}
+        </TouchableOpacity>
+      </Modal>
+<Snackbar visible={!!snack} onDismiss={() => setSnack("")} duration={4000}>
         {snack}
       </Snackbar>
 

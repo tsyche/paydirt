@@ -66,6 +66,7 @@ export function Dashboard({
   const [chores, setChores] = useState<Chore[]>([]);
   const [approvals, setApprovals] = useState<Expanded<Assignment>[]>([]);
   const [selectedApprovals, setSelectedApprovals] = useState<Set<string>>(new Set());
+  const [photoPreview, setPhotoPreview] = useState<string | null>(null);
   const [spend, setSpend] = useState<Expanded<SpendRequest>[]>([]);
   const [proposals, setProposals] = useState<Expanded<ChoreProposal>[]>([]);
   const [recentApproved, setRecentApproved] = useState<Expanded<Assignment>[]>([]);
@@ -342,13 +343,18 @@ export function Dashboard({
                     </div>
                   )}
                   {a.photo && (
-                    <a href={client.getPhotoUrl(a)} target="_blank" rel="noreferrer">
+                    <button
+                      type="button"
+                      onClick={() => setPhotoPreview(client.getPhotoUrl(a))}
+                      style={{ marginTop: 6, padding: 0, border: "none", background: "none", cursor: "zoom-in", display: "block" }}
+                      title="Click to enlarge"
+                    >
                       <img
                         src={client.getPhotoUrl(a)}
                         alt="Photo proof"
-                        style={{ marginTop: 6, maxWidth: 120, maxHeight: 120, borderRadius: 8, display: "block" }}
+                        style={{ maxWidth: 160, maxHeight: 160, borderRadius: 8, display: "block", objectFit: "cover" }}
                       />
-                    </a>
+                    </button>
                   )}
                 </div>
               </div>
@@ -490,6 +496,23 @@ export function Dashboard({
       </main>
 
       <Celebration trigger={celebrate} />
+      {photoPreview && (
+        <div
+          onClick={() => setPhotoPreview(null)}
+          style={{
+            position: "fixed", inset: 0, background: "rgba(0,0,0,0.7)",
+            display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000, cursor: "zoom-out",
+          }}
+        >
+          <img
+            src={photoPreview}
+            alt="Photo proof (full size)"
+            style={{ maxWidth: "90vw", maxHeight: "90vh", borderRadius: 12 }}
+            onClick={(e) => e.stopPropagation()}
+          />
+        </div>
+      )}
+
     </div>
   );
 }
