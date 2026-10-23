@@ -84,7 +84,7 @@ Added 2026-08-10. Items 1-4 were fully agent-doable — no hardware, no new acco
 Ordered by impact-to-effort (2026-10-21 audit). New items that audit: everything from *Approval queue photo grid* through *Maestro E2E*.
 
 - **Feature explanation tooltips** — shipped 2026-10-22: shared `FEATURE_TIPS` map in `packages/shared/src/featureTips.ts`; web hover ⓘ on HouseholdSettings fields; mobile ⓘ + dialog for Calm mode in KidDetail.
-- **Approval queue photo grid** — photo-required chores capture evidence, but the parent approval list doesn't show thumbnails inline. Add a compact image grid/preview on each pending approval so a parent can verify chore photos without opening each request. ~2-3 hrs.
+- **Approval queue photo grid** — shipped 2026-10-22: inline thumbnails (web + mobile) with tap-to-enlarge lightbox so parents verify photos without opening each request.
 - **In-app ledger view** — CSV export exists (`buildLedgerCsv`), but there's no browsable transaction history in the UI. Parent web (and optionally mobile) view of `currency_transactions` with date range + per-kid filter; reconciles against the cached balance via the existing verifier logic. ~2-3 hrs.
 - **Kid "I need help" flag** — one-tap flag on an assigned chore that notifies parents (ntfy) and marks the chore as needing attention; unblocks the "stuck kid, silent app" case without a full chat feature. ~1-2 hrs.
 - **Auto-save to savings goals** — per-goal percentage setting; each approved earn auto-allocates a slice to the goal instead of the kid manually banking it. Reuses the existing bank-threshold machinery. ~2-3 hrs.
