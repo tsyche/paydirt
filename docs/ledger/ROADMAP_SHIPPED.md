@@ -6,6 +6,7 @@
 
 - [x] 2026-10-21 — App auto-updates (Tier 1 — expo-updates OTA)
 - [x] 2026-10-22 — App auto-updates (Tier 2 — version check + APK prompt)
+- [x] 2026-10-22 — Feature explanation tooltips
 - [x] 2026-10-21 — Deeper gamification ("playful" mode)
 - [x] 2026-10-21 — Suppress foreground notifications
 - [x] 2026-10-21 — Realtime resubscribe on resume
