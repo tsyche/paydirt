@@ -28,28 +28,28 @@ Last audit 2026-10-21: retired the stale pb-download Known Issue to a fixed-with
 
 **Top two require a human** (family-facing reachability is the bottleneck, not code). The real-device smoke test (previous #1) shipped 2026-10-21 — see the shipped ledger. Best agent-doable items are listed below the top 3.
 
-1. **Phase 2 live test with Family Link** — build a release APK on a real device with Family Link installed. Enable the accessibility service via the new in-app prompt, approve a spend request, and verify the service auto-taps "Grant Bonus Time". Tune button-label matching if Family Link's UI differs. The trigger ships and its broadcast chain is verified on-device (2026-10-21); the real-device smoke test prerequisite is met — the test itself needs Family Link + an account. ~half day.
-   - 🧑 needs-human: physical device + a real Family Link account
+1. **Phase 2 spike: grant bonus time via Family Link's web API** — the Family Link web app (familylink.google.com) grants bonus time with one `POST` to `kidsmanagement-pa.clients6.google.com/kidsmanagement/v1/people/{childId}/timeLimitOverrides:batchCreate` (JSPB body, duration in seconds — 1800 = 30 min confirmed live 2026-10-23). Spike (browser-as-auth-container): a Playwright script with `login` (headed, one-time manual Google sign-in → saves `storageState` JSON, `chmod 600`, outside the repo) and `grant <seconds>` (loads the session, opens familylink.google.com, runs the `batchCreate` `fetch()` in-page so the real browser stack, cookies and `SAPISIDHASH` are used; saves `storageState` back so rotated cookies persist). Grant 5 min and confirm on the tablet. No UI clicking — only the API shape is load-bearing. If it holds, move it into the spend-approval hook on the bb server. Replaces the accessibility-service path (blocked: Family Link lives in a separate GrapheneOS profile from PayDirt). ~2 hrs spike.
+   - 🧑 needs-human: dedicated co-parent Google account (keeps the stored cookie away from the main account) + its exported cookies
 2. **Off-LAN access (Tailscale)** — `EXPO_PUBLIC_POCKETBASE_URL` is a LAN IP; devices can't reach PocketBase on 5G or outside the home. Tailscale is the lowest-friction fix: private mesh VPN, no public exposure, point the URL at the Tailscale hostname. Required before the family can use the app outside the house, and a prerequisite for app auto-updates to reach devices off-LAN. ~2-4 hrs.
    - 🧑 needs-human: Tailscale account + per-device enrollment (the env-var change itself is trivial)
 3. **Tier 2 app auto-updates (on-device validation)** — agent-doable pieces shipped 2026-10-22 (endpoint, poll, download, install intent, `just publish-apk`); remaining work is confirming the install prompt lands and the APK actually installs on GrapheneOS. 🧑 needs-human.
 
 ### Best agent-doable next
 
+1. **Host PayDirt on bb (always-on server)** — follow the sibling Wesley repo's pattern (its `docs/DEPLOYMENT.md`, `deploy.example.env` + `bin/update-service.sh`): PocketBase as a systemd service under a dedicated user, root-owned binary/hooks/migrations, writable `pb_data`, `deploy.local.env` with the bb SSH alias. Add `just install-service` (first install) and `just update-service` (rsync hooks/migrations/web build, restart, health check) so the setup is re-run on every change; fold in `just backup` (cron to a second location) and point `EXPO_PUBLIC_POCKETBASE_URL` at bb via Tailscale. Removes the "Mac must be on" dependency, and is the runtime for the Phase 2 API grant. br1 (kids' VLAN) needs a narrow firewall exception to reach bb's PocketBase port. ~4-6 hrs.
+   - 🧑 needs-human: bb SSH access + sudo for the first install
 1. **Wire Android unit tests into `just test`/CI** — see [Quality & Infrastructure](#quality--infrastructure) #6; ~1-2 hrs.
 2. **PocketBase backup recipe** — see [Quality & Infrastructure](#quality--infrastructure) #7; ~1-2 hrs.
 3. **Feature explanation tooltips** — see [Backlog](#backlog-unscheduled). Settings don't explain themselves; ~2-3 hrs.
 
 ## Phase 2 — Family Link Automation
 
-**Status: trigger wired (2026-10-21); real-device smoke test met (2026-10-21); awaiting live Family Link validation.** Remaining prerequisite: Family Link + an account (human-gated).
+**Status: pivoted to API-first (2026-10-23).** The accessibility-service path is shelved: on the Pixel 8, Family Link is installed in a separate GrapheneOS profile from PayDirt, and a service in one profile can't see another profile's apps. The live session also fixed two latent bugs in the service, so it is ready if ever revived: wrong parent package name (`familylinkparental` → `familylink`, now `FamilyLinkPackages`) and tapping with no pending grant (now `GrantArm`, 60 s window), plus a `PayDirtDump` view-tree logger for label tuning.
 
-Server-side delivery is correct: the spend-approval hook already sends `type: "spend_approved"` in the ntfy payload (`notifications.pb.js`). `FamilyLinkAccessibilityService.kt` is written and registered, listening for a local `ACTION_GRANT_SCREEN_TIME` broadcast. The chain now connects end to end: `UnifiedPushReceiver.kt` parses the payload's `type`, posts the notification (tap-to-open deep link), and — when `type` is `spend_approved` — sends `ACTION_GRANT_SCREEN_TIME`, which the accessibility service receives and answers by launching Family Link (verified on the Pixel 8 via logcat: send → receive → launch in ~10 ms; no-op when Family Link is absent). The trigger wire-up and the in-app enable prompt (Settings-tab banner) both shipped 2026-10-21 — see the shipped ledger. Still needs:
-
-- **Live device validation** — service already enabled on the Pixel 8 and the broadcast chain verified; remaining work is installing Family Link, approving a spend request, and confirming the tap automation lands on Family Link's button. Tune button labels if Family Link's UI differs from assumed text. ~half day.
-  - 🧑 needs-human: physical device + a real Family Link account
-- **Stretch: reverse-engineered Family Link API** — direct HTTP grant without the Accessibility Service; fragile but faster UX.
-  - 🧑 needs-human: requires a live Family Link account to observe the traffic
+- **API grant spike** — see [Recommended Next 3](#recommended-next-3) #1. Open questions the spike answers: whether in-page `fetch` + a daily keep-alive visit keeps the session alive indefinitely (Google rotates `__Secure-*PSIDTS`), what override type `10` covers, and how to look up `childId`/`deviceId` (store per kid as a setting for now).
+  - 🧑 needs-human: co-parent account + cookies
+- **API grant in production** — `spend_approved` hook calls the grant from bb, records success/failure on the spend request, and falls back to the manual flow on any error (expired cookie → ntfy the parent to refresh). Depends on the bb hosting item. ~4-6 hrs.
+- **Accessibility fallback (shelved)** — `FamilyLinkAccessibilityService.kt`; only revisit if the API path dies. Would require PayDirt + a push distributor in the same profile as Family Link.
 - **Manual fallback** — retained regardless; users who don't have/need Family Link still get the approval flow.
 
 ## Phase 3 — Custom MDM

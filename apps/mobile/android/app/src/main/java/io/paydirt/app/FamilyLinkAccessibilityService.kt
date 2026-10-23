@@ -25,8 +25,7 @@ class FamilyLinkAccessibilityService : AccessibilityService() {
         // when a spend-approval needs to be mirrored in Family Link.
         const val ACTION_GRANT_SCREEN_TIME = "io.paydirt.app.ACTION_GRANT_SCREEN_TIME"
 
-        // Family Link parental app package and button text candidates.
-        private const val FAMILY_LINK_PKG = "com.google.android.apps.kids.familylinkparental"
+        // Button text candidates (package names live in FamilyLinkPackages).
         private val GRANT_BUTTON_LABELS = listOf(
             "Grant bonus time",
             "Approve",
@@ -39,11 +38,16 @@ class FamilyLinkAccessibilityService : AccessibilityService() {
         }
     }
 
+    // Only tap while a grant is pending; see GrantArm.
+    private val arm = GrantArm()
+    private var lastDump = ""
+
     // Receiver that the RN layer (or UnifiedPushReceiver) broadcasts to trigger automation.
     private val grantReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context, intent: Intent) {
             if (intent.action == ACTION_GRANT_SCREEN_TIME) {
                 Log.d(TAG, "Grant screen time triggered — launching Family Link")
+                arm.arm()
                 launchFamilyLink()
             }
         }
@@ -64,15 +68,18 @@ class FamilyLinkAccessibilityService : AccessibilityService() {
     override fun onAccessibilityEvent(event: AccessibilityEvent?) {
         event ?: return
 
-        // Only act on Family Link windows.
-        if (event.packageName?.toString() != FAMILY_LINK_PKG) return
+        // Only act on Family Link windows, and only while a grant is pending.
+        if (!FamilyLinkPackages.isParentApp(event.packageName?.toString())) return
+        if (!arm.isArmed) return
 
         when (event.eventType) {
             AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED,
             AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED -> {
                 val root = rootInActiveWindow ?: return
+                dumpTree(root)
                 if (tryTapGrantButton(root)) {
                     Log.i(TAG, "Tapped grant button in Family Link")
+                    arm.disarm()
                 }
                 root.recycle()
             }
@@ -88,6 +95,30 @@ class FamilyLinkAccessibilityService : AccessibilityService() {
         unregisterReceiver(grantReceiver)
         java.io.File(filesDir, "a11y_enabled.flag").delete()
         Log.i(TAG, "Service destroyed")
+    }
+
+    // Discovery aid for tuning GRANT_BUTTON_LABELS against the real Family Link UI:
+    // `adb logcat -s PayDirtDump`. Only runs while armed; skips unchanged trees.
+    private fun dumpTree(root: AccessibilityNodeInfo) {
+        val sb = StringBuilder()
+        fun walk(n: AccessibilityNodeInfo, depth: Int) {
+            sb.append("  ".repeat(depth))
+                .append(n.className).append(" id=").append(n.viewIdResourceName)
+                .append(" text=").append(n.text)
+                .append(" desc=").append(n.contentDescription)
+                .append(if (n.isClickable) " [clickable]" else "")
+                .append('\n')
+            for (i in 0 until n.childCount) {
+                val c = n.getChild(i) ?: continue
+                walk(c, depth + 1)
+                c.recycle()
+            }
+        }
+        walk(root, 0)
+        val dump = sb.toString()
+        if (dump == lastDump) return
+        lastDump = dump
+        Log.i("PayDirtDump", "--- Family Link window ---\n$dump")
     }
 
     // Walk the view tree looking for a clickable button whose text matches a known
@@ -116,7 +147,8 @@ class FamilyLinkAccessibilityService : AccessibilityService() {
     // this is a no-op (startActivity won't resolve and will throw, caught here).
     private fun launchFamilyLink() {
         try {
-            val intent = packageManager.getLaunchIntentForPackage(FAMILY_LINK_PKG)
+            val intent = FamilyLinkPackages.PARENT
+                .firstNotNullOfOrNull { packageManager.getLaunchIntentForPackage(it) }
                 ?: run {
                     Log.w(TAG, "Family Link not installed")
                     return
