@@ -43,6 +43,8 @@ export function HouseholdSettings({
     streak_bonus_7: household.streak_bonus_7 ?? 0,
     streak_bonus_14: household.streak_bonus_14 ?? 0,
     streak_bonus_30: household.streak_bonus_30 ?? 0,
+    allowance_amount: household.allowance_amount ?? 0,
+    allowance_cadence: household.allowance_cadence ?? "weekly",
   });
 
   async function save() {
@@ -176,6 +178,27 @@ export function HouseholdSettings({
             checked={form.paused}
             onChange={(e) => setForm({ ...form, paused: e.target.checked })}
           />
+        </div>
+        <div className="settings-row">
+          <label>💵 Allowance amount <Tip k="allowance_amount" /> <span className="muted">(0 = off)</span></label>
+          <input
+            type="number"
+            min={0}
+            value={form.allowance_amount}
+            onChange={(e) => setForm({ ...form, allowance_amount: num(e.target.value) })}
+            style={{ width: 90 }}
+          />
+        </div>
+        <div className="settings-row">
+          <label>💵 Allowance cadence <Tip k="allowance_cadence" /></label>
+          <select
+            value={form.allowance_cadence}
+            onChange={(e) => setForm({ ...form, allowance_cadence: e.target.value as "daily" | "weekly" })}
+            style={{ width: 110 }}
+          >
+            <option value="daily">Daily</option>
+            <option value="weekly">Weekly</option>
+          </select>
         </div>
         <div style={{ marginTop: 8, fontWeight: 600, fontSize: 13 }}>
           🔥 Streak milestone bonuses <Tip k="streak_bonus_3" /> <span className="muted">(0 = use default)</span>

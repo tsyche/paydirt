@@ -441,4 +441,41 @@ function runKidWeeklyRecap(app) {
   }
 }
 
-module.exports = { runTick, runDaily, runWeeklyDigest, runKidWeeklyRecap };
+function runScheduledAllowance(app) {
+  const { notifyUser } = require(`${__hooks}/lib/ntfy.js`);
+  const now = new Date();
+  for (const hh of listHouseholds(app)) {
+    const amount = hh.getFloat("allowance_amount");
+    if (amount <= 0) continue;
+    const cadence = hh.getString("allowance_cadence") || "weekly";
+    const lastPaid = hh.getString("allowance_last_paid");
+    const daysSince = lastPaid
+      ? (now.getTime() - new Date(lastPaid).getTime()) / 86400e3
+      : Infinity;
+    const due = cadence === "daily" ? daysSince >= 1 : daysSince >= 7;
+    if (!due) continue;
+
+    const currency = hh.getString("currency_name") || "Grit";
+    const kids = app.findRecordsByFilter(
+      "users",
+      "household = {:hh} && role = 'child'",
+      "display_name",
+      0,
+      0,
+      { hh: hh.id },
+    );
+    for (const kid of kids) {
+      const tx = new Record(app.findCollectionByNameOrId("currency_transactions"));
+      tx.set("user", kid.id);
+      tx.set("amount", amount);
+      tx.set("type", "manual_adjustment");
+      tx.set("reason", "Scheduled allowance (" + cadence + ") 💵");
+      app.save(tx);
+      notifyUser(app, kid.id, "Payday! 💵", "+" + amount + " " + currency + " allowance");
+    }
+    hh.set("allowance_last_paid", now.toISOString().replace("T", " "));
+    app.save(hh);
+  }
+}
+
+module.exports = { runTick, runDaily, runWeeklyDigest, runKidWeeklyRecap, runScheduledAllowance };

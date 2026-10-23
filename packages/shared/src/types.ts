@@ -34,6 +34,12 @@ export interface Household extends BaseRecord {
   streak_bonus_7?: number;
   streak_bonus_14?: number;
   streak_bonus_30?: number;
+  /** Recurring allowance amount per kid. 0/unset = off. */
+  allowance_amount?: number;
+  /** Allowance cadence. */
+  allowance_cadence?: "daily" | "weekly";
+  /** Last time the allowance was paid. */
+  allowance_last_paid?: string;
 }
 
 // ─── Users ───────────────────────────────────────────────────────────────────

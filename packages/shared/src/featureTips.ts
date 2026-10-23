@@ -28,6 +28,10 @@ export const FEATURE_TIPS: Record<string, string> = {
     "Larger tap targets and icons with minimal reading. Default on for the youngest kids.",
   race_mechanic:
     "A chore assignable to several kids; the first one approved wins the reward.",
+  allowance_amount:
+    "ParentBucks granted to each kid on the allowance cadence. 0 = off.",
+  allowance_cadence:
+    "How often the allowance is paid: daily or weekly.",
   goods_rate_kid:
     "Per-kid override of the household bucks-per-dollar rate. 0 = use the household default.",
 };
