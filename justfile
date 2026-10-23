@@ -628,6 +628,22 @@ service-status:
 service-logs n="50":
     ./scripts/service-remote.sh logs {{n}}
 
+# --- Family Link (Phase 2 bonus-time grant; IDs/key in ~/.config/paydirt/familylink.env) ---
+
+# One-time headed sign-in to the co-parent Google account; saves the session (chmod 600).
+[group('familylink')]
+fl-login:
+    node --experimental-strip-types scripts/familylink-grant.mjs login
+
+# Grant bonus screen time via the Family Link web API. Exit 2 = session expired, run fl-login.
+[group('familylink')]
+fl-grant seconds:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    ENV_FILE="$HOME/.config/paydirt/familylink.env"
+    if [ -f "$ENV_FILE" ]; then set -a; . "$ENV_FILE"; set +a; fi
+    node --experimental-strip-types scripts/familylink-grant.mjs grant "{{seconds}}"
+
 # Back up PocketBase data (SQLite + storage) to a timestamped directory
 [group('maintenance')]
 backup:
