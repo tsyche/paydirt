@@ -16,13 +16,15 @@ import { currencyDisplayName } from "@paydirt/shared";
 import { client } from "../lib/client";
 import { HouseholdSettings } from "./HouseholdSettings";
 import { AppearanceControls } from "./AppearanceControls";
+import { LedgerView } from "./LedgerView";
 import { Celebration } from "./Celebration";
 
-type TabKey = "approvals" | "kids" | "chores";
+type TabKey = "approvals" | "kids" | "chores" | "ledger";
 const TABS: { key: TabKey; label: string }[] = [
   { key: "approvals", label: "📥 Approvals" },
   { key: "kids", label: "🧒 Kids" },
   { key: "chores", label: "📋 Chores" },
+  { key: "ledger", label: "📒 Ledger" },
 ];
 
 type Expanded<T> = T & { expand?: Record<string, User | Chore> };
@@ -500,7 +502,8 @@ export function Dashboard({
         </>)}
       </main>
 
-      <Celebration trigger={celebrate} />
+              {tab === "ledger" && <LedgerView household={household} />}
+<Celebration trigger={celebrate} />
       {photoPreview && (
         <div
           onClick={() => setPhotoPreview(null)}
