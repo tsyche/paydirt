@@ -379,4 +379,66 @@ function runWeeklyDigest(app) {
   }
 }
 
-module.exports = { runTick, runDaily, runWeeklyDigest };
+function runKidWeeklyRecap(app) {
+  const { notifyUser } = require(`${__hooks}/lib/ntfy.js`);
+  const weekAgo = pbDate(new Date(Date.now() - 7 * 86400e3));
+
+  for (const hh of listHouseholds(app)) {
+    if (hh.getBool("paused")) continue;
+    const currency = hh.getString("currency_name") || "Grit";
+    const kids = app.findRecordsByFilter(
+      "users",
+      "household = {:hh} && role = 'child'",
+      "display_name",
+      0,
+      0,
+      { hh: hh.id },
+    );
+    for (const kid of kids) {
+      const txs = app.findRecordsByFilter(
+        "currency_transactions",
+        "user = {:u} && created >= {:since}",
+        "",
+        0,
+        0,
+        { u: kid.id, since: weekAgo },
+      );
+      let earned = 0;
+      for (const t of txs) {
+        const amt = t.getFloat("amount");
+        if (amt > 0) earned += amt;
+      }
+      const done = app.findRecordsByFilter(
+        "assignments",
+        "child = {:u} && status = 'approved' && approved_at >= {:since}",
+        "",
+        0,
+        0,
+        { u: kid.id, since: weekAgo },
+      );
+      // Nearest unachieved goal.
+      const goals = app.findRecordsByFilter(
+        "savings_goals",
+        "child = {:u} && achieved = false",
+        "target",
+        0,
+        0,
+        { u: kid.id },
+      );
+      let goalLine = "";
+      if (goals.length > 0) {
+        const g = goals[0];
+        const target = g.getFloat("target");
+        const bal = kid.getFloat("balance");
+        const pct = target > 0 ? Math.min(100, Math.round((bal / target) * 100)) : 0;
+        goalLine = "\nGoal '" + g.getString("name") + "': " + pct + "% (" + bal + "/" + target + ")";
+      }
+      const title = "Your week 🌟";
+      const msg = "You earned " + earned + " " + currency + " and completed " + done.length +
+        " chore" + (done.length === 1 ? "" : "s") + "!" + goalLine;
+      notifyUser(app, kid.id, title, msg);
+    }
+  }
+}
+
+module.exports = { runTick, runDaily, runWeeklyDigest, runKidWeeklyRecap };

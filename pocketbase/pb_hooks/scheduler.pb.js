@@ -18,6 +18,11 @@ cronAdd("paydirt_digest", "0 18 * * 0", () => {
   runWeeklyDigest($app);
 });
 
+cronAdd("paydirt_kid_recap", "0 10 * * 0", () => {
+  const { runKidWeeklyRecap } = require(`${__hooks}/lib/scheduler.js`);
+  runKidWeeklyRecap($app);
+});
+
 // Superuser-only manual triggers so the cron bodies are testable (and
 // debuggable) without waiting for the schedule.
 routerAdd(
@@ -25,10 +30,11 @@ routerAdd(
   "/api/paydirt/cron/{job}",
   (e) => {
     const job = e.request.pathValue("job");
-    const { runTick, runDaily, runWeeklyDigest } = require(`${__hooks}/lib/scheduler.js`);
+    const { runTick, runDaily, runWeeklyDigest, runKidWeeklyRecap } = require(`${__hooks}/lib/scheduler.js`);
     if (job === "tick") runTick(e.app);
     else if (job === "daily") runDaily(e.app);
     else if (job === "digest") runWeeklyDigest(e.app);
+    else if (job === "kid-recap") runKidWeeklyRecap(e.app);
     else throw new ApiError(404, "Unknown job: " + job);
     return e.json(200, { ran: job });
   },
