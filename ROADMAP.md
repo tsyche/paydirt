@@ -90,7 +90,7 @@ Ordered by impact-to-effort (2026-10-21 audit). New items that audit: everything
 - **Auto-save to savings goals** — per-goal percentage setting; each approved earn auto-allocates a slice to the goal instead of the kid manually banking it. Reuses the existing bank-threshold machinery. ~2-3 hrs.
 - **Kid weekly recap** — shipped 2026-10-22: `runKidWeeklyRecap` sends each kid a Sunday ntfy with earnings, chores completed, and nearest goal progress; vacation-mode gated; manual trigger `kid-recap`.
 - **Screen-time grant expiry** — "more screen time" grants currently live forever as records. Add per-grant expiry (N hours/days) so the parent ledger self-cleans and grant history stays honest; does not touch Family Link itself, just PayDirt's bookkeeping. ~3-4 hrs.
-- **Scheduled allowance ("payday")** — recurring auto-grant of parentBucks or screen-time on a cadence (daily/weekly), vacation-mode aware; the last big manual-parent chore PayDirt can absorb. ~4-6 hrs.
+- **Scheduled allowance ("payday")** — shipped 2026-10-22: household allowance_amount/cadence + daily cron grant (manual trigger `allowance`), notifies kids.
 - **Remaining smoke-test device checks** — parent login surface and UI-tapped non-photo "I did it!" were left open at the 2026-10-21 device session (see [docs/DEVICE_TESTING.md](./docs/DEVICE_TESTING.md)). ~1 hr.
   - 🧑 needs-human: physical device + manual observation
 - **Background push delivery when force-stopped** — smoke-test finding (2026-10-21): a force-stopped app drops UnifiedPush messages until relaunch. Investigate GrapheneOS delivery constraints (job scheduler/app-standby vs. a persistent foreground service), decide between a fix and a documented limitation, and write it into the setup docs either way. ~3-5 hrs.
