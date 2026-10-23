@@ -3,8 +3,22 @@
 import { useState } from "react";
 import { createPortal } from "react-dom";
 import type { Household } from "@paydirt/shared";
-import { CURRENCY_PRESETS, DEFAULT_CURRENCY_NAME } from "@paydirt/shared";
+import { CURRENCY_PRESETS, DEFAULT_CURRENCY_NAME, featureTip } from "@paydirt/shared";
 import { client } from "../lib/client";
+
+function Tip({ k }: { k: string }) {
+  const t = featureTip(k);
+  if (!t) return null;
+  return (
+    <span
+      title={t}
+      style={{ cursor: "help", marginLeft: 4, color: "var(--muted, #888)", fontSize: 12 }}
+      aria-label={t}
+    >
+      ⓘ
+    </span>
+  );
+}
 
 export function HouseholdSettings({
   household,
@@ -69,7 +83,7 @@ export function HouseholdSettings({
 
       <div className="stack" style={{ gap: 6 }}>
         <div className="settings-row">
-          <label>Currency name</label>
+          <label>Currency name <Tip k="currency_name" /></label>
           <input
             value={form.currency_name}
             placeholder={DEFAULT_CURRENCY_NAME}
@@ -78,7 +92,7 @@ export function HouseholdSettings({
           />
         </div>
         <div className="settings-row">
-          <label aria-label="Currency presets">Presets</label>
+          <label aria-label="Currency presets">Presets <Tip k="currency_presets" /></label>
           <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
             {CURRENCY_PRESETS.map((preset) => (
               <button
@@ -98,7 +112,7 @@ export function HouseholdSettings({
           </div>
         </div>
         <div className="settings-row">
-          <label>Bank threshold <span className="muted">(0 = off)</span></label>
+          <label>Bank threshold <Tip k="bank_threshold" /> <span className="muted">(0 = off)</span></label>
           <input
             type="number"
             min={0}
@@ -108,7 +122,7 @@ export function HouseholdSettings({
           />
         </div>
         <div className="settings-row">
-          <label>Rewards expire after days <span className="muted">(0 = off)</span></label>
+          <label>Rewards expire after days <Tip k="expiry_days" /> <span className="muted">(0 = off)</span></label>
           <input
             type="number"
             min={0}
@@ -118,7 +132,7 @@ export function HouseholdSettings({
           />
         </div>
         <div className="settings-row">
-          <label>Bucks per $1 <span className="muted">(0 = off)</span></label>
+          <label>Bucks per $1 <Tip k="goods_rate" /> <span className="muted">(0 = off)</span></label>
           <input
             type="number"
             min={0}
@@ -128,7 +142,7 @@ export function HouseholdSettings({
           />
         </div>
         <div className="settings-row">
-          <label>Nudge after hours unapproved <span className="muted">(0 = off)</span></label>
+          <label>Nudge after hours unapproved <Tip k="nudge_hours" /> <span className="muted">(0 = off)</span></label>
           <input
             type="number"
             min={0}
@@ -138,7 +152,7 @@ export function HouseholdSettings({
           />
         </div>
         <div className="settings-row">
-          <label>🌙 Quiet hours start <span className="muted">(no notifications after)</span></label>
+          <label>🌙 Quiet hours start <Tip k="quiet_start" /> <span className="muted">(no notifications after)</span></label>
           <input
             type="time"
             value={form.quiet_start}
@@ -147,7 +161,7 @@ export function HouseholdSettings({
           />
         </div>
         <div className="settings-row">
-          <label>☀️ Quiet hours end <span className="muted">(resume notifications)</span></label>
+          <label>☀️ Quiet hours end <Tip k="quiet_end" /> <span className="muted">(resume notifications)</span></label>
           <input
             type="time"
             value={form.quiet_end}
@@ -156,7 +170,7 @@ export function HouseholdSettings({
           />
         </div>
         <div className="settings-row">
-          <label>🏖️ Vacation mode <span className="muted">(pause reminders &amp; expiry)</span></label>
+          <label>🏖️ Vacation mode <Tip k="paused" /> <span className="muted">(pause reminders &amp; expiry)</span></label>
           <input
             type="checkbox"
             checked={form.paused}
@@ -164,7 +178,7 @@ export function HouseholdSettings({
           />
         </div>
         <div style={{ marginTop: 8, fontWeight: 600, fontSize: 13 }}>
-          🔥 Streak milestone bonuses <span className="muted">(0 = use default)</span>
+          🔥 Streak milestone bonuses <Tip k="streak_bonus_3" /> <span className="muted">(0 = use default)</span>
         </div>
         {(
           [
@@ -175,7 +189,7 @@ export function HouseholdSettings({
           ] as const
         ).map(({ key, label, placeholder }) => (
           <div className="settings-row" key={key}>
-            <label>{label}</label>
+            <label>{label} <Tip k={key} /></label>
             <input
               type="number"
               min={0}

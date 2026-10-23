@@ -11,12 +11,13 @@ import {
   Switch,
   TextInput,
   Button,
+  IconButton,
   Snackbar,
   useTheme,
 } from "react-native-paper";
 import { SafeAreaView } from "react-native-safe-area-context";
 import type { Assignment, Chore, Household, SavingsGoal, User } from "@paydirt/shared";
-import { currencyDisplayName } from "@paydirt/shared";
+import { currencyDisplayName, featureTip } from "@paydirt/shared";
 import { client } from "../lib/client";
 import { isNetworkError } from "../lib/reachability";
 import { useReachability } from "../lib/useReachability";
@@ -54,6 +55,7 @@ export function KidDetail({
   const [history, setHistory] = useState<Expanded[]>([]);
   const [refreshing, setRefreshing] = useState(false);
   const [snack, setSnack] = useState("");
+  const [tipKey, setTipKey] = useState<string | null>(null);
 
   const [adjustOpen, setAdjustOpen] = useState(false);
   const [adjustSign, setAdjustSign] = useState<1 | -1>(1);
@@ -160,7 +162,10 @@ export function KidDetail({
           <Card style={styles.card}>
             <Card.Content style={styles.rowBetween}>
               <View style={styles.flex}>
-                <Text variant="titleSmall">Calm mode</Text>
+                <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
+                  <Text variant="titleSmall">Calm mode</Text>
+                  <IconButton icon="information-outline" size={16} onPress={() => setTipKey("calm_mode")} style={{ margin: 0 }} />
+                </View>
                 <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant }}>
                   Quieter home screen: no badge shelf, confetti, or count-up.
                 </Text>
@@ -274,6 +279,17 @@ export function KidDetail({
       <Snackbar visible={!!snack} onDismiss={() => setSnack("")} duration={4000}>
         {snack}
       </Snackbar>
+      <Portal>
+        <Dialog visible={tipKey !== null} onDismiss={() => setTipKey(null)}>
+          <Dialog.Title>What is this?</Dialog.Title>
+          <Dialog.Content>
+            <Text>{tipKey ? featureTip(tipKey) : ""}</Text>
+          </Dialog.Content>
+          <Dialog.Actions>
+            <Button onPress={() => setTipKey(null)}>OK</Button>
+          </Dialog.Actions>
+        </Dialog>
+      </Portal>
     </SafeAreaView>
   );
 }
