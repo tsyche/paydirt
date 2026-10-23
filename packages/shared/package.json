@@ -24,7 +24,7 @@
     "eventsource": "^4.1.1",
     "typescript": "^6.0.3",
     "typescript-eslint": "^8.71.0",
-    "vite": "^6.4.3",
-    "vitest": "^4.1.11"
+    "vite": "^6.4.5",
+    "vitest": "^4.1.12"
   }
 }
