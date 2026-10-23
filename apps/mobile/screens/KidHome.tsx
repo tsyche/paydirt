@@ -168,6 +168,15 @@ export function KidHome({ user, onLogout }: { user: User; onLogout: () => void }
     }
   };
 
+  async function requestHelp(id: string) {
+    try {
+      await client.pb.collection("assignments").update(id, { needs_help: true });
+      setSnack("Help requested — parents notified 🆘");
+    } catch (e) {
+      setSnack(String(e));
+    }
+  }
+
   async function markDone(id: string) {
     await act(() => client.markComplete(id), "Marked done — waiting for approval!")();
   }
@@ -325,12 +334,14 @@ export function KidHome({ user, onLogout }: { user: User; onLogout: () => void }
                       />
                     )}
                     <View style={styles.utilityRow}>
+                      <IconButton icon="help-circle-outline" size={18} onPress={() => void requestHelp(a.id)} />
                       <IconButton icon="alarm" size={18} onPress={() => setRemindFor(a)} />
                       {siblings.length > 0 && !offered ? (
                         <IconButton icon="swap-horizontal" size={18} onPress={() => setSwapFor(a)} />
                       ) : null}
                       {offered ? <Text variant="bodySmall" style={styles.offeredNote}>Swap offered…</Text> : null}
                       {a.kid_reminder_at ? <Text variant="bodySmall" style={styles.offeredNote}>⏰ set</Text> : null}
+                    {a.needs_help ? <Text variant="bodySmall" style={styles.offeredNote}>🆘 help requested</Text> : null}
                     </View>
                   </>
                 ) : null}

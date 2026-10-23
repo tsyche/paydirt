@@ -88,6 +88,15 @@ export function SimpleKidHome({ user, onLogout }: { user: User; onLogout: () => 
     };
   }, [user.id, reload]);
 
+  async function requestHelp(id: string) {
+    try {
+      await client.pb.collection("assignments").update(id, { needs_help: true });
+      setSnack("Help requested — parents notified 🆘");
+    } catch (e) {
+      setSnack(String(e));
+    }
+  }
+
   async function markDone(id: string) {
     try {
       await client.markComplete(id);
@@ -181,6 +190,9 @@ export function SimpleKidHome({ user, onLogout }: { user: User; onLogout: () => 
               }
             >
               {a.expand?.chore?.photo_required ? "Take photo! 📷" : "I did it! ✓"}
+            </Button>
+            <Button mode="text" compact onPress={() => void requestHelp(a.id)} style={{ marginTop: 2 }}>
+              🆘 I need help
             </Button>
           </Surface>
         ))}

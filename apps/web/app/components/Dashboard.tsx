@@ -332,6 +332,11 @@ export function Dashboard({
                   <div className="muted">
                     {(a.expand?.child as User | undefined)?.display_name ?? "child"}
                   </div>
+                  {a.needs_help && (
+                    <div className="muted" style={{ fontSize: 12, marginTop: 2, color: "#c0392b" }}>
+                      🆘 Kid asked for help
+                    </div>
+                  )}
                   {a.rejection_message && (
                     <div className="muted" style={{ fontSize: 12, marginTop: 2 }}>
                       ↩️ Resubmitted — you said: {a.rejection_message}

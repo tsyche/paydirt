@@ -757,6 +757,11 @@ export function ParentHome({
                             </Chip>
                           )}
                         </View>
+                        {a.needs_help ? (
+                          <Text variant="bodySmall" style={[styles.resubNote, { color: theme.colors.error }]}>
+                            🆘 Kid asked for help
+                          </Text>
+                        ) : null}
                         {a.rejection_message ? (
                           <Text variant="bodySmall" style={[styles.resubNote, { color: theme.colors.onSurfaceVariant }]}>
                             ↩️ Resubmitted — you said: {a.rejection_message}

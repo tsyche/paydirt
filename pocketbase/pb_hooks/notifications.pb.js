@@ -18,6 +18,19 @@ onRecordAfterCreateSuccess((e) => {
     "New chore! ⭐",
     chore.getString("name"),
   );
+  // "I need help" flag toggled on → notify parents.
+  const needsHelp = e.record.getBool("needs_help");
+  const prevHelp = e.record.original().getBool("needs_help");
+  if (needsHelp && !prevHelp) {
+    const kid = e.app.findRecordById("users", e.record.getString("child"));
+    notifyParents(
+      e.app,
+      chore.getString("household"),
+      kid.getString("display_name") + " needs help 🆘",
+      name,
+    );
+  }
+
   e.next();
 }, "assignments");
 

@@ -192,6 +192,7 @@ export class PaydirtClient {
     const data: Record<string, unknown> = {
       status: "completed",
       completed_at: new Date().toISOString(),
+      needs_help: false,
     };
     if (photo) data.photo = photo;
     return this.pb.collection(Collections.Assignments).update<Assignment>(assignmentId, data);
@@ -202,6 +203,7 @@ export class PaydirtClient {
     return this.pb.collection(Collections.Assignments).update<Assignment>(assignmentId, {
       status: "approved",
       approved_at: new Date().toISOString(),
+      needs_help: false,
     });
   }
 

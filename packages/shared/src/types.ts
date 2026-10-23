@@ -133,6 +133,8 @@ export interface Assignment extends BaseRecord {
   reminder_stage?: number;
   /** Kid-set one-shot reminder; cron fires and clears it. */
   kid_reminder_at?: string;
+  /** Kid flagged "I need help" on this chore. */
+  needs_help?: boolean;
   /** Last scheduled-reminder send (cron dedupe marker). */
   last_reminded?: string;
   /** Last approval-nudge send (cron dedupe marker). */
