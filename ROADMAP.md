@@ -85,7 +85,7 @@ Ordered by impact-to-effort (2026-10-21 audit). New items that audit: everything
 
 - **Feature explanation tooltips** — shipped 2026-10-22: shared `FEATURE_TIPS` map in `packages/shared/src/featureTips.ts`; web hover ⓘ on HouseholdSettings fields; mobile ⓘ + dialog for Calm mode in KidDetail.
 - **Approval queue photo grid** — shipped 2026-10-22: inline thumbnails (web + mobile) with tap-to-enlarge lightbox so parents verify photos without opening each request.
-- **In-app ledger view** — CSV export exists (`buildLedgerCsv`), but there's no browsable transaction history in the UI. Parent web (and optionally mobile) view of `currency_transactions` with date range + per-kid filter; reconciles against the cached balance via the existing verifier logic. ~2-3 hrs.
+- **In-app ledger view** — shipped 2026-10-22: web '📒 Ledger' tab with per-kid + month filter and net total.
 - **Kid "I need help" flag** — shipped 2026-10-22: `needs_help` field on assignments, kid tap (KidHome + SimpleKidHome) notifies parents via ntfy, cleared on mark-done/approve; shown in approval queues (web + mobile).
 - **Auto-save to savings goals** — per-goal percentage setting; each approved earn auto-allocates a slice to the goal instead of the kid manually banking it. Reuses the existing bank-threshold machinery. ~2-3 hrs.
 - **Kid weekly recap** — shipped 2026-10-22: `runKidWeeklyRecap` sends each kid a Sunday ntfy with earnings, chores completed, and nearest goal progress; vacation-mode gated; manual trigger `kid-recap`.
