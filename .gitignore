@@ -32,6 +32,7 @@ apps/mobile/android/app/debug.keystore
 .env.local
 .env.*.local
 *.env
+!deploy.example.env
 config.yaml
 
 # PocketBase — binary + runtime data (never commit these)

@@ -25,6 +25,10 @@ default:
     printf '  just push-remote           connect tablets from deploy-devices + push release APK (Wi-Fi, no cable)\n'
     printf '  just push                  alias of push-remote; just push-debug pushes the DEBUG APK (logcat logs)\n'
     printf '  just install-apk-release-all   build a signed release APK, install on every connected device\n'
+    printf '\n\033[1mAlways-on server on bb\033[0m (docs/DEPLOYMENT.md)\n'
+    printf '  just install-service       first install (imports local pb_data once)\n'
+    printf '  just update-service        deploy hooks/migrations/dashboard + restart\n'
+    printf '  just service-status        also: service-logs [N], service-restart\n'
     printf '\n\033[1mIndividual services\033[0m (if you do not want a combined recipe above)\n'
     printf '  just dev-pb   just dev-web   just dev-mobile\n'
     printf '\n\033[1mEverything else\033[0m (tests, lint, db reset, cleanup, ...)\n'
@@ -596,6 +600,33 @@ lint:
 [group('quality')]
 lintfix:
     @pnpm -r lint:fix
+
+# --- Service on bb (always-on host; see docs/DEPLOYMENT.md) ---
+
+# First install on the host in deploy.local.env: user, dirs, binary, unit; imports local pb_data once.
+[group('service')]
+install-service:
+    ./scripts/update-service.sh --install
+
+# Ship hooks, migrations, dashboard and unit to the host; restart and health-check (data untouched).
+[group('service')]
+update-service:
+    ./scripts/update-service.sh
+
+# Restart the PayDirt service on the host.
+[group('service')]
+service-restart:
+    ./scripts/service-remote.sh restart
+
+# Show the PayDirt service status on the host.
+[group('service')]
+service-status:
+    ./scripts/service-remote.sh status
+
+# Tail the last N service log lines on the host (default 50).
+[group('service')]
+service-logs n="50":
+    ./scripts/service-remote.sh logs {{n}}
 
 # Back up PocketBase data (SQLite + storage) to a timestamped directory
 [group('maintenance')]

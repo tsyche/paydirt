@@ -1,0 +1,36 @@
+[Unit]
+Description=PayDirt (PocketBase backend + parent dashboard)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=paydirt
+WorkingDirectory=/opt/paydirt
+ExecStart=/opt/paydirt/pocketbase serve \
+    --dir /var/lib/paydirt \
+    --hooksDir /opt/paydirt/pb_hooks \
+    --migrationsDir /opt/paydirt/pb_migrations \
+    --publicDir /opt/paydirt/pb_public \
+    --http 0.0.0.0:3111
+# Optional overrides (NTFY_SERVER, NTFY_DISABLED, ...); see docs/DEPLOYMENT.md.
+EnvironmentFile=-/etc/paydirt/paydirt.env
+Restart=always
+RestartSec=10
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=paydirt
+
+# Security hardening
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=yes
+ReadWritePaths=/var/lib/paydirt
+
+# Resource limits
+CPUQuota=50%
+MemoryMax=512M
+
+[Install]
+WantedBy=multi-user.target

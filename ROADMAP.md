@@ -36,7 +36,7 @@ Last audit 2026-10-21: retired the stale pb-download Known Issue to a fixed-with
 
 ### Best agent-doable next
 
-1. **Host PayDirt on bb (always-on server)** — follow the sibling Wesley repo's pattern (its `docs/DEPLOYMENT.md`, `deploy.example.env` + `bin/update-service.sh`): PocketBase as a systemd service under a dedicated user, root-owned binary/hooks/migrations, writable `pb_data`, `deploy.local.env` with the bb SSH alias. Add `just install-service` (first install) and `just update-service` (rsync hooks/migrations/web build, restart, health check) so the setup is re-run on every change; fold in `just backup` (cron to a second location) and point `EXPO_PUBLIC_POCKETBASE_URL` at bb via Tailscale. Removes the "Mac must be on" dependency, and is the runtime for the Phase 2 API grant. br1 (kids' VLAN) needs a narrow firewall exception to reach bb's PocketBase port. ~4-6 hrs.
+1. **Host PayDirt on bb — remaining pieces** — the service itself is in place (`just install-service` / `just update-service`, see [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md)). Still to do: scheduled backups of `/var/lib/paydirt` to a second location, and pointing `just publish-apk` / `just update-publish` at bb instead of local `pb_data/updates`. ~2-3 hrs.
    - 🧑 needs-human: bb SSH access + sudo for the first install
 1. **Wire Android unit tests into `just test`/CI** — see [Quality & Infrastructure](#quality--infrastructure) #6; ~1-2 hrs.
 2. **PocketBase backup recipe** — see [Quality & Infrastructure](#quality--infrastructure) #7; ~1-2 hrs.

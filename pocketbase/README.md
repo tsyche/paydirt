@@ -28,6 +28,6 @@ two kids, chores, sample activity) via `seed.mjs` — idempotent, safe to re-run
 For a clean slate: stop the server, `just reset-db`, restart, then `just seed`.
 All seeded logins use password `password123`.
 
-## Production (future)
+## Production
 
-Deploy the same binary + `pb_hooks/` + `pb_migrations/` to the VPS. See `~/.claude/plans/archive/paydirt-plan.md` (archived design scratchpad) and the audit-notifications memory for the self-hosting migration.
+Runs as a systemd service on the always-on host — see [docs/DEPLOYMENT.md](../docs/DEPLOYMENT.md).

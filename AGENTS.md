@@ -43,6 +43,7 @@ just test               # all workspace tests (unit; no server needed)
 just test-integration  # live API/hook tests (needs running, seeded PB)
 just test-e2e           # Playwright dashboard tests (needs running, seeded PB)
 just verify-ledger      # recompute balances from currency_transactions, diff vs. cache (needs running PB)
+just update-service     # deploy to the always-on host (bb); see docs/DEPLOYMENT.md
 just lint               # lint all workspaces
 just typecheck          # type-check all workspaces (tsc --noEmit)
 ```
