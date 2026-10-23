@@ -28,6 +28,7 @@ import { ChunkyButton } from "../components/ChunkyButton";
 import { Celebration } from "../components/Celebration";
 import { KidDetail } from "../components/KidDetail";
 import { OfflineBanner } from "../components/OfflineBanner";
+import { HouseholdSettings } from "../components/HouseholdSettings";
 
 const PARENT_TABS = [
   { key: "approvals", title: "Approvals", focusedIcon: "inbox", unfocusedIcon: "inbox-outline" },
@@ -59,6 +60,7 @@ export function ParentHome({
 }) {
   const theme = useTheme();
   const [household, setHousehold] = useState<Household | null>(null);
+  const [hhSettingsOpen, setHhSettingsOpen] = useState(false);
   const [kids, setKids] = useState<User[]>([]);
   const [approvals, setApprovals] = useState<ExpandedAssignment[]>([]);
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
@@ -539,6 +541,20 @@ export function ParentHome({
             </Card.Content>
           </Card>
         )}
+        <Card style={styles.broadcastCard}>
+          <Card.Content>
+            <Button mode="contained" icon="cog" onPress={() => setHhSettingsOpen(true)}>
+              Household settings
+            </Button>
+          </Card.Content>
+        </Card>
+        <Card style={styles.broadcastCard}>
+          <Card.Content>
+            <Button mode="contained" icon="cog" onPress={() => setHhSettingsOpen(true)} style={{ marginBottom: 8 }}>
+              Household settings
+            </Button>
+          </Card.Content>
+        </Card>
         <Card style={styles.broadcastCard}>
           <Card.Content>
             <Text variant="labelLarge" style={[styles.sectionLabel, { color: theme.colors.onSurfaceVariant }]}>
@@ -1135,6 +1151,14 @@ export function ParentHome({
           ) : null}
         </TouchableOpacity>
       </Modal>
+{household && (
+        <HouseholdSettings
+          household={household}
+          visible={hhSettingsOpen}
+          onDismiss={() => setHhSettingsOpen(false)}
+          onSaved={() => void reload()}
+        />
+      )}
 <Snackbar visible={!!snack} onDismiss={() => setSnack("")} duration={4000}>
         {snack}
       </Snackbar>

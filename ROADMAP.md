@@ -84,6 +84,7 @@ Added 2026-08-10. Items 1-4 were fully agent-doable — no hardware, no new acco
 Ordered by impact-to-effort (2026-10-21 audit). New items that audit: everything from *Approval queue photo grid* through *Maestro E2E*.
 
 - **Feature explanation tooltips** — shipped 2026-10-22: shared `FEATURE_TIPS` map in `packages/shared/src/featureTips.ts`; web hover ⓘ on HouseholdSettings fields; mobile ⓘ + dialog for Calm mode in KidDetail.
+- **Parent mobile parity** — make the parent mobile view fully functional (currently approvals/kids/chores/settings tabs exist but household settings editing, ledger view, and recent activity are web-only). Add household settings screen (currency, thresholds, quiet hours, vacation, streaks) and a ledger tab to ParentHome. ~4-6 hrs.
 - **Approval queue photo grid** — shipped 2026-10-22: inline thumbnails (web + mobile) with tap-to-enlarge lightbox so parents verify photos without opening each request.
 - **In-app ledger view** — shipped 2026-10-22: web '📒 Ledger' tab with per-kid + month filter and net total.
 - **Kid "I need help" flag** — shipped 2026-10-22: `needs_help` field on assignments, kid tap (KidHome + SimpleKidHome) notifies parents via ntfy, cleared on mark-done/approve; shown in approval queues (web + mobile).
