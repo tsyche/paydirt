@@ -13,6 +13,7 @@
 - [x] 2026-10-22 — In-app ledger view
 - [x] 2026-10-22 — Scheduled allowance (payday)
 - [x] 2026-10-22 — Auto-save to savings goals
+- [x] 2026-10-22 — Parent mobile parity (settings + ledger)
 - [x] 2026-10-21 — Deeper gamification ("playful" mode)
 - [x] 2026-10-21 — Suppress foreground notifications
 - [x] 2026-10-21 — Realtime resubscribe on resume
