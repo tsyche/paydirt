@@ -87,7 +87,7 @@ Ordered by impact-to-effort (2026-10-21 audit). New items that audit: everything
 - **Approval queue photo grid** — shipped 2026-10-22: inline thumbnails (web + mobile) with tap-to-enlarge lightbox so parents verify photos without opening each request.
 - **In-app ledger view** — shipped 2026-10-22: web '📒 Ledger' tab with per-kid + month filter and net total.
 - **Kid "I need help" flag** — shipped 2026-10-22: `needs_help` field on assignments, kid tap (KidHome + SimpleKidHome) notifies parents via ntfy, cleared on mark-done/approve; shown in approval queues (web + mobile).
-- **Auto-save to savings goals** — per-goal percentage setting; each approved earn auto-allocates a slice to the goal instead of the kid manually banking it. Reuses the existing bank-threshold machinery. ~2-3 hrs.
+- **Auto-save to savings goals** — shipped 2026-10-22: `auto_save_percent` on savings_goals, mobile goal form input, notification on earn with the slice; migration 1717000018.
 - **Kid weekly recap** — shipped 2026-10-22: `runKidWeeklyRecap` sends each kid a Sunday ntfy with earnings, chores completed, and nearest goal progress; vacation-mode gated; manual trigger `kid-recap`.
 - **Screen-time grant expiry** — "more screen time" grants currently live forever as records. Add per-grant expiry (N hours/days) so the parent ledger self-cleans and grant history stays honest; does not touch Family Link itself, just PayDirt's bookkeeping. ~3-4 hrs.
 - **Scheduled allowance ("payday")** — shipped 2026-10-22: household allowance_amount/cadence + daily cron grant (manual trigger `allowance`), notifies kids.
