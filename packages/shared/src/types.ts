@@ -158,6 +158,8 @@ export interface SavingsGoal extends BaseRecord {
   target: number;
   achieved: boolean;
   achieved_at?: string;
+  /** Percentage of each approved earn auto-allocated to this goal. 0/unset = off. */
+  auto_save_percent?: number;
 }
 
 // ─── Chore Proposals ─────────────────────────────────────────────────────────

@@ -44,6 +44,28 @@ onRecordAfterCreateSuccess((e) => {
         child.getString("display_name") + " hit their goal: " + g.getString("name"),
       );
     }
+
+    // Auto-save: notify kid of the slice allocated to goals with a percent set.
+    const autoGoals = e.app.findRecordsByFilter(
+      "savings_goals",
+      "child = {:c} && achieved = false && auto_save_percent > 0",
+      "",
+      0,
+      0,
+      { c: child.id },
+    );
+    for (const g of autoGoals) {
+      const pct = g.getFloat("auto_save_percent");
+      const slice = Math.round(amount * pct / 100 * 100) / 100;
+      if (slice > 0) {
+        notifyUser(
+          e.app,
+          child.id,
+          "Auto-saved to " + g.getString("name") + " 🐷",
+          slice + " " + currency + " (" + pct + "%) set aside this earn.",
+        );
+      }
+    }
   }
 
   // ── bank threshold: one nudge when the balance crosses it upward ───────────

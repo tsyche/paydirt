@@ -577,11 +577,12 @@ function GoalList({
   goals: SavingsGoal[];
   balance: number;
   currencyName: string;
-  onCreate: (name: string, target: number) => void;
+  onCreate: (name: string, target: number, autoSavePercent?: number) => void;
   onDelete: (id: string) => void;
 }) {
   const [name, setName] = useState("");
   const [target, setTarget] = useState("");
+  const [autoSave, setAutoSave] = useState("");
 
   return (
     <View style={styles.goalList}>
@@ -623,14 +624,23 @@ function GoalList({
           keyboardType="number-pad"
           style={styles.goalTargetInput}
         />
+        <TextInput
+          dense
+          placeholder="Auto-save %"
+          value={autoSave}
+          onChangeText={setAutoSave}
+          keyboardType="number-pad"
+          style={styles.goalTargetInput}
+        />
         <Button
           compact
           mode="contained-tonal"
           disabled={!name.trim() || !(Number(target) > 0)}
           onPress={() => {
-            onCreate(name.trim(), Number(target));
+            onCreate(name.trim(), Number(target), Number(autoSave) || 0);
             setName("");
             setTarget("");
+            setAutoSave("");
           }}
         >
           Add

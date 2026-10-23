@@ -405,12 +405,13 @@ export class PaydirtClient {
     });
   }
 
-  createGoal(childId: string, name: string, target: number): Promise<SavingsGoal> {
+  createGoal(childId: string, name: string, target: number, autoSavePercent?: number): Promise<SavingsGoal> {
     return this.pb.collection(Collections.SavingsGoals).create<SavingsGoal>({
       child: childId,
       name,
       target,
       achieved: false,
+      auto_save_percent: autoSavePercent ?? 0,
     });
   }
 
