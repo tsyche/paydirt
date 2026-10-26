@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { View, ScrollView, StyleSheet, RefreshControl, Alert, Image, Linking, Platform, Modal, TouchableOpacity } from "react-native";
+import { View, ScrollView, StyleSheet, RefreshControl, Alert, Image, Modal, TouchableOpacity } from "react-native";
 import {
   Appbar,
   BottomNavigation,
@@ -18,7 +18,6 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import type { Assignment, Chore, ChoreProposal, ChoreTemplate, Household, SpendRequest, User } from "@paydirt/shared";
 import { currencyDisplayName } from "@paydirt/shared";
 import { client } from "../lib/client";
-import { isAccessibilityServiceEnabled } from "../lib/accessibility-service";
 import { isNetworkError } from "../lib/reachability";
 import { useRealtimeResume } from "../lib/useRealtimeResume";
 import { tabForNotificationType } from "../lib/deepLinks";
@@ -113,7 +112,6 @@ export function ParentHome({
   const [assignSelections, setAssignSelections] = useState<Record<string, Set<string>>>({});
   const [assigning, setAssigning] = useState<Record<string, boolean>>({});
 
-  const [a11yEnabled, setA11yEnabled] = useState<boolean | null>(null);
 
   // Co-parent management
   const [coParents, setCoParents] = useState<User[]>([]);
@@ -396,13 +394,6 @@ export function ParentHome({
 
   useEffect(() => {
     if (tab === "settings") {
-      if (Platform.OS === "android") {
-        try {
-          setA11yEnabled(isAccessibilityServiceEnabled());
-        } catch {
-          setA11yEnabled(false);
-        }
-      }
       client.listParents(user.household).then(setCoParents).catch(() => {});
     }
   }, [tab, user.household]);
@@ -463,12 +454,12 @@ export function ParentHome({
       <OfflineBanner />
 
       {notificationSetupNeeded && onOpenNotificationSetup && (
-        <Card style={[styles.broadcastCard, styles.a11yBannerCard]}>
-          <Card.Content style={styles.a11yBannerContent}>
-            <Text variant="titleSmall" style={styles.a11yBannerTitle}>
+        <Card style={[styles.broadcastCard, styles.bannerCard]}>
+          <Card.Content style={styles.bannerContent}>
+            <Text variant="titleSmall" style={styles.bannerTitle}>
               🔔 Notifications not set up
             </Text>
-            <Text variant="bodySmall" style={styles.a11yBannerBody}>
+            <Text variant="bodySmall" style={styles.bannerBody}>
               Approvals, spend requests, and broadcasts won&apos;t reach this device until you
               subscribe the ntfy app to your topic.
             </Text>
@@ -477,7 +468,7 @@ export function ParentHome({
               compact
               icon="bell-ring-outline"
               onPress={onOpenNotificationSetup}
-              style={styles.a11yBannerBtn}
+              style={styles.bannerBtn}
             >
               Set up notifications
             </Button>
@@ -516,34 +507,6 @@ export function ParentHome({
         {/* Settings tab: broadcast + appearance */}
         {tab === "settings" && (
           <>
-        {Platform.OS === "android" && a11yEnabled === false && (
-          <Card style={[styles.broadcastCard, styles.a11yBannerCard]}>
-            <Card.Content style={styles.a11yBannerContent}>
-              <Text variant="titleSmall" style={styles.a11yBannerTitle}>
-                🤖 Family Link Automation Disabled
-              </Text>
-              <Text variant="bodySmall" style={styles.a11yBannerBody}>
-                Enable the PayDirt accessibility service so spend approvals automatically grant screen time in Family Link.
-              </Text>
-              <Button
-                mode="contained"
-                compact
-                icon="shield-check-outline"
-                onPress={() => Linking.sendIntent("android.settings.ACCESSIBILITY_SETTINGS")}
-                style={styles.a11yBannerBtn}
-              >
-                Open Accessibility Settings
-              </Button>
-            </Card.Content>
-          </Card>
-        )}
-        {Platform.OS === "android" && a11yEnabled === true && (
-          <Card style={[styles.broadcastCard, styles.a11yEnabledCard]}>
-            <Card.Content>
-              <Text variant="bodySmall">🤖 Family Link automation is active.</Text>
-            </Card.Content>
-          </Card>
-        )}
         <Card style={styles.broadcastCard}>
           <Card.Content>
             <Button mode="contained" icon="cog" onPress={() => setHhSettingsOpen(true)}>
@@ -1191,12 +1154,11 @@ const styles = StyleSheet.create({
   kidBalance: { fontSize: 13, fontWeight: "600" },
 
   broadcastCard: { borderRadius: 16 },
-  a11yBannerCard: { borderWidth: 1, borderColor: "#F59E0B" },
-  a11yBannerContent: { gap: 8 },
-  a11yBannerTitle: { fontWeight: "700" },
-  a11yBannerBody: { opacity: 0.8 },
-  a11yBannerBtn: { alignSelf: "flex-start", borderRadius: 10 },
-  a11yEnabledCard: { borderWidth: 1, borderColor: "#10B981" },
+  bannerCard: { borderWidth: 1, borderColor: "#F59E0B" },
+  bannerContent: { gap: 8 },
+  bannerTitle: { fontWeight: "700" },
+  bannerBody: { opacity: 0.8 },
+  bannerBtn: { alignSelf: "flex-start", borderRadius: 10 },
   broadcastContent: { gap: 8 },
   rowBtns: { flexDirection: "row", justifyContent: "flex-end", gap: 8 },
   broadcastInput: { flex: 1 },

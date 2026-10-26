@@ -62,6 +62,28 @@ onRecordUpdateRequest((e) => {
   e.next();
 }, "assignments");
 
+// User self-edits. The update rule lets a user PATCH their own record (the
+// app syncs push settings on login), but a child must not touch anything
+// else — balance, role, household, Family Link IDs, parent-set UI toggles.
+// Allowlist, so new fields are parent-only by default.
+onRecordUpdateRequest((e) => {
+  const isParent = e.auth && e.auth.getString("role") === "parent";
+  if (!isParent) {
+    const selfEditable = ["up_endpoint", "ntfy_topic"];
+    const prev = e.record.original();
+    for (const f of e.record.collection().fields) {
+      const name = f.getName();
+      const t = f.type();
+      if (t === "autodate" || t === "password" || name === "tokenKey") continue;
+      if (selfEditable.indexOf(name) !== -1) continue;
+      if (e.record.getString(name) !== prev.getString(name)) {
+        throw new ForbiddenError("Only a parent can change " + name + ".");
+      }
+    }
+  }
+  e.next();
+}, "users");
+
 // Photo rules, applied during the update lifecycle (after new values are
 // applied, before save):
 //  - photo-required chores can't be completed without a photo

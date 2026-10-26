@@ -12,13 +12,21 @@ import {
   Portal,
   Dialog,
   ProgressBar,
+  SegmentedButtons,
   TextInput,
   Snackbar,
   useTheme,
 } from "react-native-paper";
 import { SafeAreaView } from "react-native-safe-area-context";
-import type { Assignment, Broadcast, Chore, Household, SavingsGoal, User } from "@paydirt/shared";
-import { currencyDisplayName, computeBadges, shouldCelebrate } from "@paydirt/shared";
+import type { Assignment, Broadcast, Chore, Household, SavingsGoal, ScreenPreset, User } from "@paydirt/shared";
+import {
+  SCREEN_PRESETS,
+  currencyDisplayName,
+  computeBadges,
+  screenCost,
+  screenRate,
+  shouldCelebrate,
+} from "@paydirt/shared";
 import { client } from "../lib/client";
 import { isNetworkError } from "../lib/reachability";
 import { useRealtimeResume } from "../lib/useRealtimeResume";
@@ -481,6 +489,8 @@ export function KidHome({ user, onLogout }: { user: User; onLogout: () => void }
       <SpendDialog
         currencyName={currencyName}
         goodsRate={me.goods_rate ?? household?.goods_rate ?? 0}
+        screenRate={screenRate(household)}
+        balance={me.balance}
         visible={spendOpen}
         onClose={() => setSpendOpen(false)}
         onSubmit={async (amount, description) => {
@@ -488,6 +498,15 @@ export function KidHome({ user, onLogout }: { user: User; onLogout: () => void }
             await client.submitSpendRequest(user.id, amount, description);
             setSpendOpen(false);
             setSnack("Spend request sent to your parent!");
+          } catch (e) {
+            setSnack(String(e));
+          }
+        }}
+        onScreenTime={async (minutes) => {
+          try {
+            await client.submitScreenTimeRequest(user.id, minutes, screenRate(household));
+            setSpendOpen(false);
+            setSnack(`Asked for ${minutes} min of screen time!`);
           } catch (e) {
             setSnack(String(e));
           }
@@ -653,16 +672,23 @@ function GoalList({
 function SpendDialog({
   currencyName,
   goodsRate,
+  screenRate: rate,
+  balance,
   visible,
   onClose,
   onSubmit,
+  onScreenTime,
 }: {
   currencyName: string;
   goodsRate: number;
+  screenRate: number;
+  balance: number;
   visible: boolean;
   onClose: () => void;
   onSubmit: (amount: number, description: string) => void;
+  onScreenTime: (minutes: ScreenPreset) => void;
 }) {
+  const [mode, setMode] = useState<"screen" | "other">("screen");
   const [amount, setAmount] = useState("10");
   const [description, setDescription] = useState("");
   const dollars = goodsRate > 0 && Number(amount) > 0 ? (Number(amount) / goodsRate).toFixed(2) : null;
@@ -672,33 +698,68 @@ function SpendDialog({
       <Dialog visible={visible} onDismiss={onClose}>
         <Dialog.Title>Ask to spend</Dialog.Title>
         <Dialog.Content>
-          <TextInput
-            label="What do you want?"
-            value={description}
-            onChangeText={setDescription}
+          <SegmentedButtons
+            value={mode}
+            onValueChange={(v) => setMode(v as "screen" | "other")}
+            buttons={[
+              { value: "screen", label: "Screen time", icon: "tablet" },
+              { value: "other", label: "Something else", icon: "gift-outline" },
+            ]}
             style={styles.dialogInput}
           />
-          <TextInput
-            label={currencyName}
-            value={amount}
-            onChangeText={setAmount}
-            keyboardType="number-pad"
-          />
-          {dollars ? (
-            <Text variant="bodySmall" style={styles.conversion}>
-              ≈ ${dollars} in real money
-            </Text>
+          {mode === "screen" ? (
+            <View style={styles.screenPresets}>
+              {SCREEN_PRESETS.map((m) => {
+                const cost = screenCost(m, rate);
+                return (
+                  <Button
+                    key={m}
+                    mode="contained-tonal"
+                    disabled={cost > balance}
+                    onPress={() => onScreenTime(m)}
+                  >
+                    {m} min · {cost} {currencyName}
+                  </Button>
+                );
+              })}
+              <Text variant="bodySmall" style={styles.conversion}>
+                Want more? Send another request.
+              </Text>
+            </View>
+          ) : null}
+          {mode === "other" ? (
+            <>
+              <TextInput
+                label="What do you want?"
+                value={description}
+                onChangeText={setDescription}
+                style={styles.dialogInput}
+              />
+              <TextInput
+                label={currencyName}
+                value={amount}
+                onChangeText={setAmount}
+                keyboardType="number-pad"
+              />
+              {dollars ? (
+                <Text variant="bodySmall" style={styles.conversion}>
+                  ≈ ${dollars} in real money
+                </Text>
+              ) : null}
+            </>
           ) : null}
         </Dialog.Content>
         <Dialog.Actions>
           <Button onPress={onClose}>Cancel</Button>
-          <Button
-            mode="contained"
-            disabled={!description.trim() || !Number(amount)}
-            onPress={() => onSubmit(Number(amount), description.trim())}
-          >
-            Send
-          </Button>
+          {mode === "other" ? (
+            <Button
+              mode="contained"
+              disabled={!description.trim() || !(Number(amount) > 0)}
+              onPress={() => onSubmit(Number(amount), description.trim())}
+            >
+              Send
+            </Button>
+          ) : null}
         </Dialog.Actions>
       </Dialog>
     </Portal>
@@ -971,6 +1032,7 @@ const styles = StyleSheet.create({
   dialogInput: { marginBottom: 8 },
   dialogContext: { marginBottom: 8, opacity: 0.7 },
   conversion: { marginTop: 6, opacity: 0.7 },
+  screenPresets: { gap: 8 },
   presetBtn: { marginBottom: 8 },
 
   sibCard: { marginBottom: 4 },

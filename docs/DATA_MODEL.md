@@ -23,6 +23,7 @@ declare them in their own creation migration. Omitting them previously caused
 | goods_rate | number | bucks per $1 for conversion display; 0 = off |
 | nudge_hours | number | nudge parents when a completion waits N hours; 0 = off |
 | paused | bool | vacation mode: cron reminders/nudges/digest/expiry suspended |
+| screen_rate | number | parentBucks per screen-time minute; 0 = 1:1 (see `packages/shared/src/screenTime.ts`) |
 
 ### `users` (extends PocketBase auth)
 | Field | Type | Notes |
@@ -35,6 +36,7 @@ declare them in their own creation migration. Omitting them previously caused
 | simplified_mode | bool | default false; on for youngest child |
 | calm_mode | bool | default false; parent dial-back silences playful extras (badges, confetti, count-up) |
 | streak_count | number | consecutive earn-days; maintained by hook + daily cron |
+| fl_child_id / fl_device_id | text | Family Link grant target for this kid's tablet; parent-set, pattern-validated |
 
 ### `chores`
 | Field | Type | Notes |
@@ -96,6 +98,7 @@ Append-only ledger. `+` earn, `−` spend. Sum = balance. `just verify-ledger` r
 | status | select(`pending`,`approved`,`denied`) | default `pending` |
 | resolved_at | date | set on resolve |
 | resolved_by | relation → users | parent |
+| screen_minutes | number | set = screen-time request (15/30/45/60); the create hook sets `amount` from `screen_rate` |
 
 ### `savings_goals`
 Kid-owned targets; a hook marks them achieved + notifies when the balance
@@ -140,10 +143,10 @@ Live in `pocketbase/pb_hooks/`. PocketBase runs each handler in an isolated VM, 
 
 1. **transaction → balance** (`currency.pb.js`): on `currency_transactions` create, increment `users.balance` by `amount`. Single point that maintains the cached balance.
 2. **assignment approval → earn** (`currency.pb.js`): on `assignments` update to `approved`, create an `earn` transaction for `chore.reward`.
-3. **spend approval → spend** (`currency.pb.js`): on `spend_requests` update to `approved`, guard the balance first, then create a `spend` transaction for `−amount`.
+3. **spend approval → spend** (`currency.pb.js`): on `spend_requests` update to `approved`, guard the balance first, then create a `spend` transaction for `−amount`. On API create, a request is forced `pending` with a positive `amount`; screen-time requests are priced server-side (client `amount` ignored).
 4. **approval undo → reversal** (`currency.pb.js`): on `assignments` update *out of* `approved`, create a compensating `manual_adjustment` for `−chore.reward`. Undo is therefore a single status change; the ledger can't drift from the status.
 5. **ntfy notifications** (`notifications.pb.js`): fire on chore assigned, completed (→parent, except when a parent undoes an approval), approved/rejected (→child), spend submitted (→parent), spend resolved (→child), broadcast created (→all children). Set `NTFY_DISABLED=1` to suppress sends (use for test runs — the seeded topics are real public ntfy.sh topics).
-6. **approval guard** (`guards.pb.js`): block non-parents from setting an assignment to `approved`/`rejected`/`closed`, from touching settled (`approved`/`closed`) assignments, and from invalid swap moves (owner can't reassign directly; the swap target may only accept or decline). Resubmitting a `rejected` chore requires a freshly uploaded photo, even when the chore doesn't normally need one.
+6. **approval guard** (`guards.pb.js`): block non-parents from setting an assignment to `approved`/`rejected`/`closed`, from touching settled (`approved`/`closed`) assignments, and from invalid swap moves (owner can't reassign directly; the swap target may only accept or decline). Resubmitting a `rejected` chore requires a freshly uploaded photo, even when the chore doesn't normally need one. On `users`, a non-parent self-edit may change only `up_endpoint`/`ntfy_topic` (and their own password); every other field is parent-only.
 7. **race close** (`races.pb.js`): first approval of a race chore closes every other open assignment for it and tells the losing kids who won.
 8. **balance reactions** (`goals.pb.js`): on each ledger entry — mark crossed savings goals achieved (+notify), fire the one-time bank-threshold nudge, maintain `streak_count`, and grant streak milestone bonuses (3/7/14/30 days). Runs after `currency.pb.js` (alphabetical load order — don't rename either file).
 9. **engagement notifications** (`notifications.pb.js`): kid rejection replies and swap offers ping the relevant party; parent reactions ping the kid; proposals ping parents on create and the kid on resolve.

@@ -146,8 +146,8 @@ onRecordAfterUpdateSuccess((e) => {
   const child = e.app.findRecordById("users", e.record.getString("child"));
   if (status === "approved") {
     notifyUser(e.app, e.record.getString("child"), "Spend approved! 🎉", desc);
-    // Phase 2: notify parents with type "spend_approved" so the AccessibilityService
-    // can trigger Family Link automation on their device.
+    // Phase 2: screen-time requests (screen_minutes set) will also trigger a
+    // Family Link API grant here; see ROADMAP "Family Link API grant in production".
     notifyParents(e.app, child.getString("household"), "Spend approved", desc, "spend_approved");
   } else {
     notifyUser(e.app, e.record.getString("child"), "Spend denied", desc);

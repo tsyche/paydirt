@@ -40,6 +40,8 @@ export interface Household extends BaseRecord {
   allowance_cadence?: "daily" | "weekly";
   /** Last time the allowance was paid. */
   allowance_last_paid?: string;
+  /** parentBucks per minute of screen time. 0/unset = DEFAULT_SCREEN_RATE. */
+  screen_rate?: number;
 }
 
 // ─── Users ───────────────────────────────────────────────────────────────────
@@ -70,6 +72,10 @@ export interface User extends BaseRecord {
   streak_count?: number;
   /** Per-kid goods rate override (bucks per $1). 0/unset = use household rate. */
   goods_rate?: number;
+  /** Family Link child ID for automatic screen-time grants. Set by parent. */
+  fl_child_id?: string;
+  /** Family Link device ID of the kid's tablet. Set by parent. */
+  fl_device_id?: string;
 }
 
 // ─── Chores ──────────────────────────────────────────────────────────────────
@@ -215,8 +221,10 @@ export interface SpendRequest extends BaseRecord {
   child: string; // -> users.id
   /** parentBucks to deduct on approval. */
   amount: number;
-  /** What the child wants, e.g. "30 minutes screen time". */
+  /** What the child wants, e.g. "30 min screen time". */
   description: string;
+  /** Set = a screen-time request (a SCREEN_PRESETS value); the hook prices it. */
+  screen_minutes?: number;
   status: SpendRequestStatus;
   resolved_at?: string;
   resolved_by?: string; // -> users.id (parent)

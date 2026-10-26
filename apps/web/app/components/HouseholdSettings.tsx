@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { createPortal } from "react-dom";
 import type { Household } from "@paydirt/shared";
-import { CURRENCY_PRESETS, DEFAULT_CURRENCY_NAME, featureTip } from "@paydirt/shared";
+import { CURRENCY_PRESETS, DEFAULT_CURRENCY_NAME, featureTip, screenRate } from "@paydirt/shared";
 import { client } from "../lib/client";
 
 function Tip({ k }: { k: string }) {
@@ -35,6 +35,7 @@ export function HouseholdSettings({
     bank_threshold: household.bank_threshold ?? 0,
     expiry_days: household.expiry_days ?? 0,
     goods_rate: household.goods_rate ?? 0,
+    screen_rate: screenRate(household),
     nudge_hours: household.nudge_hours ?? 0,
     paused: household.paused ?? false,
     quiet_start: household.quiet_start ?? "",
@@ -140,6 +141,18 @@ export function HouseholdSettings({
             min={0}
             value={form.goods_rate}
             onChange={(e) => setForm({ ...form, goods_rate: num(e.target.value) })}
+            style={{ width: 90 }}
+          />
+        </div>
+        <div className="settings-row">
+          <label>📱 Bucks per screen-time minute <Tip k="screen_rate" /></label>
+          <input
+            type="number"
+            min={0}
+            step="any"
+            aria-label="Bucks per screen-time minute"
+            value={form.screen_rate}
+            onChange={(e) => setForm({ ...form, screen_rate: num(e.target.value) })}
             style={{ width: 90 }}
           />
         </div>

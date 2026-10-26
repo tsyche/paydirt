@@ -184,6 +184,19 @@ export function KidDetail({
           </Card>
         )}
 
+        {kid && (
+          <FamilyLinkCard
+            key={kid.id}
+            kid={kid}
+            onTip={() => setTipKey("fl_ids")}
+            onSaved={() => {
+              setSnack("Family Link IDs saved");
+              void reload();
+            }}
+            onError={(e) => setSnack(e)}
+          />
+        )}
+
         <Text variant="labelLarge" style={[styles.section, { color: theme.colors.onSurfaceVariant }]}>
           ACTIVE CHORES {assignments.length > 0 ? `(${assignments.length})` : ""}
         </Text>
@@ -291,6 +304,60 @@ export function KidDetail({
         </Dialog>
       </Portal>
     </SafeAreaView>
+  );
+}
+
+/** Per-kid Family Link target for automatic screen-time grants. */
+function FamilyLinkCard({
+  kid,
+  onTip,
+  onSaved,
+  onError,
+}: {
+  kid: User;
+  onTip: () => void;
+  onSaved: () => void;
+  onError: (e: string) => void;
+}) {
+  const [childId, setChildId] = useState(kid.fl_child_id ?? "");
+  const [deviceId, setDeviceId] = useState(kid.fl_device_id ?? "");
+  const [busy, setBusy] = useState(false);
+
+  async function save() {
+    setBusy(true);
+    try {
+      await client.pb
+        .collection("users")
+        .update(kid.id, { fl_child_id: childId.trim(), fl_device_id: deviceId.trim() });
+      onSaved();
+    } catch (e) {
+      onError(String(e));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <Card style={styles.card}>
+      <Card.Content>
+        <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
+          <Text variant="titleSmall">Family Link</Text>
+          <IconButton icon="information-outline" size={16} onPress={onTip} style={{ margin: 0 }} />
+        </View>
+        <TextInput dense label="Child ID" value={childId} onChangeText={setChildId} autoCapitalize="none" />
+        <TextInput
+          dense
+          label="Device ID"
+          value={deviceId}
+          onChangeText={setDeviceId}
+          autoCapitalize="none"
+          style={{ marginTop: 8 }}
+        />
+        <Button mode="contained-tonal" onPress={() => void save()} disabled={busy} style={{ marginTop: 8 }}>
+          Save
+        </Button>
+      </Card.Content>
+    </Card>
   );
 }
 

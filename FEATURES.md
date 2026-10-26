@@ -30,6 +30,7 @@ Current scope tracker. See [ROADMAP.md](./ROADMAP.md) for phasing and status. Or
 - **Bank threshold** — one-time ntfy nudge to the kid when their balance crosses the household threshold.
 - **Currency expiry** — optional: earn entries older than N days lapse via compensating adjustments (daily cron), capped at current balance.
 - **Goods conversion display** — household `goods_rate` (bucks per $1) shown on spend requests and the kid's spend dialog.
+- **Screen-time requests** — kids pick 15/30/45/60 min (both kid UIs); the server prices it at the household `screen_rate` (bucks per minute, default 1:1). Family Link grant on approval is in progress (ROADMAP Phase 2).
 - **Scheduled chore reminders** — per-chore "HH:MM"; cron reminds assigned kids once a day.
 - **Approval nudges** — parents pinged when a completion sits unapproved longer than `nudge_hours`.
 - **Approval reactions** — parents react with an emoji from "Recently approved"; shown in the kid's history.

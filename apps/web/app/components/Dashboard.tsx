@@ -12,7 +12,7 @@ import type {
   SpendRequest,
   User,
 } from "@paydirt/shared";
-import { currencyDisplayName } from "@paydirt/shared";
+import { currencyDisplayName, featureTip } from "@paydirt/shared";
 import { client } from "../lib/client";
 import { HouseholdSettings } from "./HouseholdSettings";
 import { AppearanceControls } from "./AppearanceControls";
@@ -1205,6 +1205,9 @@ function AvatarControl({ kid, onSaved }: { kid: User; onSaved: () => void }) {
   const [color, setColor] = useState(kid.color ?? AVATAR_COLORS[0]);
   const [goodsRateOverride, setGoodsRateOverride] = useState(String(kid.goods_rate ?? ""));
   const [calmMode, setCalmMode] = useState(!!kid.calm_mode);
+  const [flChildId, setFlChildId] = useState(kid.fl_child_id ?? "");
+  const [flDeviceId, setFlDeviceId] = useState(kid.fl_device_id ?? "");
+  const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
 
   if (!open) {
@@ -1256,6 +1259,22 @@ function AvatarControl({ kid, onSaved }: { kid: User; onSaved: () => void }) {
         <input type="checkbox" checked={calmMode} onChange={(e) => setCalmMode(e.target.checked)} />
         Calm mode
       </label>
+      <input
+        placeholder="Family Link child ID"
+        aria-label="Family Link child ID"
+        title={featureTip("fl_ids")}
+        value={flChildId}
+        onChange={(e) => setFlChildId(e.target.value)}
+        style={{ width: 190 }}
+      />
+      <input
+        placeholder="Family Link device ID"
+        aria-label="Family Link device ID"
+        title={featureTip("fl_ids")}
+        value={flDeviceId}
+        onChange={(e) => setFlDeviceId(e.target.value)}
+        style={{ width: 190 }}
+      />
       <button
         className="primary sm"
         disabled={busy}
@@ -1268,9 +1287,13 @@ function AvatarControl({ kid, onSaved }: { kid: User; onSaved: () => void }) {
               color,
               goods_rate: isNaN(rate) || rate <= 0 ? null : rate,
               calm_mode: calmMode,
+              fl_child_id: flChildId.trim(),
+              fl_device_id: flDeviceId.trim(),
             });
             setOpen(false);
             onSaved();
+          } catch (e) {
+            setError(String(e));
           } finally {
             setBusy(false);
           }
@@ -1279,6 +1302,7 @@ function AvatarControl({ kid, onSaved }: { kid: User; onSaved: () => void }) {
         Save
       </button>
       <button className="sm" onClick={() => setOpen(false)}>Cancel</button>
+      {error && <p className="error" style={{ width: "100%", margin: 0 }}>{error}</p>}
     </div>
   );
 }

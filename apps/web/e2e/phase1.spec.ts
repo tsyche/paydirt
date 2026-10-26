@@ -107,3 +107,32 @@ test("react to a recently approved chore", async ({ page }) => {
   await admin.pb.collection("assignments").delete(assignment.id);
   await admin.pb.collection("chores").delete(chore.id);
 });
+
+test("screen-time request is priced from the household rate set in settings", async ({ page }) => {
+  const parent = new PaydirtClient(PB_URL);
+  await parent.login("parent1@test.local", PW);
+  const householdId = parent.currentUser!.household;
+  const original = (await parent.getHousehold(householdId)).screen_rate ?? 0;
+
+  try {
+    // Parent sets 2 bucks/minute in the settings panel
+    await signIn(page);
+    await page.getByRole("button", { name: /Settings/ }).click();
+    await page.getByLabel("Bucks per screen-time minute").fill("2");
+    await page.getByRole("button", { name: "Save" }).click();
+    await expect.poll(async () => (await parent.getHousehold(householdId)).screen_rate).toBe(2);
+
+    // Kid asks for 45 minutes; the request shows up priced at 90
+    const kid = new PaydirtClient(PB_URL);
+    const kidUser = await kid.login("child1@test.local", PW);
+    const sr = await kid.submitScreenTimeRequest(kidUser.id, 45, 1);
+    await page.reload();
+    const row = page.locator(".card.row").filter({ hasText: "45 min screen time" });
+    await expect(row).toContainText("90");
+    await row.getByRole("button", { name: "Deny" }).click();
+    await expect(row).toHaveCount(0);
+    await parent.pb.collection("spend_requests").delete(sr.id);
+  } finally {
+    await parent.updateHousehold(householdId, { screen_rate: original });
+  }
+});

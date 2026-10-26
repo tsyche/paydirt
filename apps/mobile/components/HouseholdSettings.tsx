@@ -9,7 +9,7 @@ import {
   TextInput,
 } from "react-native-paper";
 import type { Household } from "@paydirt/shared";
-import { CURRENCY_PRESETS, DEFAULT_CURRENCY_NAME } from "@paydirt/shared";
+import { CURRENCY_PRESETS, DEFAULT_CURRENCY_NAME, screenRate } from "@paydirt/shared";
 import { client } from "../lib/client";
 
 export function HouseholdSettings({
@@ -30,6 +30,7 @@ export function HouseholdSettings({
     bank_threshold: String(household.bank_threshold ?? 0),
     expiry_days: String(household.expiry_days ?? 0),
     goods_rate: String(household.goods_rate ?? 0),
+    screen_rate: String(screenRate(household)),
     nudge_hours: String(household.nudge_hours ?? 0),
     paused: household.paused ?? false,
     quiet_start: household.quiet_start ?? "",
@@ -53,6 +54,7 @@ export function HouseholdSettings({
         bank_threshold: num(form.bank_threshold),
         expiry_days: num(form.expiry_days),
         goods_rate: num(form.goods_rate),
+        screen_rate: num(form.screen_rate),
         nudge_hours: num(form.nudge_hours),
         paused: form.paused,
         quiet_start: form.quiet_start,
@@ -120,6 +122,13 @@ export function HouseholdSettings({
               keyboardType="numeric"
               value={form.goods_rate}
               onChangeText={(v) => setForm({ ...form, goods_rate: v })}
+              style={{ marginBottom: 8 }}
+            />
+            <Text variant="labelLarge">Bucks per screen-time minute</Text>
+            <TextInput
+              keyboardType="numeric"
+              value={form.screen_rate}
+              onChangeText={(v) => setForm({ ...form, screen_rate: v })}
               style={{ marginBottom: 8 }}
             />
             <Text variant="labelLarge">Nudge after hours unapproved (0 = off)</Text>

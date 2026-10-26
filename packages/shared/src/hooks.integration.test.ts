@@ -4,7 +4,7 @@ import { PaydirtClient } from "./client";
 import { Collections } from "./collections";
 import { cleanupChores, cleanupSpendRequests } from "./integration.cleanup";
 import { completionFormWithPhoto } from "./integration.fixtures";
-import type { User } from "./types";
+import type { SpendRequest, User } from "./types";
 
 // The PocketBase SDK's realtime service needs a global EventSource; Node
 // doesn't provide one, so polyfill it for the realtime test.
@@ -144,6 +144,57 @@ describe("PocketBase hooks & guards (live)", () => {
     await parent.denySpendRequest(sr.id, parent.currentUser!.id);
   });
 
+  it("new spend requests are forced pending and must be positive", async () => {
+    await expect(
+      kid.submitSpendRequest(kidUser.id, -500, "reverse spend"),
+    ).rejects.toThrow();
+
+    const sr = await kid.pb.collection(Collections.SpendRequests).create<SpendRequest>({
+      child: kidUser.id,
+      amount: 5,
+      description: "self-approved",
+      status: "approved",
+      resolved_by: kidUser.id,
+    });
+    createdSpendRequests.push(sr.id);
+    expect(sr.status).toBe("pending");
+    expect(sr.resolved_by).toBe("");
+    await parent.denySpendRequest(sr.id, parent.currentUser!.id);
+  });
+
+  it("screen-time requests are priced server-side from the household rate", async () => {
+    const household = await parent.getHousehold(householdId);
+    await parent.updateHousehold(householdId, { screen_rate: 2 });
+    try {
+      // A tampered client amount is overwritten with minutes × rate.
+      const sr = await kid.pb.collection(Collections.SpendRequests).create<SpendRequest>({
+        child: kidUser.id,
+        amount: 1,
+        description: "60 min screen time",
+        screen_minutes: 60,
+        status: "pending",
+      });
+      createdSpendRequests.push(sr.id);
+      expect(sr.amount).toBe(120);
+      await parent.denySpendRequest(sr.id, parent.currentUser!.id);
+
+      // Off-preset minutes are rejected (no 20s, nothing over an hour).
+      for (const m of [20, 75]) {
+        await expect(
+          kid.pb.collection(Collections.SpendRequests).create({
+            child: kidUser.id,
+            amount: 1,
+            description: "odd screen time",
+            screen_minutes: m,
+            status: "pending",
+          }),
+        ).rejects.toThrow();
+      }
+    } finally {
+      await parent.updateHousehold(householdId, { screen_rate: household.screen_rate ?? 0 });
+    }
+  });
+
   it("children cannot create chores or manual adjustments", async () => {
     await expect(
       kid.createChore({
@@ -158,6 +209,36 @@ describe("PocketBase hooks & guards (live)", () => {
     await expect(
       kid.adjustBalance(kidUser.id, 9999, "free money"),
     ).rejects.toThrow();
+  });
+
+  it("children can only edit their own push settings, not privileged fields", async () => {
+    const before = await parent.pb.collection(Collections.Users).getOne<User>(kidUser.id);
+    const attempts: Partial<User>[] = [
+      { balance: before.balance + 9999 },
+      { role: "parent" },
+      { simplified_mode: !before.simplified_mode },
+      { fl_child_id: "123456789012" },
+    ];
+    try {
+      for (const patch of attempts) {
+        await expect(
+          kid.pb.collection(Collections.Users).update(kidUser.id, patch),
+        ).rejects.toThrow();
+      }
+      // The app's own self-updates still work.
+      const ok = await kid.pb
+        .collection(Collections.Users)
+        .update<User>(kidUser.id, { up_endpoint: before.up_endpoint ?? "" });
+      expect(ok.id).toBe(kidUser.id);
+    } finally {
+      // If the guard ever regresses, put the seeded kid back.
+      await parent.pb.collection(Collections.Users).update(kidUser.id, {
+        balance: before.balance,
+        role: before.role,
+        simplified_mode: before.simplified_mode,
+        fl_child_id: before.fl_child_id ?? "",
+      });
+    }
   });
 
   it("parents can broadcast to the household; children cannot", async () => {

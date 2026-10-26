@@ -1,6 +1,7 @@
 import PocketBase from "pocketbase";
 import { Collections } from "./collections";
 import { resumeRealtime as forceRealtimeResume, type RealtimeLike } from "./realtime";
+import { screenCost, screenDescription, type ScreenPreset } from "./screenTime";
 import type {
   Assignment,
   Broadcast,
@@ -358,6 +359,17 @@ export class PaydirtClient {
       child: childId,
       amount,
       description,
+      status: "pending",
+    });
+  }
+
+  /** Screen-time request; the server prices it (amount sent is a preview only). */
+  submitScreenTimeRequest(childId: string, minutes: ScreenPreset, rate: number): Promise<SpendRequest> {
+    return this.pb.collection(Collections.SpendRequests).create<SpendRequest>({
+      child: childId,
+      amount: screenCost(minutes, rate),
+      description: screenDescription(minutes),
+      screen_minutes: minutes,
       status: "pending",
     });
   }

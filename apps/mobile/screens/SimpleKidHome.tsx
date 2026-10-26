@@ -9,8 +9,16 @@ import {
   useTheme,
 } from "react-native-paper";
 import { SafeAreaView } from "react-native-safe-area-context";
-import type { Assignment, Broadcast, Chore, User } from "@paydirt/shared";
-import { currencyDisplayName, DEFAULT_CURRENCY_NAME, shouldCelebrate } from "@paydirt/shared";
+import type { Assignment, Broadcast, Chore, ScreenPreset, User } from "@paydirt/shared";
+import {
+  currencyDisplayName,
+  DEFAULT_CURRENCY_NAME,
+  DEFAULT_SCREEN_RATE,
+  SCREEN_PRESETS,
+  screenCost,
+  screenRate,
+  shouldCelebrate,
+} from "@paydirt/shared";
 import { client } from "../lib/client";
 import { takePhotoAndComplete } from "../lib/completeWithPhoto";
 import { useCountUp } from "../lib/useCountUp";
@@ -26,6 +34,7 @@ export function SimpleKidHome({ user, onLogout }: { user: User; onLogout: () => 
   const [assignments, setAssignments] = useState<Expanded[]>([]);
   const [currencyName, setCurrencyName] = useState(DEFAULT_CURRENCY_NAME);
   const [householdRate, setHouseholdRate] = useState(0);
+  const [rate, setRate] = useState(DEFAULT_SCREEN_RATE);
   const [broadcasts, setBroadcasts] = useState<Broadcast[]>([]);
   const [refreshing, setRefreshing] = useState(false);
   const [snack, setSnack] = useState("");
@@ -51,6 +60,7 @@ export function SimpleKidHome({ user, onLogout }: { user: User; onLogout: () => 
       setAssignments(list as Expanded[]);
       setCurrencyName(currencyDisplayName(household));
       setHouseholdRate(household.goods_rate ?? 0);
+      setRate(screenRate(household));
       setBroadcasts(bcs);
       if (shouldCelebrate(prevBalance.current, bal, !!freshMe.calm_mode)) {
         setCelebrate((n) => n + 1);
@@ -92,6 +102,15 @@ export function SimpleKidHome({ user, onLogout }: { user: User; onLogout: () => 
     try {
       await client.pb.collection("assignments").update(id, { needs_help: true });
       setSnack("Help requested — parents notified 🆘");
+    } catch (e) {
+      setSnack(String(e));
+    }
+  }
+
+  async function askScreenTime(minutes: ScreenPreset) {
+    try {
+      await client.submitScreenTimeRequest(user.id, minutes, rate);
+      setSnack(`Asked for ${minutes} minutes! Waiting for Mom/Dad 📱`);
     } catch (e) {
       setSnack(String(e));
     }
@@ -156,6 +175,29 @@ export function SimpleKidHome({ user, onLogout }: { user: User; onLogout: () => 
             <Text style={[styles.balanceLabel, { color: theme.colors.onSurfaceVariant }]}>
               {currencyName}
             </Text>
+          </View>
+        </Surface>
+
+        <Surface style={styles.choreCard} elevation={2}>
+          <Text style={styles.choreEmoji}>📱</Text>
+          <Text style={[styles.choreName, { color: theme.colors.onSurface }]}>Screen time</Text>
+          <View style={styles.presetGrid}>
+            {SCREEN_PRESETS.map((m) => {
+              const cost = screenCost(m, rate);
+              return (
+                <Button
+                  key={m}
+                  mode="contained-tonal"
+                  disabled={cost > balance}
+                  style={styles.presetButton}
+                  contentStyle={styles.doneButtonContent}
+                  labelStyle={styles.doneButtonLabel}
+                  onPress={() => void askScreenTime(m)}
+                >
+                  {m} min
+                </Button>
+              );
+            })}
           </View>
         </Surface>
 
@@ -311,5 +353,7 @@ const styles = StyleSheet.create({
   doneButtonContent: { paddingVertical: 14 },
   doneButtonLabel: { fontSize: 20, fontWeight: "800" },
   waitingText: { fontSize: 17, textAlign: "center" },
+  presetGrid: { flexDirection: "row", flexWrap: "wrap", gap: 10, width: "100%" },
+  presetButton: { flexBasis: "47%", flexGrow: 1, borderRadius: 16 },
   broadcastText: { fontSize: 20, fontWeight: "600", textAlign: "center" },
 });
