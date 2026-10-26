@@ -4,6 +4,7 @@
 
 ## Shipped index
 
+- [x] 2026-10-25 — Phase 2 spike: Family Link API grant
 - [x] 2026-10-21 — App auto-updates (Tier 1 — expo-updates OTA)
 - [x] 2026-10-22 — App auto-updates (Tier 2 — version check + APK prompt)
 - [x] 2026-10-22 — Feature explanation tooltips
@@ -30,6 +31,13 @@
 - [x] 2026-06-10 — MVP, Phase 1, and Phase 1.5 (migrated 2026-10-21)
 
 ## Archived entries
+
+### 2026-10-25 — Phase 2 spike: Family Link API grant
+
+- `just fl-login` / `just fl-grant <seconds>` → `scripts/familylink-grant.mjs`; pure helpers + unit tests in `packages/shared/src/familylink.ts`. A 300 s grant was confirmed on child2's tablet.
+- Grant = one `POST` to `kidsmanagement-pa.clients6.google.com/.../people/{childId}/timeLimitOverrides:batchCreate`, sent in-page from familylink.google.com. Headers go in `$httpHeaders`; Authorization is `SAPISIDHASH` only. The web app's three `x-goog-ext-*-bin` headers aren't required.
+- Sign-in: Google rejects every automated browser ("not secure"), including Playwright Firefox, Playwright-launched Chrome, and real Chrome with a CDP port open. What works: plain Chrome on a dedicated profile with nothing attached, signed in by hand, then reopened headless to export `storageState` (chmod 600, `~/.config/paydirt/`).
+- Account: shared co-parent account in Family Link's second (and last) parent slot; both parents use it for manual grants.
 
 ### 2026-10-21 — App auto-updates (Tier 1 — expo-updates OTA)
 

@@ -67,38 +67,28 @@ describe("buildAuthorization", () => {
     );
   });
 
-  it("uses SAPISID alone when no 1P/3P cookies exist", () => {
-    expect(buildAuthorization([{ name: "SAPISID", value: "TESTSAPISID/abc" }], FL_ORIGIN, TS)).toBe(
-      "SAPISIDHASH 1700000000_e45f587fa81dac7a54b3b7222cceed4651367879",
-    );
-  });
-
-  it("appends 1P/3P hashes in order when present", () => {
+  it("sends SAPISIDHASH only, ignoring 1P/3P cookies (matches the web app)", () => {
     const auth = buildAuthorization(
       [
-        { name: "__Secure-3PAPISID", value: "TEST1P/xyz" },
-        { name: "SAPISID", value: "TESTSAPISID/abc" },
         { name: "__Secure-1PAPISID", value: "TEST1P/xyz" },
+        { name: "SAPISID", value: "TESTSAPISID/abc" },
+        { name: "__Secure-3PAPISID", value: "TEST1P/xyz" },
       ],
       FL_ORIGIN,
       TS,
     );
-    expect(auth).toBe(
-      "SAPISIDHASH 1700000000_e45f587fa81dac7a54b3b7222cceed4651367879 " +
-        "SAPISID1PHASH 1700000000_27730f440b80c8b67c63f8229766dced1e50a6ce " +
-        "SAPISID3PHASH 1700000000_27730f440b80c8b67c63f8229766dced1e50a6ce",
-    );
+    expect(auth).toBe("SAPISIDHASH 1700000000_e45f587fa81dac7a54b3b7222cceed4651367879");
   });
 });
 
 describe("buildGrantUrl", () => {
-  it("packs headers into $httpHeaders, CRLF-terminated and URL-encoded", () => {
+  it("packs headers into $httpHeaders in the captured order, CRLF-terminated", () => {
     const url = new URL(buildGrantUrl("111", API_KEY, "SAPISIDHASH 1_ab"));
     expect(url.origin).toBe("https://kidsmanagement-pa.clients6.google.com");
     expect(url.pathname).toBe("/kidsmanagement/v1/people/111/timeLimitOverrides:batchCreate");
     expect(url.searchParams.get("$httpHeaders")).toBe(
-      `X-Goog-Api-Key: ${API_KEY}\r\nAuthorization: SAPISIDHASH 1_ab\r\n` +
-        "X-Goog-AuthUser: 0\r\nContent-Type: application/json+protobuf\r\n",
+      "Content-Type: application/json+protobuf\r\nX-Goog-AuthUser: 0\r\n" +
+        `Authorization: SAPISIDHASH 1_ab\r\nX-Goog-Api-Key: ${API_KEY}\r\n`,
     );
   });
 });

@@ -52,39 +52,36 @@ export function sapisidHash(prefix: string, cookie: string, origin: string, ts: 
   return `${prefix} ${ts}_${digest}`;
 }
 
-// Cookie name → Authorization scheme. Only SAPISID is required; the 1P/3P
-// variants are added when present, matching what the web app sends.
-const HASH_COOKIES: [string, string][] = [
-  ["SAPISID", "SAPISIDHASH"],
-  ["__Secure-1PAPISID", "SAPISID1PHASH"],
-  ["__Secure-3PAPISID", "SAPISID3PHASH"],
-];
-
 /** Thrown when the session lacks what a grant needs — caller should re-login. */
 export class FamilyLinkAuthError extends Error {}
 
-/** Build the Authorization header value from the session's cookies. */
+/**
+ * Build the Authorization header value from the session's cookies. The web
+ * app sends SAPISIDHASH only (no 1P/3P variants; captured 2026-10-25).
+ */
 export function buildAuthorization(
   cookies: { name: string; value: string }[],
   origin: string,
   ts: number,
 ): string {
-  const byName = new Map(cookies.map((c) => [c.name, c.value]));
-  if (!byName.get("SAPISID")) {
+  const sapisid = cookies.find((c) => c.name === "SAPISID")?.value;
+  if (!sapisid) {
     throw new FamilyLinkAuthError("No SAPISID cookie — session missing or expired");
   }
-  return HASH_COOKIES.filter(([name]) => byName.get(name))
-    .map(([name, scheme]) => sapisidHash(scheme, byName.get(name)!, origin, ts))
-    .join(" ");
+  return sapisidHash("SAPISIDHASH", sapisid, origin, ts);
 }
 
-/** batchCreate URL with the real headers packed into `$httpHeaders`. */
+/**
+ * batchCreate URL with the real headers packed into `$httpHeaders`, in the
+ * web app's order. It also sends three opaque `x-goog-ext-*-bin` headers,
+ * omitted here; add them only if Google starts rejecting grants without them.
+ */
 export function buildGrantUrl(childId: string, apiKey: string, authorization: string): string {
   const headers = [
-    `X-Goog-Api-Key: ${apiKey}`,
-    `Authorization: ${authorization}`,
-    "X-Goog-AuthUser: 0",
     "Content-Type: application/json+protobuf",
+    "X-Goog-AuthUser: 0",
+    `Authorization: ${authorization}`,
+    `X-Goog-Api-Key: ${apiKey}`,
   ]
     .map((h) => `${h}\r\n`)
     .join("");

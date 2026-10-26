@@ -3,17 +3,22 @@
 // Google session (browser-as-auth-container; no UI clicking).
 //
 // Run with: node --experimental-strip-types scripts/familylink-grant.mjs <command>
-//   login            headed browser; sign in to the co-parent Google account by hand,
-//                    then the session is saved to FL_STATE (chmod 600)
+//   login            opens your real Chrome on a dedicated profile (NOT your everyday
+//                    one) with no automation attached; sign in to the co-parent account
+//                    by hand and quit it. The profile is then reopened headless and its
+//                    session saved to FL_STATE (chmod 600). Google rejects sign-in in
+//                    any automated browser, even real Chrome with a CDP port open.
 //   grant <seconds>  headless; loads the session, POSTs batchCreate from inside a
 //                    familylink.google.com page, saves the (rotated) session back
 //
 // Env: FL_CHILD_ID, FL_DEVICE_ID, FL_API_KEY (grant only — never commit these),
 //      FL_STATE (default ~/.config/paydirt/familylink-state.json),
-//      FL_BROWSER=chrome to use installed Chrome instead of Playwright Firefox.
+//      FL_CHROME (Chrome binary; default macOS app path),
+//      FL_BROWSER=firefox to grant with Playwright Firefox instead of installed Chrome.
 // Exit codes: 0 granted, 2 session expired/missing (run login again), 1 other error.
 // Never prints cookies or auth hashes.
 
+import { spawn } from "node:child_process";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -32,13 +37,17 @@ import {
 const statePath = path.resolve(
   process.env.FL_STATE ?? path.join(os.homedir(), ".config/paydirt/familylink-state.json"),
 );
-const LOGIN_TIMEOUT_MS = 10 * 60 * 1000;
+const profileDir = path.join(path.dirname(statePath), "chrome-profile");
+const chromePath =
+  process.env.FL_CHROME ?? "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome";
 
-function launch(headless) {
-  return process.env.FL_BROWSER === "chrome"
-    ? chromium.launch({ headless, channel: "chrome" })
-    : firefox.launch({ headless });
+function launchHeadless() {
+  return process.env.FL_BROWSER === "firefox"
+    ? firefox.launch({ headless: true })
+    : chromium.launch({ headless: true, channel: "chrome" });
 }
+
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 async function saveState(context) {
   fs.mkdirSync(path.dirname(statePath), { recursive: true, mode: 0o700 });
@@ -48,29 +57,63 @@ async function saveState(context) {
 
 const hasSapisid = (cookies) => cookies.some((c) => c.name === "SAPISID" && c.value);
 
-async function login() {
-  const browser = await launch(false);
+// Phase 1: plain Chrome, no debugging port (Google flags even an attached CDP
+// port as "not secure"). Resolves when the user quits that Chrome instance.
+function signInByHand() {
+  return new Promise((resolve, reject) => {
+    const chrome = spawn(
+      chromePath,
+      [`--user-data-dir=${profileDir}`, "--no-first-run", FL_ORIGIN],
+      { stdio: "ignore" },
+    );
+    chrome.on("error", reject);
+    chrome.on("exit", resolve);
+  });
+}
+
+// Phase 2: reopen the same profile headless with a loopback debugging port and
+// export its session. Real Chrome (not Playwright's launch) so it can decrypt
+// the profile's cookies with the macOS Keychain.
+async function exportProfileSession() {
+  // Port 0 = Chrome picks a free loopback port and writes it to DevToolsActivePort.
+  const portFile = path.join(profileDir, "DevToolsActivePort");
+  fs.rmSync(portFile, { force: true });
+  const chrome = spawn(
+    chromePath,
+    [`--user-data-dir=${profileDir}`, "--headless=new", "--remote-debugging-port=0", "about:blank"],
+    { stdio: "ignore" },
+  );
   try {
-    const context = await browser.newContext();
-    const page = await context.newPage();
-    await page.goto(FL_ORIGIN);
-    console.log("Sign in to the co-parent Google account in the browser window (10 min timeout)...");
-    const deadline = Date.now() + LOGIN_TIMEOUT_MS;
-    while (Date.now() < deadline) {
-      const onFamilyLink = new URL(page.url()).origin === FL_ORIGIN;
-      if (onFamilyLink && hasSapisid(await context.cookies(FL_ORIGIN))) {
-        await page.waitForLoadState("networkidle").catch(() => {});
-        await saveState(context);
-        console.log(`Session saved to ${statePath}`);
-        return 0;
-      }
-      await page.waitForTimeout(2000);
+    let port;
+    for (let i = 0; i < 50 && !port; i++) {
+      await sleep(200);
+      port = fs.existsSync(portFile) && fs.readFileSync(portFile, "utf8").split("\n")[0];
     }
-    console.error("Timed out waiting for sign-in.");
-    return 1;
+    if (!port) throw new Error("Chrome did not open a debugging port (is that profile still open?)");
+    const browser = await chromium.connectOverCDP(`http://127.0.0.1:${port}`);
+    const context = browser.contexts()[0];
+    const page = await context.newPage();
+    await page.goto(FL_ORIGIN, { waitUntil: "domcontentloaded" });
+    if (new URL(page.url()).origin !== FL_ORIGIN || !hasSapisid(await context.cookies(FL_ORIGIN))) {
+      console.error("Not signed in to Family Link in that profile — run login again.");
+      return 1;
+    }
+    await saveState(context);
+    console.log(`Session saved to ${statePath}`);
+    return 0;
   } finally {
-    await browser.close();
+    chrome.kill();
   }
+}
+
+async function login() {
+  fs.mkdirSync(profileDir, { recursive: true, mode: 0o700 });
+  console.log(
+    "A separate Chrome window is opening. Sign in to the co-parent account until Family Link\n" +
+      "loads, then QUIT that Chrome (Cmd+Q in that window). Your everyday Chrome is untouched.",
+  );
+  await signInByHand();
+  return exportProfileSession();
 }
 
 async function grant(rawSeconds) {
@@ -82,7 +125,7 @@ async function grant(rawSeconds) {
     throw new FamilyLinkAuthError(`No saved session at ${statePath}`);
   }
 
-  const browser = await launch(true);
+  const browser = await launchHeadless();
   try {
     const context = await browser.newContext({ storageState: statePath });
     const page = await context.newPage();
