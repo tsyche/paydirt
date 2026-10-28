@@ -8,13 +8,15 @@
 //                    by hand and quit it. The profile is then reopened headless and its
 //                    session saved to FL_STATE (chmod 600). Google rejects sign-in in
 //                    any automated browser, even real Chrome with a CDP port open.
-//   grant <seconds>  headless; loads the session, POSTs batchCreate from inside a
-//                    familylink.google.com page, saves the (rotated) session back
+//   grant <seconds> <childId> <deviceId>
+//                    headless; reads the remaining bonus, POSTs remaining + new
+//                    seconds from a Family Link page, saves the rotated session
 //
-// Env: FL_CHILD_ID, FL_DEVICE_ID, FL_API_KEY (grant only — never commit these),
+// Env: FL_API_KEY (grant only — never commit it),
 //      FL_STATE (default ~/.config/paydirt/familylink-state.json),
 //      FL_CHROME (Chrome binary; default macOS app path),
-//      FL_BROWSER=firefox to grant with Playwright Firefox instead of installed Chrome.
+//      FL_BROWSER=firefox|chromium to grant with Playwright's own browser builds
+//      instead of installed Chrome (the deploy host uses these).
 // Exit codes: 0 granted, 2 session expired/missing (run login again), 1 other error.
 // Never prints cookies or auth hashes.
 
@@ -26,11 +28,9 @@ import { chromium, firefox } from "playwright";
 import {
   FL_ORIGIN,
   FamilyLinkAuthError,
+  addFamilyLinkBonus,
   assertFamilyLinkId,
   buildAuthorization,
-  buildGrantBody,
-  buildGrantUrl,
-  classifyGrantStatus,
   parseGrantSeconds,
 } from "../packages/shared/src/familylink.ts";
 
@@ -42,9 +42,11 @@ const chromePath =
   process.env.FL_CHROME ?? "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome";
 
 function launchHeadless() {
-  return process.env.FL_BROWSER === "firefox"
-    ? firefox.launch({ headless: true })
-    : chromium.launch({ headless: true, channel: "chrome" });
+  const browser = process.env.FL_BROWSER ?? "chrome";
+  if (browser === "firefox") return firefox.launch({ headless: true });
+  if (browser === "chromium") return chromium.launch({ headless: true });
+  if (browser === "chrome") return chromium.launch({ headless: true, channel: "chrome" });
+  throw new Error(`Unknown FL_BROWSER: ${browser} (firefox, chromium, or chrome)`);
 }
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -116,10 +118,10 @@ async function login() {
   return exportProfileSession();
 }
 
-async function grant(rawSeconds) {
+async function grant(rawSeconds, rawChildId, rawDeviceId) {
   const seconds = parseGrantSeconds(rawSeconds);
-  const childId = assertFamilyLinkId("childId", process.env.FL_CHILD_ID);
-  const deviceId = assertFamilyLinkId("deviceId", process.env.FL_DEVICE_ID);
+  const childId = assertFamilyLinkId("childId", rawChildId);
+  const deviceId = assertFamilyLinkId("deviceId", rawDeviceId);
   const apiKey = assertFamilyLinkId("apiKey", process.env.FL_API_KEY);
   if (!fs.existsSync(statePath)) {
     throw new FamilyLinkAuthError(`No saved session at ${statePath}`);
@@ -139,41 +141,42 @@ async function grant(rawSeconds) {
       FL_ORIGIN,
       Math.floor(Date.now() / 1000),
     );
-    const url = buildGrantUrl(childId, apiKey, authorization);
-    const body = buildGrantBody(childId, deviceId, seconds);
-    const res = await page.evaluate(
-      async ({ url, body }) => {
-        const r = await fetch(url, {
-          method: "POST",
-          credentials: "include",
-          headers: { "Content-Type": "text/plain" },
-          body,
-        });
-        return { status: r.status, text: (await r.text()).slice(0, 300) };
-      },
-      { url, body },
-    );
-    await saveState(context);
-
-    const outcome = classifyGrantStatus(res.status);
-    if (outcome === "ok") {
-      console.log(`Granted ${seconds}s (HTTP ${res.status}).`);
-      return 0;
+    let res;
+    try {
+      res = await addFamilyLinkBonus(
+        (url, init) =>
+          page.evaluate(
+            async ({ url, init }) => {
+              const r = await fetch(url, {
+                ...init,
+                credentials: "include",
+                ...(init.method === "POST" ? { headers: { "Content-Type": "text/plain" } } : {}),
+              });
+              return { status: r.status, text: init.method === "GET" ? await r.text() : "" };
+            },
+            { url, init },
+          ),
+        { childId, deviceId, apiKey, authorization, seconds },
+      );
+    } finally {
+      await saveState(context);
     }
-    if (outcome === "auth") throw new FamilyLinkAuthError(`HTTP ${res.status} — session rejected`);
-    console.error(`Grant failed: HTTP ${res.status} ${res.text}`);
-    return 1;
+
+    console.log(
+      `Added ${seconds}s; preserved ${res.remainingSeconds}s; bonus set to ${res.totalSeconds}s (HTTP ${res.status}).`,
+    );
+    return 0;
   } finally {
     await browser.close();
   }
 }
 
-const [cmd, arg] = process.argv.slice(2);
+const [cmd, ...args] = process.argv.slice(2);
 try {
   if (cmd === "login") process.exitCode = await login();
-  else if (cmd === "grant") process.exitCode = await grant(arg);
+  else if (cmd === "grant") process.exitCode = await grant(...args);
   else {
-    console.error("Usage: familylink-grant.mjs login | grant <seconds>");
+    console.error("Usage: familylink-grant.mjs login | grant <seconds> <childId> <deviceId>");
     process.exitCode = 1;
   }
 } catch (err) {

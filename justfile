@@ -29,6 +29,8 @@ default:
     printf '  just install-service       first install (imports local pb_data once)\n'
     printf '  just update-service        deploy hooks/migrations/dashboard + restart\n'
     printf '  just service-status        also: service-logs [N], service-restart\n'
+    printf '  just fl-host-setup         Family Link grants: Node, browsers, session (re-run after fl-login)\n'
+    printf '  just fl-host-grant 60      test grant on bb\n'
     printf '\n\033[1mIndividual services\033[0m (if you do not want a combined recipe above)\n'
     printf '  just dev-pb   just dev-web   just dev-mobile\n'
     printf '\n\033[1mEverything else\033[0m (tests, lint, db reset, cleanup, ...)\n'
@@ -642,7 +644,17 @@ fl-grant seconds:
     set -euo pipefail
     ENV_FILE="$HOME/.config/paydirt/familylink.env"
     if [ -f "$ENV_FILE" ]; then set -a; . "$ENV_FILE"; set +a; fi
-    node --experimental-strip-types scripts/familylink-grant.mjs grant "{{seconds}}"
+    node --experimental-strip-types scripts/familylink-grant.mjs grant "{{seconds}}" "${FL_CHILD_ID:-}" "${FL_DEVICE_ID:-}"
+
+# One-time/idempotent: Node, Playwright browsers, grant script, session, API key on the deploy host.
+[group('familylink')]
+fl-host-setup browsers="firefox":
+    ./scripts/fl-host.sh setup "{{browsers}}"
+
+# Test grant on the deploy host (its own systemd-run scope), using the IDs in familylink.env.
+[group('familylink')]
+fl-host-grant seconds browser="firefox":
+    ./scripts/fl-host.sh grant "{{seconds}}" "{{browser}}"
 
 # Back up PocketBase data (SQLite + storage) to a timestamped directory
 [group('maintenance')]

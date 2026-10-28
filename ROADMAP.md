@@ -1,5 +1,9 @@
 # Roadmap
 
+## TL;DR
+
+MVP, Phase 1, and Phase 1.5 are shipped. Next priorities are additive Family Link grants, off-LAN access, and validating APK updates on real devices.
+
 Scope checklist: [FEATURES.md](./FEATURES.md). **This file is the authoritative
 status tracker.**
 
@@ -33,10 +37,11 @@ Last audit 2026-10-21: retired the stale pb-download Known Issue to a fixed-with
 
 1. **Phase 2: Family Link API grant in production** — the spike works (shipped 2026-10-25, see the ledger): `just fl-grant <seconds>` grants bonus time from the Mac via [`scripts/familylink-grant.mjs`](scripts/familylink-grant.mjs). Next, call it from the `spend_approved` hook on bb, record success or failure on the spend request, and fall back to the manual flow on any error (exit 2 = session expired → ntfy the parent to re-run `just fl-login` and copy the session over). ~4-6 hrs.
    - ✅ Pricing + per-kid IDs (2026-10-25, migration `1717000019`): `households.screen_rate` (parentBucks/min, 0 = 1:1), `spend_requests.screen_minutes` (presets 15/30/45/60 only; more than an hour = more requests), and `users.fl_child_id`/`fl_device_id` (parent-set on web + mobile). A create hook prices screen time server-side and ignores the client's `amount`. Kid spend dialog + simplified mode have preset buttons. No cap on spending, by design; per-kid rates are still undecided.
-   - Grant hook still to do: use the kid's `fl_*` IDs (the script still reads `FL_CHILD_ID`/`FL_DEVICE_ID`), and write `grant_status`/`grant_error` onto the request so parents see "granted" vs. "do it by hand".
-   - bb: install Chrome or Firefox for headless grants. Run the grant in its own unit, because the PocketBase unit's `MemoryMax=512M`/`CPUQuota=50%` would include the browser. Session goes in `/var/lib/paydirt/familylink/`, IDs/key in `/etc/paydirt/paydirt.env`. Sign-in stays on the Mac (bb has no display, and Google rejects automated sign-in); copy the state file over.
-   - Unproven: whether Google accepts the session from a different machine, and how long it lives with only occasional grants (consider a daily keep-alive). Fallback if the session won't move: bb asks the Mac to grant.
-   - 🧑 needs-human: copy the session file to bb, then a live grant on a tablet
+   - ✅ Host tooling (2026-10-25): `just fl-host-setup` installs Node 24 (NodeSource), Playwright Firefox/Chromium, the script, the session and the API key on bb; `just fl-host-grant` runs a test grant via `systemd-run` as `paydirt`, outside the PocketBase unit's limits. The script now takes the child/device IDs as arguments. See [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md#family-link-grants).
+   - ✅ Session moves between machines (2026-10-28): a session signed in on the Mac granted 60 s from bb in headless Playwright Firefox (HTTP 200), so bb doesn't need the Mac.
+   - ✅ Additive grant fix implemented locally (2026-10-28): type 10 replaces the bonus, so each grant now reads `GET /kidsmanagement/v1/people/{childId}/appliedTimeLimits` and sends remaining + purchased seconds. It uses the active override for the target device and Google's server time, rounds remaining seconds up, and stops without writing if the read is invalid. Regression tests cover 10 min remaining + 15 min purchased = 25 min, fractional time, failed reads, device matching, and sequential purchases. **Before enabling the hook:** deploy the fix with `just fl-host-setup` and verify two additive grants on a real device; the host still has the previous script until then.
+   - Grant hook still to do: `spend_approved` writes a request into `/var/lib/paydirt/familylink/queue/`; a `paydirt-fl.path` unit starts the grant service; a PocketBase cron reads the result into `grant_status`/`grant_error` (new migration) so parents see "granted" vs. "do it by hand". Uses the kid's `fl_*` IDs. Ship the script through `update-service` instead of `fl-host-setup`.
+   - Still open: how long the session lives with only occasional grants (consider a daily keep-alive).
 2. **Off-LAN access (Tailscale)** — `EXPO_PUBLIC_POCKETBASE_URL` is a LAN IP; devices can't reach PocketBase on 5G or outside the home. Tailscale is the lowest-friction fix: private mesh VPN, no public exposure, point the URL at the Tailscale hostname. Required before the family can use the app outside the house, and a prerequisite for app auto-updates to reach devices off-LAN. ~2-4 hrs.
    - 🧑 needs-human: Tailscale account + per-device enrollment (the env-var change itself is trivial)
 3. **Tier 2 app auto-updates (on-device validation)** — agent-doable pieces shipped 2026-10-22 (endpoint, poll, download, install intent, `just publish-apk`); remaining work is confirming the install prompt lands and the APK actually installs on GrapheneOS. 🧑 needs-human.
@@ -45,9 +50,11 @@ Last audit 2026-10-21: retired the stale pb-download Known Issue to a fixed-with
 
 1. **Host PayDirt on bb — remaining pieces** — the service itself is in place (`just install-service` / `just update-service`, see [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md)). Still to do: scheduled backups of `/var/lib/paydirt` to a second location, and pointing `just publish-apk` / `just update-publish` at bb instead of local `pb_data/updates`. ~2-3 hrs.
    - 🧑 needs-human: bb SSH access + sudo for the first install
-1. **Wire Android unit tests into `just test`/CI** — see [Quality & Infrastructure](#quality--infrastructure) #6; ~1-2 hrs.
-2. **PocketBase backup recipe** — see [Quality & Infrastructure](#quality--infrastructure) #7; ~1-2 hrs.
-3. **Feature explanation tooltips** — see [Backlog](#backlog-unscheduled). Settings don't explain themselves; ~2-3 hrs.
+2. **Go live on bb with a real household** — bb still runs the seeded test data imported from the Mac. Add a host reset recipe (back up, then wipe `/var/lib/paydirt` to an empty DB; `just reset-db` is Mac-only), plus a `just go-live` onboarding path that creates the real household, parents and kids without `seed.mjs` or the admin UI. Re-enter `fl_*` IDs and re-point devices afterwards. Depends on the backup work in #1. ~3-4 hrs.
+   - 🧑 needs-human: real names/accounts; re-login on every device
+3. **Wire Android unit tests into `just test`/CI** — see [Quality & Infrastructure](#quality--infrastructure) #6; ~1-2 hrs.
+4. **PocketBase backup recipe** — see [Quality & Infrastructure](#quality--infrastructure) #7; ~1-2 hrs.
+5. **Feature explanation tooltips** — see [Backlog](#backlog-unscheduled). Settings don't explain themselves; ~2-3 hrs.
 
 ## Phase 2 — Family Link Automation
 

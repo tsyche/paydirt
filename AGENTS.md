@@ -82,6 +82,6 @@ PocketBase binary is not committed — run `just pb-download` (falls back to Hom
 - **Race mechanic**: a chore assignable to multiple kids; first one approved wins the reward.
 - **Simplified mode**: per-child UI toggle — larger tap targets, icon-heavy, minimal reading. Default on for the youngest (age 6); standard UI for the 11-year-old.
 - **No Google**: Stack deliberately avoids Play Services. ntfy over FCM, PocketBase over Firebase.
-- **Family Link automation** is a future phase (Accessibility Service, then custom MDM) — see plan.
+- **Family Link automation** (Phase 2, in progress): bonus time is granted through the Family Link web API from a copied Google session (`just fl-*` recipes; host setup in [docs/DEPLOYMENT.md](./docs/DEPLOYMENT.md#family-link-grants)). The Accessibility Service path is shelved; see `ROADMAP.md`.
 
 `ROADMAP.md` is the authoritative source for phase and status; `FEATURES.md` tracks scope. The original design scratchpad (rationale + alternatives, archived 2026-08-10) is at `~/.claude/plans/archive/paydirt-plan.md` — codename was "choregalore".
