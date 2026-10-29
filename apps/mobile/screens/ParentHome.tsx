@@ -16,7 +16,7 @@ import {
 } from "react-native-paper";
 import { SafeAreaView } from "react-native-safe-area-context";
 import type { Assignment, Chore, ChoreProposal, ChoreTemplate, Household, SpendRequest, User } from "@paydirt/shared";
-import { currencyDisplayName } from "@paydirt/shared";
+import { currencyDisplayName, screenGrantLabel } from "@paydirt/shared";
 import { client } from "../lib/client";
 import { isNetworkError } from "../lib/reachability";
 import { useRealtimeResume } from "../lib/useRealtimeResume";
@@ -66,6 +66,7 @@ export function ParentHome({
   const [approvals, setApprovals] = useState<ExpandedAssignment[]>([]);
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
   const [spend, setSpend] = useState<ExpandedSpend[]>([]);
+  const [screenGrants, setScreenGrants] = useState<ExpandedSpend[]>([]);
   const [proposals, setProposals] = useState<ExpandedProposal[]>([]);
   const [chores, setChores] = useState<Chore[]>([]);
   const [refreshing, setRefreshing] = useState(false);
@@ -127,18 +128,20 @@ export function ParentHome({
   const reload = useCallback(async () => {
     setRefreshing(true);
     try {
-      const [hh, k, a, s, c, p] = await Promise.all([
+      const [hh, k, a, s, c, p, grants] = await Promise.all([
         client.getHousehold(user.household),
         client.listChildren(user.household),
         client.listPendingApprovals(user.household),
         client.listPendingSpendRequests(user.household),
         client.listChores(user.household),
         client.listPendingProposals(user.household),
+        client.listScreenTimeGrants(user.household),
       ]);
       setHousehold(hh);
       setKids(k);
       setApprovals(a as ExpandedAssignment[]);
       setSpend(s as ExpandedSpend[]);
+      setScreenGrants(grants as ExpandedSpend[]);
       setChores(c);
       setProposals(p as ExpandedProposal[]);
     } catch (e) {
@@ -791,6 +794,29 @@ export function ParentHome({
             })}
           </>
         )}
+
+        {screenGrants.length > 0 && <>
+          <Divider style={styles.divider} />
+          <Text variant="labelLarge" style={styles.sectionLabel}>SCREEN-TIME GRANTS</Text>
+          {screenGrants.map((s) => (
+            <Card key={s.id} style={styles.approvalCard}>
+              <Card.Content>
+                <Text variant="titleMedium">{s.expand?.child?.display_name ?? "Child"} — {s.description}</Text>
+                <Text>{screenGrantLabel(s.grant_status)}</Text>
+                {!!s.grant_error && <Text>{s.grant_error}</Text>}
+                {s.grant_status === "manual" && <Button onPress={() =>
+                  Alert.alert("Confirm manual grant",
+                    "Check Family Link first. Has this purchased time been granted manually?",
+                    [
+                      { text: "Cancel", style: "cancel" },
+                      { text: "Confirm", onPress: () => void act(() => client.confirmManualGrant(s.id), "Manual grant recorded.") },
+                    ],
+                  )
+                }>Mark granted manually</Button>}
+              </Card.Content>
+            </Card>
+          ))}
+        </>}
 
         {/* Spend requests */}
         {spend.length > 0 && (

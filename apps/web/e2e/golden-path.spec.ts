@@ -20,6 +20,47 @@ async function signIn(page: Page) {
 const goTab = (page: Page, name: RegExp) =>
   page.getByRole("tab", { name }).click();
 
+test("approve screen time, see the manual fallback, and confirm the grant", async ({ page }) => {
+  const parent = new PaydirtClient(PB_URL);
+  const kid = new PaydirtClient(PB_URL);
+  await parent.login("parent1@test.local", PW);
+  await kid.login("child2@test.local", PW);
+  const childId = kid.currentUser!.id;
+  await parent.adjustBalance(childId, 100, "Screen-time E2E funds");
+  const request = await kid.pb.collection("spend_requests").create({
+    child: childId, amount: 15, description: `Screen-time E2E ${Date.now()}`, screen_minutes: 15,
+  });
+  try {
+    await signIn(page);
+    const row = page.locator(".card.row").filter({ hasText: request.description });
+    await row.getByRole("button", { name: "Approve", exact: true }).click();
+    await expect(row).toContainText("Needs manual review");
+    await expect(row).toContainText("Automatic grants are disabled");
+    // The server result remains visible after a reload.
+    await page.reload();
+    await expect(row).toContainText("Needs manual review");
+    page.once("dialog", (dialog) => void dialog.accept());
+    await row.getByRole("button", { name: "Mark granted manually" }).click();
+    await expect(row).toContainText("Granted manually");
+    expect((await parent.pb.collection("spend_requests").getOne(request.id)).grant_status).toBe("manual_done");
+  } finally {
+    // Keep the append-only ledger and cached balance consistent after cleanup.
+    const saved = await parent.pb.collection("spend_requests").getOne(request.id);
+    await parent.adjustBalance(childId, -100 + (saved.status === "approved" ? saved.amount : 0), "Screen-time E2E cleanup");
+    const admin = new PaydirtClient(PB_URL).pb;
+    await admin.collection("_superusers").authWithPassword(
+      process.env.PB_ADMIN_EMAIL ?? "admin@paydirt.local",
+      process.env.PB_ADMIN_PASSWORD ?? PW,
+    );
+    for (const tx of await admin.collection("currency_transactions").getFullList({
+      filter: admin.filter("related_spend_request = {:id}", { id: request.id }),
+    })) {
+      await admin.collection("currency_transactions").update(tx.id, { related_spend_request: null });
+    }
+    await admin.collection("spend_requests").delete(request.id);
+  }
+});
+
 test("create → assign → kid completes → approve → undo", async ({ page }) => {
   const choreName = `E2E chore ${Date.now()}`;
   const api = new PaydirtClient(PB_URL);

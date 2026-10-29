@@ -48,6 +48,10 @@ trap cleanup EXIT
 rsync -rt \
     "$repo_dir/pocketbase/pb_hooks" "$repo_dir/pocketbase/pb_migrations" \
     "$repo_dir/pocketbase/paydirt.service" "$repo_dir/scripts/host-apply.sh" \
+    "$repo_dir/pocketbase/paydirt-fl.service" "$repo_dir/pocketbase/paydirt-fl.path" \
+    "$repo_dir/scripts/fl-host-code.sh" \
+    "$repo_dir/scripts/familylink-grant.mjs" "$repo_dir/scripts/familylink-worker.mts" \
+    "$repo_dir/packages/shared/src/familylink.ts" "$repo_dir/packages/shared/src/familylinkQueue.ts" \
     "$remote:$stage/"
 rsync -rt "$repo_dir/apps/web/out/" "$remote:$stage/pb_public/"
 if [[ $import_data -eq 1 ]]; then

@@ -592,6 +592,7 @@ verify-ledger:
 typecheck:
     @printf '\033[0;34mType-checking all workspaces...\033[0m\n'
     @pnpm -r typecheck
+    @pnpm exec tsc --noEmit --allowImportingTsExtensions --module nodenext --target es2022 --types node --skipLibCheck --strict scripts/familylink-worker.mts
 
 # Lint all workspaces
 [group('quality')]

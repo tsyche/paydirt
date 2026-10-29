@@ -225,6 +225,9 @@ export interface SpendRequest extends BaseRecord {
   description: string;
   /** Set = a screen-time request (a SCREEN_PRESETS value); the hook prices it. */
   screen_minutes?: number;
+  /** Server-owned automation result; manual_done is a parent's confirmation. */
+  grant_status?: "queued" | "granted" | "manual" | "manual_done" | "";
+  grant_error?: string;
   status: SpendRequestStatus;
   resolved_at?: string;
   resolved_by?: string; // -> users.id (parent)

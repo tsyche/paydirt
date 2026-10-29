@@ -391,6 +391,32 @@ export class PaydirtClient {
     });
   }
 
+  /** Outstanding manual/queued grants plus the latest completed grants. */
+  async listScreenTimeGrants(householdId: string): Promise<SpendRequest[]> {
+    const options = {
+      sort: "-resolved_at",
+      expand: "child",
+    };
+    const scope = "status = 'approved' && screen_minutes > 0 && child.household = {:hh}";
+    const [outstanding, recent] = await Promise.all([
+      this.pb.collection(Collections.SpendRequests).getFullList<SpendRequest>({
+        ...options,
+        filter: this.pb.filter(`${scope} && (grant_status = 'queued' || grant_status = 'manual')`, { hh: householdId }),
+      }),
+      this.pb.collection(Collections.SpendRequests).getList<SpendRequest>(1, 10, {
+        ...options,
+        filter: this.pb.filter(`${scope} && (grant_status = 'granted' || grant_status = 'manual_done')`, { hh: householdId }),
+      }),
+    ]);
+    return [...outstanding, ...recent.items];
+  }
+
+  confirmManualGrant(id: string): Promise<SpendRequest> {
+    return this.pb.collection(Collections.SpendRequests).update<SpendRequest>(id, {
+      grant_status: "manual_done",
+    });
+  }
+
   /** Approval — the hook validates balance and creates the spend transaction. */
   approveSpendRequest(id: string, resolvedBy: string): Promise<SpendRequest> {
     return this.pb.collection(Collections.SpendRequests).update<SpendRequest>(id, {

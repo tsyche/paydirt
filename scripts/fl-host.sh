@@ -34,8 +34,10 @@ setup() {
     cleanup() { ssh "$remote" "rm -rf -- '$stage'" >/dev/null 2>&1 || true; }
     trap cleanup EXIT
 
-    rsync -t "$repo_dir/scripts/familylink-grant.mjs" "$repo_dir/packages/shared/src/familylink.ts" \
-        "$repo_dir/scripts/fl-host-apply.sh" "$remote:$stage/"
+    rsync -t "$repo_dir/scripts/familylink-grant.mjs" "$repo_dir/scripts/familylink-worker.mts" \
+        "$repo_dir/packages/shared/src/familylink.ts" "$repo_dir/packages/shared/src/familylinkQueue.ts" \
+        "$repo_dir/pocketbase/paydirt-fl.service" "$repo_dir/pocketbase/paydirt-fl.path" \
+        "$repo_dir/scripts/fl-host-code.sh" "$repo_dir/scripts/fl-host-apply.sh" "$remote:$stage/"
     ssh "$remote" "umask 077; cat > '$stage/familylink-state.json'" <"$state"
     grep '^FL_API_KEY=' "$env_file" | ssh "$remote" "umask 077; cat > '$stage/fl.env'"
 
@@ -61,6 +63,7 @@ grant() {
         -p ReadWritePaths=$fl \
         -E HOME=/tmp -E FL_STATE=$fl/familylink-state.json -E FL_BROWSER=$browser \
         -E PLAYWRIGHT_BROWSERS_PATH=$opt/browsers \
+        /usr/bin/flock -w 120 $fl/grant.lock \
         /usr/bin/node --experimental-strip-types $opt/scripts/familylink-grant.mjs grant $seconds $child $device"
     local rc=$?
     set -e

@@ -45,6 +45,7 @@ for dir in pb_hooks pb_migrations pb_public; do
     sudo rsync -rt --delete "$dir/" "/opt/paydirt/$dir/"
 done
 sudo chown -R root:root /opt/paydirt
+bash "$stage/fl-host-code.sh" "$stage"
 sudo install -o root -g root -m 644 paydirt.service /etc/systemd/system/paydirt.service
 sudo systemctl daemon-reload
 sudo systemctl enable --quiet paydirt

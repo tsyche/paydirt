@@ -1,0 +1,9 @@
+[Unit]
+Description=Watch PayDirt's Family Link grant queue
+
+[Path]
+DirectoryNotEmpty=/var/lib/paydirt/familylink/queue/pending
+Unit=paydirt-fl.service
+
+[Install]
+WantedBy=multi-user.target

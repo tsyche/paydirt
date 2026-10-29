@@ -1,0 +1,28 @@
+[Unit]
+Description=PayDirt Family Link grant worker
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=paydirt
+Group=paydirt
+WorkingDirectory=/opt/paydirt/familylink
+EnvironmentFile=-/etc/paydirt/paydirt.env
+Environment=HOME=/tmp
+Environment=FL_STATE=/var/lib/paydirt/familylink/familylink-state.json
+Environment=FL_BROWSER=firefox
+Environment=PLAYWRIGHT_BROWSERS_PATH=/opt/paydirt/familylink/browsers
+ExecStart=/usr/bin/flock -w 120 /var/lib/paydirt/familylink/grant.lock /usr/bin/node --experimental-strip-types /opt/paydirt/familylink/scripts/familylink-worker.mts
+TimeoutStartSec=infinity
+TimeoutStopSec=10
+KillMode=control-group
+Restart=on-failure
+RestartSec=15
+NoNewPrivileges=yes
+PrivateTmp=yes
+ProtectSystem=strict
+ProtectHome=yes
+ReadWritePaths=/var/lib/paydirt/familylink
+MemoryMax=1G
+CPUQuota=100%

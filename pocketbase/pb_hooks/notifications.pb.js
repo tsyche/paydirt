@@ -146,9 +146,9 @@ onRecordAfterUpdateSuccess((e) => {
   const child = e.app.findRecordById("users", e.record.getString("child"));
   if (status === "approved") {
     notifyUser(e.app, e.record.getString("child"), "Spend approved! 🎉", desc);
-    // Phase 2: screen-time requests (screen_minutes set) will also trigger a
-    // Family Link API grant here; see ROADMAP "Family Link API grant in production".
-    notifyParents(e.app, child.getString("household"), "Spend approved", desc, "spend_approved");
+    // The server queue owns screen-time grants. Do not also trigger the
+    // shelved Android accessibility automation for these approvals.
+    notifyParents(e.app, child.getString("household"), "Spend approved", desc);
   } else {
     notifyUser(e.app, e.record.getString("child"), "Spend denied", desc);
   }

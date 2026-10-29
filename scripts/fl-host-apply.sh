@@ -32,9 +32,10 @@ fi
 echo "Node $(node --version)"
 
 echo "Installing grant script + playwright $pw_version under $dest..."
-sudo install -d -m 755 "$dest" "$dest/scripts" "$dest/packages/shared/src"
-sudo install -m 644 "$stage/familylink-grant.mjs" "$dest/scripts/"
-sudo install -m 644 "$stage/familylink.ts" "$dest/packages/shared/src/"
+if systemctl cat paydirt-fl.service >/dev/null 2>&1; then
+    sudo systemctl stop paydirt-fl.path paydirt-fl.service
+fi
+sudo install -d -m 755 "$dest"
 printf '{"private":true,"type":"module","dependencies":{"playwright":"%s"}}\n' "$pw_version" |
     sudo tee "$dest/package.json" >/dev/null
 (cd "$dest" && sudo npm install --ignore-scripts --no-audit --no-fund --loglevel=error)
@@ -53,4 +54,5 @@ sudo chmod 600 "$env_file"
 sudo sed -i '/^FL_API_KEY=/d' "$env_file"
 sudo tee -a "$env_file" <"$stage/fl.env" >/dev/null
 
+bash "$stage/fl-host-code.sh" "$stage"
 echo "Done. Test with: just fl-host-grant 60"

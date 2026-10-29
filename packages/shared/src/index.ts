@@ -14,4 +14,5 @@ export * from "./screenTime";
 // consumed by scripts/publish-update.mjs (via --experimental-strip-types) and
 // its own unit tests. Exporting it would make mobile/web typechecks pull in
 // Node-only types they don't have. familylink.ts is excluded for the same
-// reason (consumed by scripts/familylink-grant.mjs).
+// reason (consumed by scripts/familylink-grant.mjs), as is familylinkQueue.ts
+// (consumed by scripts/familylink-worker.mts).

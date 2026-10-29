@@ -29,3 +29,13 @@ export function screenCost(minutes: ScreenPreset, rate: number): number {
 export function screenDescription(minutes: ScreenPreset): string {
   return `${minutes} min screen time`;
 }
+
+/** Parent-facing state; queued grants must finish before any manual action. */
+export function screenGrantLabel(status?: string): string {
+  switch (status) {
+    case "queued": return "Grant pending — wait before granting manually";
+    case "granted": return "Granted automatically";
+    case "manual_done": return "Granted manually";
+    default: return "Needs manual review";
+  }
+}

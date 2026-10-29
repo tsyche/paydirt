@@ -1,5 +1,7 @@
 # Data Model (MVP)
 
+**TL;DR:** PocketBase collections, hooks, and cron jobs define PayDirt's business rules. The append-only currency ledger owns balances; approved screen-time purchases optionally feed the separate Family Link worker.
+
 Authoritative spec for the PocketBase collections. The TypeScript mirror lives in
 `packages/shared/src/types.ts`; the migrations that create these live in
 `pocketbase/pb_migrations/`. Keep all three in sync.
@@ -99,6 +101,15 @@ Append-only ledger. `+` earn, `−` spend. Sum = balance. `just verify-ledger` r
 | resolved_at | date | set on resolve |
 | resolved_by | relation → users | parent |
 | screen_minutes | number | set = screen-time request (15/30/45/60); the create hook sets `amount` from `screen_rate` |
+| grant_status | select(`queued`,`granted`,`manual`,`manual_done`) | optional; server-owned automation state; parents may confirm `manual` → `manual_done` |
+| grant_error | text | optional, max 300; safe manual-recovery message |
+
+Submitted spending terms and settled approval decisions are immutable. Screen-time
+approval queues a grant only when automation is enabled and the child has target
+IDs; otherwise it becomes a manual task. Goods requests have no grant state.
+The separate worker writes receipts, and a minute cron imports results; see
+[deployment](DEPLOYMENT.md#queue-and-failure-handling). Neither Google credentials
+nor browser responses are stored in these records.
 
 ### `savings_goals`
 Kid-owned targets; a hook marks them achieved + notifies when the balance
@@ -150,16 +161,19 @@ Live in `pocketbase/pb_hooks/`. PocketBase runs each handler in an isolated VM, 
 7. **race close** (`races.pb.js`): first approval of a race chore closes every other open assignment for it and tells the losing kids who won.
 8. **balance reactions** (`goals.pb.js`): on each ledger entry — mark crossed savings goals achieved (+notify), fire the one-time bank-threshold nudge, maintain `streak_count`, and grant streak milestone bonuses (3/7/14/30 days). Runs after `currency.pb.js` (alphabetical load order — don't rename either file).
 9. **engagement notifications** (`notifications.pb.js`): kid rejection replies and swap offers ping the relevant party; parent reactions ping the kid; proposals ping parents on create and the kid on resolve.
+10. **screen-time grants** (`familylink.pb.js`): protect submitted spending terms, settled decisions, and server-owned grant fields; approval sets the grant state and publishes committed purchases to the worker queue. Parents may confirm manual completion.
 
 ## Cron jobs (`scheduler.pb.js` → `lib/scheduler.js`)
 
 Server-local time. Manual triggers for tests/debugging: `POST /api/paydirt/cron/{tick|daily|digest}` (superuser only). All sends respect `NTFY_DISABLED` and skip `paused` households.
+The separate Family Link reconciliation job lives in `familylink.pb.js`; it processes explicitly approved purchases regardless of household scheduling pauses.
 
 | Job | Schedule | Does |
 |-----|----------|------|
 | paydirt_tick | every 10 min | approval nudges (`nudge_hours`), daily chore reminders (`reminder_time`), deadline escalation (`due_at`: 24h → 2h → overdue, parents pinged on overdue), kid one-shot reminders |
 | paydirt_daily | 03:00 | currency expiry (`expiry_days`, compensating negative adjustment capped at balance), streak refresh (zeroes broken streaks), recurring chore auto-assignment (re-creates assignments for recurring chores when no open one exists per kid) |
 | paydirt_digest | Sun 18:00 | weekly per-kid summary (chores, earned/spent, balances, pending count) to parents |
+| paydirt_familylink | every minute | repair missed queue publication and import grant receipts; notify parents of manual recovery |
 
 ## Design decisions
 

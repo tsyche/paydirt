@@ -12,7 +12,7 @@ import type {
   SpendRequest,
   User,
 } from "@paydirt/shared";
-import { currencyDisplayName, featureTip } from "@paydirt/shared";
+import { currencyDisplayName, featureTip, screenGrantLabel } from "@paydirt/shared";
 import { client } from "../lib/client";
 import { HouseholdSettings } from "./HouseholdSettings";
 import { AppearanceControls } from "./AppearanceControls";
@@ -70,6 +70,7 @@ export function Dashboard({
   const [selectedApprovals, setSelectedApprovals] = useState<Set<string>>(new Set());
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
   const [spend, setSpend] = useState<Expanded<SpendRequest>[]>([]);
+  const [screenGrants, setScreenGrants] = useState<Expanded<SpendRequest>[]>([]);
   const [proposals, setProposals] = useState<Expanded<ChoreProposal>[]>([]);
   const [recentApproved, setRecentApproved] = useState<Expanded<Assignment>[]>([]);
   const [error, setError] = useState("");
@@ -84,7 +85,7 @@ export function Dashboard({
 
   const reload = useCallback(async () => {
     try {
-      const [hh, k, c, a, s, p, ra] = await Promise.all([
+      const [hh, k, c, a, s, p, ra, grants] = await Promise.all([
         client.getHousehold(householdId),
         client.listChildren(householdId),
         client.listChores(householdId),
@@ -92,6 +93,7 @@ export function Dashboard({
         client.listPendingSpendRequests(householdId),
         client.listPendingProposals(householdId),
         client.listRecentlyApproved(householdId, 8),
+        client.listScreenTimeGrants(householdId),
       ]);
       const goals = await Promise.all(k.map((kid) => client.listGoals(kid.id)));
       setHousehold(hh);
@@ -101,6 +103,7 @@ export function Dashboard({
       setApprovals(a as Expanded<Assignment>[]);
       setSelectedApprovals(new Set());
       setSpend(s as Expanded<SpendRequest>[]);
+      setScreenGrants(grants as Expanded<SpendRequest>[]);
       setProposals(p as Expanded<ChoreProposal>[]);
       setRecentApproved(ra as Expanded<Assignment>[]);
     } catch (e) {
@@ -425,6 +428,26 @@ export function Dashboard({
           </div>
           );
         })}
+
+        {screenGrants.length > 0 && <>
+          <h2>Screen-time grants</h2>
+          {screenGrants.map((s) => (
+            <div className="card row" key={s.id}>
+              <div>
+                <div style={{ fontWeight: 600 }}>
+                  {(s.expand?.child as User | undefined)?.display_name ?? "child"} — {s.description}
+                </div>
+                <div>{screenGrantLabel(s.grant_status)}</div>
+                {s.grant_error && <div role="status" className="muted">{s.grant_error}</div>}
+              </div>
+              {s.grant_status === "manual" && <button className="sm" onClick={() => {
+                if (window.confirm("Check Family Link first. Confirm this purchased time has been granted manually?")) {
+                  void act(() => client.confirmManualGrant(s.id));
+                }
+              }}>Mark granted manually</button>}
+            </div>
+          ))}
+        </>}
 
         {/* ── Recently approved ── */}
         <h2>🏆 Recently approved ({recentApproved.length})</h2>
