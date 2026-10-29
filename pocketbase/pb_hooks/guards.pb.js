@@ -76,6 +76,18 @@ onRecordUpdateRequest((e) => {
       const t = f.type();
       if (t === "autodate" || t === "password" || name === "tokenKey") continue;
       if (selfEditable.indexOf(name) !== -1) continue;
+      if (t === "file") {
+        // A pending upload is a file object (getString() reads it as ""),
+        // so a plain string diff would let a kid with no avatar set one.
+        const now = [].concat(e.record.get(name) || []);
+        const before = [].concat(prev.get(name) || []);
+        const changed =
+          now.some((v) => typeof v !== "string") || now.join("|") !== before.join("|");
+        if (changed) {
+          throw new ForbiddenError("Only a parent can change " + name + ".");
+        }
+        continue;
+      }
       if (e.record.getString(name) !== prev.getString(name)) {
         throw new ForbiddenError("Only a parent can change " + name + ".");
       }

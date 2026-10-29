@@ -12,7 +12,7 @@ import type {
   SpendRequest,
   User,
 } from "@paydirt/shared";
-import { currencyDisplayName, featureTip, screenGrantLabel } from "@paydirt/shared";
+import { avatarUrl, currencyDisplayName, featureTip, screenGrantLabel } from "@paydirt/shared";
 import { client } from "../lib/client";
 import { HouseholdSettings } from "./HouseholdSettings";
 import { AppearanceControls } from "./AppearanceControls";
@@ -194,7 +194,11 @@ export function Dashboard({
                   className="kid-avatar"
                   style={{ backgroundColor: `color-mix(in srgb, ${kid.color ?? "#2f7d4f"} 18%, transparent)` }}
                 >
-                  {kid.avatar_emoji || "🧒"}
+                  {kid.avatar ? (
+                    <img src={avatarUrl(client.pb, kid, "100x100")} alt="" />
+                  ) : (
+                    kid.avatar_emoji || "🧒"
+                  )}
                 </div>
                 <div>
                   <div style={{ fontWeight: 700, fontSize: 15 }}>
@@ -1225,6 +1229,7 @@ const AVATAR_COLORS = ["#e53935", "#8e24aa", "#1e88e5", "#00897b", "#f4511e", "#
 function AvatarControl({ kid, onSaved }: { kid: User; onSaved: () => void }) {
   const [open, setOpen] = useState(false);
   const [avatar, setAvatar] = useState(kid.avatar_emoji ?? "");
+  const [photo, setPhoto] = useState<File | null>(null);
   const [color, setColor] = useState(kid.color ?? AVATAR_COLORS[0]);
   const [goodsRateOverride, setGoodsRateOverride] = useState(String(kid.goods_rate ?? ""));
   const [calmMode, setCalmMode] = useState(!!kid.calm_mode);
@@ -1236,7 +1241,7 @@ function AvatarControl({ kid, onSaved }: { kid: User; onSaved: () => void }) {
   if (!open) {
     return (
       <button className="sm" style={{ fontSize: 13 }} onClick={() => setOpen(true)}>
-        ✏️ Edit
+        ✏️ Edit avatar & settings
       </button>
     );
   }
@@ -1249,6 +1254,14 @@ function AvatarControl({ kid, onSaved }: { kid: User; onSaved: () => void }) {
         onChange={(e) => setAvatar(e.target.value)}
         style={{ width: 110 }}
       />
+      <label style={{ fontSize: 13 }} title="JPEG, PNG, WebP or GIF, up to 2 MB">
+        Photo{" "}
+        <input
+          type="file"
+          accept="image/jpeg,image/png,image/webp,image/gif"
+          onChange={(e) => setPhoto(e.target.files?.[0] ?? null)}
+        />
+      </label>
       <div className="inline" style={{ gap: 4 }}>
         {AVATAR_COLORS.map((c) => (
           <button
@@ -1305,6 +1318,11 @@ function AvatarControl({ kid, onSaved }: { kid: User; onSaved: () => void }) {
           setBusy(true);
           try {
             const rate = parseFloat(goodsRateOverride);
+            if (photo) {
+              const form = new FormData();
+              form.append("avatar", photo);
+              await client.pb.collection("users").update(kid.id, form);
+            }
             await client.pb.collection("users").update(kid.id, {
               avatar_emoji: avatar.trim(),
               color,

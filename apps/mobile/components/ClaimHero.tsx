@@ -1,4 +1,4 @@
-import { View, StyleSheet } from "react-native";
+import { Image, View, StyleSheet } from "react-native";
 import { Text, useTheme } from "react-native-paper";
 import { ChunkyButton } from "./ChunkyButton";
 import { useCountUp } from "../lib/useCountUp";
@@ -16,6 +16,7 @@ import { useCountUp } from "../lib/useCountUp";
 export function ClaimHero({
   name,
   avatar,
+  avatarUri,
   balance,
   currencyName,
   dollarValue,
@@ -26,6 +27,8 @@ export function ClaimHero({
 }: {
   name: string;
   avatar: string;
+  /** Uploaded image; shown instead of the emoji when set. */
+  avatarUri?: string;
   balance: number;
   currencyName: string;
   dollarValue: string | null;
@@ -40,7 +43,11 @@ export function ClaimHero({
   return (
     <View style={[styles.card, { backgroundColor: theme.colors.surfaceVariant }]}>
       <View style={[styles.header, { backgroundColor: accent }]}>
-        <Text style={styles.avatar}>{avatar}</Text>
+        {avatarUri ? (
+          <Image source={{ uri: avatarUri }} style={styles.avatarImage} accessibilityIgnoresInvertColors />
+        ) : (
+          <Text style={styles.avatar}>{avatar}</Text>
+        )}
         <Text style={styles.headerName}>{name}</Text>
       </View>
       <View style={styles.body}>
@@ -81,6 +88,7 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
   },
   avatar: { fontSize: 34 },
+  avatarImage: { width: 40, height: 40, borderRadius: 20 },
   headerName: { fontFamily: "Fredoka_600SemiBold", fontSize: 20, color: "#ffffff" },
   body: { paddingHorizontal: 20, paddingVertical: 18, alignItems: "center" },
   label: { fontSize: 13, letterSpacing: 0.4, textTransform: "uppercase" },

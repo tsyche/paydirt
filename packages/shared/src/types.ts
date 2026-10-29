@@ -54,6 +54,11 @@ export interface User extends BaseRecord {
   role: UserRole;
   display_name: string;
   household: string; // -> households.id
+  /** PocketBase record metadata (present on records fetched from the API). */
+  collectionId?: string;
+  collectionName?: string;
+  /** Uploaded avatar image filename (built-in file field). Preferred over avatar_emoji. */
+  avatar?: string;
   /** Emoji avatar shown on both apps (e.g. "🦊"). Set by parent. */
   avatar_emoji?: string;
   /** Accent color hex for the avatar badge (e.g. "#8e24aa"). Set by parent. */

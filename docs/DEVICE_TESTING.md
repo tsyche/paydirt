@@ -66,10 +66,12 @@ just adb-tunnel
 echo "EXPO_PUBLIC_POCKETBASE_URL=http://127.0.0.1:3111" > apps/mobile/.env
 ```
 
-### 2. Generate native project + build APK
+### 2. Build APK
+
+`apps/mobile/android/` is committed (it has custom Kotlin), so a fresh clone
+needs no prebuild.
 
 ```bash
-just prebuild    # generates apps/mobile/android/ from app.json (run once)
 just build-apk   # builds the debug APK (~2-3 min first time, faster after)
 ```
 
@@ -150,4 +152,4 @@ just build-apk    # recompile (no need to re-run prebuild unless app.json change
 just install-apk  # build + install in one step
 ```
 
-Re-run `just prebuild` only when `app.json` changes (new plugins, package name, etc.).
+`app.json` changes (new plugins, package name, icons) do not reach `android/` on their own, and `just prebuild` refuses to overwrite it (`FORCE=1` wipes the custom Kotlin; restore from git). Apply such changes to `android/` by hand or via the selective procedure in `apps/mobile/scripts/gen-icons.mjs`.

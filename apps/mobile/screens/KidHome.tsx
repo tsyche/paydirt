@@ -21,6 +21,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import type { Assignment, Broadcast, Chore, Household, SavingsGoal, ScreenPreset, User } from "@paydirt/shared";
 import {
   SCREEN_PRESETS,
+  avatarUrl,
   currencyDisplayName,
   computeBadges,
   screenCost,
@@ -31,6 +32,7 @@ import { client } from "../lib/client";
 import { isNetworkError } from "../lib/reachability";
 import { useRealtimeResume } from "../lib/useRealtimeResume";
 import { takePhotoAndComplete } from "../lib/completeWithPhoto";
+import { Avatar } from "../components/Avatar";
 import { AppearanceButton } from "../components/AppearanceButton";
 import { BadgeShelf } from "../components/BadgeShelf";
 import { ChunkyButton } from "../components/ChunkyButton";
@@ -217,7 +219,7 @@ export function KidHome({ user, onLogout }: { user: User; onLogout: () => void }
   return (
     <SafeAreaView style={styles.container} edges={["top"]}>
       <Appbar.Header>
-        <Appbar.Content title={`${me.avatar_emoji ? me.avatar_emoji + " " : ""}Hi, ${user.display_name}`} />
+        <Appbar.Content title={`${me.avatar_emoji ? me.avatar_emoji + " " : "💰 "}Hi, ${user.display_name}`} />
         {streak >= 2 ? <Chip compact style={styles.streakChip}>{`🔥 ${streak}-day streak`}</Chip> : null}
         <AppearanceButton />
         <Appbar.Action icon="logout" onPress={onLogout} />
@@ -234,6 +236,7 @@ export function KidHome({ user, onLogout }: { user: User; onLogout: () => void }
             <ClaimHero
               name={me.display_name}
               avatar={me.avatar_emoji || "🧒"}
+              avatarUri={avatarUrl(client.pb, me, "100x100")}
               balance={me.balance}
               currencyName={currencyName}
               dollarValue={dollarValue}
@@ -410,7 +413,7 @@ export function KidHome({ user, onLogout }: { user: User; onLogout: () => void }
                   <Card key={sib.id} style={[styles.choreCard, styles.sibCard]}>
                     <Card.Content>
                       <View style={styles.sibRow}>
-                        <Text style={styles.sibAvatar}>{sib.avatar_emoji || "🧒"}</Text>
+                        <Avatar user={sib} size={36} />
                         <View style={{ flex: 1 }}>
                           <Text variant="titleSmall" style={{ fontWeight: "700" }}>
                             {sib.display_name}
@@ -1037,7 +1040,6 @@ const styles = StyleSheet.create({
 
   sibCard: { marginBottom: 4 },
   sibRow: { flexDirection: "row", alignItems: "center", gap: 10, marginBottom: 4 },
-  sibAvatar: { fontSize: 28 },
   sibWins: { gap: 2, marginTop: 4 },
 
   customTimeRow: { flexDirection: "row", alignItems: "center", gap: 8, marginTop: 8 },

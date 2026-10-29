@@ -3,7 +3,8 @@ import { EventSource } from "eventsource";
 import { PaydirtClient } from "./client";
 import { Collections } from "./collections";
 import { cleanupChores, cleanupSpendRequests } from "./integration.cleanup";
-import { completionFormWithPhoto } from "./integration.fixtures";
+import { TINY_JPEG, completionFormWithPhoto } from "./integration.fixtures";
+import { avatarUrl } from "./avatar";
 import type { SpendRequest, User } from "./types";
 
 // The PocketBase SDK's realtime service needs a global EventSource; Node
@@ -342,5 +343,27 @@ describe("PocketBase hooks & guards (live)", () => {
     await parent.undoApproval(assignment.id);
     await parent.adjustBalance(kidUser.id, 4, "lockstep cleanup");
     expect(await parent.getBalance(kidUser.id)).toBe(startBalance);
+  });
+
+  it("avatar upload: a parent can set a kid's photo; the kid cannot set their own", async () => {
+    const form = () => {
+      const f = new FormData();
+      f.append("avatar", new Blob([TINY_JPEG], { type: "image/jpeg" }), "me.jpg");
+      return f;
+    };
+    // Kid has no avatar yet: the guard must still reject the new upload
+    // (a pending file reads as "" in getString, so a naive diff misses it).
+    await expect(kid.pb.collection("users").update(kidUser.id, form())).rejects.toThrow();
+
+    try {
+      const updated = await parent.pb.collection("users").update<User>(kidUser.id, form());
+      expect(updated.avatar).toMatch(/\.jpg$/);
+      const res = await fetch(avatarUrl(parent.pb, updated, "100x100"));
+      expect(res.status).toBe(200);
+      // And with a photo already set, the kid still can't swap it.
+      await expect(kid.pb.collection("users").update(kidUser.id, form())).rejects.toThrow();
+    } finally {
+      await parent.pb.collection("users").update(kidUser.id, { avatar: null });
+    }
   });
 });

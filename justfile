@@ -294,11 +294,16 @@ pb-download:
 
 # --- Android ---
 
-# Generate native android/ directory from app.json (run once, or after app.json changes)
+# Regenerate android/ from app.json. android/ is committed and hand-edited (custom Kotlin), so a fresh clone does NOT need this and it refuses to run over an existing android/ unless FORCE=1 (it WIPES custom native code; restore with git).
 [group('android')]
 prebuild:
     #!/usr/bin/env bash
     set -euo pipefail
+    if [ -d apps/mobile/android ] && [ "${FORCE:-}" != "1" ]; then
+        printf '\033[0;31mapps/mobile/android/ exists (committed, with custom Kotlin) — prebuild would wipe it.\033[0m\n'
+        printf 'A fresh clone needs only `just setup`/`pnpm install`. To regenerate anyway: FORCE=1 just prebuild, then `git checkout`/`git clean` the custom files (see apps/mobile/scripts/gen-icons.mjs).\n'
+        exit 1
+    fi
     if [ ! -f apps/mobile/.env ] && [ -z "${EXPO_PUBLIC_POCKETBASE_URL:-}" ]; then
         printf '\033[0;33mSet EXPO_PUBLIC_POCKETBASE_URL before prebuilding.\033[0m\n'
         printf '\033[0;33mExample: echo "EXPO_PUBLIC_POCKETBASE_URL=http://192.168.1.50:3111" > apps/mobile/.env\033[0m\n'

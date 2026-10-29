@@ -23,6 +23,7 @@ import { client } from "../lib/client";
 import { takePhotoAndComplete } from "../lib/completeWithPhoto";
 import { useCountUp } from "../lib/useCountUp";
 import { useRealtimeResume } from "../lib/useRealtimeResume";
+import { Avatar } from "../components/Avatar";
 import { Celebration } from "../components/Celebration";
 
 type Expanded = Assignment & { expand?: { chore?: Chore } };
@@ -161,7 +162,7 @@ export function SimpleKidHome({ user, onLogout }: { user: User; onLogout: () => 
         {/* Balance hero card */}
         <Surface style={styles.balanceSurface} elevation={3}>
           <View style={[styles.avatarBand, { backgroundColor: accentColor }]}>
-            <Text style={styles.balanceEmoji}>{user.avatar_emoji || "💰"}</Text>
+            <Avatar user={user} size={72} fallback="💰" />
           </View>
           <View style={styles.balanceBody}>
             <Text style={[styles.balanceNumber, { color: theme.colors.onSurface }]}>
@@ -317,7 +318,6 @@ const styles = StyleSheet.create({
     paddingTop: 20,
     paddingBottom: 14,
   },
-  balanceEmoji: { fontSize: 56 },
   balanceBody: {
     alignItems: "center",
     paddingVertical: 16,

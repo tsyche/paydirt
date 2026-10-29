@@ -17,7 +17,7 @@ import {
 } from "react-native-paper";
 import { SafeAreaView } from "react-native-safe-area-context";
 import type { Assignment, Chore, Household, SavingsGoal, User } from "@paydirt/shared";
-import { currencyDisplayName, featureTip } from "@paydirt/shared";
+import { avatarUrl, currencyDisplayName, featureTip } from "@paydirt/shared";
 import { client } from "../lib/client";
 import { isNetworkError } from "../lib/reachability";
 import { useReachability } from "../lib/useReachability";
@@ -145,6 +145,7 @@ export function KidDetail({
           <ClaimHero
             name={kid.display_name}
             avatar={kid.avatar_emoji || "🧒"}
+            avatarUri={avatarUrl(client.pb, kid, "100x100")}
             balance={kid.balance}
             currencyName={currencyName}
             dollarValue={dollarValue}

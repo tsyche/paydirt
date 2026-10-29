@@ -21,6 +21,7 @@ import { client } from "../lib/client";
 import { isNetworkError } from "../lib/reachability";
 import { useRealtimeResume } from "../lib/useRealtimeResume";
 import { tabForNotificationType } from "../lib/deepLinks";
+import { Avatar } from "../components/Avatar";
 import { AppearanceButton } from "../components/AppearanceButton";
 import { AppearanceControls } from "../components/AppearanceControls";
 import { ChunkyButton } from "../components/ChunkyButton";
@@ -447,7 +448,7 @@ export function ParentHome({
     <SafeAreaView style={styles.container} edges={["top"]}>
       <Appbar.Header>
         <Appbar.Content
-          title="PayDirt"
+          title="💰 PayDirt"
           subtitle={pendingCount > 0 ? `${pendingCount} item${pendingCount === 1 ? "" : "s"} waiting` : "All clear 🎉"}
         />
         <AppearanceButton />
@@ -492,7 +493,7 @@ export function ParentHome({
                 onPress={() => setDetailKid(kid.id)}
                 style={[styles.kidChipWrap, { borderLeftColor: kid.color ?? theme.colors.primary }]}
               >
-                <Text style={styles.kidAvatar}>{kid.avatar_emoji || "🧒"}</Text>
+                <Avatar user={kid} size={36} />
                 <View style={styles.flex1}>
                   <Text style={styles.kidName}>{kid.display_name}</Text>
                   <Text style={[styles.kidBalance, { color: theme.colors.primary }]}>
@@ -510,13 +511,6 @@ export function ParentHome({
         {/* Settings tab: broadcast + appearance */}
         {tab === "settings" && (
           <>
-        <Card style={styles.broadcastCard}>
-          <Card.Content>
-            <Button mode="contained" icon="cog" onPress={() => setHhSettingsOpen(true)}>
-              Household settings
-            </Button>
-          </Card.Content>
-        </Card>
         <Card style={styles.broadcastCard}>
           <Card.Content>
             <Button mode="contained" icon="cog" onPress={() => setHhSettingsOpen(true)} style={{ marginBottom: 8 }}>
@@ -1175,7 +1169,6 @@ const styles = StyleSheet.create({
   },
   flex1: { flex: 1 },
   kidChevron: { fontSize: 28, opacity: 0.6 },
-  kidAvatar: { fontSize: 28 },
   kidName: { fontSize: 14, fontWeight: "700" },
   kidBalance: { fontSize: 13, fontWeight: "600" },
 
