@@ -16,12 +16,13 @@ import {
 } from "react-native-paper";
 import { SafeAreaView } from "react-native-safe-area-context";
 import type { Assignment, Chore, ChoreProposal, ChoreTemplate, Household, SpendRequest, User } from "@paydirt/shared";
-import { currencyDisplayName, screenGrantLabel } from "@paydirt/shared";
+import { currencyDisplayName, screenGrantLabel, errorMessage } from "@paydirt/shared";
 import { client } from "../lib/client";
 import { isNetworkError } from "../lib/reachability";
 import { useRealtimeResume } from "../lib/useRealtimeResume";
 import { tabForNotificationType } from "../lib/deepLinks";
 import { Avatar } from "../components/Avatar";
+import { BrandTitle } from "../components/BrandTitle";
 import { AppearanceButton } from "../components/AppearanceButton";
 import { AppearanceControls } from "../components/AppearanceControls";
 import { ChunkyButton } from "../components/ChunkyButton";
@@ -30,6 +31,7 @@ import { KidDetail } from "../components/KidDetail";
 import { OfflineBanner } from "../components/OfflineBanner";
 import { HouseholdSettings } from "../components/HouseholdSettings";
 import { LedgerView } from "../components/LedgerView";
+import { InboxButton } from "../components/InboxDialog";
 
 const PARENT_TABS = [
   { key: "approvals", title: "Approvals", focusedIcon: "inbox", unfocusedIcon: "inbox-outline" },
@@ -148,7 +150,7 @@ export function ParentHome({
     } catch (e) {
       // Network failures already surface via the offline banner — an extra
       // toast on top would just be noise. Anything else still gets one.
-      if (!isNetworkError(e)) setSnack(String(e));
+      if (!isNetworkError(e)) setSnack(errorMessage(e));
     } finally {
       setRefreshing(false);
     }
@@ -191,7 +193,7 @@ export function ParentHome({
       if (ok) setSnack(ok);
       await reload();
     } catch (e) {
-      setSnack(String(e));
+      setSnack(errorMessage(e));
     }
   };
 
@@ -266,7 +268,7 @@ export function ParentHome({
       setBroadcastMsg("");
       setSnack("Sent to all kids 📣");
     } catch (e) {
-      setSnack(String(e));
+      setSnack(errorMessage(e));
     } finally {
       setBroadcasting(false);
     }
@@ -301,7 +303,7 @@ export function ParentHome({
       setSnack("Chore created ✅");
       await reload();
     } catch (e) {
-      setSnack(String(e));
+      setSnack(errorMessage(e));
     } finally {
       setCreatingChore(false);
     }
@@ -337,7 +339,7 @@ export function ParentHome({
       setTemplates((prev) => [...prev, t]);
       setSnack("Template saved 📋");
     } catch (e) {
-      setSnack(String(e));
+      setSnack(errorMessage(e));
     } finally {
       setSavingTemplate(false);
     }
@@ -373,7 +375,7 @@ export function ParentHome({
       setSnack("Chore updated ✅");
       await reload();
     } catch (e) {
-      setSnack(String(e));
+      setSnack(errorMessage(e));
     } finally {
       setSavingEdit(false);
     }
@@ -423,7 +425,7 @@ export function ParentHome({
       setSnack("Assigned ✅");
       await reload();
     } catch (e) {
-      setSnack(String(e));
+      setSnack(errorMessage(e));
     } finally {
       setAssigning((prev) => ({ ...prev, [choreId]: false }));
     }
@@ -448,10 +450,11 @@ export function ParentHome({
     <SafeAreaView style={styles.container} edges={["top"]}>
       <Appbar.Header>
         <Appbar.Content
-          title="💰 PayDirt"
+          title={<BrandTitle size={30} />}
           subtitle={pendingCount > 0 ? `${pendingCount} item${pendingCount === 1 ? "" : "s"} waiting` : "All clear 🎉"}
         />
         <AppearanceButton />
+        <InboxButton userId={user.id} />
         <Appbar.Action icon="logout" onPress={onLogout} />
       </Appbar.Header>
 
@@ -481,6 +484,7 @@ export function ParentHome({
       )}
 
       <ScrollView
+        keyboardShouldPersistTaps="handled"
         contentContainerStyle={styles.content}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={reload} />}
       >
@@ -840,6 +844,7 @@ export function ParentHome({
                       <Button
                         mode="contained"
                         icon="check"
+                        disabled={(child?.balance ?? 0) < s.amount}
                         onPress={() =>
                           act(() => client.approveSpendRequest(s.id, user.id), "Spend approved!")
                         }

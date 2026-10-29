@@ -17,14 +17,14 @@ import {
   SCREEN_PRESETS,
   screenCost,
   screenRate,
-  shouldCelebrate,
-} from "@paydirt/shared";
+  shouldCelebrate, errorMessage } from "@paydirt/shared";
 import { client } from "../lib/client";
 import { takePhotoAndComplete } from "../lib/completeWithPhoto";
 import { useCountUp } from "../lib/useCountUp";
 import { useRealtimeResume } from "../lib/useRealtimeResume";
 import { Avatar } from "../components/Avatar";
 import { Celebration } from "../components/Celebration";
+import { InboxButton } from "../components/InboxDialog";
 
 type Expanded = Assignment & { expand?: { chore?: Chore } };
 
@@ -68,7 +68,7 @@ export function SimpleKidHome({ user, onLogout }: { user: User; onLogout: () => 
       }
       prevBalance.current = bal;
     } catch (e) {
-      setSnack(String(e));
+      setSnack(errorMessage(e));
     } finally {
       setRefreshing(false);
     }
@@ -104,7 +104,7 @@ export function SimpleKidHome({ user, onLogout }: { user: User; onLogout: () => 
       await client.pb.collection("assignments").update(id, { needs_help: true });
       setSnack("Help requested — parents notified 🆘");
     } catch (e) {
-      setSnack(String(e));
+      setSnack(errorMessage(e));
     }
   }
 
@@ -113,7 +113,7 @@ export function SimpleKidHome({ user, onLogout }: { user: User; onLogout: () => 
       await client.submitScreenTimeRequest(user.id, minutes, rate);
       setSnack(`Asked for ${minutes} minutes! Waiting for Mom/Dad 📱`);
     } catch (e) {
-      setSnack(String(e));
+      setSnack(errorMessage(e));
     }
   }
 
@@ -123,7 +123,7 @@ export function SimpleKidHome({ user, onLogout }: { user: User; onLogout: () => 
       setSnack("Woohoo! Waiting for Mom/Dad to check!");
       await reload();
     } catch (e) {
-      setSnack(String(e));
+      setSnack(errorMessage(e));
     }
   }
 
@@ -138,7 +138,7 @@ export function SimpleKidHome({ user, onLogout }: { user: User; onLogout: () => 
       setSnack("Woohoo! Waiting for Mom/Dad to check!");
       await reload();
     } catch (e) {
-      setSnack(String(e));
+      setSnack(errorMessage(e));
     }
   }
 
@@ -152,10 +152,12 @@ export function SimpleKidHome({ user, onLogout }: { user: User; onLogout: () => 
     <SafeAreaView style={styles.container} edges={["top"]}>
       <Appbar.Header>
         <Appbar.Content title={`Hi ${user.display_name}! 👋`} />
+        <InboxButton userId={user.id} />
         <Appbar.Action icon="logout" onPress={onLogout} />
       </Appbar.Header>
 
       <ScrollView
+        keyboardShouldPersistTaps="handled"
         contentContainerStyle={styles.content}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={reload} />}
       >

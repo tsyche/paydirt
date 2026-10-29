@@ -10,6 +10,7 @@ import type {
   ChoreTemplate,
   CurrencyTransaction,
   Household,
+  InboxItem,
   SavingsGoal,
   SpendRequest,
   User,
@@ -552,6 +553,26 @@ export class PaydirtClient {
       sort: "-created",
     });
     return result.items;
+  }
+
+  // ── Inbox ──────────────────────────────────────────────────────────────────
+
+  /** Newest-first alert history for one user (the API rules only let you read your own). */
+  listInbox(userId: string, limit = 50): Promise<InboxItem[]> {
+    return this.pb.collection(Collections.Inbox).getList<InboxItem>(1, limit, {
+      filter: this.pb.filter("user = {:u}", { u: userId }),
+      sort: "-created",
+    }).then((r) => r.items);
+  }
+
+  deleteInboxItem(id: string): Promise<boolean> {
+    return this.pb.collection(Collections.Inbox).delete(id);
+  }
+
+  /** Deletes every inbox item for the user (one request per item; lists are short and pruned). */
+  async clearInbox(userId: string): Promise<void> {
+    const items = await this.listInbox(userId, 200);
+    await Promise.all(items.map((i) => this.deleteInboxItem(i.id)));
   }
 
   // ── Realtime ─────────────────────────────────────────────────────────────────

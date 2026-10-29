@@ -12,19 +12,21 @@ import type {
   SpendRequest,
   User,
 } from "@paydirt/shared";
-import { avatarUrl, currencyDisplayName, featureTip, screenGrantLabel } from "@paydirt/shared";
+import { avatarUrl, currencyDisplayName, featureTip, screenGrantLabel, errorMessage } from "@paydirt/shared";
 import { client } from "../lib/client";
 import { HouseholdSettings } from "./HouseholdSettings";
 import { AppearanceControls } from "./AppearanceControls";
 import { LedgerView } from "./LedgerView";
+import { InboxView } from "./InboxView";
 import { Celebration } from "./Celebration";
 
-type TabKey = "approvals" | "kids" | "chores" | "ledger";
+type TabKey = "approvals" | "kids" | "chores" | "ledger" | "alerts";
 const TABS: { key: TabKey; label: string }[] = [
   { key: "approvals", label: "📥 Approvals" },
   { key: "kids", label: "🧒 Kids" },
   { key: "chores", label: "📋 Chores" },
   { key: "ledger", label: "📒 Ledger" },
+  { key: "alerts", label: "🔔 Alerts" },
 ];
 
 type Expanded<T> = T & { expand?: Record<string, User | Chore> };
@@ -107,7 +109,7 @@ export function Dashboard({
       setProposals(p as Expanded<ChoreProposal>[]);
       setRecentApproved(ra as Expanded<Assignment>[]);
     } catch (e) {
-      setError(String(e));
+      setError(errorMessage(e));
     }
   }, [householdId]);
 
@@ -134,7 +136,7 @@ export function Dashboard({
       await fn();
       await reload();
     } catch (e) {
-      setError(String(e));
+      setError(errorMessage(e));
     }
   };
 
@@ -144,8 +146,8 @@ export function Dashboard({
       <header className="app-bar">
         <div className="app-bar-inner">
           <div className="app-bar-title">
-            <span className="app-bar-logo">💰</span>
-            PayDirt
+            <img className="app-bar-logo" src="/bag.svg" alt="" />
+            Pay<span className="brand-dirt">Dirt</span>
           </div>
           <div className="inline">
             <AppearanceControls />
@@ -530,6 +532,7 @@ export function Dashboard({
       </main>
 
               {tab === "ledger" && <LedgerView household={household} />}
+              {tab === "alerts" && <InboxView userId={user.id} />}
 <Celebration trigger={celebrate} />
       {photoPreview && (
         <div
@@ -576,7 +579,7 @@ function ProposalRow({
       await fn();
       onActed();
     } catch (e) {
-      setError(String(e));
+      setError(errorMessage(e));
     } finally {
       setBusy(false);
     }
@@ -641,7 +644,7 @@ function BroadcastControl({ householdId, senderId }: { householdId: string; send
       setMessage("");
       setStatus("Sent to all kids 📣");
     } catch (e) {
-      setStatus(String(e));
+      setStatus(errorMessage(e));
     } finally {
       setBusy(false);
     }
@@ -747,7 +750,7 @@ function AdjustControl({ kid, onAdjusted }: { kid: User; onAdjusted: () => void 
       setOpen(false);
       onAdjusted();
     } catch (e) {
-      setError(String(e));
+      setError(errorMessage(e));
     } finally {
       setBusy(false);
     }
@@ -852,7 +855,7 @@ function ChoreRow({
       setEditing(false);
       onChanged();
     } catch (e) {
-      setError(String(e));
+      setError(errorMessage(e));
     } finally {
       setBusy(false);
     }
@@ -865,7 +868,7 @@ function ChoreRow({
       await client.deactivateChore(chore.id);
       onChanged();
     } catch (e) {
-      setError(String(e));
+      setError(errorMessage(e));
     } finally {
       setBusy(false);
     }
@@ -1024,7 +1027,7 @@ function CreateChore({
       reset();
       onCreated();
     } catch (e) {
-      setError(String(e));
+      setError(errorMessage(e));
     } finally {
       setBusy(false);
     }
@@ -1046,7 +1049,7 @@ function CreateChore({
         reminder_time: remindAt,
       });
     } catch (e) {
-      setError(String(e));
+      setError(errorMessage(e));
     } finally {
       setBusy(false);
     }
@@ -1334,7 +1337,7 @@ function AvatarControl({ kid, onSaved }: { kid: User; onSaved: () => void }) {
             setOpen(false);
             onSaved();
           } catch (e) {
-            setError(String(e));
+            setError(errorMessage(e));
           } finally {
             setBusy(false);
           }

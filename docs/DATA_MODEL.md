@@ -148,6 +148,19 @@ update/delete rules).
 | sender | relation → users | parent; required |
 | message | text | required |
 
+### `inbox`
+Per-user copy of every push the server sends (also during quiet hours), so
+people can review and clear past alerts. Owner can list/view/delete; clients
+can't create or edit. Written by `logToInbox()` in `lib/ntfy.js`; the daily
+cron prunes items older than 30 days. Deleting an item never affects real data.
+
+| Field | Type | Notes |
+|-------|------|-------|
+| user | relation → users | owner; required |
+| title | text | required |
+| body | text | |
+| type | text | push type, e.g. `broadcast`; `broadcast_sent` is the sending parent's copy |
+
 ## Hooks (implemented)
 
 Live in `pocketbase/pb_hooks/`. PocketBase runs each handler in an isolated VM, so shared helpers are `require()`'d **inside** each handler (see `lib/ntfy.js`).
@@ -160,7 +173,7 @@ Live in `pocketbase/pb_hooks/`. PocketBase runs each handler in an isolated VM, 
 6. **approval guard** (`guards.pb.js`): block non-parents from setting an assignment to `approved`/`rejected`/`closed`, from touching settled (`approved`/`closed`) assignments, and from invalid swap moves (owner can't reassign directly; the swap target may only accept or decline). Resubmitting a `rejected` chore requires a freshly uploaded photo, even when the chore doesn't normally need one. On `users`, a non-parent self-edit may change only `up_endpoint`/`ntfy_topic` (and their own password); every other field is parent-only.
 7. **race close** (`races.pb.js`): first approval of a race chore closes every other open assignment for it and tells the losing kids who won.
 8. **balance reactions** (`goals.pb.js`): on each ledger entry — mark crossed savings goals achieved (+notify), fire the one-time bank-threshold nudge, maintain `streak_count`, and grant streak milestone bonuses (3/7/14/30 days). Runs after `currency.pb.js` (alphabetical load order — don't rename either file).
-9. **engagement notifications** (`notifications.pb.js`): kid rejection replies and swap offers ping the relevant party; parent reactions ping the kid; proposals ping parents on create and the kid on resolve.
+9. **engagement notifications** (`notifications.pb.js`): kid rejection replies and swap offers ping the relevant party; parent reactions ping the kid; proposals ping parents on create and the kid on resolve; a kid flagging `needs_help` pings parents. Every send is also logged to `inbox`.
 10. **screen-time grants** (`familylink.pb.js`): protect submitted spending terms, settled decisions, and server-owned grant fields; approval sets the grant state and publishes committed purchases to the worker queue. Parents may confirm manual completion.
 
 ## Cron jobs (`scheduler.pb.js` → `lib/scheduler.js`)

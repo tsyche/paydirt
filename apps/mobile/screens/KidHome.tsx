@@ -27,8 +27,10 @@ import {
   screenCost,
   screenRate,
   shouldCelebrate,
+  errorMessage,
 } from "@paydirt/shared";
 import { client } from "../lib/client";
+import { kidTabForNotificationType } from "../lib/deepLinks";
 import { isNetworkError } from "../lib/reachability";
 import { useRealtimeResume } from "../lib/useRealtimeResume";
 import { takePhotoAndComplete } from "../lib/completeWithPhoto";
@@ -39,6 +41,7 @@ import { ChunkyButton } from "../components/ChunkyButton";
 import { ClaimHero } from "../components/ClaimHero";
 import { Celebration } from "../components/Celebration";
 import { OfflineBanner } from "../components/OfflineBanner";
+import { InboxButton } from "../components/InboxDialog";
 
 const KID_TABS = [
   { key: "home", title: "Home", focusedIcon: "home", unfocusedIcon: "home-outline" },
@@ -64,7 +67,15 @@ function dueInfo(chore?: Chore): { label: string; overdue: boolean } | null {
   return { label, overdue };
 }
 
-export function KidHome({ user, onLogout }: { user: User; onLogout: () => void }) {
+export function KidHome({
+  user,
+  onLogout,
+  notificationRoute,
+}: {
+  user: User;
+  onLogout: () => void;
+  notificationRoute?: { type: string | null; nonce: number } | null;
+}) {
   const theme = useTheme();
   const [me, setMe] = useState<User>(user);
   const [assignments, setAssignments] = useState<Expanded[]>([]);
@@ -121,7 +132,7 @@ export function KidHome({ user, onLogout }: { user: User; onLogout: () => void }
     } catch (e) {
       // Network failures already surface via the offline banner — an extra
       // toast on top would just be noise. Anything else still gets one.
-      if (!isNetworkError(e)) setSnack(String(e));
+      if (!isNetworkError(e)) setSnack(errorMessage(e));
     } finally {
       setRefreshing(false);
     }
@@ -135,6 +146,18 @@ export function KidHome({ user, onLogout }: { user: User; onLogout: () => void }
   // a dead SSE socket fires no error, so without this events silently stop
   // after backgrounding or a network blip (see useRealtimeResume).
   useRealtimeResume(reload);
+
+  // A tapped broadcast notification opens the Family tab (see App.tsx's Linking wiring)
+  // and refreshes it, since broadcasts have no live subscription. Keyed off the nonce so
+  // tapping the same notification twice re-navigates.
+  useEffect(() => {
+    if (!notificationRoute) return;
+    const target = kidTabForNotificationType(notificationRoute.type);
+    if (target) {
+      setTab(target);
+      void reload();
+    }
+  }, [notificationRoute, reload]);
 
   // Realtime: re-fetch when this kid's assignments, goals, or balance change,
   // so approvals show up without pull-to-refresh. Best-effort — if the
@@ -174,7 +197,7 @@ export function KidHome({ user, onLogout }: { user: User; onLogout: () => void }
       if (okMessage) setSnack(okMessage);
       await reload();
     } catch (e) {
-      setSnack(String(e));
+      setSnack(errorMessage(e));
     }
   };
 
@@ -183,7 +206,7 @@ export function KidHome({ user, onLogout }: { user: User; onLogout: () => void }
       await client.pb.collection("assignments").update(id, { needs_help: true });
       setSnack("Help requested — parents notified 🆘");
     } catch (e) {
-      setSnack(String(e));
+      setSnack(errorMessage(e));
     }
   }
 
@@ -202,7 +225,7 @@ export function KidHome({ user, onLogout }: { user: User; onLogout: () => void }
       setSnack(resubmit ? "Sent back for another look!" : "Marked done — waiting for approval!");
       await reload();
     } catch (e) {
-      setSnack(String(e));
+      setSnack(errorMessage(e));
     }
   }
 
@@ -219,15 +242,17 @@ export function KidHome({ user, onLogout }: { user: User; onLogout: () => void }
   return (
     <SafeAreaView style={styles.container} edges={["top"]}>
       <Appbar.Header>
-        <Appbar.Content title={`${me.avatar_emoji ? me.avatar_emoji + " " : "💰 "}Hi, ${user.display_name}`} />
+        <Appbar.Content title={`${me.avatar_emoji ? me.avatar_emoji + " " : ""}Hi, ${user.display_name}`} />
         {streak >= 2 ? <Chip compact style={styles.streakChip}>{`🔥 ${streak}-day streak`}</Chip> : null}
         <AppearanceButton />
+        <InboxButton userId={user.id} />
         <Appbar.Action icon="logout" onPress={onLogout} />
       </Appbar.Header>
 
       <OfflineBanner />
 
       <ScrollView
+        keyboardShouldPersistTaps="handled"
         contentContainerStyle={styles.content}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={reload} />}
       >
@@ -502,7 +527,7 @@ export function KidHome({ user, onLogout }: { user: User; onLogout: () => void }
             setSpendOpen(false);
             setSnack("Spend request sent to your parent!");
           } catch (e) {
-            setSnack(String(e));
+            setSnack(errorMessage(e));
           }
         }}
         onScreenTime={async (minutes) => {
@@ -511,7 +536,7 @@ export function KidHome({ user, onLogout }: { user: User; onLogout: () => void }
             setSpendOpen(false);
             setSnack(`Asked for ${minutes} min of screen time!`);
           } catch (e) {
-            setSnack(String(e));
+            setSnack(errorMessage(e));
           }
         }}
       />
@@ -526,7 +551,7 @@ export function KidHome({ user, onLogout }: { user: User; onLogout: () => void }
             setProposeOpen(false);
             setSnack("Idea sent — fingers crossed! 💡");
           } catch (e) {
-            setSnack(String(e));
+            setSnack(errorMessage(e));
           }
         }}
       />
@@ -542,7 +567,7 @@ export function KidHome({ user, onLogout }: { user: User; onLogout: () => void }
             setSnack("Reply sent!");
             await reload();
           } catch (e) {
-            setSnack(String(e));
+            setSnack(errorMessage(e));
           }
         }}
       />
@@ -558,7 +583,7 @@ export function KidHome({ user, onLogout }: { user: User; onLogout: () => void }
             setSnack("Reminder set! ⏰");
             await reload();
           } catch (e) {
-            setSnack(String(e));
+            setSnack(errorMessage(e));
           }
         }}
       />
@@ -575,7 +600,7 @@ export function KidHome({ user, onLogout }: { user: User; onLogout: () => void }
             setSnack("Swap offered! 🔄");
             await reload();
           } catch (e) {
-            setSnack(String(e));
+            setSnack(errorMessage(e));
           }
         }}
       />
@@ -744,6 +769,11 @@ function SpendDialog({
                 onChangeText={setAmount}
                 keyboardType="number-pad"
               />
+              {Number(amount) > balance ? (
+                <Text variant="bodySmall" style={styles.conversion}>
+                  You only have {balance} {currencyName}.
+                </Text>
+              ) : null}
               {dollars ? (
                 <Text variant="bodySmall" style={styles.conversion}>
                   ≈ ${dollars} in real money
@@ -757,7 +787,7 @@ function SpendDialog({
           {mode === "other" ? (
             <Button
               mode="contained"
-              disabled={!description.trim() || !(Number(amount) > 0)}
+              disabled={!description.trim() || !(Number(amount) > 0) || Number(amount) > balance}
               onPress={() => onSubmit(Number(amount), description.trim())}
             >
               Send

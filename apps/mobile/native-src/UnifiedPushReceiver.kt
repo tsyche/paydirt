@@ -45,18 +45,15 @@ class UnifiedPushReceiver : BroadcastReceiver() {
                 try {
                     val json = JSONObject(String(bytes, Charsets.UTF_8))
                     val type = json.optString("type", "")
-                    // Silent while our own UI is open — live updates already
-                    // cover it; a heads-up on top of the app is noise.
-                    if (ForegroundTracker.counter.shouldPostNotification()) {
-                        showNotification(
-                            context,
-                            json.optString("title", "PayDirt"),
-                            json.optString("body", ""),
-                            type,
-                        )
-                    } else {
-                        Log.d(TAG, "app in foreground — skipping notification for type=$type")
-                    }
+                    // Always post, even with the app open: broadcasts and similar
+                    // pushes have no live in-app update, so suppressing them hid the
+                    // message entirely.
+                    showNotification(
+                        context,
+                        json.optString("title", "PayDirt"),
+                        json.optString("body", ""),
+                        type,
+                    )
                     // Phase 2 trigger: a spend approval should mirror into Family
                     // Link. The accessibility service registers its receiver only
                     // while enabled — without it this broadcast is a harmless no-op.

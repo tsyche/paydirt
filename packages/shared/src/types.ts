@@ -218,6 +218,15 @@ export interface Broadcast extends BaseRecord {
   message: string;
 }
 
+/** Per-user copy of a pushed alert (server-written). The owner may delete it. */
+export interface InboxItem extends BaseRecord {
+  user: string; // -> users.id
+  title: string;
+  body?: string;
+  /** Push payload type, e.g. "broadcast" (received) or "broadcast_sent" (parent's own copy). */
+  type?: string;
+}
+
 // ─── Spend Requests ──────────────────────────────────────────────────────────
 
 export type SpendRequestStatus = "pending" | "approved" | "denied";

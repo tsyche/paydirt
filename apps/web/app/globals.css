@@ -209,9 +209,9 @@ body {
 
 .app-bar-title {
   font-family: var(--font-display);
-  font-size: 21px;
-  font-weight: 600;
-  letter-spacing: -0.2px;
+  font-size: 28px;
+  font-weight: 700;
+  letter-spacing: -0.4px;
   color: var(--md-on-surface);
   display: flex;
   align-items: center;
@@ -219,8 +219,13 @@ body {
 }
 
 .app-bar-logo {
-  font-size: 22px;
-  line-height: 1;
+  width: 40px;
+  height: 40px;
+  margin-right: 6px;
+}
+
+.brand-dirt {
+  color: #d99a12;
 }
 
 /* ─── Main Content ───────────────────────────────────────────────────────── */
@@ -645,10 +650,10 @@ input[type="checkbox"]:focus-visible {
 }
 
 .login-logo {
-  font-size: 56px;
-  line-height: 1;
-  text-align: center;
-  margin-bottom: 4px;
+  display: block;
+  width: 96px;
+  height: 96px;
+  margin: 0 auto 4px;
 }
 
 .login-title {

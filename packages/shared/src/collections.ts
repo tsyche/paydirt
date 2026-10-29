@@ -12,6 +12,7 @@ export const Collections = {
   SavingsGoals: "savings_goals",
   ChoreProposals: "chore_proposals",
   ChoreTemplates: "chore_templates",
+  Inbox: "inbox",
 } as const;
 
 export type CollectionName = (typeof Collections)[keyof typeof Collections];

@@ -36,6 +36,12 @@ onRecordCreateRequest((e) => {
   } else if (!(r.getFloat("amount") > 0)) {
     throw new BadRequestError("Spend amount must be positive.");
   }
+  // Can't ask for more than the kid has. (Approval re-checks below; this stops
+  // the doomed request from ever reaching a parent.)
+  const kid = e.app.findRecordById("users", r.getString("child"));
+  if (kid.getFloat("balance") < r.getFloat("amount")) {
+    throw new BadRequestError("Not enough balance for this request.");
+  }
   e.next();
 }, "spend_requests");
 

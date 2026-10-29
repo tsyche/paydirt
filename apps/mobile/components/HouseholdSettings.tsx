@@ -9,7 +9,7 @@ import {
   TextInput,
 } from "react-native-paper";
 import type { Household } from "@paydirt/shared";
-import { CURRENCY_PRESETS, DEFAULT_CURRENCY_NAME, screenRate } from "@paydirt/shared";
+import { CURRENCY_PRESETS, DEFAULT_CURRENCY_NAME, screenRate, errorMessage } from "@paydirt/shared";
 import { client } from "../lib/client";
 
 export function HouseholdSettings({
@@ -69,7 +69,7 @@ export function HouseholdSettings({
       onSaved();
       onDismiss();
     } catch (e) {
-      setError(String(e));
+      setError(errorMessage(e));
     } finally {
       setBusy(false);
     }
@@ -80,7 +80,7 @@ export function HouseholdSettings({
       <Dialog visible={visible} onDismiss={onDismiss} style={{ maxHeight: "90%" }}>
         <Dialog.Title>Household settings</Dialog.Title>
         <Dialog.ScrollArea>
-          <ScrollView contentContainerStyle={{ paddingHorizontal: 8 }}>
+          <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ paddingHorizontal: 8 }}>
             <Text variant="labelLarge">Currency name</Text>
             <TextInput
               value={form.currency_name}

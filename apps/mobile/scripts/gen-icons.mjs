@@ -7,8 +7,11 @@
 import sharp from "sharp";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
+import { writeFile } from "node:fs/promises";
 
-const out = (f) => path.join(path.dirname(fileURLToPath(import.meta.url)), "..", "assets", f);
+const here = path.dirname(fileURLToPath(import.meta.url));
+const out = (f) => path.join(here, "..", "assets", f);
+const webOut = (f) => path.join(here, "..", "..", "web", f);
 const GREEN = "#2f7d4f";
 const GOLD = "#f5b82e";
 const GOLD_DARK = "#b8801a";
@@ -55,5 +58,9 @@ await Promise.all([
   render(svg(mono), 432, "android-icon-monochrome.png"),
   render(svg(color), 1024, "splash-icon.png"),
   render(svg(color, bgRect), 48, "favicon.png"),
+  // In-app logo mark (transparent), shared look with the launcher icon.
+  render(svg(color), 256, "bag.png"),
+  writeFile(webOut("public/bag.svg"), svg(color)),
+  writeFile(webOut("app/icon.svg"), svg(color, bgRect)),
 ]);
 console.log("icons written");

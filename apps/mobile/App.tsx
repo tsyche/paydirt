@@ -153,7 +153,7 @@ function AppContent() {
     if (user.role === "child") {
       return user.simplified_mode
         ? <SimpleKidHome user={user} onLogout={logout} />
-        : <KidHome user={user} onLogout={logout} />;
+        : <KidHome user={user} onLogout={logout} notificationRoute={notificationRoute} />;
     }
     return <ParentHome
       user={user}

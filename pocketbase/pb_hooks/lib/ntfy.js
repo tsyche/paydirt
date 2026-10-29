@@ -66,10 +66,26 @@ function isQuietHours(app, householdId) {
   }
 }
 
+// Keeps a per-user history of everything we push (also during quiet hours, when
+// the push itself is skipped). Never lets a logging failure block the push.
+function logToInbox(app, userId, title, message, type) {
+  try {
+    const item = new Record(app.findCollectionByNameOrId("inbox"));
+    item.set("user", userId);
+    item.set("title", title);
+    item.set("body", message || "");
+    item.set("type", type || "");
+    app.save(item);
+  } catch (err) {
+    app.logger().error("inbox log failed", "user", userId, "error", String(err));
+  }
+}
+
 // Notify a single user: prefer their UP endpoint (event-driven, no polling
 // overhead), fall back to ntfy topic if no endpoint is registered.
 // `type` is an optional string passed through to the UP payload for Phase 2 triggers.
 function notifyUserRecord(app, user, title, message, type) {
+  logToInbox(app, user.id, title, message, type);
   if (isQuietHours(app, user.getString("household"))) return;
   const endpoint = user.getString("up_endpoint");
   if (endpoint) {
@@ -101,8 +117,8 @@ function notifyParents(app, householdId, title, message, type) {
   notifyRole(app, householdId, "parent", title, message, type);
 }
 
-function notifyChildren(app, householdId, title, message) {
-  notifyRole(app, householdId, "child", title, message);
+function notifyChildren(app, householdId, title, message, type) {
+  notifyRole(app, householdId, "child", title, message, type);
 }
 
-module.exports = { sendNtfy, notifyUser, notifyParents, notifyChildren, notifyUserRecord };
+module.exports = { logToInbox, sendNtfy, notifyUser, notifyParents, notifyChildren, notifyUserRecord };

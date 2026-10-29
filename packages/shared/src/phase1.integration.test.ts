@@ -98,6 +98,15 @@ describe("Phase 1 features (live)", () => {
     await parent.undoApproval(a1.id);
   });
 
+  it("needs_help: flagging an assignment notifies parents (inbox copy)", async () => {
+    const chore = await newChore(`Needs help test ${Date.now()}`);
+    const assignment = await parent.assignChore(chore.id, kid2User.id);
+    await kid2.pb.collection(Collections.Assignments).update(assignment.id, { needs_help: true });
+
+    const items = await parent.listInbox(parent.currentUser!.id);
+    expect(items.some((i) => i.title.includes("needs help") && i.body === chore.name)).toBe(true);
+  });
+
   it("savings goals: achieved when the balance crosses the target; kid-owned", async () => {
     const balance = await parent.getBalance(kid2User.id);
     const goal = await kid2.createGoal(kid2User.id, "Test goal", balance + 3);

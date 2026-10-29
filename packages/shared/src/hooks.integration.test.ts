@@ -132,17 +132,23 @@ describe("PocketBase hooks & guards (live)", () => {
     expect(updated.photo).toBeTruthy();
   });
 
-  it("spend requests exceeding the balance cannot be approved", async () => {
+  it("spend requests exceeding the balance cannot even be submitted", async () => {
     const balance = await parent.getBalance(kidUser.id);
-    const sr = await kid.submitSpendRequest(kidUser.id, balance + 1000, "moon rocket");
-    createdSpendRequests.push(sr.id);
-
+    // Free-form request: rejected up front, with a readable message.
     await expect(
-      parent.approveSpendRequest(sr.id, parent.currentUser!.id),
-    ).rejects.toThrow();
+      kid.submitSpendRequest(kidUser.id, balance + 1000, "moon rocket"),
+    ).rejects.toMatchObject({ response: { message: expect.stringMatching(/enough/i) } });
+    // Screen time goes through the same guard (60 min at 100 bucks/min).
+    const household = await parent.getHousehold(householdId);
+    await parent.updateHousehold(householdId, { screen_rate: 100 });
+    try {
+      await expect(
+        kid.submitScreenTimeRequest(kidUser.id, 60, 100),
+      ).rejects.toMatchObject({ response: { message: expect.stringMatching(/enough/i) } });
+    } finally {
+      await parent.updateHousehold(householdId, { screen_rate: household.screen_rate ?? 0 });
+    }
     expect(await parent.getBalance(kidUser.id)).toBe(balance);
-
-    await parent.denySpendRequest(sr.id, parent.currentUser!.id);
   });
 
   it("new spend requests are forced pending and must be positive", async () => {
@@ -166,6 +172,9 @@ describe("PocketBase hooks & guards (live)", () => {
   it("screen-time requests are priced server-side from the household rate", async () => {
     const household = await parent.getHousehold(householdId);
     await parent.updateHousehold(householdId, { screen_rate: 2 });
+    // Requests are balance-checked on create, so make sure 60 min is affordable.
+    const topUp = Math.max(0, 120 - (await parent.getBalance(kidUser.id)));
+    if (topUp) await parent.adjustBalance(kidUser.id, topUp, "pricing test top-up");
     try {
       // A tampered client amount is overwritten with minutes × rate.
       const sr = await kid.pb.collection(Collections.SpendRequests).create<SpendRequest>({
@@ -192,6 +201,7 @@ describe("PocketBase hooks & guards (live)", () => {
         ).rejects.toThrow();
       }
     } finally {
+      if (topUp) await parent.adjustBalance(kidUser.id, -topUp, "pricing test top-up cleanup");
       await parent.updateHousehold(householdId, { screen_rate: household.screen_rate ?? 0 });
     }
   });
@@ -253,6 +263,34 @@ describe("PocketBase hooks & guards (live)", () => {
     await expect(
       kid.sendBroadcast(householdId, kidUser.id, "kids cannot broadcast"),
     ).rejects.toThrow();
+  });
+
+  it("inbox: broadcasts land in each recipient's history; owners can clear, nobody else can touch it", async () => {
+    const msg = `inbox test ${Date.now()}`;
+    await parent.sendBroadcast(householdId, parent.currentUser!.id, msg);
+
+    const kidItems = await kid.listInbox(kidUser.id);
+    const received = kidItems.find((i) => i.body === msg);
+    expect(received).toMatchObject({ type: "broadcast", user: kidUser.id });
+    // The sender keeps a copy too.
+    const parentItems = await parent.listInbox(parent.currentUser!.id);
+    expect(parentItems.find((i) => i.body === msg)?.type).toBe("broadcast_sent");
+
+    // Isolation: a kid can't read a parent's inbox, and clients can't forge items.
+    const foreign = await kid.pb
+      .collection(Collections.Inbox)
+      .getList(1, 5, { filter: `user = "${parent.currentUser!.id}"` });
+    expect(foreign.items).toHaveLength(0);
+    await expect(
+      kid.pb.collection(Collections.Inbox).create({ user: kidUser.id, title: "forged" }),
+    ).rejects.toThrow();
+    await expect(parent.deleteInboxItem(received!.id)).rejects.toThrow();
+
+    // Owner delete.
+    await kid.deleteInboxItem(received!.id);
+    expect((await kid.listInbox(kidUser.id)).find((i) => i.body === msg)).toBeUndefined();
+    await parent.clearInbox(parent.currentUser!.id);
+    expect(await parent.listInbox(parent.currentUser!.id)).toHaveLength(0);
   });
 
   it("realtime: a kid subscription fires when their assignment changes", async () => {

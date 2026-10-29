@@ -151,4 +151,10 @@ test("broadcast a message to all kids", async ({ page }) => {
     .fill("E2E broadcast test");
   await page.getByRole("button", { name: "Send" }).click();
   await expect(page.getByText("Sent to all kids 📣")).toBeVisible();
+
+  // The sender's copy lands in the Alerts tab, and can be cleared.
+  await goTab(page, /Alerts/);
+  await expect(page.getByText("E2E broadcast test").first()).toBeVisible();
+  await page.getByRole("button", { name: "Clear all" }).click();
+  await expect(page.getByText("No alerts")).toBeVisible();
 });

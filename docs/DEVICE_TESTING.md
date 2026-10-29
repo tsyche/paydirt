@@ -114,6 +114,7 @@ adb install -r apps/mobile/android/app/build/outputs/apk/debug/app-debug.apk
 - [x] Background: lock the screen, have parent approve a chore → notification appears from **PayDirt** (not ntfy) — channel `paydirt-alerts`; all four types confirmed
 - [x] Background: parent broadcasts a message → notification appears
 - [ ] Foreground: app open, approve a chore → UI updates silently (no duplicate notification) — **fails** (see findings): UI updates live, but the notification is still posted
+- [ ] Alerts bell (parent + both kid UIs) lists past pushes newest-first; ✕ removes one, "Clear all" empties it
 - [x] Notification tap opens the app and lands on the relevant screen — warm (2026-10-21: heads-up tap → KidHome, balance current) and cold (`am kill` → tap → cold start; process-confirmed cold start; landing screen inferred — user interaction stole the foreground mid-launch)
 
 ### Connectivity

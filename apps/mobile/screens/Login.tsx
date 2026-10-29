@@ -4,6 +4,7 @@ import { TextInput, Button, Text, useTheme } from "react-native-paper";
 import { SafeAreaView } from "react-native-safe-area-context";
 import type { User } from "@paydirt/shared";
 import { client } from "../lib/client";
+import { BrandTitle } from "../components/BrandTitle";
 import { OfflineBanner } from "../components/OfflineBanner";
 
 // Reuses the shared reachability poller (started in lib/client.ts, see
@@ -37,13 +38,7 @@ export function Login({ onLogin }: { onLogin: (u: User) => void }) {
     <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]}>
       <OfflineBanner />
       <View style={styles.hero}>
-        <Text style={styles.coin}>💰</Text>
-        <Text
-          variant="displaySmall"
-          style={[styles.title, { color: theme.colors.primary }]}
-        >
-          PayDirt
-        </Text>
+        <BrandTitle size={56} />
         <Text style={[styles.tagline, { color: theme.colors.onSurfaceVariant }]}>
           DO. THE. THING.
         </Text>
@@ -89,8 +84,6 @@ export function Login({ onLogin }: { onLogin: (u: User) => void }) {
 const styles = StyleSheet.create({
   container: { flex: 1, justifyContent: "center", padding: 28 },
   hero: { alignItems: "center", marginBottom: 40 },
-  coin: { fontSize: 72, marginBottom: 8 },
-  title: { fontWeight: "900", letterSpacing: -1 },
   tagline: { fontSize: 12, fontWeight: "700", letterSpacing: 5, marginTop: 6 },
   form: { gap: 14 },
   error: { fontSize: 14 },

@@ -1,6 +1,7 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
-  <circle cx="16" cy="16" r="15" fill="#2f7d4f"/>
-  <circle cx="16" cy="16" r="11" fill="none" stroke="#ffffff" stroke-width="1.5" opacity="0.6"/>
-  <text x="16" y="22" font-family="Georgia, serif" font-size="16" font-weight="bold"
-        text-anchor="middle" fill="#ffffff">P</text>
-</svg>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024"><rect width="1024" height="1024" fill="#2f7d4f"/>
+  <g stroke-linejoin="round" stroke-linecap="round">
+    <path d="M400 330C250 450 200 620 300 740C400 830 624 830 724 740C824 620 774 450 624 330Z" fill="#f5b82e" stroke="#b8801a" stroke-width="14"/>
+    <path d="M400 305L345 205Q512 275 679 205L624 305Z" fill="#f5b82e" stroke="#b8801a" stroke-width="14"/>
+    <path d="M388 305H636V350Q512 372 388 350Z" fill="#b8801a"/>
+    <path d="M582 525C560 478 448 482 448 540C448 598 578 578 578 642C578 700 462 700 440 652M512 462V718" fill="none" stroke="#1f5a38" stroke-width="38"/>
+  </g></svg>

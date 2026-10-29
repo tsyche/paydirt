@@ -17,7 +17,7 @@ import {
 } from "react-native-paper";
 import { SafeAreaView } from "react-native-safe-area-context";
 import type { Assignment, Chore, Household, SavingsGoal, User } from "@paydirt/shared";
-import { avatarUrl, currencyDisplayName, featureTip } from "@paydirt/shared";
+import { avatarUrl, currencyDisplayName, featureTip, errorMessage } from "@paydirt/shared";
 import { client } from "../lib/client";
 import { isNetworkError } from "../lib/reachability";
 import { useReachability } from "../lib/useReachability";
@@ -84,7 +84,7 @@ export function KidDetail({
     } catch (e) {
       // Network failures already surface via the offline banner — an extra
       // toast on top would just be noise. Anything else still gets one.
-      if (!isNetworkError(e)) setSnack(String(e));
+      if (!isNetworkError(e)) setSnack(errorMessage(e));
     } finally {
       setRefreshing(false);
     }
@@ -119,7 +119,7 @@ export function KidDetail({
       setSnack(adjustSign > 0 ? "Bonus added 🎉" : "Deducted.");
       await reload();
     } catch (e) {
-      setSnack(String(e));
+      setSnack(errorMessage(e));
     } finally {
       setSaving(false);
     }
@@ -138,6 +138,7 @@ export function KidDetail({
       <OfflineBanner />
 
       <ScrollView
+        keyboardShouldPersistTaps="handled"
         contentContainerStyle={styles.content}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={reload} />}
       >
@@ -178,7 +179,7 @@ export function KidDetail({
                     .collection("users")
                     .update(kid.id, { calm_mode: next })
                     .then(() => reload())
-                    .catch((e) => setSnack(String(e)))
+                    .catch((e) => setSnack(errorMessage(e)))
                 }
               />
             </Card.Content>
@@ -332,7 +333,7 @@ function FamilyLinkCard({
         .update(kid.id, { fl_child_id: childId.trim(), fl_device_id: deviceId.trim() });
       onSaved();
     } catch (e) {
-      onError(String(e));
+      onError(errorMessage(e));
     } finally {
       setBusy(false);
     }

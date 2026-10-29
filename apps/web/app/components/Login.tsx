@@ -38,8 +38,10 @@ export function Login({
   return (
     <div className="login-shell">
       <div className="login-card">
-        <div className="login-logo">💰</div>
-        <h1 className="login-title">PayDirt</h1>
+        <img className="login-logo" src="/bag.svg" alt="" />
+        <h1 className="login-title">
+          Pay<span className="brand-dirt">Dirt</span>
+        </h1>
         <p className="login-tagline">Do. The. Thing.</p>
 
         <form className="stack" onSubmit={submit}>

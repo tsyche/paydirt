@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import type { CurrencyTransaction, User } from "@paydirt/shared";
 import { client } from "../lib/client";
-import { currencyDisplayName } from "@paydirt/shared";
+import { currencyDisplayName, errorMessage } from "@paydirt/shared";
 import type { Household } from "@paydirt/shared";
 
 export function LedgerView({ household }: { household: Household | null }) {
@@ -30,7 +30,7 @@ export function LedgerView({ household }: { household: Household | null }) {
     void client
       .listTransactionsForMonth(kidId, year, month)
       .then(setTxns)
-      .catch((e) => setError(String(e)))
+      .catch((e) => setError(errorMessage(e)))
       .finally(() => setBusy(false));
   }, [kidId, year, month]);
 

@@ -208,6 +208,12 @@ function runDaily(app) {
   const { notifyUser } = require(`${__hooks}/lib/ntfy.js`);
   const now = new Date();
 
+  // Inbox items are only a convenience history; keep 30 days.
+  const cutoff = new Date(now.getTime() - 30 * 24 * 3600 * 1000).toISOString().replace("T", " ");
+  for (const old of app.findRecordsByFilter("inbox", "created < {:cutoff}", "", 0, 0, { cutoff: cutoff })) {
+    app.delete(old);
+  }
+
   for (const hh of listHouseholds(app)) {
     if (!hh.getBool("paused")) {
       // Recurring chore auto-assignment: re-create an assignment when a

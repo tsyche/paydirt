@@ -12,6 +12,7 @@
 // is inconsistent across RN versions, so this parses the query string by hand.
 
 export type ParentTab = "approvals" | "kids" | "chores" | "settings";
+export type KidTab = "home" | "chores" | "goals" | "family";
 
 const DEEP_LINK_PREFIX = "paydirt://notification";
 
@@ -52,4 +53,14 @@ export function parseNotificationType(url: string | null | undefined): string | 
 export function tabForNotificationType(type: string | null | undefined): ParentTab | null {
   if (!type) return null;
   return TYPE_TO_TAB[type] ?? null;
+}
+
+const TYPE_TO_KID_TAB: Partial<Record<string, KidTab>> = {
+  broadcast: "family",
+};
+
+// Kid-app counterpart of tabForNotificationType: a tapped broadcast opens the Family tab.
+export function kidTabForNotificationType(type: string | null | undefined): KidTab | null {
+  if (!type) return null;
+  return TYPE_TO_KID_TAB[type] ?? null;
 }

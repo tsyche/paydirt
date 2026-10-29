@@ -18,19 +18,6 @@ onRecordAfterCreateSuccess((e) => {
     "New chore! ⭐",
     chore.getString("name"),
   );
-  // "I need help" flag toggled on → notify parents.
-  const needsHelp = e.record.getBool("needs_help");
-  const prevHelp = e.record.original().getBool("needs_help");
-  if (needsHelp && !prevHelp) {
-    const kid = e.app.findRecordById("users", e.record.getString("child"));
-    notifyParents(
-      e.app,
-      chore.getString("household"),
-      kid.getString("display_name") + " needs help 🆘",
-      name,
-    );
-  }
-
   e.next();
 }, "assignments");
 
@@ -51,6 +38,19 @@ onRecordAfterUpdateSuccess((e) => {
       chore.getString("household"),
       kid.getString("display_name") + " replied 💬",
       name + ": " + response,
+    );
+  }
+
+  // "I need help" flag toggled on → notify parents.
+  const needsHelp = e.record.getBool("needs_help");
+  const prevHelp = e.record.original().getBool("needs_help");
+  if (needsHelp && !prevHelp) {
+    const kid = e.app.findRecordById("users", e.record.getString("child"));
+    notifyParents(
+      e.app,
+      chore.getString("household"),
+      kid.getString("display_name") + " needs help 🆘",
+      name,
     );
   }
 
@@ -110,12 +110,15 @@ onRecordAfterUpdateSuccess((e) => {
 
 // ── Broadcast created → notify all kids ──────────────────────────────────────
 onRecordAfterCreateSuccess((e) => {
-  const { notifyChildren } = require(`${__hooks}/lib/ntfy.js`);
+  const { notifyChildren, logToInbox } = require(`${__hooks}/lib/ntfy.js`);
+  // The sender keeps a copy so parents can see what they've sent.
+  logToInbox(e.app, e.record.getString("sender"), "You sent a message 📣", e.record.getString("message"), "broadcast_sent");
   notifyChildren(
     e.app,
     e.record.getString("household"),
     "Message from Mom/Dad 📣",
     e.record.getString("message"),
+    "broadcast",
   );
   e.next();
 }, "broadcasts");

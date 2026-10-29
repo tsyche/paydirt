@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { parseNotificationType, tabForNotificationType } from "./deepLinks";
+import { kidTabForNotificationType, parseNotificationType, tabForNotificationType } from "./deepLinks";
 
 describe("parseNotificationType", () => {
   it("extracts type from a paydirt notification deep link", () => {
@@ -57,5 +57,17 @@ describe("tabForNotificationType", () => {
     expect(tabForNotificationType(null)).toBeNull();
     expect(tabForNotificationType(undefined)).toBeNull();
     expect(tabForNotificationType("")).toBeNull();
+  });
+});
+
+describe("kidTabForNotificationType", () => {
+  it("opens the Family tab for broadcasts", () => {
+    expect(kidTabForNotificationType("broadcast")).toBe("family");
+  });
+
+  it("has no destination for unknown or absent types", () => {
+    expect(kidTabForNotificationType("spend_approved")).toBeNull();
+    expect(kidTabForNotificationType(null)).toBeNull();
+    expect(kidTabForNotificationType(undefined)).toBeNull();
   });
 });
