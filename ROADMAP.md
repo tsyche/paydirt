@@ -31,6 +31,8 @@ Last audit 2026-10-21: retired the stale pb-download Known Issue to a fixed-with
 - **`pocketbase/pocketbase` upstream has tags with no Release objects (found 2026-08-17)** — `just pb-download` now handles this: authenticated `releases/latest` lookup (gh/GITHUB_TOKEN) with a Homebrew fallback on macOS and actionable manual options elsewhere (fixed 2026-08-17, `a197def` + `8be6569`; docs updated). Remaining gap: non-macOS hosts during an upstream zero-Releases stretch still need a manual download — a tag-tarball/`go build` fallback is the possible follow-up.
 - **Dependabot alerts blocked upstream (2026-10-23)** — both come in only through `@expo/cli`, a dev-time CLI that never ships in the APK: `node-forge` ≤ 1.4.0 (#62, GHSA-86w9-cpqp-85rv; no patched release exists) and `zod` 3.25.76 (#79; the fix is 4.6.6+ only, and forcing zod 4 into `@expo/cli` risks breaking it). Re-check on the next Expo SDK bump. The zod 4 copy (via `eslint-plugin-react-hooks`) is fixed by a `pnpm.overrides` entry.
 
+- **Dependabot deepmerge alert #80 (2026-10-29)** — `deepmerge` 4.3.1 is pulled in by `@expo/config` 57.0.9. [GHSA-gcqx-w48m-w2h4](https://github.com/advisories/GHSA-gcqx-w48m-w2h4) reports low-severity prototype poisoning when merging attacker-controlled objects; GitHub lists no patched version. Re-check with the next Expo/config update.
+
 ## Recommended Next 3
 
 **Top two require a human** (family-facing reachability is the bottleneck, not code). The real-device smoke test (previous #1) shipped 2026-10-21 — see the shipped ledger. Best agent-doable items are listed below the top 3.

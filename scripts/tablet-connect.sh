@@ -15,25 +15,33 @@ if [ -z "${entries}" ]; then
     exit 1
 fi
 
+# `adb connect` has no timeout and hangs on a dead IP; macOS lacks timeout(1), so use perl.
+adb_connect() { perl -e 'alarm 8; exec @ARGV' adb connect "$1" 2>&1 || true; }
+
 connect_one() {
     local e="$1" host res port
     host="${e%%:*}"
+    # already connected on any port (wireless debugging picks random ones)
+    if adb devices | awk '$2 == "device" {print $1}' | grep -q "^${host}:"; then
+        printf '\033[0;32malready connected to %s\033[0m\n' "${host}"
+        return 0
+    fi
     # entry as-is (skipped for bare IPs, which have no port), then ip:5555
     if [[ "${e}" == *:* ]]; then
-        res=$(adb connect "${e}" 2>&1 || true)
+        res=$(adb_connect "${e}")
         if [[ "${res}" == *"connected to"* && "${res}" != *"failed"* ]]; then
             printf '\033[0;32m%s\033[0m\n' "${res}"
             return 0
         fi
     fi
-    res=$(adb connect "${host}:5555" 2>&1 || true)
+    res=$(adb_connect "${host}:5555")
     if [[ "${res}" == *"connected to"* && "${res}" != *"failed"* ]]; then
         printf '\033[0;32m%s\033[0m\n' "${res}"
         return 0
     fi
     port=$(adb mdns services 2>/dev/null | awk -v h="${host}" '$4==h {print $5; exit}')
     if [[ -n "${port}" ]]; then
-        res=$(adb connect "${host}:${port}" 2>&1 || true)
+        res=$(adb_connect "${host}:${port}")
         if [[ "${res}" == *"connected to"* && "${res}" != *"failed"* ]]; then
             printf '\033[0;32m%s\033[0m\n' "${res}"
             return 0
