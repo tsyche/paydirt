@@ -28,6 +28,8 @@ default:
     printf '\n\033[1mAlways-on server on bb\033[0m (docs/DEPLOYMENT.md)\n'
     printf '  just install-service       first install (imports local pb_data once)\n'
     printf '  just update-service        deploy hooks/migrations/dashboard + restart\n'
+    printf '  just backup-pull           copy the host nightly backups here   (push-updates: ship APK/OTA)\n'
+    printf '  just host-reset / go-live  wipe host DB, then onboard the real household\n'
     printf '  just service-status        also: service-logs [N], service-restart\n'
     printf '  just fl-host-setup         Family Link grants: Node, browsers, session (re-run after fl-login)\n'
     printf '  just fl-host-grant 60      test grant on bb\n'
@@ -679,6 +681,35 @@ backup:
     fi
     cp -R pocketbase/pb_data "${OUT}/pb_data"
     printf '\033[0;32mBackup written to %s\033[0m\n' "$OUT"
+
+# Copy the host's nightly backup zips (PocketBase built-in, 02:30) to ./backups/host/
+[group('service')]
+backup-pull:
+    ./scripts/service-remote.sh backup-pull
+
+# Go-live step 1: back up, then WIPE the host DB (confirms first); prints a new superuser password
+[group('service')]
+host-reset:
+    ./scripts/service-remote.sh reset-data
+
+# Go-live step 2: create the real household, parents and kids on an empty DB (target: host | local)
+[group('service')]
+go-live target="host":
+    #!/usr/bin/env bash
+    set -euo pipefail
+    if [ "{{target}}" = "local" ]; then
+        export PB_URL=http://127.0.0.1:3111
+    else
+        source scripts/deploy-host.sh
+        remote=$(read_deploy_host "$PWD")
+        export PB_URL="http://$(ssh -G "$remote" | awk '$1 == "hostname" {print $2; exit}'):3111"
+    fi
+    node pocketbase/go-live.mjs
+
+# Mirror local pb_data/updates (APK + OTA from publish-apk/update-publish) to the host
+[group('service')]
+push-updates:
+    ./scripts/service-remote.sh push-updates
 
 # Publish a native APK for Tier 2 auto-update (drop version.json + APK into pb_data/updates).
 # Usage: just publish-apk versionCode=2 versionName=1.0.1 apk=apps/mobile/android/app/build/outputs/apk/release/app-release.apk

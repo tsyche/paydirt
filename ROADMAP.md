@@ -53,13 +53,10 @@ Last audit 2026-10-21: retired the stale pb-download Known Issue to a fixed-with
 
 ### Best agent-doable next
 
-1. **Host PayDirt on bb — remaining pieces** — the service itself is in place (`just install-service` / `just update-service`, see [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md)). Still to do: scheduled backups of `/var/lib/paydirt` to a second location, and pointing `just publish-apk` / `just update-publish` at bb instead of local `pb_data/updates`. ~2-3 hrs.
-   - 🧑 needs-human: bb SSH access + sudo for the first install
-2. **Go live on bb with a real household** — bb still runs the seeded test data imported from the Mac. Add a host reset recipe (back up, then wipe `/var/lib/paydirt` to an empty DB; `just reset-db` is Mac-only), plus a `just go-live` onboarding path that creates the real household, parents and kids without `seed.mjs` or the admin UI. Re-enter `fl_*` IDs and re-point devices afterwards. Depends on the backup work in #1. ~3-4 hrs.
-   - 🧑 needs-human: real names/accounts; re-login on every device
-3. **Wire Android unit tests into `just test`/CI** — see [Quality & Infrastructure](#quality--infrastructure) #6; ~1-2 hrs.
-4. **PocketBase backup recipe** — see [Quality & Infrastructure](#quality--infrastructure) #7; ~1-2 hrs.
-5. **Feature explanation tooltips** — see [Backlog](#backlog-unscheduled). Settings don't explain themselves; ~2-3 hrs.
+1. **Age-grouped starter chores** — `seed.mjs` only has three test chores. Add a curated starter library by age band (e.g. 4-6, 7-9, 10-12, 13+) with suggested rewards, and an "add starter chores" picker in `go-live`/the web Chores tab so a new household isn't staring at an empty list. Brainstorm first: common chores per band (4-6: make bed, put toys away, feed pet, set table; 7-9: dishwasher, trash, tidy room, laundry to hamper; 10-12: laundry, vacuum, simple cooking help, yard work; 13+: cook a meal, bathroom clean, mow lawn), difficulty-scaled reward defaults, and which are recurring vs one-off. Keep it a static data file in `packages/shared`. ~2-3 hrs.
+2. **Feature explanation tooltips** — see [Backlog](#backlog-unscheduled). Settings don't explain themselves; ~2-3 hrs.
+3. **Go live on bb** — code is done (`just backup-pull`, `host-reset`, `go-live`, `push-updates`; see [deployment](docs/DEPLOYMENT.md#going-live-with-a-real-household)). 🧑 needs-human: run `update-service` (enables nightly backups), real names/accounts, re-login on every device, re-enter `fl_*` IDs.
+4. **Pending requests can overcommit a balance** — see Known Issues; decide whether to subtract other pending requests at create.
 
 ## Phase 2 — Family Link Automation
 
@@ -87,15 +84,13 @@ Last audit 2026-10-21: retired the stale pb-download Known Issue to a fixed-with
 
 ## Quality & Infrastructure
 
-Added 2026-08-10. Items 1-4 were fully agent-doable — no hardware, no new accounts — and all four shipped 2026-08-12 – 2026-08-17 (CI pipeline, ledger integrity verifier, cron/scheduled-job test coverage, offline/unreachable-backend UX — entries preserved in [docs/ledger/ROADMAP_SHIPPED.md](./docs/ledger/ROADMAP_SHIPPED.md)). Item 5 was split: Tier 1 (expo-updates OTA) shipped 2026-10-21 — see the shipped ledger; Tier 2 (native APK prompt) remains. Items 6-7 added 2026-10-21.
+Added 2026-08-10. Items 1-4 were fully agent-doable — no hardware, no new accounts — and all four shipped 2026-08-12 – 2026-08-17 (CI pipeline, ledger integrity verifier, cron/scheduled-job test coverage, offline/unreachable-backend UX — entries preserved in [docs/ledger/ROADMAP_SHIPPED.md](./docs/ledger/ROADMAP_SHIPPED.md)). Item 5 was split: Tier 1 (expo-updates OTA) shipped 2026-10-21 — see the shipped ledger; Tier 2 (native APK prompt) remains. Items 6-7 (Android tests in CI, backups) shipped; see the shipped ledger.
 
 5. **App auto-updates Tier 2 — version check + APK prompt (no Play Store)**
    - Tier 1 (`expo-updates` OTA for JS/TS/components) shipped 2026-10-21. Tier 2 agent-doable pieces shipped 2026-10-22: `GET /api/updates/version` + `GET /api/updates/apk` endpoints (PocketBase hook, `lib/updates.js`), mobile polling (`apps/mobile/lib/appUpdate.ts`), DownloadManager install intent (`PayDirtNative.downloadAndInstallApk` + `REQUEST_INSTALL_PACKAGES`), and `just publish-apk`. The updates hook was refactored into `lib/updates.js` (top-level bindings aren't visible inside routerAdd handlers in this Goja runtime) and its root corrected to `$app.dataDir()/updates`.
    - Native changes (`FamilyLinkAccessibilityService.kt`, new native deps, SDK bumps) still need a cable or this fallback; Android forces a user tap on install, no way around it.
    - 🧑 needs-human: final validation that the install prompt lands and the APK actually installs on GrapheneOS. The endpoint, poll, download, and intent wiring are done.
 
-6. **Wire Android unit tests into `just test` + CI** — `ForegroundTrackerTest.kt` (4 JUnit cases) runs via `./gradlew :app:testDebugUnitTest` only; the shipped entry (2026-10-21) noted it isn't in `just test`/CI. Add a justfile target, call it from `just test` or CI (CI has no JDK today — add a setup-java step if wired into the workflow). ~1-2 hrs.
-7. **PocketBase backup recipe** — once real family data lives here, there's no automated backup. Add `just backup` (PocketBase `pb export`/`pb dump` of SQLite + storage into a timestamped artifact) and document a cron/launchd line in `pocketbase/README.md`. Restore path should be smoke-tested once. ~1-2 hrs.
 
 ## Backlog (unscheduled)
 

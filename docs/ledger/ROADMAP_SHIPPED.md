@@ -4,6 +4,9 @@
 
 ## Shipped index
 
+- [x] 2026-10-29 — Alert inbox (bell on mobile, Alerts tab on web), `needs_help` parent notification fix
+- [x] 2026-10-29 — Host backups (nightly PocketBase zips + `backup-pull`), `push-updates`, `host-reset`/`go-live` onboarding
+- [x] 2026-10-21 — Android unit tests wired into `just test` + CI (`test-android`, setup-java; confirmed 2026-10-29)
 - [x] 2026-10-25 — Phase 2 spike: Family Link API grant
 - [x] 2026-10-21 — App auto-updates (Tier 1 — expo-updates OTA)
 - [x] 2026-10-22 — App auto-updates (Tier 2 — version check + APK prompt)

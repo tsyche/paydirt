@@ -47,6 +47,8 @@ Migrations run automatically on restart. No commit or push is needed to deploy l
 | Status | `just service-status` |
 | Logs | `just service-logs [N]` |
 | Restart | `just service-restart` |
+| Copy backups to this Mac | `just backup-pull` |
+| Ship APK/OTA to the host | `just push-updates` |
 
 ## Family Link grants
 
@@ -85,4 +87,21 @@ When disabled or a child has no IDs, approval still deducts the purchase and sho
 
 To disable future automatic approvals, remove `FL_AUTOMATION_ENABLED` (or set it to `0`) and restart `paydirt`. A running browser grant can still finish. New worker runs turn remaining queued jobs into manual tasks. `FL_QUEUE_DIR` is a test override; production uses the fixed directory above.
 
-Not yet automated: backups of `/var/lib/paydirt`, and pointing `just publish-apk` / `just update-publish` at the host (they still write local `pb_data/updates`). See [ROADMAP.md](../ROADMAP.md).
+## Backups
+
+PocketBase's built-in scheduler (set by migration `1717000023`) writes a consistent zip of the whole data dir to `/var/lib/paydirt/backups/` at 02:30 nightly and keeps the newest 7. That covers corruption and bad writes, not losing the host, so run `just backup-pull` now and then (needs sudo; keeps the newest 30 in `./backups/host/`, gitignored). Zips include the Family Link session, so treat them as secrets.
+
+**Restore** (smoke-tested locally 2026-10-29): `sudo systemctl stop paydirt`, move the current `data.db*`/`auxiliary.db`/`storage` aside, unzip the backup into `/var/lib/paydirt` as `paydirt`, then `sudo systemctl start paydirt`. The admin UI (`/_/` → Settings → Backups) can also restore.
+
+## Publishing app updates
+
+`just publish-apk` and `just update-publish` write to local `pocketbase/pb_data/updates`. `just push-updates` mirrors that folder to `/var/lib/paydirt/updates` on the host (no restart needed).
+
+## Going live with a real household
+
+The host may still hold seeded test data. Two steps, each confirms before acting:
+
+1. `just host-reset` — you type the host name to confirm; it snapshots `data.db` and `storage` to `backups/pre-reset-*.tgz`, wipes the DB, re-runs migrations and prints a **new superuser password** once. Family Link session, `updates/`, backups and the env file are kept.
+2. `just go-live` — prompts for the household, parents and kids and prints generated logins once. Refuses to run if a household exists. `just go-live local` targets the Mac's PocketBase.
+
+Afterwards: re-enter each kid's Family Link IDs in parent settings, and sign in again on every device (new accounts, new passwords).

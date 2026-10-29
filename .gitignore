@@ -66,3 +66,6 @@ blob-report/
 # Test tablets for `just push-remote` — LAN-specific, one ip:port per line
 /deploy-devices
 apps/web/.pw-browsers/
+
+# Local/host data backups (contain family data)
+/backups/
