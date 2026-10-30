@@ -9,7 +9,7 @@ export function BrandTitle({ size = 28 }: { size?: number }) {
     <View style={styles.row} accessibilityRole="header" accessibilityLabel="PayDirt">
       <Image
         source={bag}
-        style={{ width: size * 1.3, height: size * 1.3 }}
+        style={{ width: size * 1.8, height: size * 1.8 }}
         accessibilityIgnoresInvertColors
       />
       <Text style={[styles.word, { fontSize: size, color: theme.colors.primary }]}>

@@ -153,7 +153,7 @@ export function SimpleKidHome({ user, onLogout }: { user: User; onLogout: () => 
 
   return (
     <SafeAreaView style={styles.container} edges={["top"]}>
-      <Appbar.Header>
+      <Appbar.Header statusBarHeight={0}>
         <Appbar.Content title={`Hi ${user.display_name}! 👋`} />
         <InboxButton userId={user.id} />
         <Appbar.Action icon="logout" onPress={onLogout} />

@@ -130,7 +130,7 @@ export function KidDetail({
 
   return (
     <SafeAreaView style={styles.container} edges={["top"]}>
-      <Appbar.Header>
+      <Appbar.Header statusBarHeight={0}>
         <Appbar.BackAction onPress={onClose} />
         <Appbar.Content title={kid?.display_name ?? "Kid"} />
       </Appbar.Header>

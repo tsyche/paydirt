@@ -448,7 +448,7 @@ export function ParentHome({
 
   return (
     <SafeAreaView style={styles.container} edges={["top"]}>
-      <Appbar.Header>
+      <Appbar.Header statusBarHeight={0}>
         <Appbar.Content
           title={<BrandTitle size={30} />}
           subtitle={pendingCount > 0 ? `${pendingCount} item${pendingCount === 1 ? "" : "s"} waiting` : "All clear 🎉"}

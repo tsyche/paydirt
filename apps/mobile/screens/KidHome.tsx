@@ -242,7 +242,7 @@ export function KidHome({
 
   return (
     <SafeAreaView style={styles.container} edges={["top"]}>
-      <Appbar.Header>
+      <Appbar.Header statusBarHeight={0}>
         <Appbar.Content title={`${me.avatar_emoji ? me.avatar_emoji + " " : ""}Hi, ${user.display_name}`} />
         {streak >= 2 ? <Chip compact style={styles.streakChip}>{`🔥 ${streak}-day streak`}</Chip> : null}
         <AppearanceButton />

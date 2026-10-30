@@ -1,66 +1,98 @@
-// Regenerates the launcher icon, splash, favicon and monochrome PNGs from the
-// original money-bag drawing below. Run: node apps/mobile/scripts/gen-icons.mjs
-// android/ is committed and hand-edited (custom Kotlin), so `expo prebuild`
-// would wipe it: run prebuild, keep ONLY res/mipmap-*/ic_launcher*.webp,
-// res/drawable-*/notification_icon.png and values/colors.xml iconBackground,
-// then `git checkout`/`git clean` the rest of android/. Bump versionCode.
+// Regenerates every icon from assets/paydirt-logo.svg (the Noto Emoji money bag on a
+// dirt pile): launcher, splash, favicon, in-app bag, the web
+// logo/favicon, and the committed Android mipmaps + notification icons.
+// Run: node apps/mobile/scripts/gen-icons.mjs, then bump versionCode.
+// android/ is committed and hand-edited (custom Kotlin), so never run
+// `expo prebuild` for icons; this script writes the res files directly.
 import sharp from "sharp";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
-import { writeFile } from "node:fs/promises";
+import { mkdir, readFile, writeFile } from "node:fs/promises";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
-const out = (f) => path.join(here, "..", "assets", f);
-const webOut = (f) => path.join(here, "..", "..", "web", f);
+const assets = (f) => path.join(here, "..", "assets", f);
+const res = (...p) => path.join(here, "..", "android", "app", "src", "main", "res", ...p);
+const web = (f) => path.join(here, "..", "..", "web", f);
 const GREEN = "#2f7d4f";
-const GOLD = "#f5b82e";
-const GOLD_DARK = "#b8801a";
-const INK = "#1f5a38";
 
-// 1024x1024 canvas; the bag sits inside the centre ~66% (Android safe zone).
-const BODY = "M400 330C250 450 200 620 300 740C400 830 624 830 724 740C824 620 774 450 624 330Z";
-const RUFFLE = "M400 305L345 205Q512 275 679 205L624 305Z";
-const BAND = "M388 305H636V350Q512 372 388 350Z";
-const DOLLAR =
-  "M582 525C560 478 448 482 448 540C448 598 578 578 578 642C578 700 462 700 440 652M512 462V718";
+const source = await readFile(assets("paydirt-logo.svg"), "utf8");
+const bagPng = (size) => sharp(Buffer.from(source), { density: 600 }).resize(size, size).png().toBuffer();
 
-const bag = (fill, stroke, dollar) => `
-  <g stroke-linejoin="round" stroke-linecap="round">
-    <path d="${BODY}" fill="${fill}" stroke="${stroke}" stroke-width="14"/>
-    <path d="${RUFFLE}" fill="${fill}" stroke="${stroke}" stroke-width="14"/>
-    <path d="${BAND}" fill="${stroke}"/>
-    ${dollar}
-  </g>`;
-const colorDollar = `<path d="${DOLLAR}" fill="none" stroke="${INK}" stroke-width="38"/>`;
-const svg = (inner, bg = "") =>
-  `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">${bg}${inner}</svg>`;
-
-const color = bag(GOLD, GOLD_DARK, colorDollar);
-// Monochrome: alpha-only silhouette with the $ cut out via a mask.
-const mono = `
-  <mask id="m"><rect width="1024" height="1024" fill="#000"/>
-    <g fill="#fff" stroke="#fff" stroke-width="14" stroke-linejoin="round"><path d="${BODY}"/><path d="${RUFFLE}"/><path d="${BAND}"/></g>
-    <path d="${DOLLAR}" fill="none" stroke="#000" stroke-width="38" stroke-linecap="round" stroke-linejoin="round"/>
-  </mask>
-  <rect width="1024" height="1024" fill="#000" mask="url(#m)"/>`;
-const bgRect = `<rect width="1024" height="1024" fill="${GREEN}"/>`;
-
-const render = (s, size, file, flatten) => {
-  let p = sharp(Buffer.from(s), { density: 144 }).resize(size, size);
-  if (flatten) p = p.flatten({ background: GREEN }).removeAlpha();
-  return p.png().toFile(out(file));
+// Bag centred on a size x size transparent canvas, scaled to `fill` of it
+// (adaptive-icon layers keep the bag in the centre ~66% safe zone).
+const layer = async (size, fill) => {
+  const inner = Math.round(size * fill);
+  return sharp({ create: { width: size, height: size, channels: 4, background: { r: 0, g: 0, b: 0, alpha: 0 } } })
+    .composite([{ input: await bagPng(inner), gravity: "center" }])
+    .png()
+    .toBuffer();
 };
+const solid = (size) =>
+  sharp({ create: { width: size, height: size, channels: 3, background: GREEN } }).png().toBuffer();
+const onGreen = async (size, fill) =>
+  sharp(await solid(size)).composite([{ input: await layer(size, fill) }]).png().toBuffer();
 
-await Promise.all([
-  render(svg(color, bgRect), 1024, "icon.png", true),
-  render(svg(color), 1024, "android-icon-foreground.png"),
-  render(svg("", bgRect), 1024, "android-icon-background.png"),
-  render(svg(mono), 432, "android-icon-monochrome.png"),
-  render(svg(color), 1024, "splash-icon.png"),
-  render(svg(color, bgRect), 48, "favicon.png"),
-  // In-app logo mark (transparent), shared look with the launcher icon.
-  render(svg(color), 256, "bag.png"),
-  writeFile(webOut("public/bag.svg"), svg(color)),
-  writeFile(webOut("app/icon.svg"), svg(color, bgRect)),
-]);
+// Alpha-only silhouette with the dark-brown $ and tie (#5d4037) cut out.
+const mono = async (size, fill) => {
+  const { data, info } = await sharp(await layer(size, fill)).raw().toBuffer({ resolveWithObject: true });
+  for (let i = 0; i < data.length; i += 4) {
+    const dark = data[i] < 118 && data[i + 1] < 90;
+    data[i] = data[i + 1] = data[i + 2] = 0;
+    if (dark) data[i + 3] = 0;
+  }
+  return sharp(data, { raw: info }).png().toBuffer();
+};
+const white = async (buf) => {
+  const { data, info } = await sharp(buf).raw().toBuffer({ resolveWithObject: true });
+  for (let i = 0; i < data.length; i += 4) data[i] = data[i + 1] = data[i + 2] = 255;
+  return sharp(data, { raw: info }).png().toBuffer();
+};
+const roundMask = (size) =>
+  Buffer.from(`<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}"><circle cx="${size / 2}" cy="${size / 2}" r="${size / 2}"/></svg>`);
+
+const SAFE = 0.74;
+const save = (buf, file) => sharp(buf).png().toFile(file);
+const saveWebp = (buf, file) => sharp(buf).webp({ lossless: true }).toFile(file);
+
+const jobs = [
+  save(await onGreen(1024, 0.88), assets("icon.png")),
+  save(await layer(1024, SAFE), assets("android-icon-foreground.png")),
+  save(await solid(1024), assets("android-icon-background.png")),
+  save(await mono(432, SAFE), assets("android-icon-monochrome.png")),
+  save(await layer(1024, SAFE), assets("splash-icon.png")),
+  save(await onGreen(48, 0.95), assets("favicon.png")),
+  save(await bagPng(256), assets("bag.png")),
+  writeFile(web("public/bag.svg"), source),
+];
+
+// Web favicon: bag on a green rounded square (nested copy of the source SVG).
+const nested = source.replace(/<\?xml[^>]*\?>/, "").replace(/<!--[\s\S]*?-->/g, "").replace(/<svg[^>]*>/, (tag) => tag.replace(/\s(width|height)="[^"]*"/g, "").replace("<svg", '<svg x="16" y="16" width="96" height="96"'));
+jobs.push(
+  writeFile(
+    web("app/icon.svg"),
+    `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="128" height="128"><rect width="128" height="128" rx="24" fill="${GREEN}"/>${nested}</svg>\n`,
+  ),
+);
+
+// Android: adaptive layers at 108dp, legacy launcher at 48dp, notification at 24dp.
+const densities = { mdpi: 1, hdpi: 1.5, xhdpi: 2, xxhdpi: 3, xxxhdpi: 4 };
+for (const [d, scale] of Object.entries(densities)) {
+  const m = res(`mipmap-${d}`);
+  const n = res(`drawable-${d}`);
+  await Promise.all([mkdir(m, { recursive: true }), mkdir(n, { recursive: true })]);
+  const adaptive = 108 * scale;
+  const legacy = 48 * scale;
+  const square = await onGreen(legacy, 0.95);
+  const round = await sharp(square).composite([{ input: roundMask(legacy), blend: "dest-in" }]).png().toBuffer();
+  jobs.push(
+    saveWebp(await layer(adaptive, SAFE), path.join(m, "ic_launcher_foreground.webp")),
+    saveWebp(await solid(adaptive), path.join(m, "ic_launcher_background.webp")),
+    saveWebp(await mono(adaptive, SAFE), path.join(m, "ic_launcher_monochrome.webp")),
+    saveWebp(square, path.join(m, "ic_launcher.webp")),
+    saveWebp(round, path.join(m, "ic_launcher_round.webp")),
+    save(await white(await mono(24 * scale, 0.9)), path.join(n, "notification_icon.png")),
+  );
+}
+
+await Promise.all(jobs);
 console.log("icons written");
