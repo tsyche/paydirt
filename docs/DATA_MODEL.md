@@ -33,7 +33,7 @@ declare them in their own creation migration. Omitting them previously caused
 | role | select(`parent`,`child`) | required |
 | display_name | text | required |
 | household | relation → households | required |
-| ntfy_topic | text | optional; devices subscribe to this |
+| ntfy_topic | text | optional; server fallback when `up_endpoint` is empty (setup no longer asks for it) |
 | balance | number | cached parentBucks; maintained by hook (children) |
 | simplified_mode | bool | default false; on for youngest child |
 | calm_mode | bool | default false; parent dial-back silences playful extras (badges, confetti, count-up) |

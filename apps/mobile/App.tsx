@@ -29,7 +29,6 @@ import {
 import { syncUnifiedPushEndpoint } from "./lib/unifiedpush";
 import { parseNotificationType } from "./lib/deepLinks";
 import { NtfySetup } from "./components/NtfySetup";
-import { getNtfyConfig, isSetupComplete } from "./lib/ntfy-onboarding";
 
 // A notification tap, tagged with a nonce so the same type/tab re-triggers navigation
 // even if it's identical to the last one (e.g. two "spend_approved" taps in a row).
@@ -44,7 +43,8 @@ function AppContent() {
   });
   const [user, setUser] = useState<User | null>(null);
   const [ready, setReady] = useState(false);
-  const [ntfySetupDone, setNtfySetupDone] = useState(false);
+  // Set once the login-time endpoint sync has run, so the setup banner doesn't
+  // flash for users whose endpoint is already registered.
   const [ntfySetupLoaded, setNtfySetupLoaded] = useState(false);
   const [ntfySetupVisible, setNtfySetupVisible] = useState(false);
   const [notificationRoute, setNotificationRoute] = useState<NotificationRoute | null>(null);
@@ -64,18 +64,6 @@ function AppContent() {
     });
     setReady(true);
     return () => unsub();
-  }, []);
-
-  // Notification setup status: incomplete until the topic is subscribed AND a
-  // test delivery landed (v2 gate — the old wizard's "done" never subscribed
-  // anything). Auto-opens once after login; the ParentHome banner reopens it.
-  useEffect(() => {
-    void getNtfyConfig().then((c) => {
-      const done = isSetupComplete(c);
-      setNtfySetupDone(done);
-      setNtfySetupLoaded(true);
-      if (!done) setNtfySetupVisible(true);
-    });
   }, []);
 
   // Notification deep links: UnifiedPushReceiver.kt attaches a paydirt://notification
@@ -118,27 +106,28 @@ function AppContent() {
     return () => { cancelled = true; };
   }, []);
 
-  // Notification strategy for kids: prefer UnifiedPush (event-driven, no
-  // persistent notification). Fall back to the polling service if the UP
-  // endpoint hasn't been registered yet (first launch before ntfy responds).
-  // Deps are the id/role values, not the user object: updating the child's own
+  // Notification setup is done when the server holds this user's UnifiedPush
+  // endpoint (users.up_endpoint) — same rule for every role. Kids additionally
+  // fall back to the polling service until an endpoint exists.
+  // Deps are the id/role values, not the user object: updating the user's own
   // auth record (up_endpoint sync) makes the SDK fire authStore.onChange with
   // a NEW user object, and depending on [user] identity re-ran this effect →
   // endless update/reload loop.
   const userId = user?.id;
   const userRole = user?.role;
   useEffect(() => {
-    if (userRole === "child" && userId) {
-      void syncUnifiedPushEndpoint(userId).then((hasUp) => {
-        if (hasUp) {
-          void stopBackgroundService();
-        } else {
-          void startBackgroundService();
-        }
-      });
-    } else {
+    if (!userId) {
+      setNtfySetupLoaded(false);
       void stopBackgroundService();
+      return;
     }
+    void syncUnifiedPushEndpoint(userId).then((hasUp) => {
+      setNtfySetupLoaded(true);
+      if (!hasUp) setNtfySetupVisible(true);
+      if (userRole !== "child") return;
+      if (hasUp) void stopBackgroundService();
+      else void startBackgroundService();
+    });
   }, [userId, userRole]);
 
   function logout() {
@@ -146,6 +135,8 @@ function AppContent() {
     void stopBackgroundService();
     setUser(null);
   }
+
+  const ntfySetupNeeded = !!user && ntfySetupLoaded && !user.up_endpoint;
 
   function renderScreen() {
     if (!ready || !fontsLoaded) return null;
@@ -159,7 +150,7 @@ function AppContent() {
       user={user}
       onLogout={logout}
       notificationRoute={notificationRoute}
-      notificationSetupNeeded={ntfySetupLoaded && !ntfySetupDone}
+      notificationSetupNeeded={ntfySetupNeeded}
       onOpenNotificationSetup={() => setNtfySetupVisible(true)}
     />;
   }
@@ -167,12 +158,11 @@ function AppContent() {
   return (
     <PaperProvider theme={theme}>
       {renderScreen()}
-      {user && ntfySetupLoaded && !ntfySetupDone && ntfySetupVisible && (
+      {user && ntfySetupNeeded && ntfySetupVisible && (
         <NtfySetup
           visible
           user={user}
           onComplete={() => {
-            setNtfySetupDone(true);
             setNtfySetupVisible(false);
           }}
           onDismiss={() => setNtfySetupVisible(false)}

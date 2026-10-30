@@ -317,7 +317,7 @@ prebuild:
     cd apps/mobile && npx expo prebuild --platform android --no-install
     printf '\033[0;32mDone. Run '\''just build-apk-release'\'' to produce the APK.\033[0m\n'
 
-# Build a release APK — signed, minified, upgrades in-place on device (bump versionCode before each release)
+# Build a release APK — signed, minified, upgrades in-place on device (versionCode = git commit count, automatic)
 [group('android')]
 build-apk-release:
     #!/usr/bin/env bash

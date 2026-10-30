@@ -121,4 +121,4 @@ function notifyChildren(app, householdId, title, message, type) {
   notifyRole(app, householdId, "child", title, message, type);
 }
 
-module.exports = { logToInbox, sendNtfy, notifyUser, notifyParents, notifyChildren, notifyUserRecord };
+module.exports = { logToInbox, sendNtfy, sendViaEndpoint, notifyUser, notifyParents, notifyChildren, notifyUserRecord };

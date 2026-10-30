@@ -1,19 +1,14 @@
 import { useEffect, useState } from "react";
-import { Linking, ScrollView, StyleSheet, View } from "react-native";
-import { Button, Dialog, Portal, Text, TextInput } from "react-native-paper";
+import { Linking, StyleSheet } from "react-native";
+import { Button, Dialog, Portal, Text } from "react-native-paper";
 import type { User } from "@paydirt/shared";
-import {
-  DEFAULT_CONFIG,
-  buildSubscribeLink,
-  buildTestUrl,
-  ensureTopic,
-  getNtfyConfig,
-  setNtfySetupDone,
-} from "../lib/ntfy-onboarding";
+import { DEFAULT_CONFIG, setNtfySetupDone } from "../lib/ntfy-onboarding";
 import { requestNtfyRegistration, waitForUnifiedPushEndpoint } from "../lib/unifiedpush";
-import { client } from "../lib/client";
 
-type Step = "install" | "subscribe" | "test" | "up";
+type Step = "install" | "up";
+
+// Same flow for every role: install ntfy → register a UnifiedPush endpoint with
+// the server → send a test push through that endpoint.
 
 export function NtfySetup({
   visible,
@@ -26,41 +21,15 @@ export function NtfySetup({
   onComplete: () => void;
   onDismiss: () => void;
 }) {
-  const isParent = user.role !== "child";
   const [step, setStep] = useState<Step>("install");
-  const [usePublic, setUsePublic] = useState(true);
-  const [customEndpoint, setCustomEndpoint] = useState("");
-  const [topic, setTopic] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
 
   useEffect(() => {
     if (!visible) return;
     setError("");
-    setTopic(ensureTopic(user.ntfy_topic));
-    void getNtfyConfig().then((c) => {
-      const ep = c.endpoint || DEFAULT_CONFIG.endpoint;
-      const isDefault = ep === DEFAULT_CONFIG.endpoint;
-      setUsePublic(isDefault);
-      setCustomEndpoint(isDefault ? "" : ep);
-    });
-    void Linking.canOpenURL("ntfy://").then((ok) => {
-      setStep(ok ? (isParent ? "subscribe" : "up") : "install");
-    });
-  }, [visible, user.ntfy_topic, isParent]);
-
-  const activeEndpoint = usePublic ? DEFAULT_CONFIG.endpoint : customEndpoint || DEFAULT_CONFIG.endpoint;
-
-  // Parent topics live on the user record (PocketBase hooks publish there) —
-  // a freshly generated topic must be saved or real notifications go nowhere.
-  async function saveTopicIfNew() {
-    if (user.ntfy_topic?.trim()) return;
-    try {
-      await client.pb.collection("users").update(user.id, { ntfy_topic: topic });
-    } catch {
-      setError("Couldn't save your topic to the account — will retry on the next step.");
-    }
-  }
+    void Linking.canOpenURL("ntfy://").then((ok) => setStep(ok ? "up" : "install"));
+  }, [visible]);
 
   async function recheckInstalled() {
     const ok = await Linking.canOpenURL("ntfy://");
@@ -68,42 +37,8 @@ export function NtfySetup({
       setError("ntfy wasn't detected yet — give it a minute after installing, then tap again.");
       return;
     }
-    setStep(isParent ? "subscribe" : "up");
-  }
-
-  async function openSubscribeLink() {
-    await saveTopicIfNew();
     setError("");
-    try {
-      await Linking.openURL(buildSubscribeLink(activeEndpoint, topic));
-    } catch {
-      setError("Couldn't open the ntfy app — install it first, then try again.");
-    }
-  }
-
-  async function sendTest() {
-    setBusy(true);
-    setError("");
-    try {
-      await saveTopicIfNew();
-      const res = await fetch(buildTestUrl(activeEndpoint, topic), {
-        method: "POST",
-        body: "PayDirt test — if you see this, notifications work.",
-        headers: { Title: "PayDirt test" },
-      });
-      if (!res.ok) throw new Error(`ntfy responded ${res.status}`);
-    } catch (e) {
-      setError(
-        `Test send failed (${String(e)}). Notifications need internet — check Wi-Fi, then retry.`,
-      );
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  async function finish() {
-    await setNtfySetupDone(activeEndpoint);
-    onComplete();
+    setStep("up");
   }
 
   async function checkUp() {
@@ -114,11 +49,14 @@ export function NtfySetup({
     await requestNtfyRegistration();
     const ok = await waitForUnifiedPushEndpoint(user.id);
     setBusy(false);
-    if (ok) await finish();
-    else
+    if (!ok) {
       setError(
         "Still not connected. Make sure the ntfy app is installed and open, then tap Check connection again. If it still fails, check that Android Settings › Apps › ntfy › Battery allows background usage.",
       );
+      return;
+    }
+    await setNtfySetupDone(DEFAULT_CONFIG.endpoint);
+    onComplete();
   }
 
   return (
@@ -129,9 +67,8 @@ export function NtfySetup({
             <Dialog.Title>Install ntfy for Notifications</Dialog.Title>
             <Dialog.Content>
               <Text>
-                {isParent
-                  ? "PayDirt uses the free ntfy app to push chore approvals, spend requests, and household broadcasts to this device."
-                  : "PayDirt needs the ntfy app to receive notifications about new chores and approvals."}
+                PayDirt uses the free ntfy app to push chore updates, approvals, and messages to
+                this device.
               </Text>
               {error ? <Text style={styles.error}>{error}</Text> : null}
             </Dialog.Content>
@@ -152,80 +89,7 @@ export function NtfySetup({
           </>
         )}
 
-        {step === "subscribe" && isParent && (
-          <>
-            <Dialog.Title>Subscribe to your topic</Dialog.Title>
-            <Dialog.Content>
-              <ScrollView>
-                <Text>
-                  Tap below — the ntfy app opens your topic and subscribes automatically. Then
-                  continue to the test.
-                </Text>
-                <Text style={styles.label}>Your topic</Text>
-                <Text style={styles.topic}>{topic}</Text>
-                <View style={styles.serverRow}>
-                  <Button
-                    mode={usePublic ? "contained" : "outlined"}
-                    onPress={() => setUsePublic(true)}
-                    compact
-                  >
-                    ntfy.sh
-                  </Button>
-                  <Button
-                    mode={!usePublic ? "contained" : "outlined"}
-                    onPress={() => setUsePublic(false)}
-                    compact
-                  >
-                    Custom
-                  </Button>
-                </View>
-                {!usePublic && (
-                  <TextInput
-                    label="Server URL"
-                    value={customEndpoint}
-                    onChangeText={setCustomEndpoint}
-                    placeholder="https://ntfy.example.com"
-                    mode="outlined"
-                    style={styles.input}
-                  />
-                )}
-                {error ? <Text style={styles.error}>{error}</Text> : null}
-              </ScrollView>
-            </Dialog.Content>
-            <Dialog.Actions>
-              <Button onPress={onDismiss}>Maybe later</Button>
-              <Button onPress={() => setStep("install")}>Back</Button>
-              <Button onPress={openSubscribeLink}>Open ntfy &amp; subscribe</Button>
-              <Button mode="contained" onPress={() => setStep("test")}>
-                Continue
-              </Button>
-            </Dialog.Actions>
-          </>
-        )}
-
-        {step === "test" && isParent && (
-          <>
-            <Dialog.Title>Test it</Dialog.Title>
-            <Dialog.Content>
-              <Text>
-                Send a test notification. If you subscribed on the previous screen, it should pop
-                up on this device within a second or two.
-              </Text>
-              {error ? <Text style={styles.error}>{error}</Text> : null}
-            </Dialog.Content>
-            <Dialog.Actions>
-              <Button onPress={() => setStep("subscribe")}>Back</Button>
-              <Button onPress={sendTest} disabled={busy}>
-                {busy ? "Sending…" : "Send test"}
-              </Button>
-              <Button mode="contained" onPress={finish}>
-                I got it — done
-              </Button>
-            </Dialog.Actions>
-          </>
-        )}
-
-        {step === "up" && !isParent && (
+        {step === "up" && (
           <>
             <Dialog.Title>Notifications</Dialog.Title>
             <Dialog.Content>
@@ -261,25 +125,6 @@ export function NtfySetup({
 const styles = StyleSheet.create({
   dialog: {
     maxWidth: 440,
-  },
-  label: {
-    fontWeight: "600",
-    marginTop: 14,
-    marginBottom: 4,
-  },
-  topic: {
-    fontFamily: "monospace",
-    fontSize: 15,
-    marginBottom: 10,
-  },
-  serverRow: {
-    flexDirection: "row",
-    gap: 8,
-    marginBottom: 4,
-  },
-  input: {
-    marginTop: 8,
-    marginBottom: 4,
   },
   error: {
     color: "#b3261e",

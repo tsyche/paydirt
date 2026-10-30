@@ -2,10 +2,9 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 
 export const NTFY_CONFIG_KEY = "ntfy_config";
 
-// v2 = topic subscribed via ntfy:// deep link AND a test delivery confirmed.
-// Configs saved by the old wizard carry no version and count as incomplete —
-// the old flow never subscribed the user's topic, so its "done" was meaningless.
-export const SETUP_VERSION = 2;
+// Saved when the UnifiedPush endpoint is registered. Whether setup is *needed* is
+// decided by users.up_endpoint on the server, not by this local record.
+export const SETUP_VERSION = 3;
 
 export interface NtfyConfig {
   endpoint: string;
@@ -17,10 +16,6 @@ export const DEFAULT_CONFIG: NtfyConfig = {
   endpoint: "https://ntfy.sh",
   isSetup: false,
 };
-
-export function isSetupComplete(config: NtfyConfig | null | undefined): boolean {
-  return !!config?.isSetup && (config.version ?? 0) >= SETUP_VERSION;
-}
 
 export async function getNtfyConfig(): Promise<NtfyConfig> {
   try {

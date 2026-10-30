@@ -8,27 +8,7 @@ import {
   buildSubscribeLink,
   buildTestUrl,
   ensureTopic,
-  isSetupComplete,
 } from "./ntfy-onboarding";
-
-describe("isSetupComplete", () => {
-  it("treats old wizard configs (no version) as incomplete", () => {
-    // The pre-v2 wizard saved {endpoint, isSetup:true} without ever subscribing
-    // the user's topic — the exact gap that made the old flow useless.
-    expect(isSetupComplete({ endpoint: "https://ntfy.sh", isSetup: true })).toBe(false);
-  });
-
-  it("treats missing config, unconfirmed, and v2-confirmed distinctly", () => {
-    expect(isSetupComplete(null)).toBe(false);
-    expect(isSetupComplete(undefined)).toBe(false);
-    expect(isSetupComplete({ endpoint: "https://ntfy.sh", isSetup: false, version: 2 })).toBe(
-      false,
-    );
-    expect(isSetupComplete({ endpoint: "https://ntfy.sh", isSetup: true, version: 2 })).toBe(
-      true,
-    );
-  });
-});
 
 describe("buildSubscribeLink", () => {
   it("builds an https ntfy:// deep link that auto-subscribes in the ntfy app", () => {

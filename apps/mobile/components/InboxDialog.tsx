@@ -37,6 +37,17 @@ export function InboxButton({ userId }: { userId: string }) {
     }
   };
 
+  // Server pushes to this user's own endpoint; the copy also lands in this list.
+  const sendTest = async () => {
+    try {
+      const res = await client.sendTestNotification();
+      setError(res.sent ? "" : "No notification endpoint registered for this account yet.");
+      await load();
+    } catch (e) {
+      setError(errorMessage(e));
+    }
+  };
+
   const clearAll = async () => {
     try {
       await client.clearInbox(userId);
@@ -75,6 +86,7 @@ export function InboxButton({ userId }: { userId: string }) {
             </ScrollView>
           </Dialog.ScrollArea>
           <Dialog.Actions>
+            <Button onPress={() => void sendTest()}>Send test</Button>
             <Button onPress={() => void clearAll()} disabled={items.length === 0}>Clear all</Button>
             <Button onPress={() => setOpen(false)}>Done</Button>
           </Dialog.Actions>

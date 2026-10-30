@@ -81,6 +81,17 @@ def enableMinifyInReleaseBuilds = (findProperty('android.enableMinifyInReleaseBu
  */
 def jscFlavor = 'io.github.react-native-community:jsc-android:2026004.+'
 
+// versionCode = commit count: monotonic, no hand-bumping. Fallback keeps builds
+// from a source tarball (no .git) installable over the current release.
+def gitCommitCount() {
+    try {
+        def count = 'git rev-list --count HEAD'.execute(null, rootDir).text.trim().toInteger()
+        return Math.max(count, 5)
+    } catch (Exception ignored) {
+        return 5
+    }
+}
+
 android {
     ndkVersion rootProject.ext.ndkVersion
 
@@ -92,7 +103,7 @@ android {
         applicationId 'io.paydirt.app'
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 5
+        versionCode gitCommitCount()
         versionName "1.0.0"
 
         buildConfigField "String", "REACT_NATIVE_RELEASE_LEVEL", "\"${findProperty('reactNativeReleaseLevel') ?: 'stable'}\""

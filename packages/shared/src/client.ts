@@ -546,6 +546,11 @@ export class PaydirtClient {
     });
   }
 
+  /** Asks the server to push a test notification to the caller's own device. */
+  sendTestNotification(): Promise<{ sent: boolean; via: "up" | "topic" }> {
+    return this.pb.send("/api/paydirt/notify-test", { method: "POST" });
+  }
+
   /** Fetch the N most recent broadcasts for a household (kid screens use this). */
   async getRecentBroadcasts(householdId: string, limit = 5): Promise<Broadcast[]> {
     const result = await this.pb.collection(Collections.Broadcasts).getList<Broadcast>(1, limit, {

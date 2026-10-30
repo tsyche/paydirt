@@ -107,6 +107,26 @@ describe("Phase 1 features (live)", () => {
     expect(items.some((i) => i.title.includes("needs help") && i.body === chore.name)).toBe(true);
   });
 
+  it("broadcast: notifies the other parents, not the sender twice", async () => {
+    const parent2 = new PaydirtClient(PB_URL);
+    await parent2.login("parent2@test.local", PW);
+    const msg = `broadcast parents ${Date.now()}`;
+    await parent.sendBroadcast(householdId, parent.currentUser!.id, msg);
+
+    const other = await parent2.listInbox(parent2.currentUser!.id);
+    expect(other.some((i) => i.body === msg && i.type === "broadcast")).toBe(true);
+    const own = (await parent.listInbox(parent.currentUser!.id)).filter((i) => i.body === msg);
+    expect(own.map((i) => i.type)).toEqual(["broadcast_sent"]);
+  });
+
+  it("notify-test: logs an inbox item for the caller; requires auth", async () => {
+    const res = await kid2.sendTestNotification();
+    expect(typeof res.sent).toBe("boolean");
+    const items = await kid2.listInbox(kid2User.id);
+    expect(items.some((i) => i.type === "test")).toBe(true);
+    await expect(new PaydirtClient(PB_URL).sendTestNotification()).rejects.toThrow();
+  });
+
   it("savings goals: achieved when the balance crosses the target; kid-owned", async () => {
     const balance = await parent.getBalance(kid2User.id);
     const goal = await kid2.createGoal(kid2User.id, "Test goal", balance + 3);

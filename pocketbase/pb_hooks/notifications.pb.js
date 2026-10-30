@@ -2,11 +2,9 @@
 
 // Push notifications.
 //
-// Kids receive event-driven push via UnifiedPush (ntfy distributor).
+// Every role receives event-driven push via UnifiedPush (ntfy distributor).
 // The endpoint URL lives in users.up_endpoint, set by the mobile app on login.
-// If a kid has no endpoint yet, notifyUser falls back to their ntfy_topic.
-//
-// Parents use ntfy directly (they aren't running the mobile app as a kid).
+// If a user has no endpoint yet, notifyUser falls back to their ntfy_topic.
 
 // ── Assignment created → notify the assigned kid ─────────────────────────────
 onRecordAfterCreateSuccess((e) => {
@@ -108,18 +106,27 @@ onRecordAfterUpdateSuccess((e) => {
   e.next();
 }, "chore_proposals");
 
-// ── Broadcast created → notify all kids ──────────────────────────────────────
+// ── Broadcast created → notify all kids and the other parents ────────────────
 onRecordAfterCreateSuccess((e) => {
-  const { notifyChildren, logToInbox } = require(`${__hooks}/lib/ntfy.js`);
+  const { notifyChildren, notifyUserRecord, logToInbox } = require(`${__hooks}/lib/ntfy.js`);
+  const sender = e.record.getString("sender");
+  const household = e.record.getString("household");
+  const message = e.record.getString("message");
   // The sender keeps a copy so parents can see what they've sent.
-  logToInbox(e.app, e.record.getString("sender"), "You sent a message 📣", e.record.getString("message"), "broadcast_sent");
-  notifyChildren(
-    e.app,
-    e.record.getString("household"),
-    "Message from Mom/Dad 📣",
-    e.record.getString("message"),
-    "broadcast",
+  logToInbox(e.app, sender, "You sent a message 📣", message, "broadcast_sent");
+  notifyChildren(e.app, household, "Message from Mom/Dad 📣", message, "broadcast");
+  // Other parents get the push too; the sender already has the inbox copy.
+  const parents = e.app.findRecordsByFilter(
+    "users",
+    "household = {:hh} && role = 'parent' && id != {:sender}",
+    "",
+    0,
+    0,
+    { hh: household, sender: sender },
   );
+  for (const p of parents) {
+    notifyUserRecord(e.app, p, "Message sent to the kids 📣", message, "broadcast");
+  }
   e.next();
 }, "broadcasts");
 
@@ -157,3 +164,24 @@ onRecordAfterUpdateSuccess((e) => {
   }
   e.next();
 }, "spend_requests");
+
+// ── Test notification → push to the caller's own device ──────────────────────
+// Lets the setup dialog prove delivery end to end. Bypasses quiet hours (a test
+// that silently does nothing is worse than useless) and reports whether the user
+// has an endpoint at all.
+routerAdd(
+  "POST",
+  "/api/paydirt/notify-test",
+  (e) => {
+    const { logToInbox, sendViaEndpoint, sendNtfy } = require(`${__hooks}/lib/ntfy.js`);
+    const user = e.auth;
+    const title = "PayDirt test 🔔";
+    const message = "If you see this, notifications work on this device.";
+    logToInbox(e.app, user.id, title, message, "test");
+    const endpoint = user.getString("up_endpoint");
+    if (endpoint) sendViaEndpoint(e.app, endpoint, title, message);
+    else sendNtfy(e.app, user.getString("ntfy_topic"), title, message);
+    return e.json(200, { sent: !!(endpoint || user.getString("ntfy_topic")), via: endpoint ? "up" : "topic" });
+  },
+  $apis.requireAuth("users"),
+);
