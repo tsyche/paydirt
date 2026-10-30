@@ -4,6 +4,7 @@
 
 ## Shipped index
 
+- [x] 2026-10-29 — Age-grouped starter chores (`packages/shared/src/starterChores.ts`; web picker, `go-live` step). Mobile parent picker not built; setup happens on web
 - [x] 2026-10-29 — Alert inbox (bell on mobile, Alerts tab on web), `needs_help` parent notification fix
 - [x] 2026-10-29 — Host backups (nightly PocketBase zips + `backup-pull`), `push-updates`, `host-reset`/`go-live` onboarding
 - [x] 2026-10-21 — Android unit tests wired into `just test` + CI (`test-android`, setup-java; confirmed 2026-10-29)

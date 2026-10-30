@@ -113,6 +113,7 @@ test("screen-time request is priced from the household rate set in settings", as
   await parent.login("parent1@test.local", PW);
   const householdId = parent.currentUser!.household;
   const original = (await parent.getHousehold(householdId)).screen_rate ?? 0;
+  let topUp = "";
 
   try {
     // Parent sets 2 bucks/minute in the settings panel
@@ -125,6 +126,9 @@ test("screen-time request is priced from the household rate set in settings", as
     // Kid asks for 45 minutes; the request shows up priced at 90
     const kid = new PaydirtClient(PB_URL);
     const kidUser = await kid.login("child1@test.local", PW);
+    // Requests above the kid's balance are rejected, so make sure 90 is affordable.
+    await parent.adjustBalance(kidUser.id, 100, "e2e screen-time pricing top-up");
+    topUp = kidUser.id;
     const sr = await kid.submitScreenTimeRequest(kidUser.id, 45, 1);
     await page.reload();
     const row = page.locator(".card.row").filter({ hasText: "45 min screen time" });
@@ -133,6 +137,29 @@ test("screen-time request is priced from the household rate set in settings", as
     await expect(row).toHaveCount(0);
     await parent.pb.collection("spend_requests").delete(sr.id);
   } finally {
+    if (topUp) await parent.adjustBalance(topUp, -100, "e2e screen-time pricing cleanup");
     await parent.updateHousehold(householdId, { screen_rate: original });
   }
+});
+
+test("add a starter chore from the age-band picker, then it shows as already added", async ({ page }) => {
+  const api = new PaydirtClient(PB_URL);
+  await api.login("parent1@test.local", PW);
+
+  await signIn(page);
+  await goTab(page, /Chores/);
+  await page.getByRole("button", { name: /Starter chores/ }).click();
+  await page.getByRole("button", { name: "Ages 7-9" }).click();
+  await page.getByLabel(/Unload the dishwasher/).check();
+  await page.getByRole("button", { name: "Add 1 chore" }).click();
+  await expect(page.getByText("already added")).toBeVisible();
+
+  const created = (await api.listChores(api.currentUser!.household)).filter(
+    (c) => c.name === "Unload the dishwasher",
+  );
+  expect(created).toHaveLength(1);
+  expect(created[0]).toMatchObject({ reward: 12, type: "recurring", cadence: "daily" });
+
+  // Cleanup: retire the chore so reruns start clean
+  await api.deactivateChore(created[0].id);
 });

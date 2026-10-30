@@ -14,6 +14,7 @@ import { readFileSync } from "node:fs";
 import { createInterface } from "node:readline/promises";
 import { Writable } from "node:stream";
 import PocketBase from "pocketbase";
+import { STARTER_BANDS } from "../packages/shared/src/starterChores.ts";
 
 const PB_URL = process.env.PB_URL ?? "http://127.0.0.1:3111";
 const ADMIN_EMAIL = process.env.PB_ADMIN_EMAIL ?? "admin@paydirt.local";
@@ -69,6 +70,18 @@ async function main() {
 
   const householdName = await ask("Household name", "Our Family");
   const currency = await ask("Currency name (blank = app default)");
+  const bandIds = STARTER_BANDS.map((b) => b.id).join(", ");
+  let bands = [];
+  for (;;) {
+    bands = (await ask(`Starter chores by age band (${bandIds}; comma-separated, blank = none)`))
+      .split(",")
+      .map((b) => b.trim())
+      .filter(Boolean);
+    const unknown = bands.filter((b) => !STARTER_BANDS.some((x) => x.id === b));
+    if (unknown.length === 0) break;
+    console.log(`  Unknown age band(s): ${unknown.join(", ")}`);
+    if (piped) throw new Error("Unknown age band in piped input.");
+  }
   const household = await pb.collection("households").create({
     name: householdName,
     ...(currency ? { currency_name: currency } : {}),
@@ -109,12 +122,32 @@ async function main() {
     await addUser("child", name, email, { simplified_mode: simple, calm_mode: false });
   }
 
+  const firstParent = await pb.collection("users").getFirstListItem('role = "parent"');
+  const seen = new Set();
+  for (const band of STARTER_BANDS.filter((x) => bands.includes(x.id))) {
+    for (const c of band.chores) {
+      if (seen.has(c.name)) continue;
+      seen.add(c.name);
+      await pb.collection("chores").create({
+        household: household.id,
+        name: c.name,
+        description: c.description,
+        reward: c.reward,
+        type: c.type,
+        ...(c.cadence ? { cadence: c.cadence } : {}),
+        photo_required: c.photo_required ?? false,
+        created_by: firstParent.id,
+        active: true,
+      });
+    }
+  }
+
   console.log(`\nCreated household "${householdName}". Logins (shown ONCE; change them in the app):\n`);
   for (const u of created) {
     console.log(`  ${u.role.padEnd(6)} ${u.display_name.padEnd(14)} ${u.email.padEnd(32)} ${u.password}`);
   }
   console.log(
-    "\nNext: sign in on each device, set each kid's Family Link child/device IDs in parent settings, add chores.",
+    `\nCreated ${seen.size} starter chore(s).\nNext: sign in on each device and set each kid's Family Link child/device IDs in parent settings.`,
   );
 }
 

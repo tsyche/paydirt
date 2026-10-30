@@ -18,6 +18,7 @@ import { HouseholdSettings } from "./HouseholdSettings";
 import { AppearanceControls } from "./AppearanceControls";
 import { LedgerView } from "./LedgerView";
 import { InboxView } from "./InboxView";
+import { StarterChores } from "./StarterChores";
 import { Celebration } from "./Celebration";
 
 type TabKey = "approvals" | "kids" | "chores" | "ledger" | "alerts";
@@ -517,6 +518,12 @@ export function Dashboard({
         <ChoreTemplatesPanel
           householdId={householdId}
           onUse={(t) => setTemplateFill(t)}
+        />
+        <StarterChores
+          householdId={householdId}
+          parentId={user.id}
+          existingNames={chores.map((c) => c.name)}
+          onAdded={reload}
         />
         <CreateChore
           household={householdId}

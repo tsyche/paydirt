@@ -53,10 +53,9 @@ Last audit 2026-10-21: retired the stale pb-download Known Issue to a fixed-with
 
 ### Best agent-doable next
 
-1. **Age-grouped starter chores** — `seed.mjs` only has three test chores. Add a curated starter library by age band (e.g. 4-6, 7-9, 10-12, 13+) with suggested rewards, and an "add starter chores" picker in `go-live`/the web Chores tab so a new household isn't staring at an empty list. Brainstorm first: common chores per band (4-6: make bed, put toys away, feed pet, set table; 7-9: dishwasher, trash, tidy room, laundry to hamper; 10-12: laundry, vacuum, simple cooking help, yard work; 13+: cook a meal, bathroom clean, mow lawn), difficulty-scaled reward defaults, and which are recurring vs one-off. Keep it a static data file in `packages/shared`. ~2-3 hrs.
-2. **Feature explanation tooltips** — see [Backlog](#backlog-unscheduled). Settings don't explain themselves; ~2-3 hrs.
-3. **Go live on bb** — code is done (`just backup-pull`, `host-reset`, `go-live`, `push-updates`; see [deployment](docs/DEPLOYMENT.md#going-live-with-a-real-household)). 🧑 needs-human: run `update-service` (enables nightly backups), real names/accounts, re-login on every device, re-enter `fl_*` IDs.
-4. **Pending requests can overcommit a balance** — see Known Issues; decide whether to subtract other pending requests at create.
+1. **Feature explanation tooltips** — see [Backlog](#backlog-unscheduled). Settings don't explain themselves; ~2-3 hrs.
+2. **Go live on bb** — code is done (`just backup-pull`, `host-reset`, `go-live`, `push-updates`; see [deployment](docs/DEPLOYMENT.md#going-live-with-a-real-household)). 🧑 needs-human: run `update-service` (enables nightly backups), real names/accounts, re-login on every device, re-enter `fl_*` IDs.
+3. **Pending requests can overcommit a balance** — see Known Issues; decide whether to subtract other pending requests at create.
 
 ## Phase 2 — Family Link Automation
 

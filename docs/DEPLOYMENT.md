@@ -102,6 +102,6 @@ PocketBase's built-in scheduler (set by migration `1717000023`) writes a consist
 The host may still hold seeded test data. Two steps, each confirms before acting:
 
 1. `just host-reset` — you type the host name to confirm; it snapshots `data.db` and `storage` to `backups/pre-reset-*.tgz`, wipes the DB, re-runs migrations and prints a **new superuser password** once. Family Link session, `updates/`, backups and the env file are kept.
-2. `just go-live` — prompts for the household, parents and kids and prints generated logins once. Refuses to run if a household exists. `just go-live local` targets the Mac's PocketBase.
+2. `just go-live` — prompts for the household, parents, kids and optional starter chores by age band (`4-6`, `7-9`, `10-12`, `13+`), and prints generated logins once. Refuses to run if a household exists. `just go-live local` targets the Mac's PocketBase.
 
 Afterwards: re-enter each kid's Family Link IDs in parent settings, and sign in again on every device (new accounts, new passwords).
