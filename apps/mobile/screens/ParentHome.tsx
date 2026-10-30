@@ -886,7 +886,6 @@ export function ParentHome({
             mode="contained-tonal"
             icon={showCreateChore ? "chevron-up" : "plus"}
             onPress={() => setShowCreateChore((v) => !v)}
-            compact
           >
             {showCreateChore ? "Cancel" : "Add"}
           </Button>
