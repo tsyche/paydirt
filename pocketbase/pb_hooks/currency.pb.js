@@ -36,11 +36,26 @@ onRecordCreateRequest((e) => {
   } else if (!(r.getFloat("amount") > 0)) {
     throw new BadRequestError("Spend amount must be positive.");
   }
-  // Can't ask for more than the kid has. (Approval re-checks below; this stops
-  // the doomed request from ever reaching a parent.)
+  // Can't ask for more than the kid has left after their other pending
+  // requests. (Approval re-checks below; this stops doomed requests from ever
+  // reaching a parent.)
   const kid = e.app.findRecordById("users", r.getString("child"));
-  if (kid.getFloat("balance") < r.getFloat("amount")) {
-    throw new BadRequestError("Not enough balance for this request.");
+  const pending = e.app.findRecordsByFilter(
+    "spend_requests",
+    "child = {:child} && status = 'pending'",
+    "",
+    0,
+    0,
+    { child: kid.id },
+  );
+  let committed = 0;
+  for (const p of pending) committed += p.getFloat("amount");
+  const available = kid.getFloat("balance") - committed;
+  if (available < r.getFloat("amount")) {
+    throw new BadRequestError(
+      "Not enough balance: you have " + Math.max(available, 0) + " available" +
+        (committed > 0 ? " (" + committed + " already requested)." : "."),
+    );
   }
   e.next();
 }, "spend_requests");

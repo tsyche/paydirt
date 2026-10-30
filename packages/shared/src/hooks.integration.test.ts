@@ -132,6 +132,15 @@ describe("PocketBase hooks & guards (live)", () => {
     expect(updated.photo).toBeTruthy();
   });
 
+  // Balance minus the kid's other pending requests (seed data has some).
+  async function availableBalance(): Promise<number> {
+    const [balance, requests] = await Promise.all([
+      parent.getBalance(kidUser.id),
+      parent.listSpendRequestsForChild(kidUser.id),
+    ]);
+    return requests.filter((r) => r.status === "pending").reduce((n, r) => n - r.amount, balance);
+  }
+
   it("spend requests exceeding the balance cannot even be submitted", async () => {
     const balance = await parent.getBalance(kidUser.id);
     // Free-form request: rejected up front, with a readable message.
@@ -149,6 +158,24 @@ describe("PocketBase hooks & guards (live)", () => {
       await parent.updateHousehold(householdId, { screen_rate: household.screen_rate ?? 0 });
     }
     expect(await parent.getBalance(kidUser.id)).toBe(balance);
+  });
+
+  it("pending requests count against the balance for new requests", async () => {
+    const available = await availableBalance();
+    expect(available).toBeGreaterThan(0);
+    const first = await kid.submitSpendRequest(kidUser.id, available, "uses it all");
+    createdSpendRequests.push(first.id);
+    try {
+      await expect(kid.submitSpendRequest(kidUser.id, 1, "one more")).rejects.toMatchObject({
+        response: { message: expect.stringMatching(/already requested/i) },
+      });
+    } finally {
+      await parent.denySpendRequest(first.id, parent.currentUser!.id);
+    }
+    // Once the first is settled the funds are free again.
+    const again = await kid.submitSpendRequest(kidUser.id, 1, "now fine");
+    createdSpendRequests.push(again.id);
+    await parent.denySpendRequest(again.id, parent.currentUser!.id);
   });
 
   it("new spend requests are forced pending and must be positive", async () => {
@@ -173,7 +200,7 @@ describe("PocketBase hooks & guards (live)", () => {
     const household = await parent.getHousehold(householdId);
     await parent.updateHousehold(householdId, { screen_rate: 2 });
     // Requests are balance-checked on create, so make sure 60 min is affordable.
-    const topUp = Math.max(0, 120 - (await parent.getBalance(kidUser.id)));
+    const topUp = Math.max(0, 120 - (await availableBalance()));
     if (topUp) await parent.adjustBalance(kidUser.id, topUp, "pricing test top-up");
     try {
       // A tampered client amount is overwritten with minutes × rate.

@@ -90,6 +90,7 @@ export function KidHome({
   const [siblingWins, setSiblingWins] = useState<Record<string, Assignment[]>>({});
   const [refreshing, setRefreshing] = useState(false);
   const [spendOpen, setSpendOpen] = useState(false);
+  const [spendError, setSpendError] = useState<string | null>(null);
   const [proposeOpen, setProposeOpen] = useState(false);
   const [replyFor, setReplyFor] = useState<Expanded | null>(null);
   const [remindFor, setRemindFor] = useState<Expanded | null>(null);
@@ -521,13 +522,15 @@ export function KidHome({
         balance={me.balance}
         visible={spendOpen}
         onClose={() => setSpendOpen(false)}
+        error={spendError}
+        onDismissError={() => setSpendError(null)}
         onSubmit={async (amount, description) => {
           try {
             await client.submitSpendRequest(user.id, amount, description);
             setSpendOpen(false);
             setSnack("Spend request sent to your parent!");
           } catch (e) {
-            setSnack(errorMessage(e));
+            setSpendError(errorMessage(e));
           }
         }}
         onScreenTime={async (minutes) => {
@@ -536,7 +539,7 @@ export function KidHome({
             setSpendOpen(false);
             setSnack(`Asked for ${minutes} min of screen time!`);
           } catch (e) {
-            setSnack(errorMessage(e));
+            setSpendError(errorMessage(e));
           }
         }}
       />
@@ -704,6 +707,8 @@ function SpendDialog({
   balance,
   visible,
   onClose,
+  error,
+  onDismissError,
   onSubmit,
   onScreenTime,
 }: {
@@ -713,6 +718,8 @@ function SpendDialog({
   balance: number;
   visible: boolean;
   onClose: () => void;
+  error: string | null;
+  onDismissError: () => void;
   onSubmit: (amount: number, description: string) => void;
   onScreenTime: (minutes: ScreenPreset) => void;
 }) {
@@ -793,6 +800,15 @@ function SpendDialog({
               Send
             </Button>
           ) : null}
+        </Dialog.Actions>
+      </Dialog>
+      <Dialog visible={!!error} onDismiss={onDismissError}>
+        <Dialog.Title>Can't send that</Dialog.Title>
+        <Dialog.Content>
+          <Text variant="bodyMedium">{error}</Text>
+        </Dialog.Content>
+        <Dialog.Actions>
+          <Button onPress={onDismissError}>OK</Button>
         </Dialog.Actions>
       </Dialog>
     </Portal>

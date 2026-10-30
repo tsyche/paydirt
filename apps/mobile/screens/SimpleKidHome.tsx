@@ -4,6 +4,8 @@ import {
   Appbar,
   Text,
   Button,
+  Dialog,
+  Portal,
   Surface,
   Snackbar,
   useTheme,
@@ -39,6 +41,7 @@ export function SimpleKidHome({ user, onLogout }: { user: User; onLogout: () => 
   const [broadcasts, setBroadcasts] = useState<Broadcast[]>([]);
   const [refreshing, setRefreshing] = useState(false);
   const [snack, setSnack] = useState("");
+  const [askError, setAskError] = useState<string | null>(null);
   const [celebrate, setCelebrate] = useState(0);
   const prevBalance = useRef<number | null>(null);
 
@@ -113,7 +116,7 @@ export function SimpleKidHome({ user, onLogout }: { user: User; onLogout: () => 
       await client.submitScreenTimeRequest(user.id, minutes, rate);
       setSnack(`Asked for ${minutes} minutes! Waiting for Mom/Dad 📱`);
     } catch (e) {
-      setSnack(errorMessage(e));
+      setAskError(errorMessage(e));
     }
   }
 
@@ -300,6 +303,18 @@ export function SimpleKidHome({ user, onLogout }: { user: User; onLogout: () => 
       <Snackbar visible={!!snack} onDismiss={() => setSnack("")} duration={5000}>
         {snack}
       </Snackbar>
+
+      <Portal>
+        <Dialog visible={!!askError} onDismiss={() => setAskError(null)}>
+          <Dialog.Title>Can't ask for that</Dialog.Title>
+          <Dialog.Content>
+            <Text variant="bodyLarge">{askError}</Text>
+          </Dialog.Content>
+          <Dialog.Actions>
+            <Button onPress={() => setAskError(null)}>OK</Button>
+          </Dialog.Actions>
+        </Dialog>
+      </Portal>
 
       <Celebration trigger={celebrate} />
     </SafeAreaView>

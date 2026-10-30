@@ -26,7 +26,6 @@ Last audit 2026-10-21: retired the stale pb-download Known Issue to a fixed-with
 
 ## Known Issues
 
-- **Pending requests can overcommit a balance (2026-10-29)** — create-time validation only compares a single spend/screen-time request to the kid's balance, so several pending requests can together exceed it. Approval re-checks the balance, so nothing overdraws; the cost is a parent denying the later ones. Stricter option: subtract other pending requests at create.
 
 - **Flaky integration test: savings goal "achieved" (found 2026-10-25)** — `phase1.integration.test.ts` › "savings goals: achieved when the balance crosses the target" fails in about 1 of 3 `just test-all` runs, with or without the 2026-10-25 changes (reproduced on the old hooks; seen again during 2026-10-28 queue validation). The goal reads `achieved: false` right after the crossing adjustment. Adding instrumentation makes it pass, which points to timing (hook ordering or after-commit timing in `goals.pb.js`). Report failures; do not hide them with retries. Seen again 2026-10-29 during inbox work; it did not reproduce afterwards (12/12 in isolation, 5 full-suite runs on a fresh DB), so it only shows up in the full-suite context.
 
@@ -55,7 +54,6 @@ Last audit 2026-10-21: retired the stale pb-download Known Issue to a fixed-with
 
 1. **Feature explanation tooltips** — see [Backlog](#backlog-unscheduled). Settings don't explain themselves; ~2-3 hrs.
 2. **Go live on bb** — code is done (`just backup-pull`, `host-reset`, `go-live`, `push-updates`; see [deployment](docs/DEPLOYMENT.md#going-live-with-a-real-household)). 🧑 needs-human: run `update-service` (enables nightly backups), real names/accounts, re-login on every device, re-enter `fl_*` IDs.
-3. **Pending requests can overcommit a balance** — see Known Issues; decide whether to subtract other pending requests at create.
 
 ## Phase 2 — Family Link Automation
 
