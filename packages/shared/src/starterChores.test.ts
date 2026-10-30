@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { STARTER_BANDS } from "./starterChores";
+import { addableStarterChores, STARTER_BANDS } from "./starterChores";
 
 describe("starter chores", () => {
   it("has unique band ids and non-empty bands", () => {
@@ -31,5 +31,15 @@ describe("starter chores", () => {
       return r[Math.floor(r.length / 2)] ?? 0;
     });
     expect(medians).toEqual([...medians].sort((a, z) => a - z));
+  });
+});
+
+describe("addableStarterChores", () => {
+  it("skips chores the household already has, ignoring case and whitespace", () => {
+    const band = STARTER_BANDS[0]!;
+    const first = band.chores[0]!.name;
+    const addable = addableStarterChores(band, [`  ${first.toUpperCase()} `]);
+    expect(addable.some((c) => c.name === first)).toBe(false);
+    expect(addable).toHaveLength(band.chores.length - 1);
   });
 });

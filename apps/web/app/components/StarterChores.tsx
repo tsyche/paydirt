@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { errorMessage, STARTER_BANDS } from "@paydirt/shared";
+import { addableStarterChores, errorMessage, STARTER_BANDS, starterChoreInput } from "@paydirt/shared";
 import { client } from "../lib/client";
 
 /** Pick-and-add starter chores by age band. Chores already in the household (by name) are skipped. */
@@ -25,7 +25,7 @@ export function StarterChores({
   const have = new Set(existingNames.map((n) => n.trim().toLowerCase()));
   const band = STARTER_BANDS.find((b) => b.id === bandId) ?? STARTER_BANDS[0];
   const key = (name: string) => `${band.id}/${name}`;
-  const addable = band.chores.filter((c) => !have.has(c.name.toLowerCase()));
+  const addable = addableStarterChores(band, existingNames);
 
   function toggle(name: string) {
     setPicked((prev) => {
@@ -50,17 +50,7 @@ export function StarterChores({
     setError("");
     try {
       for (const c of chosen) {
-        await client.createChore({
-          household: householdId,
-          name: c.name,
-          description: c.description,
-          reward: c.reward,
-          type: c.type,
-          ...(c.cadence ? { cadence: c.cadence } : {}),
-          photo_required: c.photo_required ?? false,
-          created_by: parentId,
-          active: true,
-        });
+        await client.createChore(starterChoreInput(c, householdId, parentId));
       }
       setPicked(new Set());
       onAdded();

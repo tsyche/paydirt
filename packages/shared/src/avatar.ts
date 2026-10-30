@@ -21,3 +21,12 @@ export function avatarUrl(
   };
   return pb.files.getURL(record, user.avatar, thumb ? { thumb } : undefined);
 }
+
+/** Accent colours a parent can give a kid (users.color). */
+export const AVATAR_COLORS = ["#e53935", "#8e24aa", "#1e88e5", "#00897b", "#f4511e", "#f9a825"];
+
+/** Per-kid goods-rate override from a text field: blank, non-numeric or <= 0 means "use the household rate" (null). */
+export function parseGoodsRateOverride(input: string): number | null {
+  const rate = parseFloat(input);
+  return isNaN(rate) || rate <= 0 ? null : rate;
+}

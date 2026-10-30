@@ -23,6 +23,7 @@ import { isNetworkError } from "../lib/reachability";
 import { useReachability } from "../lib/useReachability";
 import { ClaimHero } from "./ClaimHero";
 import { ChunkyButton } from "./ChunkyButton";
+import { KidAppearanceCard } from "./KidAppearanceCard";
 import { OfflineBanner } from "./OfflineBanner";
 
 type Expanded = Assignment & { expand?: { chore?: Chore } };
@@ -178,6 +179,36 @@ export function KidDetail({
                   void client.pb
                     .collection("users")
                     .update(kid.id, { calm_mode: next })
+                    .then(() => reload())
+                    .catch((e) => setSnack(errorMessage(e)))
+                }
+              />
+            </Card.Content>
+          </Card>
+        )}
+
+        {kid && (
+          <KidAppearanceCard key={`${kid.id}-${kid.avatar ?? ""}`} kid={kid} onSaved={() => void reload()} onMessage={setSnack} />
+        )}
+
+        {kid && (
+          <Card style={styles.card}>
+            <Card.Content style={styles.rowBetween}>
+              <View style={styles.flex}>
+                <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
+                  <Text variant="titleSmall">Simplified mode</Text>
+                  <IconButton icon="information-outline" size={16} onPress={() => setTipKey("simplified_mode")} style={{ margin: 0 }} />
+                </View>
+                <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant }}>
+                  Bigger buttons and icons, minimal reading.
+                </Text>
+              </View>
+              <Switch
+                value={!!kid.simplified_mode}
+                onValueChange={(next) =>
+                  void client.pb
+                    .collection("users")
+                    .update(kid.id, { simplified_mode: next })
                     .then(() => reload())
                     .catch((e) => setSnack(errorMessage(e)))
                 }

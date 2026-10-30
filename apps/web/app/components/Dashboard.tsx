@@ -12,7 +12,7 @@ import type {
   SpendRequest,
   User,
 } from "@paydirt/shared";
-import { avatarUrl, currencyDisplayName, featureTip, screenGrantLabel, errorMessage } from "@paydirt/shared";
+import { AVATAR_COLORS, REACTIONS, undoApprovalPrompt, avatarUrl, currencyDisplayName, parseGoodsRateOverride, featureTip, screenGrantLabel, errorMessage } from "@paydirt/shared";
 import { client } from "../lib/client";
 import { HouseholdSettings } from "./HouseholdSettings";
 import { AppearanceControls } from "./AppearanceControls";
@@ -38,7 +38,6 @@ const TX_LABEL: Record<string, string> = {
   manual_adjustment: "Adjustment",
 };
 
-const REACTIONS = ["🎉", "👏", "💪", "🌟"];
 
 export function buildLedgerCsv(
   txns: CurrencyTransaction[],
@@ -148,7 +147,9 @@ export function Dashboard({
         <div className="app-bar-inner">
           <div className="app-bar-title">
             <img className="app-bar-logo" src="/bag.svg" alt="" />
-            Pay<span className="brand-dirt">Dirt</span>
+            <span>
+              Pay<span className="brand-dirt">Dirt</span>
+            </span>
           </div>
           <div className="inline">
             <AppearanceControls />
@@ -492,12 +493,8 @@ export function Dashboard({
                 <button
                   className="danger sm"
                   onClick={() => {
-                    const choreName = chore?.name ?? "this chore";
-                    const detail =
-                      chore && kid
-                        ? ` This will deduct ${chore.reward} ${currencyName} from ${kid.display_name}.`
-                        : "";
-                    if (!window.confirm(`Undo approval for "${choreName}"?${detail}`)) return;
+                    const prompt = undoApprovalPrompt(chore?.name, chore?.reward, kid?.display_name, currencyName);
+                    if (!window.confirm(prompt)) return;
                     void act(() => client.undoApproval(a.id));
                   }}
                 >
@@ -1234,8 +1231,6 @@ function ChoreTemplatesPanel({
   );
 }
 
-const AVATAR_COLORS = ["#e53935", "#8e24aa", "#1e88e5", "#00897b", "#f4511e", "#f9a825"];
-
 function AvatarControl({ kid, onSaved }: { kid: User; onSaved: () => void }) {
   const [open, setOpen] = useState(false);
   const [avatar, setAvatar] = useState(kid.avatar_emoji ?? "");
@@ -1243,6 +1238,7 @@ function AvatarControl({ kid, onSaved }: { kid: User; onSaved: () => void }) {
   const [color, setColor] = useState(kid.color ?? AVATAR_COLORS[0]);
   const [goodsRateOverride, setGoodsRateOverride] = useState(String(kid.goods_rate ?? ""));
   const [calmMode, setCalmMode] = useState(!!kid.calm_mode);
+  const [simplified, setSimplified] = useState(!!kid.simplified_mode);
   const [flChildId, setFlChildId] = useState(kid.fl_child_id ?? "");
   const [flDeviceId, setFlDeviceId] = useState(kid.fl_device_id ?? "");
   const [error, setError] = useState("");
@@ -1305,6 +1301,13 @@ function AvatarControl({ kid, onSaved }: { kid: User; onSaved: () => void }) {
         <input type="checkbox" checked={calmMode} onChange={(e) => setCalmMode(e.target.checked)} />
         Calm mode
       </label>
+      <label
+        style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 13, cursor: "pointer" }}
+        title={featureTip("simplified_mode")}
+      >
+        <input type="checkbox" checked={simplified} onChange={(e) => setSimplified(e.target.checked)} />
+        Simplified mode
+      </label>
       <input
         placeholder="Family Link child ID"
         aria-label="Family Link child ID"
@@ -1327,7 +1330,6 @@ function AvatarControl({ kid, onSaved }: { kid: User; onSaved: () => void }) {
         onClick={async () => {
           setBusy(true);
           try {
-            const rate = parseFloat(goodsRateOverride);
             if (photo) {
               const form = new FormData();
               form.append("avatar", photo);
@@ -1336,8 +1338,9 @@ function AvatarControl({ kid, onSaved }: { kid: User; onSaved: () => void }) {
             await client.pb.collection("users").update(kid.id, {
               avatar_emoji: avatar.trim(),
               color,
-              goods_rate: isNaN(rate) || rate <= 0 ? null : rate,
+              goods_rate: parseGoodsRateOverride(goodsRateOverride),
               calm_mode: calmMode,
+              simplified_mode: simplified,
               fl_child_id: flChildId.trim(),
               fl_device_id: flDeviceId.trim(),
             });

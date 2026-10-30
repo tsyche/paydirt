@@ -19,3 +19,4 @@ export * from "./starterChores";
 // Node-only types they don't have. familylink.ts is excluded for the same
 // reason (consumed by scripts/familylink-grant.mjs), as is familylinkQueue.ts
 // (consumed by scripts/familylink-worker.mts).
+export * from "./approvalActions";

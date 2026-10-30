@@ -28,6 +28,8 @@ import { AppearanceControls } from "../components/AppearanceControls";
 import { ChunkyButton } from "../components/ChunkyButton";
 import { Celebration } from "../components/Celebration";
 import { KidDetail } from "../components/KidDetail";
+import { RecentlyApproved } from "../components/RecentlyApproved";
+import { StarterChores } from "../components/StarterChores";
 import { OfflineBanner } from "../components/OfflineBanner";
 import { HouseholdSettings } from "../components/HouseholdSettings";
 import { LedgerView } from "../components/LedgerView";
@@ -78,6 +80,7 @@ export function ParentHome({
   const [snack, setSnack] = useState("");
   const [tab, setTab] = useState("approvals");
   const [detailKid, setDetailKid] = useState<string | null>(null);
+  const [approvedKey, setApprovedKey] = useState(0);
   const [celebrate, setCelebrate] = useState(0);
   const party = () => setCelebrate((n) => n + 1);
 
@@ -130,6 +133,7 @@ export function ParentHome({
 
   const reload = useCallback(async () => {
     setRefreshing(true);
+    setApprovedKey((k) => k + 1);
     try {
       const [hh, k, a, s, c, p, grants] = await Promise.all([
         client.getHousehold(user.household),
@@ -320,6 +324,21 @@ export function ParentHome({
     setChoreRace(t.race ?? false);
     setChoreReminder(t.reminder_time ?? "");
     setShowTemplates(false);
+  }
+
+  function confirmDeleteTemplate(t: ChoreTemplate) {
+    Alert.alert("Delete template", `Delete the "${t.name}" template? Existing chores aren't affected.`, [
+      { text: "Cancel", style: "cancel" },
+      {
+        text: "Delete",
+        style: "destructive",
+        onPress: () =>
+          void client
+            .deleteTemplate(t.id)
+            .then(() => setTemplates((prev) => prev.filter((x) => x.id !== t.id)))
+            .catch((e) => setSnack(errorMessage(e))),
+      },
+    ]);
   }
 
   async function saveAsTemplate() {
@@ -872,6 +891,15 @@ export function ParentHome({
             })}
           </>
         )}
+        {household && (
+          <RecentlyApproved
+            householdId={household.id}
+            currencyName={currencyName}
+            reloadKey={approvedKey}
+            onChanged={() => void reload()}
+            onMessage={setSnack}
+          />
+        )}
           </>
         )}
 
@@ -890,6 +918,14 @@ export function ParentHome({
             {showCreateChore ? "Cancel" : "Add"}
           </Button>
         </View>
+
+        <StarterChores
+          householdId={user.household}
+          parentId={user.id}
+          existingNames={chores.map((c) => c.name)}
+          onAdded={() => void reload()}
+          onMessage={setSnack}
+        />
 
         {showCreateChore && (
           <Card style={styles.createChoreCard}>
@@ -913,6 +949,14 @@ export function ParentHome({
                           {t.reward} · {t.type}{t.cadence ? ` · ${t.cadence}` : ""}{t.photo_required ? " · 📷" : ""}{t.race ? " · 🏁" : ""}
                         </Text>
                       </View>
+                      <Button
+                        mode="text"
+                        compact
+                        icon="delete-outline"
+                        onPress={() => confirmDeleteTemplate(t)}
+                        textColor={theme.colors.error}
+                        style={{ minWidth: 0 }}
+                      >{""}</Button>
                       <Button
                         mode="contained-tonal"
                         compact

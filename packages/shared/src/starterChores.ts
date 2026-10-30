@@ -79,3 +79,28 @@ export const STARTER_BANDS: StarterBand[] = [
     ],
   },
 ];
+
+/** Starter chores in a band that the household doesn't already have (matched by name, case-insensitive). */
+export function addableStarterChores(band: StarterBand, existingNames: string[]): StarterChore[] {
+  const have = new Set(existingNames.map((n) => n.trim().toLowerCase()));
+  return band.chores.filter((c) => !have.has(c.name.toLowerCase()));
+}
+
+/** createChore payload for a starter chore. */
+export function starterChoreInput(
+  c: StarterChore,
+  householdId: string,
+  parentId: string,
+) {
+  return {
+    household: householdId,
+    name: c.name,
+    description: c.description,
+    reward: c.reward,
+    type: c.type,
+    ...(c.cadence ? { cadence: c.cadence } : {}),
+    photo_required: c.photo_required ?? false,
+    created_by: parentId,
+    active: true,
+  };
+}

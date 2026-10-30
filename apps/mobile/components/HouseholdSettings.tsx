@@ -1,16 +1,44 @@
 import { useState } from "react";
-import { ScrollView } from "react-native";
+import { ScrollView, View } from "react-native";
 import {
   Button,
   Dialog,
+  IconButton,
   Portal,
   Switch,
   Text,
   TextInput,
 } from "react-native-paper";
 import type { Household } from "@paydirt/shared";
-import { CURRENCY_PRESETS, DEFAULT_CURRENCY_NAME, screenRate, errorMessage } from "@paydirt/shared";
+import { CURRENCY_PRESETS, DEFAULT_CURRENCY_NAME, screenRate, errorMessage, featureTip } from "@paydirt/shared";
 import { client } from "../lib/client";
+
+/** Setting label with an info icon that reveals the shared feature tip inline (no hover on touch). */
+function SettingLabel({ label, tip }: { label: string; tip?: string }) {
+  const [shown, setShown] = useState(false);
+  const text = tip ? featureTip(tip) : undefined;
+  return (
+    <View>
+      <View style={{ flexDirection: "row", alignItems: "center" }}>
+        <Text variant="labelLarge">{label}</Text>
+        {text ? (
+          <IconButton
+            icon="information-outline"
+            size={16}
+            accessibilityLabel={`About ${label}`}
+            onPress={() => setShown((v) => !v)}
+            style={{ margin: 0 }}
+          />
+        ) : null}
+      </View>
+      {shown && text ? (
+        <Text variant="bodySmall" style={{ marginBottom: 4 }}>
+          {text}
+        </Text>
+      ) : null}
+    </View>
+  );
+}
 
 export function HouseholdSettings({
   household,
@@ -81,14 +109,14 @@ export function HouseholdSettings({
         <Dialog.Title>Household settings</Dialog.Title>
         <Dialog.ScrollArea>
           <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ paddingHorizontal: 8 }}>
-            <Text variant="labelLarge">Currency name</Text>
+            <SettingLabel label="Currency name" tip="currency_name" />
             <TextInput
               value={form.currency_name}
               placeholder={DEFAULT_CURRENCY_NAME}
               onChangeText={(v) => setForm({ ...form, currency_name: v })}
               style={{ marginBottom: 8 }}
             />
-            <Text variant="labelLarge">Presets</Text>
+            <SettingLabel label="Presets" tip="currency_presets" />
             <ScrollView horizontal style={{ marginBottom: 8 }}>
               {CURRENCY_PRESETS.map((p) => (
                 <Button
@@ -103,93 +131,97 @@ export function HouseholdSettings({
               ))}
             </ScrollView>
 
-            <Text variant="labelLarge">Bank threshold (0 = off)</Text>
+            <SettingLabel label="Bank threshold (0 = off)" tip="bank_threshold" />
             <TextInput
               keyboardType="numeric"
               value={form.bank_threshold}
               onChangeText={(v) => setForm({ ...form, bank_threshold: v })}
               style={{ marginBottom: 8 }}
             />
-            <Text variant="labelLarge">Rewards expire after days (0 = off)</Text>
+            <SettingLabel label="Rewards expire after days (0 = off)" tip="expiry_days" />
             <TextInput
               keyboardType="numeric"
               value={form.expiry_days}
               onChangeText={(v) => setForm({ ...form, expiry_days: v })}
               style={{ marginBottom: 8 }}
             />
-            <Text variant="labelLarge">Bucks per $1 (0 = off)</Text>
+            <SettingLabel label="Bucks per $1 (0 = off)" tip="goods_rate" />
             <TextInput
               keyboardType="numeric"
               value={form.goods_rate}
               onChangeText={(v) => setForm({ ...form, goods_rate: v })}
               style={{ marginBottom: 8 }}
             />
-            <Text variant="labelLarge">Bucks per screen-time minute</Text>
+            <SettingLabel label="Bucks per screen-time minute" tip="screen_rate" />
             <TextInput
               keyboardType="numeric"
               value={form.screen_rate}
               onChangeText={(v) => setForm({ ...form, screen_rate: v })}
               style={{ marginBottom: 8 }}
             />
-            <Text variant="labelLarge">Nudge after hours unapproved (0 = off)</Text>
+            <SettingLabel label="Nudge after hours unapproved (0 = off)" tip="nudge_hours" />
             <TextInput
               keyboardType="numeric"
               value={form.nudge_hours}
               onChangeText={(v) => setForm({ ...form, nudge_hours: v })}
               style={{ marginBottom: 8 }}
             />
-            <Text variant="labelLarge">Quiet hours start</Text>
+            <SettingLabel label="Quiet hours start" tip="quiet_start" />
             <TextInput
               value={form.quiet_start}
               onChangeText={(v) => setForm({ ...form, quiet_start: v })}
               placeholder="21:00"
               style={{ marginBottom: 8 }}
             />
-            <Text variant="labelLarge">Quiet hours end</Text>
+            <SettingLabel label="Quiet hours end" tip="quiet_end" />
             <TextInput
               value={form.quiet_end}
               onChangeText={(v) => setForm({ ...form, quiet_end: v })}
               placeholder="07:00"
               style={{ marginBottom: 8 }}
             />
-            <Text variant="labelLarge">Vacation mode</Text>
+            <SettingLabel label="Vacation mode" tip="paused" />
             <Switch
               value={form.paused}
               onValueChange={(v) => setForm({ ...form, paused: v })}
               style={{ marginBottom: 8 }}
             />
-            <Text variant="labelLarge">Allowance amount (0 = off)</Text>
+            <SettingLabel label="Allowance amount (0 = off)" tip="allowance_amount" />
             <TextInput
               keyboardType="numeric"
               value={form.allowance_amount}
               onChangeText={(v) => setForm({ ...form, allowance_amount: v })}
               style={{ marginBottom: 8 }}
             />
-            <Text variant="labelLarge">Allowance cadence</Text>
+            <SettingLabel label="Allowance cadence" tip="allowance_cadence" />
             <TextInput
               value={form.allowance_cadence}
               onChangeText={(v) => setForm({ ...form, allowance_cadence: v === "daily" ? "daily" : "weekly" })}
               style={{ marginBottom: 8 }}
             />
-            <Text variant="labelLarge">Streak bonuses (3/7/14/30)</Text>
+            <SettingLabel label="Streak bonuses (3/7/14/30)" tip="streak_bonus_3" />
+            <SettingLabel label="3-day bonus" tip="streak_bonus_3" />
             <TextInput
               keyboardType="numeric"
               value={form.streak_bonus_3}
               onChangeText={(v) => setForm({ ...form, streak_bonus_3: v })}
               style={{ marginBottom: 4 }}
             />
+            <SettingLabel label="7-day bonus" tip="streak_bonus_7" />
             <TextInput
               keyboardType="numeric"
               value={form.streak_bonus_7}
               onChangeText={(v) => setForm({ ...form, streak_bonus_7: v })}
               style={{ marginBottom: 4 }}
             />
+            <SettingLabel label="14-day bonus" tip="streak_bonus_14" />
             <TextInput
               keyboardType="numeric"
               value={form.streak_bonus_14}
               onChangeText={(v) => setForm({ ...form, streak_bonus_14: v })}
               style={{ marginBottom: 4 }}
             />
+            <SettingLabel label="30-day bonus" tip="streak_bonus_30" />
             <TextInput
               keyboardType="numeric"
               value={form.streak_bonus_30}
