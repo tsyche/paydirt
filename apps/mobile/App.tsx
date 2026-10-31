@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Alert, AppState, Linking } from "react-native";
+import { Alert, AppState, Linking, View } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { StatusBar } from "expo-status-bar";
 import { SafeAreaProvider } from "react-native-safe-area-context";
@@ -210,7 +210,11 @@ function AppContent() {
 
   return (
     <PaperProvider theme={theme}>
-      {renderScreen()}
+      {/* Paint the screen background: without it the native window colour (dark
+          under a dark system theme) shows through behind the in-app light theme. */}
+      <View style={{ flex: 1, backgroundColor: theme.colors.background }}>
+        {renderScreen()}
+      </View>
       {user && ntfySetupNeeded && ntfySetupVisible && (
         <NtfySetup
           visible
