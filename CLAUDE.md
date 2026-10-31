@@ -24,7 +24,7 @@ paydirt/
   pocketbase/
     pb_hooks/       # JS business logic (currency math, threshold checks)
     pb_migrations/  # schema as code
-  docs/             # architecture, troubleshooting, etc.
+  docs/             # data model, deployment, device testing, ledger
 ```
 
 ## Development

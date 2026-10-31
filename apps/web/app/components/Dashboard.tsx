@@ -533,10 +533,11 @@ export function Dashboard({
           <ChoreRow key={c.id} chore={c} kids={kids} currencyName={currencyName} onChanged={reload} />
         ))}
         </>)}
+
+        {tab === "ledger" && <LedgerView household={household} />}
+        {tab === "alerts" && <InboxView userId={user.id} />}
       </main>
 
-              {tab === "ledger" && <LedgerView household={household} />}
-              {tab === "alerts" && <InboxView userId={user.id} />}
 <Celebration trigger={celebrate} />
       {photoPreview && (
         <div

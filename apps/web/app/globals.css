@@ -259,6 +259,9 @@ h2 {
 
 h2:first-child { margin-top: 8px; }
 
+/* Tab bar supplies the gap, so a first-rendered heading adds none (keeps every tab's spacing identical). */
+.tabs + h2 { margin-top: 0; }
+
 p { margin: 0; }
 
 /* ─── Cards ──────────────────────────────────────────────────────────────── */
@@ -830,7 +833,7 @@ input[type="checkbox"]:focus-visible {
 .tabs {
   display: flex;
   gap: 6px;
-  margin: 4px 0 8px;
+  margin: 4px 0 40px;
   padding: 5px;
   background: var(--md-surface-container);
   border-radius: var(--md-shape-full);

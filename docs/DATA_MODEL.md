@@ -26,6 +26,9 @@ declare them in their own creation migration. Omitting them previously caused
 | nudge_hours | number | nudge parents when a completion waits N hours; 0 = off |
 | paused | bool | vacation mode: cron reminders/nudges/digest/expiry suspended |
 | screen_rate | number | parentBucks per screen-time minute; 0 = 1:1 (see `packages/shared/src/screenTime.ts`) |
+| quiet_start / quiet_end | text | "HH:MM" quiet-hours window; pushes in it are held back (still logged to `inbox`); wraps midnight |
+| streak_bonus_3 / _7 / _14 / _30 | number | bonus granted at each streak milestone; 0 = default |
+| allowance_amount / allowance_cadence / allowance_last_paid | number / select(`daily`,`weekly`) / date | scheduled allowance; paid by the daily cron, `allowance_last_paid` is the dedupe marker |
 
 ### `users` (extends PocketBase auth)
 | Field | Type | Notes |
@@ -39,6 +42,10 @@ declare them in their own creation migration. Omitting them previously caused
 | calm_mode | bool | default false; parent dial-back silences playful extras (badges, confetti, count-up) |
 | streak_count | number | consecutive earn-days; maintained by hook + daily cron |
 | fl_child_id / fl_device_id | text | Family Link grant target for this kid's tablet; parent-set, pattern-validated |
+| up_endpoint | text | UnifiedPush endpoint the app registers; primary push target (`ntfy_topic` is the fallback) |
+| avatar_emoji / color | text | kid's avatar emoji and accent color (not `avatar`, which is PocketBase's built-in file field) |
+| avatar | file | optional uploaded avatar image |
+| goods_rate | number | per-kid override of the household `goods_rate`; 0/unset = use the household rate |
 
 ### `chores`
 | Field | Type | Notes |
@@ -78,6 +85,7 @@ One per (chore, child). Status: `assigned` → `completed` → `approved`/`rejec
 | last_reminded | date | scheduled-reminder dedupe marker (cron) |
 | nudged_at | date | approval-nudge dedupe marker (cron) |
 | swap_to | relation → users | pending swap offer to a sibling |
+| needs_help | bool | kid's "I need help" flag; pings parents, cleared on mark-done/approve |
 
 ### `currency_transactions`
 Append-only ledger. `+` earn, `−` spend. Sum = balance. `just verify-ledger` recomputes and diffs this invariant against every user's cached `balance`.
@@ -123,6 +131,10 @@ crosses the target.
 | target | number | required |
 | achieved | bool | hook-set |
 | achieved_at | date | hook-set |
+| auto_save_percent | number | % of each earn auto-saved toward this goal (with a notification) |
+
+### `chore_templates`
+Household-saved chore blueprints (name, description, reward, type, cadence, `photo_required`, `race`, `reminder_time`, `max_per_period`) that pre-fill the create-chore form.
 
 ### `chore_proposals`
 A kid pitches a chore + asking price; a parent approves (client creates the
@@ -179,7 +191,7 @@ Live in `pocketbase/pb_hooks/`. PocketBase runs each handler in an isolated VM, 
 
 ## Cron jobs (`scheduler.pb.js` → `lib/scheduler.js`)
 
-Server-local time. Manual triggers for tests/debugging: `POST /api/paydirt/cron/{tick|daily|digest}` (superuser only). All sends respect `NTFY_DISABLED` and skip `paused` households.
+Server-local time. Manual triggers for tests/debugging: `POST /api/paydirt/cron/{tick|daily|digest|kid-recap|allowance}` (superuser only). All sends respect `NTFY_DISABLED` and skip `paused` households.
 The separate Family Link reconciliation job lives in `familylink.pb.js`; it processes explicitly approved purchases regardless of household scheduling pauses.
 
 | Job | Schedule | Does |
@@ -187,6 +199,8 @@ The separate Family Link reconciliation job lives in `familylink.pb.js`; it proc
 | paydirt_tick | every 10 min | approval nudges (`nudge_hours`), daily chore reminders (`reminder_time`), deadline escalation (`due_at`: 24h → 2h → overdue, parents pinged on overdue), kid one-shot reminders |
 | paydirt_daily | 03:00 | currency expiry (`expiry_days`, compensating negative adjustment capped at balance), streak refresh (zeroes broken streaks), recurring chore auto-assignment (re-creates assignments for recurring chores when no open one exists per kid) |
 | paydirt_digest | Sun 18:00 | weekly per-kid summary (chores, earned/spent, balances, pending count) to parents |
+| paydirt_kid_recap | Sun 10:00 | per-kid weekly ntfy recap (earnings, chores, nearest goal); skips `paused` households |
+| paydirt_allowance | daily 06:00 | pays the scheduled allowance when due (`allowance_*`), notifies kids |
 | paydirt_familylink | every minute | repair missed queue publication and import grant receipts; notify parents of manual recovery |
 
 ## Design decisions

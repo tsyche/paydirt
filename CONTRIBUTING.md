@@ -50,3 +50,8 @@ instead of on every push, since they're slower.
 - TypeScript everywhere (extensionless imports in `packages/shared`).
 - No comments unless the *why* is non-obvious.
 - Edit `AGENTS.md`, not `CLAUDE.md` — the PostToolUse hook syncs them.
+
+## Terminology
+
+- **Phase** — a customer-visible chunk of work in [ROADMAP.md](./ROADMAP.md) (MVP, Phase 1, Phase 2, ...).
+- **Release** — a version deployed to the family's devices and host (`just ship`).

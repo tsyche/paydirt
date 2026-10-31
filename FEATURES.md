@@ -13,7 +13,7 @@
 - **Mobile app** (`apps/mobile`, Expo + react-native-paper) — role-gated; kid screen (balance, chores, mark done, spend request); simplified mode for young kids; runs on emulator.
 - **Simplified mode** — `SimpleKidHome` screen with giant text/buttons for early readers; branches on `simplified_mode` user field.
 - **Bonus/deduction UI** — `AdjustControl` per kid in the parent dashboard; calls `adjustBalance()`.
-- **Per-kid ledger view** — `LedgerToggle` in parent dashboard shows full transaction history per kid.
+- **Ledger view** — web "📒 Ledger" tab (per-kid + month filter, net total) and a mobile ledger tab show the full transaction history.
 - **photo_required enforcement** — server guard (`guards.pb.js`) rejects completion without a photo; `KidHome` shows camera button for photo-required chores (`expo-image-picker`).
 - **Chore repeat limits** — optional `max_per_period` per chore (and every starter chore); assigning a kid past it prompts "assign anyway?" in web and mobile. Advisory only.
 - **Starter chores** — curated chores by age band (4-6, 7-9, 10-12, 13+) in `packages/shared/src/starterChores.ts`; web Chores tab picker skips ones already added, and `just go-live` can seed whole bands.
@@ -41,17 +41,26 @@
 - **Streak bonuses** — consecutive earn-days tracked per kid (🔥 shown in both apps); milestone bonuses at 3/7/14/30 days.
 - **Weekly digest** — Sunday-evening ntfy summary to parents (per-kid chores, earned/spent, balances, pending approvals).
 - **Vacation mode** — household pause switch suspends cron reminders, nudges, digest, and expiry.
-- **Household settings panel** — currency name, bank threshold, expiry days, goods rate, nudge hours, vacation mode — all in the dashboard.
+- **Household settings panel** — currency name, bank threshold, expiry days, goods rate, screen rate, nudge hours, quiet hours, allowance, streak bonuses, vacation mode — all in the dashboard, with instant ⓘ tips.
 - **Dev tooling** — `just fresh` starts PB + web + Expo in one command with emulator check, health polling, and cache clear; `just stop` kills everything including the emulator app; `just fresh nuke=1` wipes node_modules and reseeds. `just seed`, `just reset-db`, `just lint`, `just typecheck`.
 - **CI pipeline** — GitHub Actions runs lint + typecheck + unit tests on every push/PR; integration + e2e (against a self-contained ephemeral PocketBase) run on `workflow_dispatch`.
 - **Ledger integrity verifier** — `just verify-ledger` recomputes every user's balance from `currency_transactions` and diffs it against the cached value; non-zero exit on mismatch. Runs as part of `just test-all` / CI.
 - **Scheduled-job test coverage** — fire/no-fire decision logic for reminders, deadline escalation, currency expiry, weekly digest, and streak milestones extracted into `packages/shared` as pure, clock-injectable functions, with vacation-mode-gated unit tests. `pb_hooks` can't import `packages/shared` (Goja has no TS/ESM support), so `scheduler.js`/`streaks.js`/`goals.pb.js` mirror the same logic by hand, each pointing back at its tested counterpart.
 - **Offline/unreachable-backend UX** — mobile app detects an unreachable PocketBase (`apps/mobile/lib/reachability.ts`), shows a banner with manual retry, retries automatically on reconnect, and keeps last-known balance/data visible instead of blanking.
-- **Notification deep links (Android)** — tapping a push notification opens the relevant screen via a `paydirt://` deep link (`apps/mobile/lib/deepLinks.ts`); JS routing logic is unit-tested, native tap-through is not yet confirmed on a device.
+- **Notification deep links (Android)** — tapping a push notification opens the relevant screen via a `paydirt://` deep link (`apps/mobile/lib/deepLinks.ts`); JS routing logic is unit-tested, verified on-device 2026-10-21 (warm and cold start).
+
+- **Alerts inbox** — every push is also logged to a per-user `inbox` (bell in web and both mobile UIs; ✕ removes one, "Clear all"); items older than 30 days are pruned.
+- **Scheduled allowance** — household `allowance_amount`/`allowance_cadence` (daily/weekly) paid by cron, with kid notification.
+- **Kid weekly recap** — Sunday ntfy to each kid: earnings, chores completed, nearest savings goal.
+- **"I need help" flag** — kid taps it on a chore; parents are pinged and see it in the approval queue.
+- **Auto-save to goals** — `auto_save_percent` on a savings goal diverts that slice of each earn.
+- **Approval photo grid** — inline photo thumbnails with tap-to-enlarge in both approval queues.
+- **Quiet hours** — household window that holds back pushes (still logged to the inbox).
+- **Backups + in-app updates** — nightly PocketBase backups (7 kept) and APK self-update from the host (`just ship`); see [docs/DEPLOYMENT.md](./docs/DEPLOYMENT.md).
 
 ## Not Yet Implemented
 
-- **On-device test** — emulator validated; GrapheneOS/LineageOS real device not yet tested.
+- **Off-LAN access** — devices reach PocketBase only on the home LAN; see [ROADMAP.md](./ROADMAP.md).
 
 ## MVP Target
 

@@ -1,5 +1,18 @@
 # Physical Device Testing
 
+**TL;DR:** Pair each tablet once, pin it to a fixed port with `adb tcpip 5555`, list its IP in `deploy-devices`, then `just ship` (or `just push` for an adb-only install). The checklist and findings below record the 2026-10-21 Pixel 8 / GrapheneOS smoke test.
+
+## Contents
+
+- [One-time device setup](#one-time-device-setup)
+- [Wireless push (no cable after initial pairing)](#wireless-push-no-cable-after-initial-pairing)
+- [Build the APK](#build-the-apk)
+- [Test checklist](#test-checklist)
+- [Findings (2026-10-21 smoke test, Pixel 8 / GrapheneOS)](#findings-2026-10-21-smoke-test-pixel-8--grapheneos)
+- [Useful adb commands](#useful-adb-commands)
+- [Rebuilding after code changes](#rebuilding-after-code-changes)
+- [In-app updates (no adb)](#in-app-updates-no-adb)
+
 Guide for testing on a real Android device (GrapheneOS / LineageOS).
 
 The app is distributed as a sideloaded APK — no Play Store, no Expo Go.
@@ -27,23 +40,30 @@ One-time pairing per device (same Wi-Fi/network as the Mac):
    ```bash
    adb pair <ip>:<pair-port> <pairing-code>
    ```
-3. Note the main port on the Wireless debugging screen (shown next to the IP)
-   and save the device to `deploy-devices` in the repo root, one per line:
+3. `adb connect <ip>:<main-port>` (port from the Wireless debugging screen), then
+   pin a **fixed port** so the connection survives sleep (until the next reboot):
+   ```bash
+   adb -s <ip>:<main-port> tcpip 5555
    ```
-   192.168.20.152:46057
+4. Save the device to `deploy-devices` in the repo root, one per line. A bare IP
+   is enough once the port is pinned (`ip:port` also works):
+   ```
+   192.168.20.152
    ```
 
 After that, every update is one command from the Mac:
 
 ```bash
-just push-remote   # adb connect each entry in deploy-devices, build, install on all
+just conn          # connect every deploy-devices entry (no build/install)
+just push-remote   # connect, build the release APK, install on all (alias: just push)
 ```
 
 Notes:
 
-- The debug port **changes after a device reboot** — if `push-remote` can't
-  connect, read the current port off the device's Wireless debugging screen and
-  update `deploy-devices`.
+- `scripts/tablet-connect.sh` tries each entry as written, then `ip:5555`, then mDNS.
+- A device **reboot** drops the pinned port and the random Wireless-debugging
+  port changes: re-enable Wireless debugging, `adb connect` the new port, and
+  re-run `tcpip 5555`.
 - `DEPLOY_DEVICES="ip:port ip:port" just push-remote` overrides the file.
 - mDNS auto-discovery (no config file) only works on the same network segment;
   across VLANs the explicit `ip:port` entries are required, with the router
@@ -113,7 +133,7 @@ adb install -r apps/mobile/android/app/build/outputs/apk/debug/app-debug.apk
 ### Notifications (key test)
 - [x] Background: lock the screen, have parent approve a chore → notification appears from **PayDirt** (not ntfy) — channel `paydirt-alerts`; all four types confirmed
 - [x] Background: parent broadcasts a message → notification appears
-- [ ] Foreground: app open, approve a chore → UI updates silently (no duplicate notification) — **fails** (see findings): UI updates live, but the notification is still posted
+- [ ] Foreground: app open, approve a chore → UI updates silently (no duplicate notification) — fix shipped (`ForegroundTracker`, see CHANGELOG); not yet re-verified on a device
 - [ ] Alerts bell (parent + both kid UIs) lists past pushes newest-first; ✕ removes one, "Clear all" empties it
 - [x] Notification tap opens the app and lands on the relevant screen — warm (2026-10-21: heads-up tap → KidHome, balance current) and cold (`am kill` → tap → cold start; process-confirmed cold start; landing screen inferred — user interaction stole the foreground mid-launch)
 
@@ -128,10 +148,10 @@ adb install -r apps/mobile/android/app/build/outputs/apk/debug/app-debug.apk
 
 ## Findings (2026-10-21 smoke test, Pixel 8 / GrapheneOS)
 
-- **Foregrounded approve posts a duplicate notification** — checklist line 114 expects a silent UI update. The UI does update live (realtime), but `showNotification` runs unconditionally. Suppression when the app is foregrounded is the fix; not yet implemented.
+- **Foregrounded approve posted a duplicate notification** — fixed since (the app suppresses system notifications while foregrounded); re-verify on a device.
 - **Force-stopped app drops UP messages** — after `am force-stop`, an approval's UP message never produced a notification and never retried; delivery resumed with the next message after relaunch. This is Android's stopped-state broadcast rule (no queue). Real devices only "force-stop" via user action or aggressive battery profiles — worth re-checking under GrapheneOS's default battery settings before kids rely on it.
 - **Recurring "Chore time!" reminders confirmed firing** on-device in production use.
-- **Realtime staleness after network interruption** — live chore-approve updates worked early in the session and again after the Wi-Fi path healed (same process, no restart). But mid-session (Wi-Fi flap / extended idle) both spend-approve and chore-approve stopped updating the kid screen live for tens of minutes, while notifications (ntfy, cloud) and manual pull-to-refresh kept working. The PocketBase realtime socket does reconnect eventually, but with a long silent gap and no UI indication. Suspect fix: resubscribe + reload on `AppState` active / reachability recovery so a healed network refreshes the screen immediately.
+- **Realtime staleness after network interruption** — live chore-approve updates worked early in the session and again after the Wi-Fi path healed (same process, no restart). But mid-session (Wi-Fi flap / extended idle) both spend-approve and chore-approve stopped updating the kid screen live for tens of minutes, while notifications (ntfy, cloud) and manual pull-to-refresh kept working. The PocketBase realtime socket does reconnect eventually, but with a long silent gap and no UI indication. Fixed since: `useRealtimeResume` rebuilds the socket and reloads on foreground and on offline→online; re-verify on a device.
 - The stray "ntfy • N" lockscreen notifications are the agent's own phone-bridge permission prompts (`[paydirt] external_directory`), not a PayDirt bug.
 
 ## Useful adb commands
@@ -148,9 +168,10 @@ adb reverse tcp:3111 tcp:3111                  # tunnel device → host (run onc
 ## Rebuilding after code changes
 
 ```bash
-just push-remote        # tablets on Wi-Fi (reads deploy-devices)
-just build-apk    # recompile (no need to re-run prebuild unless app.json changed)
-just install-apk  # build + install in one step
+just ship         # backend + release APK + in-app update + adb install where reachable (commit first)
+just push-remote  # release APK to tablets on Wi-Fi (reads deploy-devices)
+just build-apk    # recompile the debug APK (no need to re-run prebuild unless app.json changed)
+just install-apk  # build + install the debug APK in one step
 ```
 
 `app.json` changes (new plugins, package name, icons) do not reach `android/` on their own, and `just prebuild` refuses to overwrite it (`FORCE=1` wipes the custom Kotlin; restore from git). Apply such changes to `android/` by hand or via the selective procedure in `apps/mobile/scripts/gen-icons.mjs`.
@@ -162,4 +183,4 @@ just install-apk  # build + install in one step
 - Tapping Update downloads the APK and opens the Android installer when it finishes (the "download complete" notification is the fallback if the app was backgrounded). Android always requires the Install tap; reopen PayDirt afterwards and it shows "PayDirt updated".
 - One-time per tablet: Settings → Apps → PayDirt → Install unknown apps → allow. Without it the install silently fails.
 - JS-only changes can use `just update-publish` + `just push-updates` (OTA, no prompt).
-- Not yet verified on a real tablet; adb (`just push`) stays the fallback.
+- Verified end to end on one phone 2026-10-31 (alert, download, installer, "PayDirt updated"); the other tablets need one adb install of a 2026-10-31+ build first (older builds lack the native method). `just push` stays the fallback.
