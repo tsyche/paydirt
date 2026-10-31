@@ -27,12 +27,10 @@ Last audit 2026-10-21: retired the stale pb-download Known Issue to a fixed-with
 ## Known Issues
 
 
-- **Flaky integration test: savings goal "achieved" (found 2026-10-25)** — `phase1.integration.test.ts` › "savings goals: achieved when the balance crosses the target" fails in about 1 of 3 `just test-all` runs, with or without the 2026-10-25 changes (reproduced on the old hooks; seen again during 2026-10-28 queue validation). The goal reads `achieved: false` right after the crossing adjustment. Adding instrumentation makes it pass, which points to timing (hook ordering or after-commit timing in `goals.pb.js`). Report failures; do not hide them with retries. Seen again 2026-10-29 during inbox work; it did not reproduce afterwards (12/12 in isolation, 5 full-suite runs on a fresh DB), so it only shows up in the full-suite context.
 
 - **`pocketbase/pocketbase` upstream has tags with no Release objects (found 2026-08-17)** — `just pb-download` now handles this: authenticated `releases/latest` lookup (gh/GITHUB_TOKEN) with a Homebrew fallback on macOS and actionable manual options elsewhere (fixed 2026-08-17, `a197def` + `8be6569`; docs updated). Remaining gap: non-macOS hosts during an upstream zero-Releases stretch still need a manual download — a tag-tarball/`go build` fallback is the possible follow-up.
-- **Dependabot alerts blocked upstream (2026-10-23)** — both come in only through `@expo/cli`, a dev-time CLI that never ships in the APK: `node-forge` ≤ 1.4.0 (#62, GHSA-86w9-cpqp-85rv; no patched release exists) and `zod` 3.25.76 (#79; the fix is 4.6.6+ only, and forcing zod 4 into `@expo/cli` risks breaking it). Re-check on the next Expo SDK bump. The zod 4 copy (via `eslint-plugin-react-hooks`) is fixed by a `pnpm.overrides` entry.
+- **Dependabot: dismissed, re-check for fixes (2026-10-31)** — `zod` 3.25.76 (#79; fix is 4.6.6+ only) and `deepmerge` 4.3.1 (#80; no patched release) are dismissed as tolerable risk: both arrive only through `@expo/cli` / `@expo/config`, build-time tooling that never ships in the APK. `node-forge` (#62) is fixed by a `pnpm.overrides` entry (1.4.2). Re-check on each Expo SDK bump (and `pnpm outdated zod deepmerge`): drop the dismissals' reason if a patch lands, and remove the `node-forge` override once `@expo/cli` depends on a fixed version itself.
 
-- **Dependabot deepmerge alert #80 (2026-10-29)** — `deepmerge` 4.3.1 is pulled in by `@expo/config` 57.0.9. [GHSA-gcqx-w48m-w2h4](https://github.com/advisories/GHSA-gcqx-w48m-w2h4) reports low-severity prototype poisoning when merging attacker-controlled objects; GitHub lists no patched version. Re-check with the next Expo/config update.
 
 ## Recommended Next 3
 
@@ -48,7 +46,7 @@ Last audit 2026-10-21: retired the stale pb-download Known Issue to a fixed-with
    - Still open: how long the session lives with only occasional grants (consider a daily keep-alive).
 2. **Off-LAN access (Tailscale)** — `EXPO_PUBLIC_POCKETBASE_URL` is a LAN IP; devices can't reach PocketBase on 5G or outside the home. Tailscale is the lowest-friction fix: private mesh VPN, no public exposure, point the URL at the Tailscale hostname. Required before the family can use the app outside the house, and a prerequisite for app auto-updates to reach devices off-LAN. ~2-4 hrs.
    - 🧑 needs-human: Tailscale account + per-device enrollment (the env-var change itself is trivial)
-3. **Tier 2 app auto-updates (on-device validation)** — agent-doable pieces shipped 2026-10-22 (endpoint, poll, download, install intent, `just publish-apk`); remaining work is confirming the install prompt lands and the APK actually installs on GrapheneOS. 🧑 needs-human.
+3. **Tier 2 app auto-updates (on-device validation)** — agent-doable pieces shipped 2026-10-22 (endpoint, poll, download, install intent, `just publish-apk`); validated end to end on one phone 2026-10-31 (alert, download, installer, 'PayDirt updated'); remaining: the other tablets need one adb install of the 2026-10-31+ build (older builds lack the native method), then confirm each self-updates. 🧑 needs-human.
 
 ### Best agent-doable next
 

@@ -24,14 +24,10 @@ onRecordAfterCreateSuccess((e) => {
 
   // ── savings goals: mark achieved + celebrate when the target is crossed ────
   if (amount > 0) {
-    const goals = e.app.findRecordsByFilter(
-      "savings_goals",
-      "child = {:c} && achieved = false && target <= {:b}",
-      "",
-      0,
-      0,
-      { c: child.id, b: balance },
-    );
+    // Compare in JS, not SQL: a float bound as {:b} made this flip intermittently.
+    const goals = e.app
+      .findRecordsByFilter("savings_goals", "child = {:c} && achieved = false", "", 0, 0, { c: child.id })
+      .filter((g) => g.getFloat("target") <= balance);
     for (const g of goals) {
       g.set("achieved", true);
       g.set("achieved_at", new Date().toISOString());
