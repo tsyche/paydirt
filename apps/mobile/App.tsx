@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { Alert, AppState, Linking } from "react-native";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { StatusBar } from "expo-status-bar";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { PaperProvider } from "react-native-paper";
@@ -11,7 +12,7 @@ import {
 } from "@expo-google-fonts/fredoka";
 import type { User } from "@paydirt/shared";
 import { client, pbUrl } from "./lib/client";
-import { fetchLatestVersion, getInstalledVersionCode, shouldUpdate, triggerApkDownload } from "./lib/appUpdate";
+import { fetchLatestVersion, getInstalledVersionCode, justUpdated, shouldUpdate, triggerApkDownload } from "./lib/appUpdate";
 import { Login } from "./screens/Login";
 import { KidHome } from "./screens/KidHome";
 import { SimpleKidHome } from "./screens/SimpleKidHome";
@@ -34,6 +35,7 @@ import { NtfySetup } from "./components/NtfySetup";
 // even if it's identical to the last one (e.g. two "spend_approved" taps in a row).
 type NotificationRoute = { type: string | null; nonce: number };
 
+const LAST_VERSION_KEY = "paydirt-last-version-code";
 const UPDATE_POLL_MS = 15 * 60 * 1000;
 
 function AppContent() {
@@ -88,6 +90,25 @@ function AppContent() {
     return () => sub.remove();
   }, []);
 
+  // After an in-app update the process is killed and relaunched by the user;
+  // confirm the new build is the one running.
+  useEffect(() => {
+    void (async () => {
+      const installed = await getInstalledVersionCode();
+      if (!installed) return;
+      try {
+        const raw = await AsyncStorage.getItem(LAST_VERSION_KEY);
+        const last = raw === null ? null : Number(raw);
+        if (justUpdated(last, installed)) {
+          Alert.alert("PayDirt updated", `You're now on build ${installed}.`);
+        }
+        await AsyncStorage.setItem(LAST_VERSION_KEY, String(installed));
+      } catch {
+        // storage unavailable: skip the announcement
+      }
+    })();
+  }, []);
+
   // Tier 2 app auto-update: check for a newer native APK on start, on resume,
   // and every UPDATE_POLL_MS while foregrounded; prompt to download + install
   // whenever one is available. `prompting` keeps alerts from stacking.
@@ -111,7 +132,12 @@ function AppContent() {
             onPress: () => {
               prompting = false;
               void triggerApkDownload(latest.downloadUrl).then((ok) => {
-                if (!ok) Alert.alert("Update failed", "Could not start the download. Try again later.");
+                Alert.alert(
+                  ok ? "Downloading update" : "Update failed",
+                  ok
+                    ? "The installer opens when the download finishes. Tap Install, then reopen PayDirt."
+                    : "Could not start the download. Try again later.",
+                );
               });
             },
           },

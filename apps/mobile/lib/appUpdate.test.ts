@@ -5,7 +5,7 @@ vi.mock("react-native", () => ({ NativeModules }));
 vi.mock("expo-file-system", () => ({ File: class {}, Paths: { document: "/mock" } }));
 vi.mock("expo-application", () => ({ nativeBuildVersion: "1" }));
 
-import { parseVersionCode, shouldUpdate } from "./appUpdate";
+import { justUpdated, parseVersionCode, shouldUpdate } from "./appUpdate";
 
 describe("parseVersionCode", () => {
   it("coerces numbers and strings", () => {
@@ -24,5 +24,14 @@ describe("shouldUpdate", () => {
   it("false when equal or older", () => {
     expect(shouldUpdate(2, 2)).toBe(false);
     expect(shouldUpdate(3, 2)).toBe(false);
+  });
+});
+
+describe("justUpdated", () => {
+  it("announces only when installed is newer than last seen", () => {
+    expect(justUpdated(null, 5)).toBe(false);
+    expect(justUpdated(5, 5)).toBe(false);
+    expect(justUpdated(5, 6)).toBe(true);
+    expect(justUpdated(6, 5)).toBe(false);
   });
 });

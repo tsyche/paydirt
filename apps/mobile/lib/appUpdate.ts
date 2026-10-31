@@ -33,6 +33,12 @@ export async function fetchLatestVersion(
   }
 }
 
+// True when the installed build is newer than the one last seen on this device
+// (null = first run, nothing to announce).
+export function justUpdated(lastSeen: number | null, installed: number): boolean {
+  return lastSeen !== null && installed > lastSeen;
+}
+
 // Triggers the system DownloadManager to fetch + install the APK. Returns true
 // if the native call was dispatched. The OS handles the install prompt.
 export async function triggerApkDownload(downloadUrl: string): Promise<boolean> {
