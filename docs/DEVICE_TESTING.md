@@ -154,3 +154,12 @@ just install-apk  # build + install in one step
 ```
 
 `app.json` changes (new plugins, package name, icons) do not reach `android/` on their own, and `just prebuild` refuses to overwrite it (`FORCE=1` wipes the custom Kotlin; restore from git). Apply such changes to `android/` by hand or via the selective procedure in `apps/mobile/scripts/gen-icons.mjs`.
+
+## In-app updates (no adb)
+
+`just release-apk` builds the release APK, publishes it (versionCode = git commit count, so commit first) and mirrors it to the host. Each tablet checks on launch, on resume and every 15 minutes while open, then shows "Update available".
+
+- Tapping Update downloads the APK; tap the "download complete" notification to open the Android install prompt. Android always requires that tap.
+- One-time per tablet: Settings → Apps → PayDirt → Install unknown apps → allow. Without it the install silently fails.
+- JS-only changes can use `just update-publish` + `just push-updates` (OTA, no prompt).
+- Not yet verified on a real tablet; adb (`just push`) stays the fallback.

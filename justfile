@@ -726,6 +726,17 @@ publish-apk versionCode versionName apk:
     node -e "const fs=require('fs');fs.writeFileSync('pocketbase/pb_data/updates/version.json',JSON.stringify({versionCode:{{versionCode}},versionName:'{{versionName}}',downloadUrl:'/api/updates/apk',publishedAt:new Date().toISOString()},null,2));"
     printf '\033[0;32mPublished APK v{{versionName}} (code {{versionCode}}) → pocketbase/pb_data/updates/\033[0m\n'
 
+# Build the release APK, publish it for in-app update (versionCode = git commit count), mirror to the host. Tablets then prompt themselves.
+[group('android')]
+release-apk:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    just build-apk-release
+    code=$(git rev-list --count HEAD)
+    name=$(node -p "require('./apps/mobile/app.json').expo.version")
+    just publish-apk "${code}" "${name}" apps/mobile/android/app/build/outputs/apk/release/app-release.apk
+    just push-updates
+
 # --- Maintenance ---
 
 # Publish a JS-only OTA update (expo export → pb_data/updates/<ver>/<epoch>/).

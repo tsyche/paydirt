@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Alert, Linking } from "react-native";
+import { Alert, AppState, Linking } from "react-native";
 import { StatusBar } from "expo-status-bar";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { PaperProvider } from "react-native-paper";
@@ -33,6 +33,8 @@ import { NtfySetup } from "./components/NtfySetup";
 // A notification tap, tagged with a nonce so the same type/tab re-triggers navigation
 // even if it's identical to the last one (e.g. two "spend_approved" taps in a row).
 type NotificationRoute = { type: string | null; nonce: number };
+
+const UPDATE_POLL_MS = 15 * 60 * 1000;
 
 function AppContent() {
   const { theme, scheme } = useAppearance();
@@ -86,29 +88,49 @@ function AppContent() {
     return () => sub.remove();
   }, []);
 
-  // Tier 2 app auto-update: check for a newer native APK on start and on
-  // resume; prompt the user to download + install if one is available.
+  // Tier 2 app auto-update: check for a newer native APK on start, on resume,
+  // and every UPDATE_POLL_MS while foregrounded; prompt to download + install
+  // whenever one is available. `prompting` keeps alerts from stacking.
   useEffect(() => {
     let cancelled = false;
+    let prompting = false;
     async function check() {
+      if (prompting) return;
       const latest = await fetchLatestVersion(pbUrl);
-      if (cancelled || !latest || !latest.downloadUrl) return;
+      if (cancelled || prompting || !latest || !latest.downloadUrl) return;
       const installed = await getInstalledVersionCode();
       if (!shouldUpdate(installed, latest.versionCode)) return;
+      prompting = true;
       Alert.alert(
         "Update available",
         `PayDirt ${latest.versionName} is available. Download and install now?`,
         [
-          { text: "Later", style: "cancel" },
+          { text: "Later", style: "cancel", onPress: () => { prompting = false; } },
           {
             text: "Update",
-            onPress: () => { void triggerApkDownload(latest.downloadUrl); },
+            onPress: () => {
+              prompting = false;
+              void triggerApkDownload(latest.downloadUrl).then((ok) => {
+                if (!ok) Alert.alert("Update failed", "Could not start the download. Try again later.");
+              });
+            },
           },
         ],
+        { onDismiss: () => { prompting = false; } },
       );
     }
     void check();
-    return () => { cancelled = true; };
+    const timer = setInterval(() => {
+      if (AppState.currentState === "active") void check();
+    }, UPDATE_POLL_MS);
+    const sub = AppState.addEventListener("change", (s) => {
+      if (s === "active") void check();
+    });
+    return () => {
+      cancelled = true;
+      clearInterval(timer);
+      sub.remove();
+    };
   }, []);
 
   // Notification setup is done when the server holds this user's UnifiedPush
