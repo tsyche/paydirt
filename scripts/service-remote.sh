@@ -26,7 +26,9 @@ case $action in
         # The backups dir is paydirt-owned (750); stage a readable copy first.
         ssh -t "$remote" "sudo sh -c 'ls /var/lib/paydirt/backups/*.zip >/dev/null 2>&1 && cp -p /var/lib/paydirt/backups/*.zip \"$stage\"/ && chown -R \"\$SUDO_USER\" \"$stage\"'" ||
             { echo "No backups on the host yet (first one runs at 02:30 after update-service)." >&2; exit 1; }
-        rsync -t --chmod=F600 "$remote:$stage/"*.zip "$dest/"
+        # No --chmod: macOS ships openrsync, which rejects it.
+        rsync -t "$remote:$stage/"*.zip "$dest/"
+        chmod 600 "$dest"/*.zip
         # shellcheck disable=SC2012
         ls -t "$dest"/*.zip | tail -n +31 | while read -r old; do rm -f -- "$old"; done
         echo "Backups in $dest:"; ls -1 "$dest" ;;
