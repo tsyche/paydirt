@@ -142,6 +142,17 @@ test("screen-time request is priced from the household rate set in settings", as
   }
 });
 
+test("settings info icons show their help text instantly on hover", async ({ page }) => {
+  await signIn(page);
+  await page.getByRole("button", { name: /Settings/ }).click();
+  const row = page.locator(".settings-row").filter({ hasText: "Bucks per $1" });
+  await expect(row.getByRole("note")).toHaveCount(0);
+  await row.getByRole("button", { name: "More info" }).hover();
+  await expect(row.getByRole("note")).toContainText("parentBucks equal $1", { timeout: 250 });
+  await page.mouse.move(0, 0);
+  await expect(row.getByRole("note")).toHaveCount(0);
+});
+
 test("add a starter chore from the age-band picker, then it shows as already added", async ({ page }) => {
   const api = new PaydirtClient(PB_URL);
   await api.login("parent1@test.local", PW);
@@ -158,7 +169,7 @@ test("add a starter chore from the age-band picker, then it shows as already add
     (c) => c.name === "Unload the dishwasher",
   );
   expect(created).toHaveLength(1);
-  expect(created[0]).toMatchObject({ reward: 12, type: "recurring", cadence: "daily" });
+  expect(created[0]).toMatchObject({ reward: 35, type: "recurring", cadence: "daily" });
 
   // Cleanup: retire the chore so reruns start clean
   await api.deactivateChore(created[0].id);

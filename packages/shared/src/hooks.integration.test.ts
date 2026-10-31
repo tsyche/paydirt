@@ -431,4 +431,26 @@ describe("PocketBase hooks & guards (live)", () => {
       await parent.pb.collection("users").update(kidUser.id, { avatar: null });
     }
   });
+  it("assign-time limit warnings: none without a limit, flagged at the limit, 'assign anyway' still works", async () => {
+    const unlimited = await createTestChore(5, `no limit ${Date.now()}`);
+    await parent.assignChore(unlimited.id, kidUser.id);
+    await parent.assignChore(unlimited.id, kidUser.id);
+    expect(await parent.assignLimitWarnings(unlimited.id, [kidUser.id])).toEqual([]);
+
+    const limited = await createTestChore(5, `limit 1 ${Date.now()}`, { max_per_period: 1 });
+    expect(await parent.assignLimitWarnings(limited.id, [kidUser.id])).toEqual([]);
+    const first = await parent.assignChore(limited.id, kidUser.id);
+    const warned = await parent.assignLimitWarnings(limited.id, [kidUser.id]);
+    expect(warned).toEqual([{ childId: kidUser.id, count: 1, max: 1, windowDays: 7 }]);
+
+    // The warning is advisory: the parent can still assign.
+    const second = await parent.assignChore(limited.id, kidUser.id);
+    expect(second.id).not.toBe(first.id);
+
+    // Race-closed assignments don't count toward the limit.
+    const raced = await createTestChore(5, `limit closed ${Date.now()}`, { max_per_period: 1 });
+    const a = await parent.assignChore(raced.id, kidUser.id);
+    await parent.pb.collection("assignments").update(a.id, { status: "closed" });
+    expect(await parent.assignLimitWarnings(raced.id, [kidUser.id])).toEqual([]);
+  });
 });

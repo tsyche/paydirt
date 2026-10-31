@@ -16,7 +16,7 @@ import {
 } from "react-native-paper";
 import { SafeAreaView } from "react-native-safe-area-context";
 import type { Assignment, Chore, ChoreProposal, ChoreTemplate, Household, SpendRequest, User } from "@paydirt/shared";
-import { currencyDisplayName, screenGrantLabel, errorMessage, kidAccent } from "@paydirt/shared";
+import { currencyDisplayName, screenGrantLabel, errorMessage, kidAccent, limitLabel, limitUnit } from "@paydirt/shared";
 import { client } from "../lib/client";
 import { isNetworkError } from "../lib/reachability";
 import { useRealtimeResume } from "../lib/useRealtimeResume";
@@ -97,6 +97,7 @@ export function ParentHome({
 
   // Due date for new chore
   const [choreDueAt, setChoreDueAt] = useState("");
+  const [choreLimit, setChoreLimit] = useState("");
 
   // Template state
   const [templates, setTemplates] = useState<ChoreTemplate[]>([]);
@@ -112,6 +113,7 @@ export function ParentHome({
   const [editPhoto, setEditPhoto] = useState(false);
   const [editRace, setEditRace] = useState(false);
   const [editReminder, setEditReminder] = useState("");
+  const [editLimit, setEditLimit] = useState("");
   const [editDueAt, setEditDueAt] = useState("");
   const [savingEdit, setSavingEdit] = useState(false);
 
@@ -278,6 +280,12 @@ export function ParentHome({
     }
   }
 
+  // Whole number >= 0; blank/garbage = 0 (no limit). Always sent so an edit can clear it.
+  function parseLimit(v: string): number {
+    const n = Math.floor(Number(v));
+    return Number.isFinite(n) && n > 0 ? n : 0;
+  }
+
   async function createChore() {
     if (!choreName.trim()) return;
     setCreatingChore(true);
@@ -292,6 +300,7 @@ export function ParentHome({
         race: choreRace,
         reminder_time: choreReminder.trim() || undefined,
         due_at: choreDueAt.trim() || undefined,
+        max_per_period: parseLimit(choreLimit),
         created_by: user.id,
         active: true,
       });
@@ -303,6 +312,7 @@ export function ParentHome({
       setChoreRace(false);
       setChoreReminder("");
       setChoreDueAt("");
+      setChoreLimit("");
       setShowCreateChore(false);
       setSnack("Chore created ✅");
       await reload();
@@ -323,6 +333,7 @@ export function ParentHome({
     setChorePhoto(t.photo_required);
     setChoreRace(t.race ?? false);
     setChoreReminder(t.reminder_time ?? "");
+    setChoreLimit(t.max_per_period ? String(t.max_per_period) : "");
     setShowTemplates(false);
   }
 
@@ -354,6 +365,7 @@ export function ParentHome({
         photo_required: chorePhoto,
         race: choreRace,
         reminder_time: choreReminder.trim() || undefined,
+        max_per_period: parseLimit(choreLimit),
       });
       setTemplates((prev) => [...prev, t]);
       setSnack("Template saved 📋");
@@ -374,6 +386,7 @@ export function ParentHome({
     setEditRace(chore.race ?? false);
     setEditReminder(chore.reminder_time ?? "");
     setEditDueAt(chore.due_at ? chore.due_at.slice(0, 10) : "");
+    setEditLimit(chore.max_per_period ? String(chore.max_per_period) : "");
   }
 
   async function saveChoreEdit(choreId: string) {
@@ -389,6 +402,7 @@ export function ParentHome({
         race: editRace,
         reminder_time: editReminder.trim() || undefined,
         due_at: editDueAt.trim() || undefined,
+        max_per_period: parseLimit(editLimit),
       });
       setEditingChoreId(null);
       setSnack("Chore updated ✅");
@@ -437,7 +451,25 @@ export function ParentHome({
     if (!selected || selected.size === 0) return;
     setAssigning((prev) => ({ ...prev, [choreId]: true }));
     try {
-      for (const kidId of selected) {
+      const ids = [...selected];
+      const over = await client.assignLimitWarnings(choreId, ids);
+      if (over.length > 0) {
+        const chore = chores.find((c) => c.id === choreId);
+        const names = over.map((w) => `${kids.find((k) => k.id === w.childId)?.display_name ?? "A kid"} (${w.count} already)`).join(", ");
+        const go = await new Promise<boolean>((resolve) =>
+          Alert.alert(
+            "Over the usual limit",
+            `"${chore?.name ?? "This chore"}" is limited to ${chore ? limitLabel(chore) : "its limit"}. ${names}. Assign anyway?`,
+            [
+              { text: "Cancel", style: "cancel", onPress: () => resolve(false) },
+              { text: "Assign anyway", onPress: () => resolve(true) },
+            ],
+            { cancelable: true, onDismiss: () => resolve(false) },
+          ),
+        );
+        if (!go) return;
+      }
+      for (const kidId of ids) {
         await client.assignChore(choreId, kidId);
       }
       setAssignSelections((prev) => ({ ...prev, [choreId]: new Set() }));
@@ -1022,6 +1054,16 @@ export function ParentHome({
               />
               <TextInput
                 mode="outlined"
+                label={`Max per ${limitUnit({ type: choreType, cadence: choreCadence })} (optional)`}
+                value={choreLimit}
+                onChangeText={setChoreLimit}
+                keyboardType="number-pad"
+                placeholder="no limit"
+                dense
+                style={{ marginTop: 4 }}
+              />
+              <TextInput
+                mode="outlined"
                 label="Due date (optional)"
                 value={choreDueAt}
                 onChangeText={setChoreDueAt}
@@ -1097,6 +1139,7 @@ export function ParentHome({
                       </>
                     )}
                     <TextInput mode="outlined" label="Reminder time (HH:MM, optional)" value={editReminder} onChangeText={setEditReminder} keyboardType="numbers-and-punctuation" placeholder="e.g. 15:30" dense style={{ marginTop: 4 }} />
+                    <TextInput mode="outlined" label={`Max per ${limitUnit({ type: editType, cadence: editCadence })} (optional)`} value={editLimit} onChangeText={setEditLimit} keyboardType="number-pad" placeholder="no limit" dense style={{ marginTop: 4 }} />
                     <TextInput mode="outlined" label="Due date (optional)" value={editDueAt} onChangeText={setEditDueAt} keyboardType="numbers-and-punctuation" placeholder="YYYY-MM-DD" dense style={{ marginTop: 4 }} />
                     <View style={styles.switchRow}>
                       <Text>📷 Photo required</Text>
@@ -1127,6 +1170,7 @@ export function ParentHome({
                           {chore.reward} {currencyName} · {chore.type}
                           {chore.cadence ? ` (${chore.cadence})` : ""}
                           {chore.reminder_time ? ` · ⏰ ${chore.reminder_time}` : ""}
+                          {limitLabel(chore) ? ` · max ${limitLabel(chore)}` : ""}
                           {chore.due_at ? ` · 📅 ${chore.due_at.slice(0, 10)}` : ""}
                         </Text>
                       </View>

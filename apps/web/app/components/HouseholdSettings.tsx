@@ -7,16 +7,41 @@ import { CURRENCY_PRESETS, DEFAULT_CURRENCY_NAME, featureTip, screenRate } from 
 import { client } from "../lib/client";
 
 function Tip({ k }: { k: string }) {
+  // Shown on hover or keyboard/tap focus, instantly. A native title="" tooltip
+  // has a ~1s browser delay and never appears on touch.
+  const [hover, setHover] = useState(false);
+  const [focus, setFocus] = useState(false);
   const t = featureTip(k);
   if (!t) return null;
   return (
-    <span
-      title={t}
-      style={{ cursor: "help", marginLeft: 4, color: "var(--muted, #888)", fontSize: 12 }}
-      aria-label={t}
-    >
-      ⓘ
-    </span>
+    <>
+      <button
+        type="button"
+        aria-label="More info"
+        // Inside a <label>: stop the click from focusing the field.
+        onClick={(e) => e.preventDefault()}
+        onMouseEnter={() => setHover(true)}
+        onMouseLeave={() => setHover(false)}
+        onFocus={() => setFocus(true)}
+        onBlur={() => setFocus(false)}
+        style={{
+          cursor: "help",
+          marginLeft: 4,
+          padding: 0,
+          border: 0,
+          background: "none",
+          color: "var(--muted, #888)",
+          fontSize: 12,
+        }}
+      >
+        ⓘ
+      </button>
+      {(hover || focus) && (
+        <span role="note" className="muted" style={{ display: "block", fontSize: 12, fontWeight: 400 }}>
+          {t}
+        </span>
+      )}
+    </>
   );
 }
 

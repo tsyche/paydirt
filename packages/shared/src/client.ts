@@ -1,6 +1,7 @@
 import PocketBase from "pocketbase";
 import { Collections } from "./collections";
 import { resumeRealtime as forceRealtimeResume, type RealtimeLike } from "./realtime";
+import { choreLimit, limitWindowDays, type LimitWarning } from "./choreLimit";
 import { screenCost, screenDescription, type ScreenPreset } from "./screenTime";
 import type {
   Assignment,
@@ -140,6 +141,32 @@ export class PaydirtClient {
       child: childId,
       status: "assigned",
     });
+  }
+
+  /**
+   * Kids who already have this chore at or over its normal limit within the
+   * window. Empty when the chore has no limit. Call before assigning and ask
+   * the parent to confirm; assignChore itself never blocks.
+   */
+  async assignLimitWarnings(choreId: string, childIds: string[]): Promise<LimitWarning[]> {
+    const chore = await this.pb.collection(Collections.Chores).getOne<Chore>(choreId);
+    const max = choreLimit(chore);
+    if (!max) return [];
+    const windowDays = limitWindowDays(chore);
+    const cutoff = new Date(Date.now() - windowDays * 86400e3);
+    const out: LimitWarning[] = [];
+    for (const childId of childIds) {
+      const { totalItems } = await this.pb.collection(Collections.Assignments).getList(1, 1, {
+        filter: this.pb.filter("chore = {:c} && child = {:k} && status != 'closed' && created >= {:t}", {
+          c: choreId,
+          k: childId,
+          t: cutoff,
+        }),
+        fields: "id",
+      });
+      if (totalItems >= max) out.push({ childId, count: totalItems, max, windowDays });
+    }
+    return out;
   }
 
   listAssignmentsForChild(childId: string): Promise<Assignment[]> {

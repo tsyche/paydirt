@@ -136,6 +136,7 @@ async function main() {
         type: c.type,
         ...(c.cadence ? { cadence: c.cadence } : {}),
         photo_required: c.photo_required ?? false,
+        max_per_period: c.max_per_period,
         created_by: firstParent.id,
         active: true,
       });

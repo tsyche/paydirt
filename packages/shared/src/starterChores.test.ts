@@ -25,12 +25,37 @@ describe("starter chores", () => {
     }
   });
 
+  it("gives every chore a repeat limit; recurring ones allow one per cadence window", () => {
+    for (const band of STARTER_BANDS) {
+      for (const c of band.chores) {
+        expect(Number.isInteger(c.max_per_period) && c.max_per_period > 0, `${band.id}/${c.name}`).toBe(true);
+        if (c.type === "recurring") expect(c.max_per_period, `${band.id}/${c.name}`).toBe(1);
+      }
+    }
+  });
+
   it("scales rewards up with age (median per band never drops)", () => {
     const medians = STARTER_BANDS.map((b) => {
       const r = b.chores.map((c) => c.reward).sort((a, z) => a - z);
       return r[Math.floor(r.length / 2)] ?? 0;
     });
     expect(medians).toEqual([...medians].sort((a, z) => a - z));
+  });
+});
+
+describe("starter chore pricing", () => {
+  // Full recurring week (daily x7 + weekly x1) at screen_rate 3 bucks/min.
+  const TARGET_MIN_PER_DAY: Record<string, number> = { "4-6": 30, "7-9": 40, "10-12": 55, "13+": 70 };
+  const SCREEN_RATE = 3;
+
+  it("pays a full recurring week within 5% of the per-band screen-time target", () => {
+    for (const band of STARTER_BANDS) {
+      const weekly = band.chores
+        .filter((c) => c.type === "recurring")
+        .reduce((sum, c) => sum + c.reward * (c.cadence === "daily" ? 7 : c.cadence === "weekly" ? 1 : 7 / 30), 0);
+      const target = TARGET_MIN_PER_DAY[band.id]! * 7 * SCREEN_RATE;
+      expect(Math.abs(weekly - target) / target, `${band.id}: ${weekly} vs ${target}`).toBeLessThanOrEqual(0.05);
+    }
   });
 });
 

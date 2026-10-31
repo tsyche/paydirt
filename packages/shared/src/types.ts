@@ -105,6 +105,8 @@ export interface Chore extends BaseRecord {
   race?: boolean;
   /** "HH:MM" server-local; cron reminds assigned kids daily at this time. */
   reminder_time?: string;
+  /** Normal repeat limit per kid per cadence window (0/unset = none); assigning past it warns. */
+  max_per_period?: number;
 }
 
 // ─── Chore Templates ─────────────────────────────────────────────────────────
@@ -120,6 +122,7 @@ export interface ChoreTemplate extends BaseRecord {
   photo_required: boolean;
   race?: boolean;
   reminder_time?: string;
+  max_per_period?: number;
 }
 
 // ─── Assignments ─────────────────────────────────────────────────────────────

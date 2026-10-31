@@ -55,6 +55,7 @@ declare them in their own creation migration. Omitting them previously caused
 | due_at | date | optional deadline; cron escalates reminders 24h → 2h → overdue |
 | race | bool | first approval wins; other assignments auto-close |
 | reminder_time | text | "HH:MM" server-local; cron reminds assigned kids daily |
+| max_per_period | number | normal repeat limit per kid per cadence window (daily 1d, weekly 7d, monthly 30d, one-off 7d); 0/unset = none. Advisory: assigning past it warns and the parent can override (`assignLimitWarnings`, `packages/shared/src/choreLimit.ts`); nothing server-side. Also on `chore_templates` |
 
 ### `assignments`
 One per (chore, child). Status: `assigned` → `completed` → `approved`/`rejected`;

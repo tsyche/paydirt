@@ -12,7 +12,7 @@ import type {
   SpendRequest,
   User,
 } from "@paydirt/shared";
-import { AVATAR_COLORS, REACTIONS, undoApprovalPrompt, avatarUrl, currencyDisplayName, kidAccent, parseGoodsRateOverride, featureTip, screenGrantLabel, errorMessage } from "@paydirt/shared";
+import { AVATAR_COLORS, REACTIONS, undoApprovalPrompt, avatarUrl, currencyDisplayName, kidAccent, parseGoodsRateOverride, featureTip, screenGrantLabel, errorMessage, limitLabel, limitUnit } from "@paydirt/shared";
 import { client } from "../lib/client";
 import { HouseholdSettings } from "./HouseholdSettings";
 import { AppearanceControls } from "./AppearanceControls";
@@ -827,6 +827,7 @@ function ChoreRow({
   const [photoRequired, setPhotoRequired] = useState(chore.photo_required);
   const [race, setRace] = useState(chore.race ?? false);
   const [remindAt, setRemindAt] = useState(chore.reminder_time ?? "");
+  const [limit, setLimit] = useState(chore.max_per_period ?? 0);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
 
@@ -838,6 +839,7 @@ function ChoreRow({
     setPhotoRequired(chore.photo_required);
     setRace(chore.race ?? false);
     setRemindAt(chore.reminder_time ?? "");
+    setLimit(chore.max_per_period ?? 0);
     setError("");
     setEditing(false);
   }
@@ -855,6 +857,7 @@ function ChoreRow({
         photo_required: photoRequired,
         race,
         reminder_time: remindAt,
+        max_per_period: limit,
       });
       setEditing(false);
       onChanged();
@@ -895,6 +898,7 @@ function ChoreRow({
               ? ` · due ${new Date(chore.due_at.replace(" ", "T")).toLocaleString()}`
               : ""}
             {chore.reminder_time ? ` · ⏰ ${chore.reminder_time}` : ""}
+            {limitLabel(chore) ? ` · max ${limitLabel(chore)}` : ""}
           </div>
         </div>
         <div className="inline" style={{ gap: 6 }}>
@@ -948,6 +952,19 @@ function ChoreRow({
           Daily reminder
           <input type="time" value={remindAt} onChange={(e) => setRemindAt(e.target.value)} />
         </label>
+        <label className="inline" style={{ gap: 6 }}>
+          Max per {limitUnit({ type, cadence })}
+          <input
+            type="number"
+            min={0}
+            step={1}
+            aria-label="Max per period"
+            value={limit || ""}
+            placeholder="none"
+            onChange={(e) => setLimit(Math.max(0, Math.floor(Number(e.target.value) || 0)))}
+            style={{ width: 70 }}
+          />
+        </label>
       </div>
       <div className="inline" style={{ gap: 8 }}>
         <button className="primary sm" onClick={save} disabled={busy || !name.trim()}>Save</button>
@@ -982,6 +999,7 @@ function CreateChore({
   const [race, setRace] = useState(false);
   const [dueAt, setDueAt] = useState("");
   const [remindAt, setRemindAt] = useState("");
+  const [limit, setLimit] = useState(0);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
 
@@ -996,6 +1014,7 @@ function CreateChore({
     setPhotoRequired(template.photo_required ?? false);
     setRace(template.race ?? false);
     setRemindAt(template.reminder_time ?? "");
+    setLimit(template.max_per_period ?? 0);
   }, [template]);
 
   function reset() {
@@ -1007,6 +1026,7 @@ function CreateChore({
     setRace(false);
     setDueAt("");
     setRemindAt("");
+    setLimit(0);
     onTemplateClear?.();
   }
 
@@ -1025,6 +1045,7 @@ function CreateChore({
         race,
         due_at: dueAt ? new Date(dueAt).toISOString() : "",
         reminder_time: remindAt,
+        max_per_period: limit,
         created_by: parentId,
         active: true,
       });
@@ -1051,6 +1072,7 @@ function CreateChore({
         photo_required: photoRequired,
         race,
         reminder_time: remindAt,
+        max_per_period: limit,
       });
     } catch (e) {
       setError(errorMessage(e));
@@ -1149,7 +1171,20 @@ function CreateChore({
             onChange={(e) => setRemindAt(e.target.value)}
           />
         </label>
-        <span className="muted">(both optional)</span>
+        <span className="muted">(optional)</span>
+        <label className="inline" style={{ gap: 6 }}>
+          Max per {limitUnit({ type, cadence })}
+          <input
+            type="number"
+            min={0}
+            step={1}
+            aria-label="Max per period"
+            value={limit || ""}
+            placeholder="none"
+            onChange={(e) => setLimit(Math.max(0, Math.floor(Number(e.target.value) || 0)))}
+            style={{ width: 70 }}
+          />
+        </label>
       </div>
       {error && <p className="error" style={{ marginTop: 8 }}>{error}</p>}
     </div>
@@ -1386,7 +1421,15 @@ function AssignControl({
     if (selected.size === 0) return;
     setBusy(true);
     try {
-      for (const kidId of selected) {
+      const ids = [...selected];
+      const over = await client.assignLimitWarnings(chore.id, ids);
+      if (over.length > 0) {
+        const names = over
+          .map((w) => `${kids.find((k) => k.id === w.childId)?.display_name ?? "A kid"} (${w.count} already)`)
+          .join(", ");
+        if (!window.confirm(`"${chore.name}" is limited to ${limitLabel(chore)}. ${names}. Assign anyway?`)) return;
+      }
+      for (const kidId of ids) {
         await client.assignChore(chore.id, kidId);
       }
       setSelected(new Set());
