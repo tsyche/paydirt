@@ -1,6 +1,6 @@
 import PocketBase from "pocketbase";
 import { describe, expect, it } from "vitest";
-import { avatarUrl, parseGoodsRateOverride } from "./avatar";
+import { avatarUrl, kidAccent, parseGoodsRateOverride } from "./avatar";
 
 const pb = new PocketBase("http://pb.test:3111");
 const base = { id: "u1", collectionId: "_pb_users_auth_", collectionName: "users" };
@@ -32,5 +32,19 @@ describe("parseGoodsRateOverride", () => {
   it("parses positive numbers", () => {
     expect(parseGoodsRateOverride("12")).toBe(12);
     expect(parseGoodsRateOverride("7.5")).toBe(7.5);
+  });
+});
+
+describe("kidAccent", () => {
+  // PocketBase returns "" (not null) for an unset text field, so `??` alone let
+  // the empty string through and the hero band / card borders lost their colour.
+  it("uses the kid's colour when set", () => {
+    expect(kidAccent("#1e88e5", "#8a5a00")).toBe("#1e88e5");
+  });
+
+  it("falls back for empty, whitespace, null and undefined", () => {
+    for (const unset of ["", "  ", null, undefined]) {
+      expect(kidAccent(unset, "#8a5a00")).toBe("#8a5a00");
+    }
   });
 });

@@ -12,7 +12,7 @@ import type {
   SpendRequest,
   User,
 } from "@paydirt/shared";
-import { AVATAR_COLORS, REACTIONS, undoApprovalPrompt, avatarUrl, currencyDisplayName, parseGoodsRateOverride, featureTip, screenGrantLabel, errorMessage } from "@paydirt/shared";
+import { AVATAR_COLORS, REACTIONS, undoApprovalPrompt, avatarUrl, currencyDisplayName, kidAccent, parseGoodsRateOverride, featureTip, screenGrantLabel, errorMessage } from "@paydirt/shared";
 import { client } from "../lib/client";
 import { HouseholdSettings } from "./HouseholdSettings";
 import { AppearanceControls } from "./AppearanceControls";
@@ -190,13 +190,13 @@ export function Dashboard({
           <div
             className="card"
             key={kid.id}
-            style={{ borderLeft: `4px solid ${kid.color ?? "#2f7d4f"}` }}
+            style={{ borderLeft: `4px solid ${kidAccent(kid.color, "#2f7d4f")}` }}
           >
             <div className="row">
               <div className="inline" style={{ gap: 12 }}>
                 <div
                   className="kid-avatar"
-                  style={{ backgroundColor: `color-mix(in srgb, ${kid.color ?? "#2f7d4f"} 18%, transparent)` }}
+                  style={{ backgroundColor: `color-mix(in srgb, ${kidAccent(kid.color, "#2f7d4f")} 18%, transparent)` }}
                 >
                   {kid.avatar ? (
                     <img src={avatarUrl(client.pb, kid, "100x100")} alt="" />
@@ -1235,7 +1235,7 @@ function AvatarControl({ kid, onSaved }: { kid: User; onSaved: () => void }) {
   const [open, setOpen] = useState(false);
   const [avatar, setAvatar] = useState(kid.avatar_emoji ?? "");
   const [photo, setPhoto] = useState<File | null>(null);
-  const [color, setColor] = useState(kid.color ?? AVATAR_COLORS[0]);
+  const [color, setColor] = useState(kidAccent(kid.color, AVATAR_COLORS[0]));
   const [goodsRateOverride, setGoodsRateOverride] = useState(String(kid.goods_rate ?? ""));
   const [calmMode, setCalmMode] = useState(!!kid.calm_mode);
   const [simplified, setSimplified] = useState(!!kid.simplified_mode);

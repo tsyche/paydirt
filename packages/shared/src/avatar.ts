@@ -25,6 +25,11 @@ export function avatarUrl(
 /** Accent colours a parent can give a kid (users.color). */
 export const AVATAR_COLORS = ["#e53935", "#8e24aa", "#1e88e5", "#00897b", "#f4511e", "#f9a825"];
 
+/** A kid's accent colour, or `fallback` when unset. PocketBase sends "" (not null) for an empty text field, so `??` isn't enough. */
+export function kidAccent(color: string | null | undefined, fallback: string): string {
+  return color?.trim() ? color : fallback;
+}
+
 /** Per-kid goods-rate override from a text field: blank, non-numeric or <= 0 means "use the household rate" (null). */
 export function parseGoodsRateOverride(input: string): number | null {
   const rate = parseFloat(input);

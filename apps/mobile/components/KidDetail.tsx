@@ -17,7 +17,7 @@ import {
 } from "react-native-paper";
 import { SafeAreaView } from "react-native-safe-area-context";
 import type { Assignment, Chore, Household, SavingsGoal, User } from "@paydirt/shared";
-import { avatarUrl, currencyDisplayName, featureTip, errorMessage } from "@paydirt/shared";
+import { avatarUrl, currencyDisplayName, featureTip, errorMessage, kidAccent } from "@paydirt/shared";
 import { client } from "../lib/client";
 import { isNetworkError } from "../lib/reachability";
 import { useReachability } from "../lib/useReachability";
@@ -126,7 +126,7 @@ export function KidDetail({
     }
   }
 
-  const accent = kid?.color ?? theme.colors.primary;
+  const accent = kidAccent(kid?.color, theme.colors.primary);
   const toDo = assignments.filter((a) => a.status === "assigned").length;
 
   return (

@@ -16,7 +16,7 @@ import {
 } from "react-native-paper";
 import { SafeAreaView } from "react-native-safe-area-context";
 import type { Assignment, Chore, ChoreProposal, ChoreTemplate, Household, SpendRequest, User } from "@paydirt/shared";
-import { currencyDisplayName, screenGrantLabel, errorMessage } from "@paydirt/shared";
+import { currencyDisplayName, screenGrantLabel, errorMessage, kidAccent } from "@paydirt/shared";
 import { client } from "../lib/client";
 import { isNetworkError } from "../lib/reachability";
 import { useRealtimeResume } from "../lib/useRealtimeResume";
@@ -514,7 +514,7 @@ export function ParentHome({
               <Card
                 key={kid.id}
                 onPress={() => setDetailKid(kid.id)}
-                style={[styles.kidChipWrap, { borderLeftColor: kid.color ?? theme.colors.primary }]}
+                style={[styles.kidChipWrap, { borderLeftColor: kidAccent(kid.color, theme.colors.primary) }]}
               >
                 <Avatar user={kid} size={36} />
                 <View style={styles.flex1}>

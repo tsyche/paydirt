@@ -50,10 +50,11 @@ function AppContent() {
   const [notificationRoute, setNotificationRoute] = useState<NotificationRoute | null>(null);
 
   useEffect(() => {
-    // One-time setup: notification channels, permissions, store the PB URL so
-    // the background service can read it after the app is killed.
+    // One-time setup: notification channels, store the PB URL so the background
+    // service can read it after the app is killed. The permission prompt waits
+    // for sign-in (below): asking at launch put the system dialog on top of the
+    // first frame and stole window focus (ANR "waiting for FocusEvent").
     setupNotificationChannels();
-    requestNotificationPermissions();
     storePbUrl(pbUrl);
 
     // The AsyncAuthStore loads from AsyncStorage asynchronously; listen for
@@ -65,6 +66,10 @@ function AppContent() {
     setReady(true);
     return () => unsub();
   }, []);
+
+  useEffect(() => {
+    if (user) void requestNotificationPermissions();
+  }, [user?.id]);
 
   // Notification deep links: UnifiedPushReceiver.kt attaches a paydirt://notification
   // PendingIntent to each Android notification. getInitialURL covers a cold start (app

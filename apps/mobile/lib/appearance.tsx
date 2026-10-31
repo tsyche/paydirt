@@ -6,7 +6,7 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import { useColorScheme } from "react-native";
+import { Appearance, useColorScheme } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import {
   MD3DarkTheme,
@@ -123,6 +123,14 @@ export function AppearanceProvider({ children }: { children: ReactNode }) {
     setModeState(next);
     void AsyncStorage.setItem(MODE_KEY, next);
   };
+
+  // Make the OS follow the in-app choice too. Without this the native DayNight
+  // theme (window background, dialogs, keyboard, native inputs) stays dark on a
+  // dark-mode device while the RN surfaces paint light — dark backgrounds under
+  // dark text. null hands control back to the system.
+  useEffect(() => {
+    Appearance.setColorScheme(mode === "system" ? "unspecified" : mode);
+  }, [mode]);
 
   const scheme = resolveScheme(mode, systemScheme === "dark");
   const theme = useMemo(() => buildTheme(paletteId, scheme), [paletteId, scheme]);

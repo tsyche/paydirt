@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { StyleSheet, TouchableOpacity, View } from "react-native";
 import { Button, Card, IconButton, Text, TextInput, useTheme } from "react-native-paper";
-import { AVATAR_COLORS, errorMessage, featureTip, parseGoodsRateOverride } from "@paydirt/shared";
+import { AVATAR_COLORS, errorMessage, featureTip, kidAccent, parseGoodsRateOverride } from "@paydirt/shared";
 import type { User } from "@paydirt/shared";
 import { client } from "../lib/client";
 import { pickAndUploadAvatar } from "../lib/uploadAvatar";
@@ -18,7 +18,7 @@ export function KidAppearanceCard({
 }) {
   const theme = useTheme();
   const [emoji, setEmoji] = useState(kid.avatar_emoji ?? "");
-  const [color, setColor] = useState(kid.color ?? AVATAR_COLORS[0]);
+  const [color, setColor] = useState(kidAccent(kid.color, AVATAR_COLORS[0]));
   const [rate, setRate] = useState(kid.goods_rate ? String(kid.goods_rate) : "");
   const [busy, setBusy] = useState(false);
 

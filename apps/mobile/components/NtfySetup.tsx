@@ -72,7 +72,7 @@ export function NtfySetup({
               </Text>
               {error ? <Text style={styles.error}>{error}</Text> : null}
             </Dialog.Content>
-            <Dialog.Actions>
+            <Dialog.Actions style={styles.actions}>
               <Button onPress={onDismiss}>Maybe later</Button>
               <Button onPress={recheckInstalled}>I installed it</Button>
               <Button onPress={() => Linking.openURL("https://f-droid.org/packages/io.heckel.ntfy/")}>
@@ -100,7 +100,7 @@ export function NtfySetup({
               </Text>
               {error ? <Text style={styles.error}>{error}</Text> : null}
             </Dialog.Content>
-            <Dialog.Actions>
+            <Dialog.Actions style={styles.actions}>
               <Button onPress={onDismiss}>Maybe later</Button>
               <Button
                 onPress={() =>
@@ -125,6 +125,10 @@ export function NtfySetup({
 const styles = StyleSheet.create({
   dialog: {
     maxWidth: 440,
+  },
+  // Four buttons don't fit on one row; wrap instead of clipping past the edge.
+  actions: {
+    flexWrap: "wrap",
   },
   error: {
     color: "#b3261e",

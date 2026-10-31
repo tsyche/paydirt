@@ -19,7 +19,7 @@ import {
   SCREEN_PRESETS,
   screenCost,
   screenRate,
-  shouldCelebrate, errorMessage } from "@paydirt/shared";
+  shouldCelebrate, errorMessage, kidAccent } from "@paydirt/shared";
 import { client } from "../lib/client";
 import { takePhotoAndComplete } from "../lib/completeWithPhoto";
 import { useCountUp } from "../lib/useCountUp";
@@ -149,7 +149,7 @@ export function SimpleKidHome({ user, onLogout }: { user: User; onLogout: () => 
   const waitingChores = assignments.filter((a) => a.status === "completed");
   const redoChores = assignments.filter((a) => a.status === "rejected");
 
-  const accentColor = user.color ?? theme.colors.primary;
+  const accentColor = kidAccent(user.color, theme.colors.primary);
 
   return (
     <SafeAreaView style={styles.container} edges={["top"]}>

@@ -28,6 +28,7 @@ import {
   screenRate,
   shouldCelebrate,
   errorMessage,
+  kidAccent,
 } from "@paydirt/shared";
 import { client } from "../lib/client";
 import { kidTabForNotificationType } from "../lib/deepLinks";
@@ -101,7 +102,7 @@ export function KidHome({
   const prevBalance = useRef<number | null>(null);
 
   const currencyName = currencyDisplayName(household);
-  const accentColor = me.color ?? theme.colors.primary;
+  const accentColor = kidAccent(me.color, theme.colors.primary);
   const goodsRate = me.goods_rate ?? household?.goods_rate ?? 0;
   const dollarValue = goodsRate > 0 ? (me.balance / goodsRate).toFixed(2) : null;
 
