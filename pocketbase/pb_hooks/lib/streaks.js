@@ -52,7 +52,7 @@ function computeStreak(app, childId) {
 // Pure: the bonus to grant when a streak refresh crosses a milestone, or
 // undefined when nothing should fire. `milestones` is the already
 // override-resolved day → bonus map (per-household overrides are a
-// PocketBase record lookup and stay in goals.pb.js). See
+// PocketBase record lookup and stay in lib/balanceReactions.js). See
 // packages/shared/src/streaks.ts#getMilestoneBonus.
 function getMilestoneBonus(streak, prevStreak, milestones) {
   if (streak <= prevStreak) return undefined;

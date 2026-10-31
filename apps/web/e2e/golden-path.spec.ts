@@ -143,6 +143,56 @@ test("create → assign → kid completes → approve → undo", async ({ page }
   await api.deactivateChore(choreId);
 });
 
+test("assigning past a chore's repeat limit asks first, and can be overridden", async ({ page }) => {
+  const choreName = `E2E limit ${Date.now()}`;
+  const api = new PaydirtClient(PB_URL);
+  await api.login("parent1@test.local", PW);
+  const kids = await api.listChildren(api.currentUser!.household);
+  const kid1 = kids.find((k) => k.display_name === "Kid 1")!;
+  const chore = await api.createChore({
+    household: api.currentUser!.household,
+    name: choreName,
+    reward: 1,
+    type: "recurring",
+    cadence: "daily",
+    max_per_period: 1,
+    created_by: api.currentUser!.id,
+    active: true,
+  });
+  const first = await api.assignChore(chore.id, kid1.id); // limit now reached
+  const count = async () =>
+    (await api.pb.collection("assignments").getList(1, 1, { filter: api.pb.filter("chore = {:c}", { c: chore.id }) })).totalItems;
+  try {
+    await signIn(page);
+    await goTab(page, /Chores/);
+    const row = page
+      .locator(".card.row")
+      .filter({ hasText: choreName })
+      .filter({ has: page.getByRole("button", { name: "Assign" }) });
+    await row.getByRole("checkbox", { name: /Kid 1/ }).check();
+
+    // Cancel: warned, nothing created.
+    let message = "";
+    page.once("dialog", (d) => { message = d.message(); void d.dismiss(); });
+    await row.getByRole("button", { name: "Assign" }).click();
+    await expect.poll(() => message).toContain("Assign anyway?");
+    expect(message).toContain("1 per day");
+    expect(message).toContain("Kid 1 (1 already)");
+    expect(await count()).toBe(1);
+
+    // Confirm: the parent override goes through.
+    page.once("dialog", (d) => void d.accept());
+    await row.getByRole("button", { name: "Assign" }).click();
+    await expect.poll(count).toBe(2);
+  } finally {
+    for (const a of await api.pb.collection("assignments").getFullList({ filter: api.pb.filter("chore = {:c}", { c: chore.id }) })) {
+      await api.rejectAssignment(a.id, "e2e cleanup");
+    }
+    await api.deactivateChore(chore.id);
+    void first;
+  }
+});
+
 test("broadcast a message to all kids", async ({ page }) => {
   await signIn(page);
   await goTab(page, /Kids/);

@@ -11,6 +11,9 @@ onRecordAfterCreateSuccess((e) => {
   const user = e.app.findRecordById("users", e.record.getString("user"));
   user.set("balance", user.getFloat("balance") + amount);
   e.app.save(user);
+  // Run in this handler, after the save, so reactions always see the new balance.
+  const { runBalanceReactions } = require(`${__hooks}/lib/balanceReactions.js`);
+  runBalanceReactions(e.app, e.record);
   e.next();
 }, "currency_transactions");
 
