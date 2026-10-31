@@ -157,7 +157,7 @@ just install-apk  # build + install in one step
 
 ## In-app updates (no adb)
 
-`just release-apk` builds the release APK, publishes it (versionCode = git commit count, so commit first) and mirrors it to the host. Each tablet checks on launch, on resume and every 15 minutes while open, then shows "Update available".
+`just ship` does everything: deploys the backend, builds the release APK, publishes it (versionCode = git commit count, so commit first), mirrors it to the host, and adb-installs on any reachable device (unreachable ones are skipped). `just release-apk` is the APK-only part. Each tablet checks on launch, on resume and every 15 minutes while open, then shows "Update available".
 
 - Tapping Update downloads the APK and opens the Android installer when it finishes (the "download complete" notification is the fallback if the app was backgrounded). Android always requires the Install tap; reopen PayDirt afterwards and it shows "PayDirt updated".
 - One-time per tablet: Settings → Apps → PayDirt → Install unknown apps → allow. Without it the install silently fails.

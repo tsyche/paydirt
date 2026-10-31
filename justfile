@@ -22,6 +22,7 @@ default:
     printf '  just install-apk    build + install a debug APK on a connected device/emulator\n'
     printf '\n\033[1mShip a release build to family devices\033[0m\n'
     printf '  just deploy-start          step-by-step pairing + install instructions\n'
+    printf '  just ship                  EVERYTHING: backend + build + publish for in-app update + adb install where reachable (commit first)\n'
     printf '  just push-remote           connect tablets from deploy-devices + push release APK (Wi-Fi, no cable)\n'
     printf '  just push                  alias of push-remote; just push-debug pushes the DEBUG APK (logcat logs)\n'
     printf '  just install-apk-release-all   build a signed release APK, install on every connected device\n'
@@ -736,6 +737,30 @@ release-apk:
     name=$(node -p "require('./apps/mobile/app.json').expo.version")
     just publish-apk "${code}" "${name}" apps/mobile/android/app/build/outputs/apk/release/app-release.apk
     just push-updates
+
+# THE one command (commit first): deploy backend, build + publish APK for in-app update, adb-install where reachable.
+[group('android')]
+ship:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    if ! git diff --quiet HEAD; then
+        printf '\033[0;31mUncommitted changes: commit first (the update version is the commit count).\033[0m\n'
+        exit 1
+    fi
+    just update-service
+    just release-apk
+    APK="apps/mobile/android/app/build/outputs/apk/release/app-release.apk"
+    bash scripts/tablet-connect.sh || true
+    devices=$(adb devices | awk '$2=="device" && $1 !~ /^emulator/ {print $1}')
+    if [ -z "${devices}" ]; then
+        printf '\033[0;33mNo adb devices reachable: tablets will offer the update in-app within ~15 min.\033[0m\n'
+        exit 0
+    fi
+    for d in ${devices}; do
+        printf '\033[0;34mInstalling on %s...\033[0m\n' "${d}"
+        adb -s "${d}" install -r "${APK}" || printf '\033[0;33m  install failed on %s (will self-update in-app)\033[0m\n' "${d}"
+    done
+    printf '\033[0;32mShipped.\033[0m\n'
 
 # --- Maintenance ---
 
