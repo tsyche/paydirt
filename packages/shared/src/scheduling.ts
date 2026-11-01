@@ -101,3 +101,40 @@ export function isCurrencyExpired(
 export function shouldSendWeeklyDigest(vacationMode: boolean): boolean {
   return !vacationMode;
 }
+
+/** Local calendar day as YYYY-MM-DD (server-local, unlike the UTC-day reminder quirk). */
+export function localDay(now: Date): string {
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
+}
+
+/** Per-kid summary time for today: weekend (Sat/Sun) or weekday "HH:MM"; "" = off. */
+export function digestTimeFor(now: Date, weekday: string, weekend: string): string {
+  const d = now.getDay();
+  return d === 0 || d === 6 ? weekend : weekday;
+}
+
+/**
+ * Kid chore summary (runTick): once per local day, on the first tick at/after
+ * the kid's configured time. `lastSentDay` is the stored YYYY-MM-DD marker.
+ */
+export function shouldFireDigest(
+  now: Date,
+  time: string,
+  lastSentDay: string,
+  vacationMode: boolean,
+): boolean {
+  if (vacationMode || !/^\d{2}:\d{2}$/.test(time)) return false;
+  const pad = (n: number) => String(n).padStart(2, "0");
+  const nowHM = `${pad(now.getHours())}:${pad(now.getMinutes())}`;
+  if (nowHM < time) return false;
+  return lastSentDay !== localDay(now);
+}
+
+/** Body of the summary push: count plus up to 3 names. */
+export function buildDigestMessage(names: string[]): string {
+  const n = names.length;
+  const shown = names.slice(0, 3).join(", ");
+  const more = n > 3 ? ` +${n - 3} more` : "";
+  return `${n} chore${n === 1 ? "" : "s"} today: ${shown}${more}`;
+}

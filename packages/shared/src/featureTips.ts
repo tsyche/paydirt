@@ -36,6 +36,8 @@ export const FEATURE_TIPS: Record<string, string> = {
     "Per-kid override of the household bucks-per-dollar rate. 0 = use the household default.",
   screen_rate:
     "parentBucks per minute of screen time. Kids ask in 15-minute steps, up to an hour per request.",
+  chore_digest:
+    "One push a day listing the kid's open chores, sent at this time (weekday / weekend). Blank = no summary. New recurring chores no longer push at 3 AM.",
   fl_ids:
     "Family Link child + device IDs for this kid's tablet. Set them to grant approved screen time automatically; leave blank to grant by hand.",
 };

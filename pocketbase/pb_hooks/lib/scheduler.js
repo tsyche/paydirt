@@ -67,6 +67,32 @@ function shouldSendWeeklyDigest(vacationMode) {
   return !vacationMode;
 }
 
+// Kid chore summary. Mirrors scheduling.ts (localDay, digestTimeFor,
+// shouldFireDigest, buildDigestMessage).
+function localDay(now) {
+  const pad = (n) => String(n).padStart(2, "0");
+  return now.getFullYear() + "-" + pad(now.getMonth() + 1) + "-" + pad(now.getDate());
+}
+
+function digestTimeFor(now, weekday, weekend) {
+  const d = now.getDay();
+  return d === 0 || d === 6 ? weekend : weekday;
+}
+
+function shouldFireDigest(now, time, lastSentDay, vacationMode) {
+  if (vacationMode || !/^\d{2}:\d{2}$/.test(time)) return false;
+  const pad = (n) => String(n).padStart(2, "0");
+  const nowHM = pad(now.getHours()) + ":" + pad(now.getMinutes());
+  if (nowHM < time) return false;
+  return lastSentDay !== localDay(now);
+}
+
+function buildDigestMessage(names) {
+  const n = names.length;
+  const more = n > 3 ? " +" + (n - 3) + " more" : "";
+  return n + " chore" + (n === 1 ? "" : "s") + " today: " + names.slice(0, 3).join(", ") + more;
+}
+
 // ── tick (every 10 min): nudges, scheduled reminders, deadlines, kid alarms ──
 function runTick(app) {
   const { notifyUser, notifyParents } = require(`${__hooks}/lib/ntfy.js`);
@@ -184,6 +210,36 @@ function runTick(app) {
       }
     }
 
+    // Per-kid "chores for today" summary at the kid's own weekday/weekend
+    // time. Marked sent even with nothing open, so a late one-off doesn't
+    // trigger a stray evening push. (Paused households were skipped above.)
+    const kidsForDigest = app.findRecordsByFilter(
+      "users",
+      "household = {:hh} && role = 'child'",
+      "",
+      0,
+      0,
+      { hh: hh.id },
+    );
+    for (const kid of kidsForDigest) {
+      const time = digestTimeFor(now, kid.getString("digest_weekday"), kid.getString("digest_weekend"));
+      if (!shouldFireDigest(now, time, kid.getString("digest_sent"), false)) continue;
+      const open = app.findRecordsByFilter(
+        "assignments",
+        "child = {:kid} && (status = 'assigned' || status = 'rejected')",
+        "",
+        0,
+        0,
+        { kid: kid.id },
+      );
+      if (open.length > 0) {
+        const names = open.map((a) => app.findRecordById("chores", a.getString("chore")).getString("name"));
+        notifyUser(app, kid.id, "Chores today 🧹", buildDigestMessage(names));
+      }
+      kid.set("digest_sent", localDay(now));
+      app.save(kid);
+    }
+
     // Kid-set one-shot reminders.
     const alarms = app.findRecordsByFilter(
       "assignments",
@@ -205,7 +261,6 @@ function runTick(app) {
 // ── daily (3am): recurring assignment, currency expiry, streak refresh ───────
 function runDaily(app) {
   const { computeStreak } = require(`${__hooks}/lib/streaks.js`);
-  const { notifyUser } = require(`${__hooks}/lib/ntfy.js`);
   const now = new Date();
 
   // Inbox items are only a convenience history; keep 30 days.
@@ -267,8 +322,10 @@ function runDaily(app) {
           a.set("chore", chore.id);
           a.set("child", childId);
           a.set("status", "assigned");
+          // Tells notifications.pb.js to skip its per-assignment "New chore!" push.
+          a.set("auto_created", true);
           app.save(a);
-          notifyUser(app, childId, "New chore assigned 🧹", chore.getString("name"));
+          // No per-chore push here: the kid's chore summary (runTick) covers it.
         }
       }
     }

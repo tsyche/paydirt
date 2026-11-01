@@ -217,6 +217,9 @@ describe("Phase 1 features (live)", () => {
     // Create a recurring chore and give kid1 the first assignment
     const chore = await newChore("Take out trash", { type: "recurring", cadence: "daily" });
     const first = await parent.assignChore(chore.id, kid1User.id);
+    const afterManual = (await kid1.listInbox(kid1User.id, 200)).filter(
+      (i) => i.title === "New chore! ⭐" && i.body === chore.name,
+    ).length;
 
     // Complete and approve — no open assignment now
     await kid1.markComplete(first.id);
@@ -230,11 +233,45 @@ describe("Phase 1 features (live)", () => {
     expect(newAssignment).toBeDefined();
     expect(newAssignment!.status).toBe("assigned");
 
+    // The 3 AM batch must not push per chore (the daily summary covers it).
+    // (Seed data may already hold a same-named chore, so compare against the
+    // count right after the manual assign: only that one push is allowed.)
+    const pushes = async () =>
+      (await kid1.listInbox(kid1User.id, 200)).filter((i) => i.title === "New chore! ⭐" && i.body === chore.name).length;
+    expect(await pushes()).toBe(afterManual);
+
     // Running daily cron again should NOT create a duplicate (open one exists)
     await admin.pb.send("/api/paydirt/cron/daily", { method: "POST" });
     const activeAgain = await kid1.listActiveAssignmentsForChild(kid1User.id);
     const duplicates = activeAgain.filter((a) => a.chore === chore.id);
     expect(duplicates).toHaveLength(1);
+  });
+
+  it("kid chore summary: fires once per day at the kid's configured time, then stays quiet", async () => {
+    const admin = new PaydirtClient(PB_URL);
+    await admin.pb.collection("_superusers").authWithPassword(ADMIN_EMAIL, ADMIN_PASSWORD);
+    const chore = await newChore(`Digest test ${Date.now()}`);
+    await parent.assignChore(chore.id, kid2User.id);
+
+    const count = async () =>
+      (await kid2.listInbox(kid2User.id, 200)).filter((i) => i.title === "Chores today 🧹").length;
+    const before = await count();
+
+    // Blank times = off.
+    await parent.pb.collection("users").update(kid2User.id, { digest_weekday: "", digest_weekend: "", digest_sent: "" });
+    await admin.pb.send("/api/paydirt/cron/tick", { method: "POST" });
+    expect(await count()).toBe(before);
+
+    // 00:00 has always passed, so the next tick sends exactly one summary...
+    await parent.pb.collection("users").update(kid2User.id, { digest_weekday: "00:00", digest_weekend: "00:00" });
+    await admin.pb.send("/api/paydirt/cron/tick", { method: "POST" });
+    expect(await count()).toBe(before + 1);
+    const latest = (await kid2.listInbox(kid2User.id, 200)).find((i) => i.title === "Chores today 🧹");
+    expect(latest!.body).toMatch(/^\d+ chores? today: /);
+
+    // ...and later ticks the same day send none.
+    await admin.pb.send("/api/paydirt/cron/tick", { method: "POST" });
+    expect(await count()).toBe(before + 1);
   });
 
   it.each(["weekly", "monthly"] as const)(

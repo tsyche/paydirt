@@ -40,6 +40,8 @@ declare them in their own creation migration. Omitting them previously caused
 | balance | number | cached parentBucks; maintained by hook (children) |
 | simplified_mode | bool | default false; on for youngest child |
 | calm_mode | bool | default false; parent dial-back silences playful extras (badges, confetti, count-up) |
+| digest_weekday / digest_weekend | text | "HH:MM" server-local time for the kid's once-a-day "Chores today" summary push on weekdays / Sat-Sun; blank = off. Parent-only (guards allowlist) |
+| digest_sent | text | local YYYY-MM-DD of the last summary (dedupe marker; set by the tick) |
 | streak_count | number | consecutive earn-days; maintained by hook + daily cron |
 | fl_child_id / fl_device_id | text | Family Link grant target for this kid's tablet; parent-set, pattern-validated |
 | up_endpoint | text | UnifiedPush endpoint the app registers; primary push target (`ntfy_topic` is the fallback) |
@@ -211,8 +213,8 @@ The separate Family Link reconciliation job lives in `familylink.pb.js`; it proc
 
 | Job | Schedule | Does |
 |-----|----------|------|
-| paydirt_tick | every 10 min | approval nudges (`nudge_hours`), daily chore reminders (`reminder_time`), deadline escalation (`due_at`: 24h → 2h → overdue, parents pinged on overdue), kid one-shot reminders |
-| paydirt_daily | 03:00 | currency expiry (`expiry_days`, compensating negative adjustment capped at balance), streak refresh (zeroes broken streaks), recurring chore auto-assignment (re-creates assignments for recurring chores when no open one exists per kid) |
+| paydirt_tick | every 10 min | approval nudges (`nudge_hours`), daily chore reminders (`reminder_time`), deadline escalation (`due_at`: 24h → 2h → overdue, parents pinged on overdue), kid one-shot reminders, per-kid chore summary (`digest_*`) |
+| paydirt_daily | 03:00 | currency expiry (`expiry_days`, compensating negative adjustment capped at balance), streak refresh (zeroes broken streaks), recurring chore auto-assignment (silent: `assignments.auto_created`, no per-chore push; re-creates assignments for recurring chores when no open one exists per kid) |
 | paydirt_digest | Sun 18:00 | weekly per-kid summary (chores, earned/spent, balances, pending count) to parents |
 | paydirt_kid_recap | Sun 10:00 | per-kid weekly ntfy recap (earnings, chores, nearest goal); skips `paused` households |
 | paydirt_allowance | daily 06:00 | pays the scheduled allowance when due (`allowance_*`), notifies kids |

@@ -1297,7 +1297,8 @@ function ChoreTemplatesPanel({
     client.listTemplates(householdId).then(setTemplates).catch(() => {});
   }, [householdId, open]);
 
-  async function remove(id: string) {
+  async function remove(id: string, name: string) {
+    if (!window.confirm(`Delete the "${name}" template? Existing chores aren't affected.`)) return;
     setBusy(true);
     try {
       await client.deleteTemplate(id);
@@ -1343,7 +1344,7 @@ function ChoreTemplatesPanel({
                 </button>
                 <button
                   className="danger sm"
-                  onClick={() => void remove(t.id)}
+                  onClick={() => void remove(t.id, t.name)}
                   disabled={busy}
                 >
                   Delete
@@ -1367,6 +1368,8 @@ function AvatarControl({ kid, onSaved }: { kid: User; onSaved: () => void }) {
   const [simplified, setSimplified] = useState(!!kid.simplified_mode);
   const [flChildId, setFlChildId] = useState(kid.fl_child_id ?? "");
   const [flDeviceId, setFlDeviceId] = useState(kid.fl_device_id ?? "");
+  const [digestWeekday, setDigestWeekday] = useState(kid.digest_weekday ?? "");
+  const [digestWeekend, setDigestWeekend] = useState(kid.digest_weekend ?? "");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
 
@@ -1434,6 +1437,22 @@ function AvatarControl({ kid, onSaved }: { kid: User; onSaved: () => void }) {
         <input type="checkbox" checked={simplified} onChange={(e) => setSimplified(e.target.checked)} />
         Simplified mode
       </label>
+      <label className="muted" style={{ fontSize: 13 }} title={featureTip("chore_digest")}>
+        Chore summary: weekdays{" "}
+        <input
+          type="time"
+          aria-label="Chore summary weekday time"
+          value={digestWeekday}
+          onChange={(e) => setDigestWeekday(e.target.value)}
+        />{" "}
+        weekends{" "}
+        <input
+          type="time"
+          aria-label="Chore summary weekend time"
+          value={digestWeekend}
+          onChange={(e) => setDigestWeekend(e.target.value)}
+        />
+      </label>
       <input
         placeholder="Family Link child ID"
         aria-label="Family Link child ID"
@@ -1469,6 +1488,8 @@ function AvatarControl({ kid, onSaved }: { kid: User; onSaved: () => void }) {
               simplified_mode: simplified,
               fl_child_id: flChildId.trim(),
               fl_device_id: flDeviceId.trim(),
+              digest_weekday: digestWeekday,
+              digest_weekend: digestWeekend,
             });
             setOpen(false);
             onSaved();

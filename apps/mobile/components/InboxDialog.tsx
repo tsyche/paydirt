@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { ScrollView, StyleSheet, View } from "react-native";
+import { Alert, ScrollView, StyleSheet, View } from "react-native";
 import { Appbar, Button, Dialog, IconButton, Portal, Text } from "react-native-paper";
 import { errorMessage, type InboxItem } from "@paydirt/shared";
 import { client } from "../lib/client";
@@ -48,7 +48,14 @@ export function InboxButton({ userId }: { userId: string }) {
     }
   };
 
-  const clearAll = async () => {
+  const clearAll = () => {
+    Alert.alert("Clear all", "Delete every notification in your history?", [
+      { text: "Cancel", style: "cancel" },
+      { text: "Clear all", style: "destructive", onPress: () => void doClearAll() },
+    ]);
+  };
+
+  const doClearAll = async () => {
     try {
       await client.clearInbox(userId);
       setItems([]);
@@ -87,7 +94,7 @@ export function InboxButton({ userId }: { userId: string }) {
           </Dialog.ScrollArea>
           <Dialog.Actions>
             <Button onPress={() => void sendTest()}>Send test</Button>
-            <Button onPress={() => void clearAll()} disabled={items.length === 0}>Clear all</Button>
+            <Button onPress={clearAll} disabled={items.length === 0}>Clear all</Button>
             <Button onPress={() => setOpen(false)}>Done</Button>
           </Dialog.Actions>
         </Dialog>

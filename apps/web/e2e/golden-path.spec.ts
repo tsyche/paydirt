@@ -284,6 +284,7 @@ test("broadcast a message to all kids", async ({ page }) => {
   // The sender's copy lands in the Alerts tab, and can be cleared.
   await goTab(page, /Alerts/);
   await expect(page.getByText("E2E broadcast test").first()).toBeVisible();
+  page.once("dialog", (d) => void d.accept()); // confirm before wiping history
   await page.getByRole("button", { name: "Clear all" }).click();
   await expect(page.getByText("No alerts")).toBeVisible();
 });

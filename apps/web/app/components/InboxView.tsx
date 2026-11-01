@@ -36,6 +36,7 @@ export function InboxView({ userId }: { userId: string }) {
   }
 
   async function clearAll() {
+    if (!window.confirm("Delete every notification in your history?")) return;
     try {
       await client.clearInbox(userId);
       setItems([]);

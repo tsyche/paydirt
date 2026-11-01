@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { View, ScrollView, StyleSheet, RefreshControl } from "react-native";
+import { Alert, View, ScrollView, StyleSheet, RefreshControl } from "react-native";
 import {
   Appbar,
   BottomNavigation,
@@ -401,7 +401,12 @@ export function KidHome({
           balance={me.balance}
           currencyName={currencyName}
           onCreate={(name, target) => act(() => client.createGoal(user.id, name, target), "Goal added!")()}
-          onDelete={(id) => act(() => client.deleteGoal(id))()}
+          onDelete={(g) =>
+            Alert.alert("Delete goal", `Delete the "${g.name}" goal?`, [
+              { text: "Cancel", style: "cancel" },
+              { text: "Delete", style: "destructive", onPress: () => act(() => client.deleteGoal(g.id))() },
+            ])
+          }
         />
           </>
         )}
@@ -630,7 +635,7 @@ function GoalList({
   balance: number;
   currencyName: string;
   onCreate: (name: string, target: number, autoSavePercent?: number) => void;
-  onDelete: (id: string) => void;
+  onDelete: (goal: SavingsGoal) => void;
 }) {
   const [name, setName] = useState("");
   const [target, setTarget] = useState("");
@@ -652,7 +657,7 @@ function GoalList({
                   <Text variant="bodySmall">
                     {g.achieved ? "Done!" : `${balance}/${g.target} ${currencyName}`}
                   </Text>
-                  <IconButton icon="close" size={14} onPress={() => onDelete(g.id)} />
+                  <IconButton icon="close" size={14} onPress={() => onDelete(g)} />
                 </View>
               </View>
               <ProgressBar progress={progress} style={styles.goalBar} />

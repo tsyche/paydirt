@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { View, ScrollView, StyleSheet, RefreshControl } from "react-native";
+import { Alert, View, ScrollView, StyleSheet, RefreshControl } from "react-native";
 import {
   Appbar,
   Card,
@@ -63,6 +63,9 @@ export function KidDetail({
   const [amount, setAmount] = useState("");
   const [reason, setReason] = useState("");
   const [saving, setSaving] = useState(false);
+  const [goalOpen, setGoalOpen] = useState(false);
+  const [goalName, setGoalName] = useState("");
+  const [goalTarget, setGoalTarget] = useState("");
 
   const currencyName = currencyDisplayName(household);
   const goodsRate = kid?.goods_rate ?? household?.goods_rate ?? 0;
@@ -124,6 +127,40 @@ export function KidDetail({
     } finally {
       setSaving(false);
     }
+  }
+
+  async function saveGoal() {
+    const target = Math.floor(Number(goalTarget));
+    if (!goalName.trim() || !(target > 0)) return;
+    setSaving(true);
+    try {
+      await client.createGoal(kidId, goalName.trim(), target);
+      setGoalOpen(false);
+      setGoalName("");
+      setGoalTarget("");
+      setSnack("Goal added 🎯");
+      await reload();
+    } catch (e) {
+      setSnack(errorMessage(e));
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  function removeGoal(g: SavingsGoal) {
+    Alert.alert("Delete goal", `Delete the "${g.name}" goal? Their balance isn't affected.`, [
+      { text: "Cancel", style: "cancel" },
+      {
+        text: "Delete",
+        style: "destructive",
+        onPress: () => {
+          client
+            .deleteGoal(g.id)
+            .then(() => reload())
+            .catch((e) => setSnack(errorMessage(e)));
+        },
+      },
+    ]);
   }
 
   const accent = kidAccent(kid?.color, theme.colors.primary);
@@ -218,6 +255,19 @@ export function KidDetail({
         )}
 
         {kid && (
+          <DigestCard
+            key={`digest-${kid.id}`}
+            kid={kid}
+            onTip={() => setTipKey("chore_digest")}
+            onSaved={() => {
+              setSnack("Chore summary times saved");
+              void reload();
+            }}
+            onError={(e) => setSnack(e)}
+          />
+        )}
+
+        {kid && (
           <FamilyLinkCard
             key={kid.id}
             kid={kid}
@@ -251,6 +301,9 @@ export function KidDetail({
         <Text variant="labelLarge" style={[styles.section, { color: theme.colors.onSurfaceVariant }]}>
           GOALS {goals.length > 0 ? `(${goals.length})` : ""}
         </Text>
+        <Button mode="outlined" icon="flag-plus" onPress={() => setGoalOpen(true)} style={{ alignSelf: "flex-start" }}>
+          Set a goal
+        </Button>
         {goals.length === 0 ? (
           <Text style={[styles.empty, { color: theme.colors.onSurfaceVariant }]}>No savings goals yet.</Text>
         ) : (
@@ -260,10 +313,17 @@ export function KidDetail({
               <Card key={g.id} style={styles.card}>
                 <Card.Content>
                   <View style={styles.rowBetween}>
-                    <Text variant="titleSmall">{g.achieved ? "🏆 " : ""}{g.name}</Text>
+                    <Text variant="titleSmall" style={styles.flex}>{g.achieved ? "🏆 " : ""}{g.name}</Text>
                     <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant }}>
                       {g.achieved ? "Done!" : `${kid?.balance ?? 0}/${g.target}`}
                     </Text>
+                    <IconButton
+                      icon="delete-outline"
+                      size={18}
+                      accessibilityLabel={`Delete goal ${g.name}`}
+                      onPress={() => removeGoal(g)}
+                      style={{ margin: 0 }}
+                    />
                   </View>
                   <ProgressBar progress={progress} style={styles.bar} color={accent} />
                 </Card.Content>
@@ -322,6 +382,29 @@ export function KidDetail({
         </Dialog>
       </Portal>
 
+      <Portal>
+        <Dialog visible={goalOpen} onDismiss={() => setGoalOpen(false)}>
+          <Dialog.Title>Set a goal for {kid?.display_name ?? "them"}</Dialog.Title>
+          <Dialog.Content>
+            <TextInput mode="outlined" label="What are they saving for?" value={goalName} onChangeText={setGoalName} autoFocus />
+            <TextInput
+              mode="outlined"
+              label={`Target (${currencyName})`}
+              value={goalTarget}
+              onChangeText={setGoalTarget}
+              keyboardType="number-pad"
+              style={styles.reasonInput}
+            />
+          </Dialog.Content>
+          <Dialog.Actions>
+            <Button onPress={() => setGoalOpen(false)}>Cancel</Button>
+            <Button onPress={saveGoal} disabled={saving || !goalName.trim() || !(Number(goalTarget) >= 1)}>
+              Add
+            </Button>
+          </Dialog.Actions>
+        </Dialog>
+      </Portal>
+
       <Snackbar visible={!!snack} onDismiss={() => setSnack("")} duration={4000}>
         {snack}
       </Snackbar>
@@ -340,6 +423,65 @@ export function KidDetail({
   );
 }
 
+/** Per-kid daily "chores today" summary push times (weekday / weekend, HH:MM; blank = off). */
+function DigestCard({
+  kid,
+  onTip,
+  onSaved,
+  onError,
+}: {
+  kid: User;
+  onTip: () => void;
+  onSaved: () => void;
+  onError: (e: string) => void;
+}) {
+  const [weekday, setWeekday] = useState(kid.digest_weekday ?? "");
+  const [weekend, setWeekend] = useState(kid.digest_weekend ?? "");
+  const [busy, setBusy] = useState(false);
+  const valid = (v: string) => v === "" || /^([01]\d|2[0-3]):[0-5]\d$/.test(v);
+
+  async function save() {
+    if (!valid(weekday) || !valid(weekend)) {
+      onError("Use 24-hour HH:MM, like 14:45 (or leave blank)");
+      return;
+    }
+    setBusy(true);
+    try {
+      await client.pb
+        .collection("users")
+        .update(kid.id, { digest_weekday: weekday, digest_weekend: weekend });
+      onSaved();
+    } catch (e) {
+      onError(errorMessage(e));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <Card style={styles.card}>
+      <Card.Content>
+        <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
+          <Text variant="titleSmall">Chore summary push</Text>
+          <IconButton icon="information-outline" size={16} onPress={onTip} style={{ margin: 0 }} />
+        </View>
+        <TextInput dense label="Weekdays (HH:MM)" placeholder="14:45" value={weekday} onChangeText={setWeekday} />
+        <TextInput
+          dense
+          label="Weekends (HH:MM)"
+          placeholder="10:00"
+          value={weekend}
+          onChangeText={setWeekend}
+          style={{ marginTop: 8 }}
+        />
+        <Button mode="contained-tonal" onPress={() => void save()} disabled={busy} style={{ marginTop: 8 }}>
+          Save
+        </Button>
+      </Card.Content>
+    </Card>
+  );
+}
+
 /** Per-kid Family Link target for automatic screen-time grants. */
 function FamilyLinkCard({
   kid,
@@ -354,6 +496,7 @@ function FamilyLinkCard({
 }) {
   const [childId, setChildId] = useState(kid.fl_child_id ?? "");
   const [deviceId, setDeviceId] = useState(kid.fl_device_id ?? "");
+  const [open, setOpen] = useState(false); // collapsed so the IDs aren't edited by accident
   const [busy, setBusy] = useState(false);
 
   async function save() {
@@ -374,21 +517,32 @@ function FamilyLinkCard({
     <Card style={styles.card}>
       <Card.Content>
         <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
-          <Text variant="titleSmall">Family Link</Text>
+          <Text variant="titleSmall" style={styles.flex}>Family Link</Text>
           <IconButton icon="information-outline" size={16} onPress={onTip} style={{ margin: 0 }} />
+          <IconButton
+            icon={open ? "chevron-up" : "chevron-down"}
+            size={20}
+            accessibilityLabel={open ? "Collapse Family Link" : "Expand Family Link"}
+            onPress={() => setOpen((v) => !v)}
+            style={{ margin: 0 }}
+          />
         </View>
-        <TextInput dense label="Child ID" value={childId} onChangeText={setChildId} autoCapitalize="none" />
-        <TextInput
-          dense
-          label="Device ID"
-          value={deviceId}
-          onChangeText={setDeviceId}
-          autoCapitalize="none"
-          style={{ marginTop: 8 }}
-        />
-        <Button mode="contained-tonal" onPress={() => void save()} disabled={busy} style={{ marginTop: 8 }}>
-          Save
-        </Button>
+        {open && (
+          <>
+            <TextInput dense label="Child ID" value={childId} onChangeText={setChildId} autoCapitalize="none" />
+            <TextInput
+              dense
+              label="Device ID"
+              value={deviceId}
+              onChangeText={setDeviceId}
+              autoCapitalize="none"
+              style={{ marginTop: 8 }}
+            />
+            <Button mode="contained-tonal" onPress={() => void save()} disabled={busy} style={{ marginTop: 8 }}>
+              Save
+            </Button>
+          </>
+        )}
       </Card.Content>
     </Card>
   );

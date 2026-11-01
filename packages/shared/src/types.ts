@@ -77,6 +77,12 @@ export interface User extends BaseRecord {
   streak_count?: number;
   /** Per-kid goods rate override (bucks per $1). 0/unset = use household rate. */
   goods_rate?: number;
+  /** "HH:MM" time for the kid's daily chore summary push on weekdays. Blank = off. */
+  digest_weekday?: string;
+  /** Same, for Saturday/Sunday. */
+  digest_weekend?: string;
+  /** Local YYYY-MM-DD of the last summary sent (server dedupe marker). */
+  digest_sent?: string;
   /** Family Link child ID for automatic screen-time grants. Set by parent. */
   fl_child_id?: string;
   /** Family Link device ID of the kid's tablet. Set by parent. */

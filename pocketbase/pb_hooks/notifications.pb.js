@@ -7,7 +7,13 @@
 // If a user has no endpoint yet, notifyUser falls back to their ntfy_topic.
 
 // ── Assignment created → notify the assigned kid ─────────────────────────────
+// The recurring auto-assignment cron flags its records so the kid's daily chore
+// summary (scheduler.js runTick) is the only push for them.
 onRecordAfterCreateSuccess((e) => {
+  if (e.record.getBool("auto_created")) {
+    e.next();
+    return;
+  }
   const { notifyUser } = require(`${__hooks}/lib/ntfy.js`);
   const chore = e.app.findRecordById("chores", e.record.getString("chore"));
   notifyUser(

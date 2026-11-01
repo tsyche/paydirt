@@ -1,8 +1,11 @@
 import { describe, expect, it } from "vitest";
 import {
+  buildDigestMessage,
   computeDueStage,
+  digestTimeFor,
   isCurrencyExpired,
   shouldEscalate,
+  shouldFireDigest,
   shouldFireNudge,
   shouldFireReminder,
   shouldSendWeeklyDigest,
@@ -151,5 +154,34 @@ describe("shouldSendWeeklyDigest", () => {
 
   it("skips entirely in vacation mode", () => {
     expect(shouldSendWeeklyDigest(true)).toBe(false);
+  });
+});
+
+describe("kid chore digest", () => {
+  const sat = new Date("2026-08-15T10:05:00Z"); // Saturday
+  const mon = new Date("2026-08-17T15:00:00Z"); // Monday
+
+  it("picks weekend time on Sat/Sun and weekday time otherwise", () => {
+    expect(digestTimeFor(sat, "14:45", "10:00")).toBe("10:00");
+    expect(digestTimeFor(new Date("2026-08-16T12:00:00Z"), "14:45", "10:00")).toBe("10:00");
+    expect(digestTimeFor(mon, "14:45", "10:00")).toBe("14:45");
+  });
+
+  it("fires at/after the time, once per local day", () => {
+    expect(shouldFireDigest(mon, "14:45", "", false)).toBe(true);
+    expect(shouldFireDigest(mon, "15:30", "", false)).toBe(false); // not yet
+    expect(shouldFireDigest(mon, "14:45", "2026-08-17", false)).toBe(false); // already sent today
+    expect(shouldFireDigest(mon, "14:45", "2026-08-16", false)).toBe(true); // sent yesterday
+  });
+
+  it("stays off when blank, malformed, or on vacation", () => {
+    expect(shouldFireDigest(mon, "", "", false)).toBe(false);
+    expect(shouldFireDigest(mon, "3pm", "", false)).toBe(false);
+    expect(shouldFireDigest(mon, "14:45", "", true)).toBe(false);
+  });
+
+  it("summarises with a count and at most three names", () => {
+    expect(buildDigestMessage(["Dishes"])).toBe("1 chore today: Dishes");
+    expect(buildDigestMessage(["A", "B", "C", "D", "E"])).toBe("5 chores today: A, B, C +2 more");
   });
 });
