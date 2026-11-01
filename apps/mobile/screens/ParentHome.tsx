@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { View, ScrollView, StyleSheet, RefreshControl, Alert, Image, Modal, TouchableOpacity } from "react-native";
 import {
   Appbar,
@@ -16,7 +17,7 @@ import {
 } from "react-native-paper";
 import { SafeAreaView } from "react-native-safe-area-context";
 import type { Assignment, Chore, ChoreProposal, ChoreTemplate, Household, PayMode, SpendRequest, TimeGrant, User } from "@paydirt/shared";
-import { currencyDisplayName, screenGrantLabel, errorMessage, kidAccent, limitLabel, limitUnit, payLabel, payMode, validatePay } from "@paydirt/shared";
+import { parseAssignDraft, serializeAssignDraft, currencyDisplayName, screenGrantLabel, errorMessage, kidAccent, limitLabel, limitUnit, payLabel, payMode, validatePay, waitingActionCount } from "@paydirt/shared";
 import { client } from "../lib/client";
 import { isNetworkError } from "../lib/reachability";
 import { useRealtimeResume } from "../lib/useRealtimeResume";
@@ -128,6 +129,24 @@ export function ParentHome({
   // Assignment state: choreId → Set of selected kidIds
   const [assignSelections, setAssignSelections] = useState<Record<string, Set<string>>>({});
   const [assigning, setAssigning] = useState<Record<string, boolean>>({});
+  // Picks persist immediately so an app update/restart doesn't lose them before Assign is pressed.
+  const draftKey = `paydirt.assignDraft.${user.household}`;
+  const draftLoaded = useRef(false);
+  useEffect(() => {
+    AsyncStorage.getItem(draftKey)
+      .then((raw) => {
+        const saved = parseAssignDraft(raw);
+        setAssignSelections((cur) => ({ ...saved, ...cur }));
+      })
+      .catch(() => {})
+      .finally(() => {
+        draftLoaded.current = true;
+      });
+  }, [draftKey]);
+  useEffect(() => {
+    if (!draftLoaded.current) return;
+    AsyncStorage.setItem(draftKey, serializeAssignDraft(assignSelections)).catch(() => {});
+  }, [assignSelections, draftKey]);
 
 
   // Co-parent management
@@ -479,7 +498,11 @@ export function ParentHome({
     if (!selected || selected.size === 0) return;
     setAssigning((prev) => ({ ...prev, [choreId]: true }));
     try {
-      const ids = [...selected];
+      const ids = [...selected].filter((id) => kids.some((k) => k.id === id));
+      if (ids.length === 0) {
+        setAssignSelections((prev) => ({ ...prev, [choreId]: new Set() }));
+        return;
+      }
       const over = await client.assignLimitWarnings(choreId, ids);
       if (over.length > 0) {
         const chore = chores.find((c) => c.id === choreId);
@@ -511,6 +534,7 @@ export function ParentHome({
   }
 
   const pendingCount = approvals.length + spend.length + proposals.length;
+  const waitingCount = waitingActionCount({ approvals, spend, proposals, screenGrants, bonusGrants });
 
   if (detailKid) {
     return (
@@ -529,7 +553,7 @@ export function ParentHome({
     <SafeAreaView style={styles.container} edges={["top"]}>
       <Appbar.Header statusBarHeight={0}>
         <Appbar.Content
-          title={<BrandTitle size={30} />}
+          title={<BrandTitle size={30} tagline />}
           subtitle={pendingCount > 0 ? `${pendingCount} item${pendingCount === 1 ? "" : "s"} waiting` : "All clear 🎉"}
         />
         <AppearanceButton />
@@ -1272,7 +1296,9 @@ export function ParentHome({
       <BottomNavigation.Bar
         navigationState={{
           index: Math.max(0, PARENT_TABS.findIndex((t) => t.key === tab)),
-          routes: PARENT_TABS,
+          routes: PARENT_TABS.map((t) =>
+            t.key === "approvals" && waitingCount > 0 ? { ...t, badge: waitingCount } : t,
+          ),
         }}
         onTabPress={({ route }) => setTab(route.key)}
       />

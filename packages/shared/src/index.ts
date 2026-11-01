@@ -16,6 +16,7 @@ export * from "./starterChores";
 export * from "./choreLimit";
 export * from "./chorePay";
 export * from "./activity";
+export * from "./pendingCounts";
 // updates.ts is NOT exported here — it uses node:crypto/Buffer and is only
 // consumed by scripts/publish-update.mjs (via --experimental-strip-types) and
 // its own unit tests. Exporting it would make mobile/web typechecks pull in
@@ -23,3 +24,4 @@ export * from "./activity";
 // reason (consumed by scripts/familylink-grant.mjs), as is familylinkQueue.ts
 // (consumed by scripts/familylink-worker.mts).
 export * from "./approvalActions";
+export * from "./assignDraft";

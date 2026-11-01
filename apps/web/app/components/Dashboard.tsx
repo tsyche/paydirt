@@ -15,7 +15,7 @@ import type {
   SpendRequest,
   User,
 } from "@paydirt/shared";
-import { AVATAR_COLORS, REACTIONS, undoApprovalPrompt, avatarUrl, currencyDisplayName, kidAccent, parseGoodsRateOverride, featureTip, screenGrantLabel, errorMessage, limitLabel, limitUnit, payLabel, approveTimePrompt, summarizeMonthActivity, payMode, validatePay, MINUTES_STEP, MAX_REWARD_MINUTES } from "@paydirt/shared";
+import { GOAL_NAME_MAX, GOAL_DETAILS_MAX, parseAssignDraft, serializeAssignDraft, AVATAR_COLORS, REACTIONS, undoApprovalPrompt, avatarUrl, currencyDisplayName, kidAccent, parseGoodsRateOverride, featureTip, screenGrantLabel, errorMessage, limitLabel, limitUnit, payLabel, approveTimePrompt, summarizeMonthActivity, waitingActionCount, payMode, validatePay, MINUTES_STEP, MAX_REWARD_MINUTES } from "@paydirt/shared";
 import { client } from "../lib/client";
 import { HouseholdSettings } from "./HouseholdSettings";
 import { AppearanceControls } from "./AppearanceControls";
@@ -23,6 +23,8 @@ import { LedgerView } from "./LedgerView";
 import { InboxView } from "./InboxView";
 import { StarterChores } from "./StarterChores";
 import { Celebration } from "./Celebration";
+
+const ASSIGN_DRAFT_KEY = "paydirt.assignDraft";
 
 type TabKey = "approvals" | "kids" | "chores" | "ledger" | "alerts";
 const TABS: { key: TabKey; label: string }[] = [
@@ -156,6 +158,8 @@ export function Dashboard({
     }
   };
 
+  const waitingCount = waitingActionCount({ approvals, spend, proposals, screenGrants, bonusGrants });
+
   return (
     <div className="app-shell">
       {/* ── App Bar ── */}
@@ -163,8 +167,11 @@ export function Dashboard({
         <div className="app-bar-inner">
           <div className="app-bar-title">
             <img className="app-bar-logo" src="/bag.svg" alt="" />
-            <span>
-              Pay<span className="brand-dirt">Dirt</span>
+            <span className="app-bar-brand">
+              <span>
+                Pay<span className="brand-dirt">Dirt</span>
+              </span>
+              <span className="app-bar-tagline">Do. The. Thing.</span>
             </span>
           </div>
           <div className="inline">
@@ -192,6 +199,9 @@ export function Dashboard({
               onClick={() => setTab(t.key)}
             >
               {t.label}
+              {t.key === "approvals" && waitingCount > 0 && (
+                <span className="tab-badge" aria-label={`${waitingCount} waiting`}>{waitingCount}</span>
+              )}
             </button>
           ))}
         </div>
@@ -229,16 +239,6 @@ export function Dashboard({
                       </span>
                     )}
                   </div>
-                  {(goalsByKid[kid.id] ?? []).length > 0 && (
-                    <div className="muted" style={{ marginTop: 2 }}>
-                      🎯{" "}
-                      {(goalsByKid[kid.id] ?? [])
-                        .map((g) =>
-                          `${g.name} (${g.achieved ? "done!" : `${kid.balance}/${g.target}`})`
-                        )
-                        .join(" · ")}
-                    </div>
-                  )}
                 </div>
               </div>
               <div style={{ textAlign: "right" }}>
@@ -255,9 +255,10 @@ export function Dashboard({
                 )}
               </div>
             </div>
-            <div className="inline" style={{ marginTop: 10 }}>
+            <GoalList kid={kid} goals={goalsByKid[kid.id] ?? []} onChanged={reload} />
+            <div className="inline kid-toolbar">
               <AdjustControl kid={kid} onAdjusted={reload} />
-              <GoalControl kid={kid} goals={goalsByKid[kid.id] ?? []} onChanged={reload} />
+              <GoalControl kid={kid} onChanged={reload} />
               <LedgerToggle kidId={kid.id} kidName={kid.display_name} />
               <AvatarControl kid={kid} onSaved={reload} />
             </div>
@@ -748,12 +749,12 @@ function LedgerToggle({ kidId, kidName }: { kidId: string; kidName: string }) {
   }
 
   return (
-    <div>
+    <>
       <button className="sm" onClick={toggle} disabled={loading}>
         {loading ? "…" : open ? "Hide history" : "History"}
       </button>
       {open && (
-        <div style={{ marginTop: 10 }}>
+        <div className="panel-full">
           {txns.length > 0 && (
             <button className="sm" style={{ marginBottom: 8 }} onClick={exportCsv}>
               Export CSV
@@ -772,11 +773,11 @@ function LedgerToggle({ kidId, kidName }: { kidId: string; kidName: string }) {
           ))}
         </div>
       )}
-    </div>
+    </>
   );
 }
 
-function GoalControl({
+function GoalList({
   kid,
   goals,
   onChanged,
@@ -785,29 +786,10 @@ function GoalControl({
   goals: SavingsGoal[];
   onChanged: () => void;
 }) {
-  const [open, setOpen] = useState(false);
-  const [name, setName] = useState("");
-  const [target, setTarget] = useState("");
-  const [busy, setBusy] = useState(false);
+  const [section, setSection] = useState(false);
+  const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const [error, setError] = useState("");
-  const targetNum = Math.floor(Number(target));
-
-  async function save() {
-    if (!name.trim() || !(targetNum > 0)) return;
-    setBusy(true);
-    setError("");
-    try {
-      await client.createGoal(kid.id, name.trim(), targetNum);
-      setName("");
-      setTarget("");
-      setOpen(false);
-      onChanged();
-    } catch (e) {
-      setError(errorMessage(e));
-    } finally {
-      setBusy(false);
-    }
-  }
+  if (goals.length === 0) return null;
 
   async function remove(g: SavingsGoal) {
     if (!window.confirm(`Delete the "${g.name}" goal? Their balance isn't affected.`)) return;
@@ -820,6 +802,91 @@ function GoalControl({
     }
   }
 
+  function toggle(id: string) {
+    setExpanded((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
+  return (
+    <div className="goal-list">
+      <button
+        type="button"
+        className="goal-section-toggle"
+        aria-expanded={section}
+        onClick={() => setSection((v) => !v)}
+      >
+        <span aria-hidden="true">{section ? "▾" : "▸"}</span> 🎯 Goals ({goals.length})
+      </button>
+      {section && goals.map((g) => {
+        const open = expanded.has(g.id);
+        const pct = g.achieved ? 100 : Math.min(100, Math.round((kid.balance / g.target) * 100));
+        return (
+          <div className="goal-row" key={g.id}>
+            <button
+              type="button"
+              className={`goal-name${open ? " goal-name-open" : ""}`}
+              aria-expanded={open}
+              title={open ? "Click to collapse" : g.name}
+              onClick={() => toggle(g.id)}
+            >
+              {g.name}
+            </button>
+            <span className="goal-progress muted">
+              {g.achieved ? "done!" : `${kid.balance}/${g.target}`}
+            </span>
+            <button
+              className="sm"
+              aria-label={`Delete goal ${g.name}`}
+              title="Delete goal"
+              onClick={() => void remove(g)}
+            >
+              ✕
+            </button>
+            <div className="goal-bar" aria-hidden="true">
+              <div style={{ width: `${pct}%` }} />
+            </div>
+            {open && (
+              <p className="goal-details muted">{g.details || "No details."}</p>
+            )}
+          </div>
+        );
+      })}
+      {error && <p className="error">{error}</p>}
+    </div>
+  );
+}
+
+function GoalControl({ kid, onChanged }: { kid: User; onChanged: () => void }) {
+  const [open, setOpen] = useState(false);
+  const [name, setName] = useState("");
+  const [target, setTarget] = useState("");
+  const [details, setDetails] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+  const targetNum = Math.floor(Number(target));
+
+  async function save() {
+    if (!name.trim() || !(targetNum > 0)) return;
+    setBusy(true);
+    setError("");
+    try {
+      await client.createGoal(kid.id, name.trim(), targetNum, 0, details);
+      setName("");
+      setDetails("");
+      setTarget("");
+      setOpen(false);
+      onChanged();
+    } catch (e) {
+      setError(errorMessage(e));
+    } finally {
+      setBusy(false);
+    }
+  }
+
   return (
     <>
       {!open && (
@@ -827,22 +894,12 @@ function GoalControl({
           Set a goal
         </button>
       )}
-      {goals.map((g) => (
-        <button
-          key={g.id}
-          className="sm"
-          title={`Delete goal ${g.name}`}
-          aria-label={`Delete goal ${g.name}`}
-          onClick={() => void remove(g)}
-        >
-          🎯 {g.name} ✕
-        </button>
-      ))}
       {open && (
-        <div className="stack" style={{ marginTop: 8, width: "100%" }}>
+        <div className="stack panel-full">
           <div className="inline">
             <input
               placeholder="What are they saving for?"
+              maxLength={GOAL_NAME_MAX}
               value={name}
               onChange={(e) => setName(e.target.value)}
               style={{ flex: 1 }}
@@ -866,9 +923,16 @@ function GoalControl({
               Cancel
             </button>
           </div>
+          <textarea
+            placeholder="Details (optional)"
+            maxLength={GOAL_DETAILS_MAX}
+            rows={2}
+            value={details}
+            onChange={(e) => setDetails(e.target.value)}
+          />
         </div>
       )}
-      {error && <p className="error">{error}</p>}
+      {error && <p className="error panel-full">{error}</p>}
     </>
   );
 }
@@ -990,7 +1054,7 @@ function AdjustControl({ kid, onAdjusted }: { kid: User; onAdjusted: () => void 
   }
 
   return (
-    <div className="stack" style={{ marginTop: 8, width: "100%" }}>
+    <div className="stack panel-full">
       <div className="inline">
         <input
           type="number"
@@ -1566,7 +1630,7 @@ function AvatarControl({ kid, onSaved }: { kid: User; onSaved: () => void }) {
   }
 
   return (
-    <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginTop: 4, alignItems: "center" }}>
+    <div className="panel-full" style={{ display: "flex", flexWrap: "wrap", gap: 8, alignItems: "center" }}>
       <input
         placeholder="Emoji (e.g. 🦊)"
         value={avatar}
@@ -1701,23 +1765,38 @@ function AssignControl({
   kids: User[];
   onAssigned: () => void;
 }) {
+  // Picks persist immediately (localStorage) so a reload doesn't lose them before Assign is pressed.
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [busy, setBusy] = useState(false);
 
+  useEffect(() => {
+    try {
+      const saved = parseAssignDraft(localStorage.getItem(ASSIGN_DRAFT_KEY))[chore.id];
+      if (saved) setSelected((cur) => (cur.size ? cur : saved));
+    } catch {}
+  }, [chore.id]);
+
+  function persist(next: Set<string>) {
+    try {
+      const all = parseAssignDraft(localStorage.getItem(ASSIGN_DRAFT_KEY));
+      all[chore.id] = next;
+      localStorage.setItem(ASSIGN_DRAFT_KEY, serializeAssignDraft(all));
+    } catch {}
+  }
+
   function toggle(kidId: string) {
-    setSelected((prev) => {
-      const next = new Set(prev);
-      if (next.has(kidId)) next.delete(kidId);
-      else next.add(kidId);
-      return next;
-    });
+    const next = new Set(selected);
+    if (next.has(kidId)) next.delete(kidId);
+    else next.add(kidId);
+    setSelected(next);
+    persist(next);
   }
 
   async function assign() {
     if (selected.size === 0) return;
     setBusy(true);
     try {
-      const ids = [...selected];
+      const ids = [...selected].filter((id) => kids.some((k) => k.id === id));
       const over = await client.assignLimitWarnings(chore.id, ids);
       if (over.length > 0) {
         const names = over
@@ -1729,6 +1808,7 @@ function AssignControl({
         await client.assignChore(chore.id, kidId);
       }
       setSelected(new Set());
+      persist(new Set());
       onAssigned();
     } finally {
       setBusy(false);

@@ -148,6 +148,7 @@ crosses the target.
 | achieved | bool | hook-set |
 | achieved_at | date | hook-set |
 | auto_save_percent | number | % of each earn auto-saved toward this goal (with a notification) |
+| details | text (max 500) | optional notes shown when the goal is expanded |
 
 ### `chore_templates`
 Household-saved chore blueprints (name, description, reward, type, cadence, `photo_required`, `race`, `reminder_time`, `max_per_period`) that pre-fill the create-chore form.

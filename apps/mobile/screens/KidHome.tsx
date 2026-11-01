@@ -18,6 +18,7 @@ import {
   useTheme,
 } from "react-native-paper";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { GOAL_NAME_MAX } from "@paydirt/shared";
 import type { Assignment, Broadcast, Chore, Household, SavingsGoal, ScreenPreset, User } from "@paydirt/shared";
 import {
   SCREEN_PRESETS,
@@ -640,6 +641,7 @@ function GoalList({
   const [name, setName] = useState("");
   const [target, setTarget] = useState("");
   const [autoSave, setAutoSave] = useState("");
+  const [open, setOpen] = useState<string | null>(null);
 
   return (
     <View style={styles.goalList}>
@@ -649,7 +651,12 @@ function GoalList({
           <Card key={g.id} style={styles.choreCard}>
             <Card.Content>
               <View style={styles.choreRow}>
-                <Text variant="titleSmall">
+                <Text
+                  variant="titleSmall"
+                  style={{ flex: 1 }}
+                  numberOfLines={open === g.id ? undefined : 1}
+                  onPress={() => setOpen(open === g.id ? null : g.id)}
+                >
                   {g.achieved ? "🏆 " : ""}
                   {g.name}
                 </Text>
@@ -661,6 +668,11 @@ function GoalList({
                 </View>
               </View>
               <ProgressBar progress={progress} style={styles.goalBar} />
+              {open === g.id && g.details ? (
+                <Text variant="bodySmall" style={{ marginTop: 6 }}>
+                  {g.details}
+                </Text>
+              ) : null}
             </Card.Content>
           </Card>
         );
@@ -671,6 +683,7 @@ function GoalList({
           placeholder="New goal (e.g. LEGO set)"
           value={name}
           onChangeText={setName}
+          maxLength={GOAL_NAME_MAX}
           style={styles.goalNameInput}
         />
         <TextInput

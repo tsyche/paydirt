@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 import { Animated, StyleSheet, View, AccessibilityInfo, Easing } from "react-native";
 
+import { shouldPlayCelebration } from "../lib/celebration";
+
 const PARTICLES = ["🪙", "🎉", "⭐", "🪙", "✨"];
 
 /**
@@ -13,6 +15,9 @@ export function Celebration({ trigger }: { trigger: number }) {
   const progress = useRef(new Animated.Value(0)).current;
   const [visible, setVisible] = useState(false);
   const reduceMotion = useRef(false);
+  // Remember the trigger at mount: ParentHome swaps to the kid detail and back, remounting
+  // this with the old count; only a later increment should play.
+  const lastSeen = useRef(trigger);
 
   useEffect(() => {
     AccessibilityInfo.isReduceMotionEnabled().then((r) => {
@@ -21,7 +26,8 @@ export function Celebration({ trigger }: { trigger: number }) {
   }, []);
 
   useEffect(() => {
-    if (!trigger) return;
+    if (!shouldPlayCelebration(lastSeen.current, trigger)) return;
+    lastSeen.current = trigger;
     setVisible(true);
     progress.setValue(0);
     Animated.timing(progress, {

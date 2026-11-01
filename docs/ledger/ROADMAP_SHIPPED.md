@@ -4,6 +4,7 @@
 
 ## Shipped index
 
+- [x] 2026-11-01 — Per-kid daily chore summary push; silent 3 AM recurring assignments
 - [x] 2026-11-01 — Mobile parent Activity report (parent parity)
 - [x] 2026-11-01 — Web kid-goal form and co-parent panel (parent parity)
 - [x] 2026-10-31 — Per-chore pay mode (bucks, screen time, or both)
@@ -219,3 +220,7 @@ Native tap-through later confirmed on the Pixel 8, 2026-10-21 (warm: lands KidHo
 ### 2026-11-01 — Mobile parent Activity report (parent parity)
 
 - `ActivityReport` on the mobile Kids tab mirrors the web report. `streakPeak` and `summarizeMonthActivity` moved to `packages/shared/src/activity.ts` (unit-tested) and are used by both. Closes the last gap from the parity pass. Not deployed; not viewed on emulator.
+
+### 2026-11-01 — Per-kid daily chore summary push; silent 3 AM recurring assignments
+
+- `users.digest_weekday` / `digest_weekend` (HH:MM, server-local) with a `digest_sent` marker, sent by the 10-minute scheduler tick (`pocketbase/pb_hooks/lib/scheduler.js`); migration `1717000026` adds `assignments.auto_created` so the 3 AM auto-assignment no longer pushes 'New chore!'. Deployed to bb 2026-11-01 (`e33fdfc`); times set in the app, summary push confirmed arriving. A grit + time chore approved the same day paid out through the Family Link queue (time grant lagged the grit).

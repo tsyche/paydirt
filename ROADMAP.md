@@ -2,7 +2,7 @@
 
 ## TL;DR
 
-MVP, Phase 1, and Phase 1.5 are shipped, and PayDirt is live on bb. The Family Link grant queue is deployed; one real 15-minute purchase is the last check. The per-kid daily summary push is committed (`e33fdfc`) but not deployed. Other priorities: tablet APK updates, off-LAN access, and keeping parent web and mobile at parity.
+MVP, Phase 1, and Phase 1.5 are shipped, and PayDirt is live on bb. The Family Link grant queue is deployed; one real 15-minute purchase is the last check. The per-kid daily summary push is deployed and delivering. Other priorities: tablet APK updates, off-LAN access, and keeping parent web and mobile at parity.
 
 Scope checklist: [FEATURES.md](./FEATURES.md). **This file is the authoritative
 status tracker.**
@@ -36,8 +36,8 @@ Last audit 2026-11-01: moved the eight shipped backlog bullets, pay mode, chore 
 
 **All three need a human** (deploys, tablets, accounts). Best agent-doable items are listed below.
 
-1. **Deploy the summary push, then run the last Family Link checks** — `e33fdfc` (per-kid daily summary, silent 3 AM assignments, migration `1717000026`) is committed locally and needs a push and `just ship`. Then: set each kid's summary times in the app, confirm both tablets show the "Pays" selector, and run one real 15-minute purchase (kid requests, parent approves on web, row goes Queued then Granted, tablet gains 900 s). Create the first 5-minute time chore only after both tablets are on the new APK. See [deployment](docs/DEPLOYMENT.md#enable-automatic-grants). 🧑 needs-human: bb commands, real tablets, a real approval.
-   - Done on bb: pricing and per-kid IDs, host tooling, session moves between machines, additive grants (59 + 60 = 119 s), approval queue and worker deployed with `FL_AUTOMATION_ENABLED=1`, session verified 2026-10-31. Details: [shipped ledger](docs/ledger/ROADMAP_SHIPPED.md).
+1. **Finish the Family Link checks** — summary push and per-chore pay mode are live on bb (2026-11-01). Remaining: confirm the second tablet also shows the "Pays" selector, and run one real 15-minute purchase (kid requests, parent approves on web, row goes Queued then Granted, tablet gains 900 s; check `systemctl status paydirt-fl.path paydirt-fl.service`). A grit + time chore approved the same day paid out correctly but the time grant took noticeably longer than the grit to land; measure the approve-to-granted delay and find where it waits (queue worker trigger vs. the minute cron repair). See [deployment](docs/DEPLOYMENT.md#enable-automatic-grants). 🧑 needs-human: real tablets, a real approval.
+   - Done on bb: pricing and per-kid IDs, host tooling, session moves between machines, additive grants (59 + 60 = 119 s), approval queue and worker with `FL_AUTOMATION_ENABLED=1`, session verified 2026-10-31. Details: [shipped ledger](docs/ledger/ROADMAP_SHIPPED.md).
    - Still open: how long the session lives with only occasional grants (see *Family Link session keep-alive* in the backlog).
 2. **Tier 2 app auto-updates on the other tablets** — validated end to end on one phone 2026-10-31; the other tablets need one adb install of the 2026-10-31+ build (older builds lack the native method), then confirm each self-updates. 🧑 needs-human.
 3. **Off-LAN access (Tailscale)** — `EXPO_PUBLIC_POCKETBASE_URL` is a LAN IP; devices can't reach PocketBase on 5G or outside the home, and app auto-updates can't either. Tailscale is the lowest-friction fix: private mesh VPN, no public exposure, point the URL at the Tailscale hostname. ~2-4 hrs. 🧑 needs-human: Tailscale account + per-device enrollment (the env-var change itself is trivial).

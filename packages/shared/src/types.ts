@@ -188,7 +188,13 @@ export interface SavingsGoal extends BaseRecord {
   achieved_at?: string;
   /** Percentage of each approved earn auto-allocated to this goal. 0/unset = off. */
   auto_save_percent?: number;
+  /** Optional free-text notes so the goal name can stay short. */
+  details?: string;
 }
+
+/** Input caps for goal text (name is client-enforced; details is also a PocketBase field max). */
+export const GOAL_NAME_MAX = 100;
+export const GOAL_DETAILS_MAX = 500;
 
 // ─── Chore Proposals ─────────────────────────────────────────────────────────
 

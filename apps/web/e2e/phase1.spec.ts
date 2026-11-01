@@ -183,8 +183,27 @@ test("parent sets and deletes a kid savings goal on the web", async ({ page }) =
   await page.getByRole("button", { name: "Set a goal" }).first().click();
   await page.getByPlaceholder("What are they saving for?").fill(goalName);
   await page.getByPlaceholder("Target").fill("50");
+  await page.getByPlaceholder("Details (optional)").fill("Saving for the big set");
   await page.getByRole("button", { name: "Add goal" }).click();
+  // Goals live in a collapsed section per kid; open it first.
+  await page.getByRole("button", { name: /Goals \(\d+\)/ }).first().click();
   const deleteBtn = page.getByRole("button", { name: `Delete goal ${goalName}` });
+  await expect(deleteBtn).toBeVisible();
+
+  // Long goal names are ellipsized; clicking the name expands it.
+  const nameBtn = page.getByRole("button", { name: new RegExp(`^${goalName}$`) });
+  await expect(nameBtn).toHaveAttribute("aria-expanded", "false");
+  await nameBtn.click();
+  await expect(nameBtn).toHaveAttribute("aria-expanded", "true");
+  await expect(page.getByText("Saving for the big set")).toBeVisible();
+
+  // Clicking the goal itself must not delete it; only the ✕ does.
+  let confirmed = false;
+  const onDialog = (d: { dismiss: () => Promise<void> }) => { confirmed = true; void d.dismiss(); };
+  page.on("dialog", onDialog);
+  await nameBtn.click();
+  page.off("dialog", onDialog);
+  expect(confirmed).toBe(false);
   await expect(deleteBtn).toBeVisible();
 
   page.once("dialog", (d) => void d.accept());
@@ -197,4 +216,26 @@ test("co-parents panel lists the other parent on the web", async ({ page }) => {
   await page.getByRole("tab", { name: /Kids/ }).click();
   await expect(page.getByText("Co-parents", { exact: true })).toBeVisible();
   await expect(page.getByText(/Parent 2/)).toBeVisible();
+});
+
+test("approvals tab shows a count badge for waiting actions", async ({ page }) => {
+  await signIn(page);
+  const badge = page.getByRole("tab", { name: /Approvals/ }).locator(".tab-badge");
+  await expect(badge).toBeVisible();
+  expect(Number(await badge.textContent())).toBeGreaterThan(0);
+});
+
+test("unsaved assign picks survive a reload and clear after Assign", async ({ page }) => {
+  await signIn(page);
+  await goTab(page, /Chores/);
+  const row = page.locator(".card, li, div").filter({ has: page.getByRole("button", { name: "Assign", exact: true }) }).filter({ hasText: "Clean your room" }).last();
+  const box = row.getByRole("checkbox").first();
+  await box.check();
+  await page.reload();
+  await goTab(page, /Chores/);
+  await expect(row.getByRole("checkbox").first()).toBeChecked();
+  await row.getByRole("checkbox").first().uncheck();
+  await page.reload();
+  await goTab(page, /Chores/);
+  await expect(row.getByRole("checkbox").first()).not.toBeChecked();
 });

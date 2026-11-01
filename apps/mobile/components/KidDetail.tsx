@@ -17,7 +17,7 @@ import {
 } from "react-native-paper";
 import { SafeAreaView } from "react-native-safe-area-context";
 import type { Assignment, Chore, Household, SavingsGoal, User } from "@paydirt/shared";
-import { avatarUrl, currencyDisplayName, featureTip, errorMessage, kidAccent, payLabel } from "@paydirt/shared";
+import { GOAL_NAME_MAX, GOAL_DETAILS_MAX, avatarUrl, currencyDisplayName, featureTip, errorMessage, kidAccent, payLabel } from "@paydirt/shared";
 import { client } from "../lib/client";
 import { isNetworkError } from "../lib/reachability";
 import { useReachability } from "../lib/useReachability";
@@ -65,7 +65,10 @@ export function KidDetail({
   const [saving, setSaving] = useState(false);
   const [goalOpen, setGoalOpen] = useState(false);
   const [goalName, setGoalName] = useState("");
+  const [openGoal, setOpenGoal] = useState<string | null>(null);
   const [goalTarget, setGoalTarget] = useState("");
+  const [goalDetails, setGoalDetails] = useState("");
+  const [goalsOpen, setGoalsOpen] = useState(true);
 
   const currencyName = currencyDisplayName(household);
   const goodsRate = kid?.goods_rate ?? household?.goods_rate ?? 0;
@@ -134,10 +137,11 @@ export function KidDetail({
     if (!goalName.trim() || !(target > 0)) return;
     setSaving(true);
     try {
-      await client.createGoal(kidId, goalName.trim(), target);
+      await client.createGoal(kidId, goalName.trim(), target, 0, goalDetails);
       setGoalOpen(false);
       setGoalName("");
       setGoalTarget("");
+      setGoalDetails("");
       setSnack("Goal added 🎯");
       await reload();
     } catch (e) {
@@ -298,13 +302,19 @@ export function KidDetail({
           ))
         )}
 
-        <Text variant="labelLarge" style={[styles.section, { color: theme.colors.onSurfaceVariant }]}>
-          GOALS {goals.length > 0 ? `(${goals.length})` : ""}
+        <Text
+          variant="labelLarge"
+          accessibilityRole="button"
+          accessibilityState={{ expanded: goalsOpen }}
+          onPress={() => setGoalsOpen((v) => !v)}
+          style={[styles.section, { color: theme.colors.onSurfaceVariant }]}
+        >
+          {goalsOpen ? "▾" : "▸"} GOALS {goals.length > 0 ? `(${goals.length})` : ""}
         </Text>
         <Button mode="outlined" icon="flag-plus" onPress={() => setGoalOpen(true)} style={{ alignSelf: "flex-start" }}>
           Set a goal
         </Button>
-        {goals.length === 0 ? (
+        {!goalsOpen ? null : goals.length === 0 ? (
           <Text style={[styles.empty, { color: theme.colors.onSurfaceVariant }]}>No savings goals yet.</Text>
         ) : (
           goals.map((g) => {
@@ -313,7 +323,14 @@ export function KidDetail({
               <Card key={g.id} style={styles.card}>
                 <Card.Content>
                   <View style={styles.rowBetween}>
-                    <Text variant="titleSmall" style={styles.flex}>{g.achieved ? "🏆 " : ""}{g.name}</Text>
+                    <Text
+                      variant="titleSmall"
+                      style={styles.flex}
+                      numberOfLines={openGoal === g.id ? undefined : 1}
+                      onPress={() => setOpenGoal(openGoal === g.id ? null : g.id)}
+                    >
+                      {g.achieved ? "🏆 " : ""}{g.name}
+                    </Text>
                     <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant }}>
                       {g.achieved ? "Done!" : `${kid?.balance ?? 0}/${g.target}`}
                     </Text>
@@ -326,6 +343,11 @@ export function KidDetail({
                     />
                   </View>
                   <ProgressBar progress={progress} style={styles.bar} color={accent} />
+                  {openGoal === g.id && (
+                    <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant, marginTop: 6 }}>
+                      {g.details || "No details."}
+                    </Text>
+                  )}
                 </Card.Content>
               </Card>
             );
@@ -386,13 +408,22 @@ export function KidDetail({
         <Dialog visible={goalOpen} onDismiss={() => setGoalOpen(false)}>
           <Dialog.Title>Set a goal for {kid?.display_name ?? "them"}</Dialog.Title>
           <Dialog.Content>
-            <TextInput mode="outlined" label="What are they saving for?" value={goalName} onChangeText={setGoalName} autoFocus />
+            <TextInput mode="outlined" label="What are they saving for?" value={goalName} onChangeText={setGoalName} maxLength={GOAL_NAME_MAX} autoFocus />
             <TextInput
               mode="outlined"
               label={`Target (${currencyName})`}
               value={goalTarget}
               onChangeText={setGoalTarget}
               keyboardType="number-pad"
+              style={styles.reasonInput}
+            />
+            <TextInput
+              mode="outlined"
+              label="Details (optional)"
+              value={goalDetails}
+              onChangeText={setGoalDetails}
+              maxLength={GOAL_DETAILS_MAX}
+              multiline
               style={styles.reasonInput}
             />
           </Dialog.Content>
