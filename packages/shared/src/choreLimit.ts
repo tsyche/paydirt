@@ -53,3 +53,33 @@ export interface LimitWarning {
   max: number;
   windowDays: number;
 }
+
+export interface RecentAssignmentRow {
+  chore: string;
+  child: string;
+  created: string;
+}
+
+/**
+ * Kids already at/over this chore's limit inside its window, from pre-fetched
+ * (non-closed) assignment rows. Mirrors the server-side count in
+ * assignLimitWarnings so the UI can say so up front instead of on Assign.
+ */
+export function kidsAtLimit(
+  chore: ChoreLimitFields & { id: string },
+  rows: RecentAssignmentRow[],
+  now: number = Date.now(),
+): Map<string, number> {
+  const max = choreLimit(chore);
+  const out = new Map<string, number>();
+  if (!max) return out;
+  const cutoff = now - limitWindowDays(chore) * 86400e3;
+  const counts = new Map<string, number>();
+  for (const r of rows) {
+    if (r.chore !== chore.id) continue;
+    if (new Date(r.created.replace(" ", "T")).getTime() < cutoff) continue;
+    counts.set(r.child, (counts.get(r.child) ?? 0) + 1);
+  }
+  for (const [kid, n] of counts) if (n >= max) out.set(kid, n);
+  return out;
+}

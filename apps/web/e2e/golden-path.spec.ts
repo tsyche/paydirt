@@ -239,6 +239,8 @@ test("assigning past a chore's repeat limit asks first, and can be overridden", 
     active: true,
   });
   const first = await api.assignChore(chore.id, kid1.id); // limit now reached
+  // Approve it so Kid 1 is not "currently holding" the chore (that locks the checkbox); approved still counts toward the limit.
+  await api.pb.collection("assignments").update(first.id, { status: "approved" });
   const count = async () =>
     (await api.pb.collection("assignments").getList(1, 1, { filter: api.pb.filter("chore = {:c}", { c: chore.id }) })).totalItems;
   try {

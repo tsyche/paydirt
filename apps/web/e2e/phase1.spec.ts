@@ -228,14 +228,131 @@ test("approvals tab shows a count badge for waiting actions", async ({ page }) =
 test("unsaved assign picks survive a reload and clear after Assign", async ({ page }) => {
   await signIn(page);
   await goTab(page, /Chores/);
-  const row = page.locator(".card, li, div").filter({ has: page.getByRole("button", { name: "Assign", exact: true }) }).filter({ hasText: "Clean your room" }).last();
-  const box = row.getByRole("checkbox").first();
-  await box.check();
+  const row = () => page.locator(".card.row").filter({ hasText: "Clean your room" });
+  const kid1 = () => row().getByRole("checkbox", { name: /Kid 1/ });
+  await kid1().check();
   await page.reload();
   await goTab(page, /Chores/);
-  await expect(row.getByRole("checkbox").first()).toBeChecked();
-  await row.getByRole("checkbox").first().uncheck();
+  await expect(kid1()).toBeChecked();
+  await kid1().uncheck();
   await page.reload();
   await goTab(page, /Chores/);
-  await expect(row.getByRole("checkbox").first()).not.toBeChecked();
+  await expect(kid1()).not.toBeChecked();
+});
+
+test("assigning shows feedback, locks assigned kids, and lists the chore under the kid", async ({ page }) => {
+  const choreName = `E2E assign ${Date.now()}`;
+  const api = new PaydirtClient(PB_URL);
+  await api.login("parent1@test.local", PW);
+  const chore = await api.createChore({
+    household: api.currentUser!.household,
+    name: choreName,
+    reward: 1,
+    type: "oneoff",
+    created_by: api.currentUser!.id,
+    active: true,
+  });
+  try {
+    await signIn(page);
+    await goTab(page, /Chores/);
+    const row = page.locator(".card.row").filter({ hasText: choreName });
+    await row.getByRole("checkbox", { name: /Kid 1/ }).check();
+    await row.getByRole("checkbox", { name: /Kid 2/ }).check();
+    await row.getByRole("button", { name: "Assign (2)" }).click();
+    await expect(row.getByRole("status")).toContainText("Assigned to Kid 1, Kid 2");
+    // Assigned kids stay ticked but locked; nothing left to assign.
+    await expect(row.getByRole("checkbox", { name: /Kid 1/ })).toBeDisabled();
+    await expect(row.getByRole("checkbox", { name: /Kid 1/ })).toBeChecked();
+    await expect(row.getByRole("button", { name: "Assign", exact: true })).toBeDisabled();
+    // And it shows in the Kids tab.
+    await goTab(page, /Kids/);
+    await expect(page.getByText(choreName).first()).toBeVisible();
+  } finally {
+    for (const a of await api.pb.collection("assignments").getFullList({ filter: api.pb.filter("chore = {:c}", { c: chore.id }) })) {
+      await api.rejectAssignment(a.id, "e2e cleanup");
+    }
+    await api.deactivateChore(chore.id);
+  }
+});
+
+test("kid card order: chores, goals, earnings, then settings; twisty works; ledger More + All kids", async ({ page }) => {
+  const api = new PaydirtClient(PB_URL);
+  await api.login("parent1@test.local", PW);
+  const kid1 = (await api.listChildren(api.currentUser!.household)).find((k) => k.display_name === "Kid 1")!;
+  const goal = await api.createGoal(kid1.id, `E2E order ${Date.now()}`, 9999, 0, "");
+  try {
+  await signIn(page);
+  await goTab(page, /Kids/);
+  const card = page.locator(".card").filter({ hasText: "Kid 1" }).first();
+  const y = async (text: string | RegExp) => (await card.getByText(text).first().boundingBox())!.y;
+  expect(await y(/📋 Chores/)).toBeLessThan(await y(/🎯 Goals/));
+  expect(await y(/🎯 Goals/)).toBeLessThan(await y(/Recent earnings/));
+  expect(await y(/Recent earnings/)).toBeLessThan(await y(/Edit avatar & settings/));
+
+  // Clicking the tiny chevron itself toggles the section.
+  const chores = card.locator(".goal-section-toggle", { hasText: /Chores/ });
+  await expect(chores).toHaveAttribute("aria-expanded", "true");
+  await chores.locator(".twisty").click();
+  await expect(chores).toHaveAttribute("aria-expanded", "false");
+
+  // Settings: modes sit together; Family Link is collapsed behind a twisty.
+  await card.getByRole("button", { name: /Edit avatar & settings/ }).click();
+  await expect(card.getByLabel("Family Link child ID")).toHaveCount(0);
+  await card.locator(".goal-section-toggle", { hasText: "Family Link" }).locator(".twisty").click();
+  await expect(card.getByLabel("Family Link child ID")).toBeVisible();
+
+  // "More in ledger" opens the Ledger tab on this kid; the dropdown offers All kids.
+  const more = card.getByRole("button", { name: /More in ledger/ });
+  if (await more.count()) {
+    await more.click();
+    await expect(page.locator("select")).toHaveValue(/.+/);
+    await expect(page.locator("select option", { hasText: "All kids" })).toHaveCount(1);
+  }
+  } finally {
+    await api.deleteGoal(goal.id);
+  }
+});
+
+test("chore row says who is assigned or already at the limit, before you try", async ({ page }) => {
+  const api = new PaydirtClient(PB_URL);
+  await api.login("parent1@test.local", PW);
+  const kids = await api.listChildren(api.currentUser!.household);
+  const kid1 = kids.find((k) => k.display_name === "Kid 1")!;
+  const name = `E2E hint ${Date.now()}`;
+  const chore = await api.createChore({
+    household: api.currentUser!.household,
+    name,
+    reward: 1,
+    type: "recurring",
+    cadence: "daily",
+    max_per_period: 1,
+    photo_required: true,
+    race: true,
+    created_by: api.currentUser!.id,
+    active: true,
+  });
+  const a = await api.assignChore(chore.id, kid1.id);
+  try {
+    await signIn(page);
+    await goTab(page, /Chores/);
+    const row = page.locator(".card.row").filter({ hasText: name });
+    // Enabled-feature icons sit to the right of the name, inside the title line.
+    const title = row.locator(".chore-title");
+    await expect(title.locator(".chore-badges")).toContainText("🏁");
+    await expect(title.locator(".chore-badges")).toContainText("📷");
+    expect(await title.locator("span").first().innerText()).toBe(name);
+    // Active: checked, locked, labelled; nothing to assign.
+    await expect(row.getByRole("checkbox", { name: /Kid 1/ })).toBeChecked();
+    await expect(row.getByRole("checkbox", { name: /Kid 1/ })).toBeDisabled();
+    await expect(row).toContainText("✓ assigned");
+    await expect(row.getByRole("button", { name: "Assign", exact: true })).toBeDisabled();
+    // Done (approved) but still inside the limit window: say so up front.
+    await api.pb.collection("assignments").update(a.id, { status: "approved" });
+    await page.reload();
+    await goTab(page, /Chores/);
+    await expect(row).toContainText("at limit (1 per day)");
+    await expect(row.getByRole("checkbox", { name: /Kid 2/ })).not.toContainText("at limit");
+  } finally {
+    await api.deactivateChore(chore.id);
+  }
 });

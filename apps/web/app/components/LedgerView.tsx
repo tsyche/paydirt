@@ -6,9 +6,11 @@ import { client } from "../lib/client";
 import { currencyDisplayName, errorMessage } from "@paydirt/shared";
 import type { Household } from "@paydirt/shared";
 
-export function LedgerView({ household }: { household: Household | null }) {
+export const ALL_KIDS = "all";
+
+export function LedgerView({ household, initialKidId }: { household: Household | null; initialKidId?: string }) {
   const [kids, setKids] = useState<User[]>([]);
-  const [kidId, setKidId] = useState<string>("");
+  const [kidId, setKidId] = useState<string>(initialKidId ?? ALL_KIDS);
   const [year, setYear] = useState(new Date().getFullYear());
   const [month, setMonth] = useState(new Date().getMonth() + 1);
   const [txns, setTxns] = useState<CurrencyTransaction[]>([]);
@@ -19,20 +21,20 @@ export function LedgerView({ household }: { household: Household | null }) {
     if (!household) return;
     void client.listChildren(household.id).then((k) => {
       setKids(k);
-      if (k.length && !kidId) setKidId(k[0].id);
     });
   }, [household]);
 
   useEffect(() => {
-    if (!kidId) return;
+    if (kidId === ALL_KIDS && kids.length === 0) return;
     setBusy(true);
     setError("");
-    void client
-      .listTransactionsForMonth(kidId, year, month)
+    void (kidId === ALL_KIDS
+      ? client.listTransactionsForMonthMulti(kids.map((k) => k.id), year, month)
+      : client.listTransactionsForMonth(kidId, year, month))
       .then(setTxns)
       .catch((e) => setError(errorMessage(e)))
       .finally(() => setBusy(false));
-  }, [kidId, year, month]);
+  }, [kidId, kids, year, month]);
 
   const currency = currencyDisplayName(household);
   const total = txns.reduce((s, t) => s + t.amount, 0);
@@ -50,6 +52,7 @@ export function LedgerView({ household }: { household: Household | null }) {
     <div className="stack" style={{ gap: 12 }}>
       <div className="row" style={{ gap: 8, flexWrap: "wrap", alignItems: "center" }}>
         <select value={kidId} onChange={(e) => setKidId(e.target.value)}>
+          <option value={ALL_KIDS}>All kids</option>
           {kids.map((k) => (
             <option key={k.id} value={k.id}>
               {k.display_name}
@@ -70,6 +73,7 @@ export function LedgerView({ household }: { household: Household | null }) {
         <thead>
           <tr>
             <th style={{ textAlign: "left" }}>Date</th>
+            {kidId === ALL_KIDS && <th style={{ textAlign: "left" }}>Kid</th>}
             <th style={{ textAlign: "left" }}>Type</th>
             <th style={{ textAlign: "right" }}>Amount</th>
             <th style={{ textAlign: "left" }}>Reason</th>
@@ -79,6 +83,7 @@ export function LedgerView({ household }: { household: Household | null }) {
           {txns.map((t) => (
             <tr key={t.id} style={{ borderTop: "1px solid var(--border, #eee)" }}>
               <td>{t.created.slice(0, 10)}</td>
+              {kidId === ALL_KIDS && <td>{kids.find((k) => k.id === t.user)?.display_name ?? ""}</td>}
               <td>{t.type}</td>
               <td style={{ textAlign: "right", color: t.amount >= 0 ? "green" : "red" }}>
                 {t.amount >= 0 ? "+" : ""}

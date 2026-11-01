@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { choreLimit, isOverLimit, limitLabel, limitWindowDays } from "./choreLimit";
+import { choreLimit, isOverLimit, kidsAtLimit, limitLabel, limitWindowDays } from "./choreLimit";
 
 describe("chore limits", () => {
   it("derives the window from cadence, one-offs use a week", () => {
@@ -27,5 +27,31 @@ describe("chore limits", () => {
     expect(limitLabel({ type: "oneoff", max_per_period: 2 })).toBe("2 per week");
     expect(limitLabel({ type: "recurring", cadence: "monthly", max_per_period: 1 })).toBe("1 per month");
     expect(limitLabel({ type: "oneoff" })).toBe("");
+  });
+});
+
+describe("kidsAtLimit", () => {
+  const now = Date.parse("2026-11-01T12:00:00Z");
+  const daily = { id: "c1", type: "recurring", cadence: "daily", max_per_period: 1 };
+  const row = (chore: string, child: string, created: string) => ({ chore, child, created });
+
+  it("flags kids with a row inside the window, not older ones or other chores", () => {
+    const rows = [
+      row("c1", "kidA", "2026-11-01 08:00:00.000Z"),
+      row("c1", "kidB", "2026-10-30 08:00:00.000Z"), // outside the 1-day window
+      row("c2", "kidB", "2026-11-01 08:00:00.000Z"), // different chore
+    ];
+    expect([...kidsAtLimit(daily, rows, now).keys()]).toEqual(["kidA"]);
+  });
+
+  it("needs the full count when the limit is above 1", () => {
+    const c = { ...daily, max_per_period: 2 };
+    const one = [row("c1", "kidA", "2026-11-01 08:00:00.000Z")];
+    expect(kidsAtLimit(c, one, now).size).toBe(0);
+    expect(kidsAtLimit(c, [...one, ...one], now).get("kidA")).toBe(2);
+  });
+
+  it("is empty when the chore has no limit", () => {
+    expect(kidsAtLimit({ id: "c1", type: "oneoff" }, [row("c1", "kidA", "2026-11-01 08:00:00.000Z")], now).size).toBe(0);
   });
 });

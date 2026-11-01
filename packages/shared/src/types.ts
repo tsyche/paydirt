@@ -104,6 +104,8 @@ export interface Chore extends BaseRecord {
   type: ChoreType;
   /** "daily" | "weekly" | "monthly"; only meaningful when type === "recurring". */
   cadence?: string;
+  /** Name of the starter chore this was created from (survives renames). */
+  starter_key?: string;
   photo_required: boolean;
   created_by: string; // -> users.id (parent)
   active: boolean;

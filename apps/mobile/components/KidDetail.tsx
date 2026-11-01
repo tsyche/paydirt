@@ -44,10 +44,12 @@ export function KidDetail({
   kidId,
   household,
   onClose,
+  onOpenLedger,
 }: {
   kidId: string;
   household: Household | null;
   onClose: () => void;
+  onOpenLedger?: (kidId: string) => void;
 }) {
   const theme = useTheme();
   const [kid, setKid] = useState<User | null>(null);
@@ -202,88 +204,6 @@ export function KidDetail({
           <ChunkyButton label="Deduct" icon="minus" tone="danger" onPress={() => openAdjust(-1)} style={styles.adjustBtn} />
         </View>
 
-        {kid && (
-          <Card style={styles.card}>
-            <Card.Content style={styles.rowBetween}>
-              <View style={styles.flex}>
-                <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
-                  <Text variant="titleSmall">Calm mode</Text>
-                  <IconButton icon="information-outline" size={16} onPress={() => setTipKey("calm_mode")} style={{ margin: 0 }} />
-                </View>
-                <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant }}>
-                  Quieter home screen: no badge shelf, confetti, or count-up.
-                </Text>
-              </View>
-              <Switch
-                value={!!kid.calm_mode}
-                onValueChange={(next) =>
-                  void client.pb
-                    .collection("users")
-                    .update(kid.id, { calm_mode: next })
-                    .then(() => reload())
-                    .catch((e) => setSnack(errorMessage(e)))
-                }
-              />
-            </Card.Content>
-          </Card>
-        )}
-
-        {kid && (
-          <KidAppearanceCard key={`${kid.id}-${kid.avatar ?? ""}`} kid={kid} onSaved={() => void reload()} onMessage={setSnack} />
-        )}
-
-        {kid && (
-          <Card style={styles.card}>
-            <Card.Content style={styles.rowBetween}>
-              <View style={styles.flex}>
-                <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
-                  <Text variant="titleSmall">Simplified mode</Text>
-                  <IconButton icon="information-outline" size={16} onPress={() => setTipKey("simplified_mode")} style={{ margin: 0 }} />
-                </View>
-                <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant }}>
-                  Bigger buttons and icons, minimal reading.
-                </Text>
-              </View>
-              <Switch
-                value={!!kid.simplified_mode}
-                onValueChange={(next) =>
-                  void client.pb
-                    .collection("users")
-                    .update(kid.id, { simplified_mode: next })
-                    .then(() => reload())
-                    .catch((e) => setSnack(errorMessage(e)))
-                }
-              />
-            </Card.Content>
-          </Card>
-        )}
-
-        {kid && (
-          <DigestCard
-            key={`digest-${kid.id}`}
-            kid={kid}
-            onTip={() => setTipKey("chore_digest")}
-            onSaved={() => {
-              setSnack("Chore summary times saved");
-              void reload();
-            }}
-            onError={(e) => setSnack(e)}
-          />
-        )}
-
-        {kid && (
-          <FamilyLinkCard
-            key={kid.id}
-            kid={kid}
-            onTip={() => setTipKey("fl_ids")}
-            onSaved={() => {
-              setSnack("Family Link IDs saved");
-              void reload();
-            }}
-            onError={(e) => setSnack(e)}
-          />
-        )}
-
         <Text variant="labelLarge" style={[styles.section, { color: theme.colors.onSurfaceVariant }]}>
           ACTIVE CHORES {assignments.length > 0 ? `(${assignments.length})` : ""}
         </Text>
@@ -360,18 +280,111 @@ export function KidDetail({
         {history.length === 0 ? (
           <Text style={[styles.empty, { color: theme.colors.onSurfaceVariant }]}>No approved chores yet.</Text>
         ) : (
-          history.map((a) => (
-            <Card key={a.id} style={styles.card}>
-              <Card.Content style={styles.rowBetween}>
-                <Text variant="bodyMedium" style={styles.flex}>
-                  {a.expand?.chore?.name ?? "Chore"}{a.reaction ? `  ${a.reaction}` : ""}
+          <>
+            {history.slice(0, 3).map((a) => (
+              <Card key={a.id} style={styles.card}>
+                <Card.Content style={styles.rowBetween}>
+                  <Text variant="bodyMedium" style={styles.flex} numberOfLines={1}>
+                    {a.expand?.chore?.name ?? "Chore"}{a.reaction ? `  ${a.reaction}` : ""}
+                  </Text>
+                  <Text variant="bodyMedium" style={{ color: theme.colors.primary, fontWeight: "700" }}>
+                    +{a.expand?.chore ? payLabel(a.expand.chore, "") : "?"}
+                  </Text>
+                </Card.Content>
+              </Card>
+            ))}
+            {onOpenLedger && (
+              <Button mode="text" compact onPress={() => onOpenLedger(kidId)} style={{ alignSelf: "flex-start" }}>
+                More in ledger →
+              </Button>
+            )}
+          </>
+        )}
+
+        <Text variant="labelLarge" style={[styles.section, { color: theme.colors.onSurfaceVariant }]}>
+          SETTINGS
+        </Text>
+
+        {kid && (
+          <KidAppearanceCard key={`${kid.id}-${kid.avatar ?? ""}`} kid={kid} onSaved={() => void reload()} onMessage={setSnack} />
+        )}
+
+        {kid && (
+          <DigestCard
+            key={`digest-${kid.id}`}
+            kid={kid}
+            onTip={() => setTipKey("chore_digest")}
+            onSaved={() => {
+              setSnack("Chore summary times saved");
+              void reload();
+            }}
+            onError={(e) => setSnack(e)}
+          />
+        )}
+
+        {kid && (
+          <Card style={styles.card}>
+            <Card.Content style={styles.rowBetween}>
+              <View style={styles.flex}>
+                <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
+                  <Text variant="titleSmall">Calm mode</Text>
+                  <IconButton icon="information-outline" size={16} onPress={() => setTipKey("calm_mode")} style={{ margin: 0 }} />
+                </View>
+                <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant }}>
+                  Quieter home screen: no badge shelf, confetti, or count-up.
                 </Text>
-                <Text variant="bodyMedium" style={{ color: theme.colors.primary, fontWeight: "700" }}>
-                  +{a.expand?.chore ? payLabel(a.expand.chore, "") : "?"}
+              </View>
+              <Switch
+                value={!!kid.calm_mode}
+                onValueChange={(next) =>
+                  void client.pb
+                    .collection("users")
+                    .update(kid.id, { calm_mode: next })
+                    .then(() => reload())
+                    .catch((e) => setSnack(errorMessage(e)))
+                }
+              />
+            </Card.Content>
+          </Card>
+        )}
+
+        {kid && (
+          <Card style={styles.card}>
+            <Card.Content style={styles.rowBetween}>
+              <View style={styles.flex}>
+                <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
+                  <Text variant="titleSmall">Simplified mode</Text>
+                  <IconButton icon="information-outline" size={16} onPress={() => setTipKey("simplified_mode")} style={{ margin: 0 }} />
+                </View>
+                <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant }}>
+                  Bigger buttons and icons, minimal reading.
                 </Text>
-              </Card.Content>
-            </Card>
-          ))
+              </View>
+              <Switch
+                value={!!kid.simplified_mode}
+                onValueChange={(next) =>
+                  void client.pb
+                    .collection("users")
+                    .update(kid.id, { simplified_mode: next })
+                    .then(() => reload())
+                    .catch((e) => setSnack(errorMessage(e)))
+                }
+              />
+            </Card.Content>
+          </Card>
+        )}
+
+        {kid && (
+          <FamilyLinkCard
+            key={kid.id}
+            kid={kid}
+            onTip={() => setTipKey("fl_ids")}
+            onSaved={() => {
+              setSnack("Family Link IDs saved");
+              void reload();
+            }}
+            onError={(e) => setSnack(e)}
+          />
         )}
       </ScrollView>
 

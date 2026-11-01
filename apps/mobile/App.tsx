@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Alert, AppState, Linking, View } from "react-native";
+import { Alert, AppState, Linking, NativeEventEmitter, NativeModules, View } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { StatusBar } from "expo-status-bar";
 import { SafeAreaProvider } from "react-native-safe-area-context";
@@ -12,7 +12,7 @@ import {
 } from "@expo-google-fonts/fredoka";
 import type { User } from "@paydirt/shared";
 import { client, pbUrl } from "./lib/client";
-import { fetchLatestVersion, getInstalledVersionCode, justUpdated, shouldUpdate, triggerApkDownload } from "./lib/appUpdate";
+import { describeDownloadFailure, takeUpdateFailure, fetchLatestVersion, getInstalledVersionCode, justUpdated, shouldUpdate, triggerApkDownload } from "./lib/appUpdate";
 import { Login } from "./screens/Login";
 import { KidHome } from "./screens/KidHome";
 import { SimpleKidHome } from "./screens/SimpleKidHome";
@@ -115,6 +115,21 @@ function AppContent() {
   useEffect(() => {
     let cancelled = false;
     let prompting = false;
+    let lastUrl = "";
+    // A failed download used to be silent (only Android's own notification). Show it in the app too.
+    function showFailure(reason: number) {
+      Alert.alert("Update failed", describeDownloadFailure(reason), [
+        { text: "Close", style: "cancel" },
+        ...(lastUrl
+          ? [{ text: "Try again", onPress: () => void triggerApkDownload(lastUrl) }]
+          : []),
+      ]);
+    }
+    const emitter = NativeModules.PayDirtNative ? new NativeEventEmitter(NativeModules.PayDirtNative) : null;
+    const failSub = emitter?.addListener("PayDirtUpdateFailed", (r: number) => {
+      void takeUpdateFailure(); // clear the stored copy so it doesn't show twice
+      showFailure(r);
+    });
     async function check() {
       if (prompting) return;
       const latest = await fetchLatestVersion(pbUrl);
@@ -122,6 +137,7 @@ function AppContent() {
       const installed = await getInstalledVersionCode();
       if (!shouldUpdate(installed, latest.versionCode)) return;
       prompting = true;
+      lastUrl = latest.downloadUrl;
       Alert.alert(
         "Update available",
         `PayDirt ${latest.versionName} is available. Download and install now?`,
@@ -150,12 +166,15 @@ function AppContent() {
       if (AppState.currentState === "active") void check();
     }, UPDATE_POLL_MS);
     const sub = AppState.addEventListener("change", (s) => {
-      if (s === "active") void check();
+      if (s !== "active") return;
+      void takeUpdateFailure().then((r) => { if (r) showFailure(r); });
+      void check();
     });
     return () => {
       cancelled = true;
       clearInterval(timer);
       sub.remove();
+      failSub?.remove();
     };
   }, []);
 

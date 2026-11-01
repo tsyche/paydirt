@@ -14,6 +14,7 @@ import com.facebook.react.bridge.Promise
 import com.facebook.react.bridge.ReactApplicationContext
 import com.facebook.react.bridge.ReactContextBaseJavaModule
 import com.facebook.react.bridge.ReactMethod
+import com.facebook.react.modules.core.DeviceEventManagerModule
 import com.facebook.react.uimanager.ViewManager
 import java.io.File
 
@@ -26,6 +27,24 @@ class PayDirtNativeModule(reactContext: ReactApplicationContext) :
   ReactContextBaseJavaModule(reactContext) {
 
   override fun getName() = "PayDirtNative"
+
+  init {
+    reactCtx = reactContext
+  }
+
+  // Required so JS can subscribe with NativeEventEmitter.
+  @ReactMethod fun addListener(eventName: String) {}
+  @ReactMethod fun removeListeners(count: Int) {}
+
+  // Returns (and clears) the reason code of a failed update download, or 0 if none.
+  // Covers failures that happened while JS wasn't listening (app backgrounded).
+  @ReactMethod
+  fun takeUpdateFailure(promise: Promise) {
+    val prefs = reactApplicationContext.getSharedPreferences("paydirt_update", Context.MODE_PRIVATE)
+    val reason = prefs.getInt("failed_reason", 0)
+    prefs.edit().remove("failed_reason").apply()
+    promise.resolve(reason)
+  }
 
   @ReactMethod
   fun registerWithNtfy(promise: Promise) {
@@ -66,6 +85,18 @@ class PayDirtNativeModule(reactContext: ReactApplicationContext) :
 
   companion object {
     @Volatile private var pendingDownloadId = -1L
+    @Volatile private var reactCtx: ReactApplicationContext? = null
+
+    // DownloadManager reason codes are >= 1000; HTTP failures report the status (e.g. 404) itself.
+    private fun recordFailure(ctx: Context, reason: Int) {
+      val code = if (reason <= 0) 1 else reason
+      ctx.getSharedPreferences("paydirt_update", Context.MODE_PRIVATE).edit().putInt("failed_reason", code).apply()
+      val rc = reactCtx
+      if (rc != null && rc.hasActiveReactInstance()) {
+        rc.getJSModule(DeviceEventManagerModule.RCTDeviceEventEmitter::class.java)
+          .emit("PayDirtUpdateFailed", code)
+      }
+    }
     private var receiverRegistered = false
 
     @Synchronized
@@ -76,7 +107,17 @@ class PayDirtNativeModule(reactContext: ReactApplicationContext) :
           val id = intent.getLongExtra(DownloadManager.EXTRA_DOWNLOAD_ID, -1L)
           if (id != pendingDownloadId) return
           val dm = c.getSystemService(Context.DOWNLOAD_SERVICE) as DownloadManager
-          val uri = dm.getUriForDownloadedFile(id) ?: return
+          // ACTION_DOWNLOAD_COMPLETE also fires for failed downloads; tell JS instead of silently stopping.
+          dm.query(DownloadManager.Query().setFilterById(id)).use { cur ->
+            if (cur.moveToFirst()) {
+              val status = cur.getInt(cur.getColumnIndexOrThrow(DownloadManager.COLUMN_STATUS))
+              if (status != DownloadManager.STATUS_SUCCESSFUL) {
+                recordFailure(c, cur.getInt(cur.getColumnIndexOrThrow(DownloadManager.COLUMN_REASON)))
+                return
+              }
+            }
+          }
+          val uri = dm.getUriForDownloadedFile(id) ?: run { recordFailure(c, 1); return }
           val install = Intent(Intent.ACTION_VIEW).apply {
             setDataAndType(uri, "application/vnd.android.package-archive")
             addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_GRANT_READ_URI_PERMISSION)

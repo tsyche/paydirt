@@ -5,7 +5,7 @@ vi.mock("react-native", () => ({ NativeModules }));
 vi.mock("expo-file-system", () => ({ File: class {}, Paths: { document: "/mock" } }));
 vi.mock("expo-application", () => ({ nativeBuildVersion: "1" }));
 
-import { justUpdated, parseVersionCode, shouldUpdate } from "./appUpdate";
+import { describeDownloadFailure, justUpdated, parseVersionCode, shouldUpdate } from "./appUpdate";
 
 describe("parseVersionCode", () => {
   it("coerces numbers and strings", () => {
@@ -33,5 +33,14 @@ describe("justUpdated", () => {
     expect(justUpdated(5, 5)).toBe(false);
     expect(justUpdated(5, 6)).toBe(true);
     expect(justUpdated(6, 5)).toBe(false);
+  });
+});
+
+describe("describeDownloadFailure", () => {
+  it("explains out-of-space, HTTP and network failures distinctly", () => {
+    expect(describeDownloadFailure(1006)).toMatch(/storage/);
+    expect(describeDownloadFailure(404)).toMatch(/404/);
+    expect(describeDownloadFailure(1004)).toMatch(/Wi-Fi/);
+    expect(describeDownloadFailure(0)).toMatch(/failed/);
   });
 });

@@ -1,7 +1,7 @@
 import PocketBase from "pocketbase";
 import { Collections } from "./collections";
 import { resumeRealtime as forceRealtimeResume, type RealtimeLike } from "./realtime";
-import { choreLimit, limitWindowDays, type LimitWarning } from "./choreLimit";
+import { choreLimit, limitWindowDays, type LimitWarning, type RecentAssignmentRow } from "./choreLimit";
 import { screenCost, screenDescription, type ScreenPreset } from "./screenTime";
 import type {
   Assignment,
@@ -189,6 +189,26 @@ export class PaydirtClient {
     });
   }
 
+  /** Every not-yet-settled assignment in the household (assigned, waiting on approval, or sent back). */
+  listActiveAssignmentsForHousehold(householdId: string): Promise<Assignment[]> {
+    return this.pb.collection(Collections.Assignments).getFullList<Assignment>({
+      filter: this.pb.filter("chore.household = {:hh} && status != 'approved' && status != 'closed'", {
+        hh: householdId,
+      }),
+      sort: "-created",
+      expand: "chore",
+    });
+  }
+
+  /** Non-closed assignments from the last 31 days (the longest limit window), for at-limit hints. */
+  listRecentAssignmentsForHousehold(householdId: string): Promise<RecentAssignmentRow[]> {
+    const since = new Date(Date.now() - 31 * 86400e3);
+    return this.pb.collection(Collections.Assignments).getFullList<RecentAssignmentRow>({
+      filter: this.pb.filter("chore.household = {:hh} && status != 'closed' && created >= {:t}", { hh: householdId, t: since }),
+      fields: "chore,child,created",
+    });
+  }
+
   /** A kid's approved history, newest first, capped (default 50). */
   async listApprovedHistory(childId: string, limit = 50): Promise<Assignment[]> {
     const result = await this.pb
@@ -324,6 +344,12 @@ export class PaydirtClient {
       filter: this.pb.filter("user = {:u} && created >= {:s} && created < {:e}", { u: userId, s: start, e: end }),
       sort: "-created",
     });
+  }
+
+  /** Ledger rows for several kids in one calendar month, newest first (for the "All kids" ledger view). */
+  async listTransactionsForMonthMulti(userIds: string[], year: number, month: number): Promise<CurrencyTransaction[]> {
+    const lists = await Promise.all(userIds.map((id) => this.listTransactionsForMonth(id, year, month)));
+    return lists.flat().sort((a, b) => b.created.localeCompare(a.created));
   }
 
   /** Approved assignments for a given calendar month (year/month are 1-based). */

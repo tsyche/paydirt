@@ -56,6 +56,28 @@ export async function triggerApkDownload(downloadUrl: string): Promise<boolean> 
   }
 }
 
+// Maps a DownloadManager failure reason to something a parent can act on.
+// 1006 = no space, 1004/1002/1005 = network/HTTP trouble, 1001/1007/1008 = file/storage, 4xx/5xx = HTTP status.
+export function describeDownloadFailure(reason: number): string {
+  if (reason === 1006) return "The device is out of storage. Free some space and try again.";
+  if (reason === 1007) return "No storage is available (is the device plugged in to a computer?). Try again.";
+  if (reason === 1001 || reason === 1008) return "The download could not be saved or resumed. Try again.";
+  if (reason >= 400 && reason < 600) return `The update server answered ${reason}. The new build may not be published yet; try again later.`;
+  if (reason === 1002 || reason === 1004 || reason === 1005 || reason === 1009)
+    return "The download was interrupted or the server could not be reached. Check Wi-Fi and try again.";
+  return "The download failed. Check Wi-Fi and storage, then try again.";
+}
+
+// Reads (and clears) a download failure recorded while the app wasn't listening; 0 = none.
+export async function takeUpdateFailure(): Promise<number> {
+  try {
+    const native = NativeModules.PayDirtNative as { takeUpdateFailure?: () => Promise<number> } | undefined;
+    return (await native?.takeUpdateFailure?.()) ?? 0;
+  } catch {
+    return 0;
+  }
+}
+
 // Convenience: installed version code from expo-application when available.
 export async function getInstalledVersionCode(): Promise<number> {
   try {

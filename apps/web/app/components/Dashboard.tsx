@@ -12,10 +12,11 @@ import type {
   Household,
   SavingsGoal,
   MonthActivity,
+  RecentAssignmentRow,
   SpendRequest,
   User,
 } from "@paydirt/shared";
-import { GOAL_NAME_MAX, GOAL_DETAILS_MAX, parseAssignDraft, serializeAssignDraft, AVATAR_COLORS, REACTIONS, undoApprovalPrompt, avatarUrl, currencyDisplayName, kidAccent, parseGoodsRateOverride, featureTip, screenGrantLabel, errorMessage, limitLabel, limitUnit, payLabel, approveTimePrompt, summarizeMonthActivity, waitingActionCount, payMode, validatePay, MINUTES_STEP, MAX_REWARD_MINUTES } from "@paydirt/shared";
+import { kidsAtLimit, knownChoreNames, GOAL_NAME_MAX, GOAL_DETAILS_MAX, parseAssignDraft, serializeAssignDraft, AVATAR_COLORS, REACTIONS, undoApprovalPrompt, avatarUrl, currencyDisplayName, kidAccent, parseGoodsRateOverride, featureTip, screenGrantLabel, errorMessage, limitLabel, limitUnit, payLabel, approveTimePrompt, summarizeMonthActivity, waitingActionCount, payMode, validatePay, MINUTES_STEP, MAX_REWARD_MINUTES } from "@paydirt/shared";
 import { client } from "../lib/client";
 import { HouseholdSettings } from "./HouseholdSettings";
 import { AppearanceControls } from "./AppearanceControls";
@@ -71,6 +72,8 @@ export function Dashboard({
   const householdId = user.household;
   const [household, setHousehold] = useState<Household | null>(null);
   const [kids, setKids] = useState<User[]>([]);
+  const [recentAssignments, setRecentAssignments] = useState<RecentAssignmentRow[]>([]);
+  const [activeAssignments, setActiveAssignments] = useState<Expanded<Assignment>[]>([]);
   const [goalsByKid, setGoalsByKid] = useState<Record<string, SavingsGoal[]>>({});
   const [chores, setChores] = useState<Chore[]>([]);
   const [approvals, setApprovals] = useState<Expanded<Assignment>[]>([]);
@@ -84,6 +87,7 @@ export function Dashboard({
   const [error, setError] = useState("");
   const [templateFill, setTemplateFill] = useState<ChoreTemplate | null>(null);
   const [tab, setTab] = useState<TabKey>("approvals");
+  const [ledgerKid, setLedgerKid] = useState<string | undefined>();
   const [celebrate, setCelebrate] = useState(0);
   const party = () => setCelebrate((n) => n + 1);
   /** True to proceed; asks first only when an approval grants screen time (irreversible). */
@@ -103,7 +107,7 @@ export function Dashboard({
 
   const reload = useCallback(async () => {
     try {
-      const [hh, k, c, a, s, p, ra, grants, bonus] = await Promise.all([
+      const [hh, k, c, a, s, p, ra, grants, bonus, active, recent] = await Promise.all([
         client.getHousehold(householdId),
         client.listChildren(householdId),
         client.listChores(householdId),
@@ -113,12 +117,16 @@ export function Dashboard({
         client.listRecentlyApproved(householdId, 8),
         client.listScreenTimeGrants(householdId),
         client.listBonusGrants(householdId),
+        client.listActiveAssignmentsForHousehold(householdId),
+        client.listRecentAssignmentsForHousehold(householdId),
       ]);
       const goals = await Promise.all(k.map((kid) => client.listGoals(kid.id)));
       setHousehold(hh);
       setKids(k);
       setGoalsByKid(Object.fromEntries(k.map((kid, i) => [kid.id, goals[i]])));
       setChores(c);
+      setActiveAssignments(active as Expanded<Assignment>[]);
+      setRecentAssignments(recent);
       setApprovals(a as Expanded<Assignment>[]);
       setSelectedApprovals(new Set());
       setSpend(s as Expanded<SpendRequest>[]);
@@ -157,6 +165,14 @@ export function Dashboard({
       setError(errorMessage(e));
     }
   };
+
+  // Who already holds each chore (so Assign shows it) and what each kid is working on.
+  const assignedByChore: Record<string, Set<string>> = {};
+  const activeByKid: Record<string, Expanded<Assignment>[]> = {};
+  for (const a of activeAssignments) {
+    (assignedByChore[a.chore] ??= new Set()).add(a.child);
+    (activeByKid[a.child] ??= []).push(a);
+  }
 
   const waitingCount = waitingActionCount({ approvals, spend, proposals, screenGrants, bonusGrants });
 
@@ -255,12 +271,23 @@ export function Dashboard({
                 )}
               </div>
             </div>
-            <GoalList kid={kid} goals={goalsByKid[kid.id] ?? []} onChanged={reload} />
             <div className="inline kid-toolbar">
               <AdjustControl kid={kid} onAdjusted={reload} />
               <GoalControl kid={kid} onChanged={reload} />
-              <LedgerToggle kidId={kid.id} kidName={kid.display_name} />
+            </div>
+            <KidChores assignments={activeByKid[kid.id] ?? []} currencyName={currencyName} />
+            <GoalList kid={kid} goals={goalsByKid[kid.id] ?? []} onChanged={reload} />
+            <KidEarnings
+              kid={kid}
+              currencyName={currencyName}
+              onMore={() => {
+                setLedgerKid(kid.id);
+                setTab("ledger");
+              }}
+            />
+            <div className="inline kid-toolbar">
               <AvatarControl kid={kid} onSaved={reload} />
+              <LedgerToggle kidId={kid.id} kidName={kid.display_name} />
             </div>
           </div>
         ))}
@@ -559,7 +586,7 @@ export function Dashboard({
         <StarterChores
           householdId={householdId}
           parentId={user.id}
-          existingNames={chores.map((c) => c.name)}
+          existingNames={knownChoreNames(chores)}
           onAdded={reload}
         />
         <CreateChore
@@ -570,11 +597,19 @@ export function Dashboard({
           onTemplateClear={() => setTemplateFill(null)}
         />
         {chores.map((c) => (
-          <ChoreRow key={c.id} chore={c} kids={kids} currencyName={currencyName} onChanged={reload} />
+          <ChoreRow
+            key={c.id}
+            chore={c}
+            kids={kids}
+            assignedKidIds={assignedByChore[c.id]}
+            atLimit={kidsAtLimit(c, recentAssignments)}
+            currencyName={currencyName}
+            onChanged={reload}
+          />
         ))}
         </>)}
 
-        {tab === "ledger" && <LedgerView household={household} />}
+        {tab === "ledger" && <LedgerView household={household} initialKidId={ledgerKid} />}
         {tab === "alerts" && <InboxView userId={user.id} />}
       </main>
 
@@ -819,7 +854,8 @@ function GoalList({
         aria-expanded={section}
         onClick={() => setSection((v) => !v)}
       >
-        <span aria-hidden="true">{section ? "▾" : "▸"}</span> 🎯 Goals ({goals.length})
+        <span className="twisty" aria-hidden="true">{section ? "▾" : "▸"}</span>
+        🎯 Goals ({goals.length})
       </button>
       {section && goals.map((g) => {
         const open = expanded.has(g.id);
@@ -833,6 +869,7 @@ function GoalList({
               title={open ? "Click to collapse" : g.name}
               onClick={() => toggle(g.id)}
             >
+              <span className="twisty" aria-hidden="true">{open ? "▾" : "▸"}</span>
               {g.name}
             </button>
             <span className="goal-progress muted">
@@ -1094,11 +1131,15 @@ function AdjustControl({ kid, onAdjusted }: { kid: User; onAdjusted: () => void 
 function ChoreRow({
   chore,
   kids,
+  assignedKidIds,
+  atLimit,
   currencyName,
   onChanged,
 }: {
   chore: Chore;
   kids: User[];
+  assignedKidIds?: Set<string>;
+  atLimit?: Map<string, number>;
   currencyName: string;
   onChanged: () => void;
 }) {
@@ -1178,10 +1219,13 @@ function ChoreRow({
     return (
       <div className="card row" style={{ flexWrap: "wrap", gap: 10 }}>
         <div style={{ flex: 1, minWidth: 160 }}>
-          <div style={{ fontWeight: 600 }}>
-            {chore.race ? "🏁 " : ""}
-            {chore.name}
-            {chore.photo_required && <span className="muted"> 📷</span>}
+          <div className="chore-title">
+            <span style={{ fontWeight: 600 }}>{chore.name}</span>
+            <span className="chore-badges">
+              {chore.race && <span title="Race: first to finish wins">🏁</span>}
+              {chore.photo_required && <span title="Photo required">📷</span>}
+              {chore.reminder_time && <span title="Daily reminder">⏰ {chore.reminder_time}</span>}
+            </span>
           </div>
           <div className="muted">
             <span className="balance" style={{ fontSize: 13 }}>{payLabel(chore, currencyName)}</span>
@@ -1190,12 +1234,11 @@ function ChoreRow({
             {chore.due_at
               ? ` · due ${new Date(chore.due_at.replace(" ", "T")).toLocaleString()}`
               : ""}
-            {chore.reminder_time ? ` · ⏰ ${chore.reminder_time}` : ""}
             {limitLabel(chore) ? ` · max ${limitLabel(chore)}` : ""}
           </div>
         </div>
         <div className="inline" style={{ gap: 6 }}>
-          <AssignControl chore={chore} kids={kids} onAssigned={onChanged} />
+          <AssignControl chore={chore} kids={kids} assignedKidIds={assignedKidIds} atLimit={atLimit} onAssigned={onChanged} />
           <button className="sm" onClick={() => setEditing(true)} title="Edit chore">✏️</button>
         </div>
       </div>
@@ -1618,19 +1661,22 @@ function AvatarControl({ kid, onSaved }: { kid: User; onSaved: () => void }) {
   const [flDeviceId, setFlDeviceId] = useState(kid.fl_device_id ?? "");
   const [digestWeekday, setDigestWeekday] = useState(kid.digest_weekday ?? "");
   const [digestWeekend, setDigestWeekend] = useState(kid.digest_weekend ?? "");
+  const [flOpen, setFlOpen] = useState(false);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
 
   if (!open) {
     return (
       <button className="sm" style={{ fontSize: 13 }} onClick={() => setOpen(true)}>
-        ✏️ Edit avatar & settings
+        ⚙️ Edit avatar & settings
       </button>
     );
   }
 
   return (
-    <div className="panel-full" style={{ display: "flex", flexWrap: "wrap", gap: 8, alignItems: "center" }}>
+    <div className="panel-full kid-settings">
+      <div className="kid-settings-title">Avatar & rates</div>
+      <div className="kid-settings-row">
       <input
         placeholder="Emoji (e.g. 🦊)"
         value={avatar}
@@ -1671,22 +1717,11 @@ function AvatarControl({ kid, onSaved }: { kid: User; onSaved: () => void }) {
         style={{ width: 150 }}
         min={0}
       />
-      <label
-        style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 13, cursor: "pointer" }}
-        title="Quieter kid home: no badge shelf, confetti, or count-up"
-      >
-        <input type="checkbox" checked={calmMode} onChange={(e) => setCalmMode(e.target.checked)} />
-        Calm mode
-      </label>
-      <label
-        style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 13, cursor: "pointer" }}
-        title={featureTip("simplified_mode")}
-      >
-        <input type="checkbox" checked={simplified} onChange={(e) => setSimplified(e.target.checked)} />
-        Simplified mode
-      </label>
+      </div>
+      <div className="kid-settings-title">Chore summary push</div>
+      <div className="kid-settings-row">
       <label className="muted" style={{ fontSize: 13 }} title={featureTip("chore_digest")}>
-        Chore summary: weekdays{" "}
+        weekdays{" "}
         <input
           type="time"
           aria-label="Chore summary weekday time"
@@ -1701,6 +1736,35 @@ function AvatarControl({ kid, onSaved }: { kid: User; onSaved: () => void }) {
           onChange={(e) => setDigestWeekend(e.target.value)}
         />
       </label>
+      </div>
+      <div className="kid-settings-title">Modes</div>
+      <div className="kid-settings-row">
+      <label
+        style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 13, cursor: "pointer" }}
+        title="Quieter kid home: no badge shelf, confetti, or count-up"
+      >
+        <input type="checkbox" checked={calmMode} onChange={(e) => setCalmMode(e.target.checked)} />
+        Calm mode
+      </label>
+      <label
+        style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 13, cursor: "pointer" }}
+        title={featureTip("simplified_mode")}
+      >
+        <input type="checkbox" checked={simplified} onChange={(e) => setSimplified(e.target.checked)} />
+        Simplified mode
+      </label>
+      </div>
+      <button
+        type="button"
+        className="goal-section-toggle"
+        aria-expanded={flOpen}
+        onClick={() => setFlOpen((v) => !v)}
+      >
+        <span className="twisty" aria-hidden="true">{flOpen ? "▾" : "▸"}</span>
+        Family Link
+      </button>
+      {flOpen && (
+        <div className="kid-settings-row">
       <input
         placeholder="Family Link child ID"
         aria-label="Family Link child ID"
@@ -1717,6 +1781,8 @@ function AvatarControl({ kid, onSaved }: { kid: User; onSaved: () => void }) {
         onChange={(e) => setFlDeviceId(e.target.value)}
         style={{ width: 190 }}
       />
+        </div>
+      )}
       <button
         className="primary sm"
         disabled={busy}
@@ -1759,15 +1825,22 @@ function AvatarControl({ kid, onSaved }: { kid: User; onSaved: () => void }) {
 function AssignControl({
   chore,
   kids,
+  assignedKidIds,
+  atLimit,
   onAssigned,
 }: {
   chore: Chore;
   kids: User[];
+  assignedKidIds?: Set<string>;
+  atLimit?: Map<string, number>;
   onAssigned: () => void;
 }) {
   // Picks persist immediately (localStorage) so a reload doesn't lose them before Assign is pressed.
+  // Kids who already hold this chore show as checked + locked; only the open boxes are drafts.
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState<{ text: string; ok: boolean } | null>(null);
+  const held = (id: string) => assignedKidIds?.has(id) ?? false;
 
   useEffect(() => {
     try {
@@ -1790,26 +1863,33 @@ function AssignControl({
     else next.add(kidId);
     setSelected(next);
     persist(next);
+    setMsg(null);
   }
 
+  const picks = [...selected].filter((id) => !held(id) && kids.some((k) => k.id === id));
+
   async function assign() {
-    if (selected.size === 0) return;
+    if (picks.length === 0) return;
     setBusy(true);
+    setMsg(null);
     try {
-      const ids = [...selected].filter((id) => kids.some((k) => k.id === id));
-      const over = await client.assignLimitWarnings(chore.id, ids);
+      const over = await client.assignLimitWarnings(chore.id, picks);
       if (over.length > 0) {
         const names = over
           .map((w) => `${kids.find((k) => k.id === w.childId)?.display_name ?? "A kid"} (${w.count} already)`)
           .join(", ");
         if (!window.confirm(`"${chore.name}" is limited to ${limitLabel(chore)}. ${names}. Assign anyway?`)) return;
       }
-      for (const kidId of ids) {
+      for (const kidId of picks) {
         await client.assignChore(chore.id, kidId);
       }
+      const names = picks.map((id) => kids.find((k) => k.id === id)?.display_name ?? "kid").join(", ");
       setSelected(new Set());
       persist(new Set());
+      setMsg({ text: `Assigned to ${names} ✅`, ok: true });
       onAssigned();
+    } catch (e) {
+      setMsg({ text: errorMessage(e), ok: false });
     } finally {
       setBusy(false);
     }
@@ -1820,24 +1900,86 @@ function AssignControl({
       {kids.map((k) => (
         <label
           key={k.id}
-          style={{ display: "flex", alignItems: "center", gap: 4, cursor: "pointer", fontSize: 13 }}
+          title={held(k.id) ? "Already assigned" : undefined}
+          style={{ display: "flex", alignItems: "center", gap: 4, cursor: held(k.id) ? "default" : "pointer", fontSize: 13 }}
         >
           <input
             type="checkbox"
-            checked={selected.has(k.id)}
+            checked={held(k.id) || selected.has(k.id)}
             onChange={() => toggle(k.id)}
-            disabled={busy}
+            disabled={busy || held(k.id)}
           />
           {k.avatar_emoji ? `${k.avatar_emoji} ` : ""}{k.display_name}
+          {held(k.id) && <span className="muted"> ✓ assigned</span>}
+          {!held(k.id) && atLimit?.has(k.id) && (
+            <span className="muted" title={`Already at the limit (${limitLabel(chore)}). You can still assign to override.`}>
+              {" "}· at limit ({limitLabel(chore)})
+            </span>
+          )}
         </label>
       ))}
-      <button
-        className="tonal sm"
-        onClick={assign}
-        disabled={busy || selected.size === 0}
-      >
-        Assign
+      <button className="tonal sm" onClick={assign} disabled={busy || picks.length === 0}>
+        {picks.length > 0 ? `Assign (${picks.length})` : "Assign"}
       </button>
+      {msg && (
+        <span role="status" className={msg.ok ? "muted" : "error"} style={{ flexBasis: "100%", fontSize: 13 }}>
+          {msg.text}
+        </span>
+      )}
+    </div>
+  );
+}
+
+function KidEarnings({ kid, currencyName, onMore }: { kid: User; currencyName: string; onMore: () => void }) {
+  const [rows, setRows] = useState<Expanded<Assignment>[]>([]);
+  useEffect(() => {
+    void client.listApprovedHistory(kid.id, 3).then((r) => setRows(r as Expanded<Assignment>[]));
+  }, [kid.id, kid.balance]);
+  return (
+    <div className="goal-list">
+      <div className="goal-section-toggle" style={{ cursor: "default" }}>💰 Recent earnings</div>
+      {rows.length === 0 && <p className="muted" style={{ margin: "0 0 8px", fontSize: 13 }}>No approved chores yet.</p>}
+      {rows.map((a) => {
+        const chore = a.expand?.chore as Chore | undefined;
+        return (
+          <div className="goal-row" key={a.id}>
+            <span className="goal-name-static">{chore?.name ?? "Chore"}{a.reaction ? ` ${a.reaction}` : ""}</span>
+            <span className="goal-progress muted">+{chore ? payLabel(chore, currencyName) : "?"}</span>
+          </div>
+        );
+      })}
+      {rows.length > 0 && (
+        <button type="button" className="sm" onClick={onMore}>More in ledger →</button>
+      )}
+    </div>
+  );
+}
+
+function KidChores({ assignments, currencyName }: { assignments: Expanded<Assignment>[]; currencyName: string }) {
+  const [open, setOpen] = useState(true);
+  const STATUS: Record<string, string> = { assigned: "To do", completed: "Waiting", rejected: "Try again" };
+  return (
+    <div className="goal-list">
+      <button type="button" className="goal-section-toggle" aria-expanded={open} onClick={() => setOpen((v) => !v)}>
+        <span className="twisty" aria-hidden="true">{open ? "▾" : "▸"}</span>
+        📋 Chores ({assignments.length})
+      </button>
+      {open && assignments.length === 0 && <p className="muted" style={{ margin: "0 0 8px", fontSize: 13 }}>Nothing assigned right now.</p>}
+      {open &&
+        assignments.map((a) => {
+          const chore = a.expand?.chore as Chore | undefined;
+          return (
+            <div className="goal-row" key={a.id}>
+              <span className="goal-name-static">
+                {chore?.race ? "🏁 " : ""}
+                {chore?.name ?? "Chore"}
+              </span>
+              <span className="goal-progress muted">
+                {chore ? payLabel(chore, currencyName) : ""} · {STATUS[a.status] ?? a.status}
+              </span>
+            </div>
+          );
+        })}
     </div>
   );
 }

@@ -92,6 +92,11 @@ export function addableStarterChores(band: StarterBand, existingNames: string[])
   return band.chores.filter((c) => !have.has(c.name.toLowerCase()));
 }
 
+/** Names a household "has" for starter-picker purposes: current names plus the starter each chore came from. */
+export function knownChoreNames(chores: { name: string; starter_key?: string }[]): string[] {
+  return chores.flatMap((c) => (c.starter_key ? [c.name, c.starter_key] : [c.name]));
+}
+
 /** createChore payload for a starter chore. */
 export function starterChoreInput(
   c: StarterChore,
@@ -101,6 +106,7 @@ export function starterChoreInput(
   return {
     household: householdId,
     name: c.name,
+    starter_key: c.name,
     description: c.description,
     reward: c.reward,
     type: c.type,

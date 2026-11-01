@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { addableStarterChores, STARTER_BANDS } from "./starterChores";
+import { addableStarterChores, knownChoreNames, starterChoreInput, STARTER_BANDS } from "./starterChores";
 
 describe("starter chores", () => {
   it("has unique band ids and non-empty bands", () => {
@@ -66,5 +66,20 @@ describe("addableStarterChores", () => {
     const addable = addableStarterChores(band, [`  ${first.toUpperCase()} `]);
     expect(addable.some((c) => c.name === first)).toBe(false);
     expect(addable).toHaveLength(band.chores.length - 1);
+  });
+});
+
+describe("renamed starter chores", () => {
+  it("still count as added after the chore is renamed", () => {
+    const band = STARTER_BANDS[0]!;
+    const orig = band.chores[0]!;
+    const created = { ...starterChoreInput(orig, "h", "p"), name: "Feed the cats" };
+    expect(created.starter_key).toBe(orig.name);
+    const addable = addableStarterChores(band, knownChoreNames([created]));
+    expect(addable.some((c) => c.name === orig.name)).toBe(false);
+  });
+
+  it("knownChoreNames includes plain names for chores with no starter origin", () => {
+    expect(knownChoreNames([{ name: "Dishes" }])).toEqual(["Dishes"]);
   });
 });

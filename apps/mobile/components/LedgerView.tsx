@@ -5,9 +5,11 @@ import type { CurrencyTransaction, Household, User } from "@paydirt/shared";
 import { currencyDisplayName } from "@paydirt/shared";
 import { client } from "../lib/client";
 
-export function LedgerView({ household }: { household: Household | null }) {
+export const ALL_KIDS = "all";
+
+export function LedgerView({ household, initialKidId }: { household: Household | null; initialKidId?: string }) {
   const [kids, setKids] = useState<User[]>([]);
-  const [kidId, setKidId] = useState<string>("");
+  const [kidId, setKidId] = useState<string>(initialKidId ?? ALL_KIDS);
   const [year, setYear] = useState(new Date().getFullYear());
   const [month, setMonth] = useState(new Date().getMonth() + 1);
   const [txns, setTxns] = useState<CurrencyTransaction[]>([]);
@@ -17,18 +19,18 @@ export function LedgerView({ household }: { household: Household | null }) {
     if (!household) return;
     void client.listChildren(household.id).then((k) => {
       setKids(k);
-      if (k.length && !kidId) setKidId(k[0].id);
     });
   }, [household]);
 
   useEffect(() => {
-    if (!kidId) return;
+    if (kidId === ALL_KIDS && kids.length === 0) return;
     setBusy(true);
-    void client
-      .listTransactionsForMonth(kidId, year, month)
+    void (kidId === ALL_KIDS
+      ? client.listTransactionsForMonthMulti(kids.map((k) => k.id), year, month)
+      : client.listTransactionsForMonth(kidId, year, month))
       .then(setTxns)
       .finally(() => setBusy(false));
-  }, [kidId, year, month]);
+  }, [kidId, kids, year, month]);
 
   const currency = currencyDisplayName(household);
   const total = txns.reduce((s, t) => s + t.amount, 0);
@@ -45,6 +47,9 @@ export function LedgerView({ household }: { household: Household | null }) {
   return (
     <ScrollView contentContainerStyle={styles.content}>
       <ScrollView horizontal style={{ marginBottom: 8 }}>
+        <Chip selected={kidId === ALL_KIDS} onPress={() => setKidId(ALL_KIDS)} style={{ marginRight: 4 }}>
+          All kids
+        </Chip>
         {kids.map((k) => (
           <Chip
             key={k.id}
@@ -68,7 +73,9 @@ export function LedgerView({ household }: { household: Household | null }) {
         <Card key={t.id} style={styles.card}>
           <Card.Content style={styles.txRow}>
             <View style={{ flex: 1 }}>
-              <Text variant="bodySmall" style={{ color: "#888" }}>{t.created.slice(0, 10)}</Text>
+              <Text variant="bodySmall" style={{ color: "#888" }}>
+                {t.created.slice(0, 10)}{kidId === ALL_KIDS ? ` · ${kids.find((k) => k.id === t.user)?.display_name ?? ""}` : ""}
+              </Text>
               <Text variant="bodyMedium">{t.reason}</Text>
             </View>
             <Text variant="titleSmall" style={{ color: t.amount >= 0 ? "green" : "red" }}>

@@ -16,8 +16,8 @@ import {
   useTheme,
 } from "react-native-paper";
 import { SafeAreaView } from "react-native-safe-area-context";
-import type { Assignment, Chore, ChoreProposal, ChoreTemplate, Household, PayMode, SpendRequest, TimeGrant, User } from "@paydirt/shared";
-import { parseAssignDraft, serializeAssignDraft, currencyDisplayName, screenGrantLabel, errorMessage, kidAccent, limitLabel, limitUnit, payLabel, payMode, validatePay, waitingActionCount } from "@paydirt/shared";
+import type { Assignment, Chore, ChoreProposal, ChoreTemplate, Household, PayMode, RecentAssignmentRow, SpendRequest, TimeGrant, User } from "@paydirt/shared";
+import { kidsAtLimit, knownChoreNames, parseAssignDraft, serializeAssignDraft, currencyDisplayName, screenGrantLabel, errorMessage, kidAccent, limitLabel, limitUnit, payLabel, payMode, validatePay, waitingActionCount } from "@paydirt/shared";
 import { client } from "../lib/client";
 import { isNetworkError } from "../lib/reachability";
 import { useRealtimeResume } from "../lib/useRealtimeResume";
@@ -85,6 +85,7 @@ export function ParentHome({
   const [snack, setSnack] = useState("");
   const [tab, setTab] = useState("approvals");
   const [detailKid, setDetailKid] = useState<string | null>(null);
+  const [ledgerKid, setLedgerKid] = useState<string | undefined>();
   const [approvedKey, setApprovedKey] = useState(0);
   const [celebrate, setCelebrate] = useState(0);
   const party = () => setCelebrate((n) => n + 1);
@@ -127,6 +128,8 @@ export function ParentHome({
   const [savingEdit, setSavingEdit] = useState(false);
 
   // Assignment state: choreId → Set of selected kidIds
+  const [heldByChore, setHeldByChore] = useState<Record<string, Set<string>>>({});
+  const [recentRows, setRecentRows] = useState<RecentAssignmentRow[]>([]);
   const [assignSelections, setAssignSelections] = useState<Record<string, Set<string>>>({});
   const [assigning, setAssigning] = useState<Record<string, boolean>>({});
   // Picks persist immediately so an app update/restart doesn't lose them before Assign is pressed.
@@ -164,7 +167,7 @@ export function ParentHome({
     setRefreshing(true);
     setApprovedKey((k) => k + 1);
     try {
-      const [hh, k, a, s, c, p, grants, bonus] = await Promise.all([
+      const [hh, k, a, s, c, p, grants, bonus, active, recent] = await Promise.all([
         client.getHousehold(user.household),
         client.listChildren(user.household),
         client.listPendingApprovals(user.household),
@@ -173,6 +176,8 @@ export function ParentHome({
         client.listPendingProposals(user.household),
         client.listScreenTimeGrants(user.household),
         client.listBonusGrants(user.household),
+        client.listActiveAssignmentsForHousehold(user.household),
+        client.listRecentAssignmentsForHousehold(user.household),
       ]);
       setHousehold(hh);
       setKids(k);
@@ -181,6 +186,8 @@ export function ParentHome({
       setScreenGrants(grants as ExpandedSpend[]);
       setBonusGrants(bonus as ExpandedGrant[]);
       setChores(c);
+      setHeldByChore(active.reduce<Record<string, Set<string>>>((m, x) => { (m[x.chore] ??= new Set()).add(x.child); return m; }, {}));
+      setRecentRows(recent);
       setProposals(p as ExpandedProposal[]);
     } catch (e) {
       // Network failures already surface via the offline banner — an extra
@@ -498,7 +505,7 @@ export function ParentHome({
     if (!selected || selected.size === 0) return;
     setAssigning((prev) => ({ ...prev, [choreId]: true }));
     try {
-      const ids = [...selected].filter((id) => kids.some((k) => k.id === id));
+      const ids = [...selected].filter((id) => kids.some((k) => k.id === id) && !heldByChore[choreId]?.has(id));
       if (ids.length === 0) {
         setAssignSelections((prev) => ({ ...prev, [choreId]: new Set() }));
         return;
@@ -543,6 +550,12 @@ export function ParentHome({
         household={household}
         onClose={() => {
           setDetailKid(null);
+          void reload();
+        }}
+        onOpenLedger={(id) => {
+          setLedgerKid(id);
+          setDetailKid(null);
+          setTab("ledger");
           void reload();
         }}
       />
@@ -600,23 +613,51 @@ export function ParentHome({
                 onPress={() => setDetailKid(kid.id)}
                 style={[styles.kidChipWrap, { borderLeftColor: kidAccent(kid.color, theme.colors.primary) }]}
               >
-                <Avatar user={kid} size={36} />
-                <View style={styles.flex1}>
-                  <Text style={styles.kidName}>{kid.display_name}</Text>
-                  <Text style={[styles.kidBalance, { color: theme.colors.primary }]}>
-                    {kid.balance} {currencyName}
-                    {(kid.goods_rate ?? goodsRate) > 0 ? `  ·  $${(kid.balance / (kid.goods_rate ?? goodsRate)).toFixed(2)}` : ""}
-                  </Text>
+                <View style={styles.kidChipRow}>
+                  <Avatar user={kid} size={36} />
+                  <View style={styles.flex1}>
+                    <Text style={styles.kidName}>{kid.display_name}</Text>
+                    <Text style={[styles.kidBalance, { color: theme.colors.primary }]}>
+                      {kid.balance} {currencyName}
+                      {(kid.goods_rate ?? goodsRate) > 0 ? `  ·  $${(kid.balance / (kid.goods_rate ?? goodsRate)).toFixed(2)}` : ""}
+                    </Text>
+                  </View>
+                  <Text style={[styles.kidChevron, { color: theme.colors.onSurfaceVariant }]}>›</Text>
                 </View>
-                <Text style={[styles.kidChevron, { color: theme.colors.onSurfaceVariant }]}>›</Text>
               </Card>
             ))}
           </View>
         )}
+        {tab === "kids" && kids.length > 0 && (
+          <>
+            <Card style={styles.broadcastCard}>
+              <Card.Content style={styles.broadcastContent}>
+                <TextInput
+                  mode="outlined"
+                  label="Message all kids"
+                  placeholder="e.g. Dinner in 10 minutes!"
+                  value={broadcastMsg}
+                  onChangeText={setBroadcastMsg}
+                  style={styles.broadcastInput}
+                  dense
+                />
+                <Button
+                  mode="contained-tonal"
+                  onPress={broadcast}
+                  disabled={broadcasting || !broadcastMsg.trim()}
+                  icon="bullhorn"
+                  style={styles.broadcastBtn}
+                >
+                  Send
+                </Button>
+              </Card.Content>
+            </Card>
+          </>
+        )}
         {tab === "kids" && kids.length > 0 && <ActivityReport kids={kids} currencyName={currencyName} />}
 
-        {tab === "ledger" && household && <LedgerView household={household} />}
-        {/* Settings tab: broadcast + appearance */}
+        {tab === "ledger" && household && <LedgerView household={household} initialKidId={ledgerKid} />}
+        {/* Settings tab: appearance + household */}
         {tab === "settings" && (
           <>
         <Card style={styles.broadcastCard}>
@@ -706,28 +747,6 @@ export function ParentHome({
                 </View>
               </View>
             )}
-          </Card.Content>
-        </Card>
-        <Card style={styles.broadcastCard}>
-          <Card.Content style={styles.broadcastContent}>
-            <TextInput
-              mode="outlined"
-              label="Message all kids"
-              placeholder="e.g. Dinner in 10 minutes!"
-              value={broadcastMsg}
-              onChangeText={setBroadcastMsg}
-              style={styles.broadcastInput}
-              dense
-            />
-            <Button
-              mode="contained-tonal"
-              onPress={broadcast}
-              disabled={broadcasting || !broadcastMsg.trim()}
-              icon="bullhorn"
-              style={styles.broadcastBtn}
-            >
-              Send
-            </Button>
           </Card.Content>
         </Card>
         <Card style={styles.broadcastCard}>
@@ -1025,7 +1044,7 @@ export function ParentHome({
         <StarterChores
           householdId={user.household}
           parentId={user.id}
-          existingNames={chores.map((c) => c.name)}
+          existingNames={knownChoreNames(chores)}
           onAdded={() => void reload()}
           onMessage={setSnack}
         />
@@ -1181,6 +1200,9 @@ export function ParentHome({
 
         {chores.map((chore) => {
           const sel = assignSelections[chore.id] ?? new Set<string>();
+          const held = heldByChore[chore.id] ?? new Set<string>();
+          const atLimit = kidsAtLimit(chore, recentRows);
+          const picks = [...sel].filter((id) => !held.has(id)).length;
           const busy = assigning[chore.id] ?? false;
           const isEditing = editingChoreId === chore.id;
           return (
@@ -1241,19 +1263,22 @@ export function ParentHome({
                   <>
                     <View style={styles.choreRow}>
                       <View style={{ flex: 1 }}>
-                        <Text variant="titleSmall" style={{ fontWeight: "700" }}>
-                          {chore.race ? "🏁 " : ""}{chore.name}
-                          {chore.photo_required ? " 📷" : ""}
-                        </Text>
+                        <View style={styles.choreTitle}>
+                          <Text variant="titleSmall" style={{ fontWeight: "700" }}>{chore.name}</Text>
+                          {(chore.race || chore.photo_required || chore.reminder_time) && (
+                            <Text variant="bodySmall">
+                              {chore.race ? "🏁 " : ""}{chore.photo_required ? "📷 " : ""}{chore.reminder_time ? `⏰ ${chore.reminder_time}` : ""}
+                            </Text>
+                          )}
+                        </View>
                         <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant }}>
                           {payLabel(chore, currencyName)} · {chore.type}
                           {chore.cadence ? ` (${chore.cadence})` : ""}
-                          {chore.reminder_time ? ` · ⏰ ${chore.reminder_time}` : ""}
                           {limitLabel(chore) ? ` · max ${limitLabel(chore)}` : ""}
                           {chore.due_at ? ` · 📅 ${chore.due_at.slice(0, 10)}` : ""}
                         </Text>
                       </View>
-                      <View style={{ flexDirection: "row", gap: 4 }}>
+                      <View style={{ flexDirection: "column", alignItems: "center" }}>
                         <Button mode="text" compact onPress={() => startEditChore(chore)} icon="pencil" style={{ minWidth: 0 }}>{""}</Button>
                         <Button mode="text" compact onPress={() => confirmDeactivate(chore.id, chore.name)} icon="archive-off-outline" textColor={theme.colors.error} style={{ minWidth: 0 }}>{""}</Button>
                       </View>
@@ -1263,18 +1288,20 @@ export function ParentHome({
                         {kids.map((kid) => (
                           <Chip
                             key={kid.id}
-                            selected={sel.has(kid.id)}
+                            selected={held.has(kid.id) || sel.has(kid.id)}
+                            disabled={held.has(kid.id)}
                             onPress={() => toggleKidForChore(chore.id, kid.id)}
                             compact
                             style={styles.kidAssignChip}
                           >
                             {kid.avatar_emoji || "🧒"} {kid.display_name}
+                            {held.has(kid.id) ? " · assigned" : atLimit.has(kid.id) ? ` · at limit` : ""}
                           </Chip>
                         ))}
                         <Button
                           mode="contained-tonal"
                           onPress={() => void assignChore(chore.id)}
-                          disabled={busy || sel.size === 0}
+                          disabled={busy || picks === 0}
                           compact
                           style={styles.assignBtn}
                         >
@@ -1332,16 +1359,10 @@ const styles = StyleSheet.create({
   content: { padding: 16, gap: 10, paddingBottom: 32 },
 
   kidsRow: { gap: 8 },
-  kidChipWrap: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 10,
-    borderRadius: 16,
-    padding: 14,
-    borderLeftWidth: 5,
-  },
+  kidChipWrap: { borderRadius: 16, borderLeftWidth: 5 },
+  kidChipRow: { flexDirection: "row", alignItems: "center", gap: 10, padding: 14 },
   flex1: { flex: 1 },
-  kidChevron: { fontSize: 28, opacity: 0.6 },
+  kidChevron: { fontSize: 40, lineHeight: 40, opacity: 0.6, marginLeft: "auto" },
   kidName: { fontSize: 14, fontWeight: "700" },
   kidBalance: { fontSize: 13, fontWeight: "600" },
 
@@ -1384,6 +1405,7 @@ const styles = StyleSheet.create({
   segmented: { marginTop: 2 },
   switchRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingVertical: 6 },
   templateRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingVertical: 4, gap: 8 },
+  choreTitle: { flexDirection: "row", flexWrap: "wrap", alignItems: "baseline", columnGap: 8 },
   choreRow: { flexDirection: "row", justifyContent: "space-between", marginBottom: 8 },
   assignRow: { flexDirection: "row", flexWrap: "wrap", gap: 6, marginTop: 4, alignItems: "center" },
   kidAssignChip: {},
