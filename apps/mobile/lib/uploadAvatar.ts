@@ -36,3 +36,18 @@ export async function pickAndUploadAvatar(userId: string): Promise<AvatarUploadR
   if (res.status >= 400) throw new Error(`Avatar upload failed (${res.status}): ${res.body}`);
   return "done";
 }
+
+/** Pick + upload with user feedback; resolves true when the photo changed. */
+export async function changeAvatar(userId: string, onMessage: (m: string) => void): Promise<boolean> {
+  try {
+    const res = await pickAndUploadAvatar(userId);
+    if (res === "no-permission") onMessage("Allow photo access to pick a picture.");
+    else if (res === "done") {
+      onMessage("Photo updated");
+      return true;
+    }
+  } catch (e) {
+    onMessage(e instanceof Error ? e.message : "Couldn't update the photo.");
+  }
+  return false;
+}

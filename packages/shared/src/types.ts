@@ -243,6 +243,13 @@ export interface Broadcast extends BaseRecord {
   message: string;
 }
 
+/** A kid's one-tap reply to a broadcast; see `REPLY_OPTIONS`. One per kid per broadcast. */
+export interface BroadcastReply extends BaseRecord {
+  broadcast: string; // -> broadcasts.id
+  child: string; // -> users.id
+  code: string; // ReplyCode
+}
+
 /** Per-user copy of a pushed alert (server-written). The owner may delete it. */
 export interface InboxItem extends BaseRecord {
   user: string; // -> users.id

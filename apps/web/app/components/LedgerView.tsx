@@ -69,27 +69,27 @@ export function LedgerView({ household, initialKidId }: { household: Household |
       {error && <p className="error">{error}</p>}
       {busy && <p className="muted">Loading…</p>}
 
-      <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
+      <table className="data-table">
         <thead>
           <tr>
-            <th style={{ textAlign: "left" }}>Date</th>
-            {kidId === ALL_KIDS && <th style={{ textAlign: "left" }}>Kid</th>}
-            <th style={{ textAlign: "left" }}>Type</th>
-            <th style={{ textAlign: "right" }}>Amount</th>
-            <th style={{ textAlign: "left" }}>Reason</th>
+            <th>Date</th>
+            {kidId === ALL_KIDS && <th>Kid</th>}
+            <th>Type</th>
+            <th className="num">Amount</th>
+            <th>Reason</th>
           </tr>
         </thead>
         <tbody>
           {txns.map((t) => (
-            <tr key={t.id} style={{ borderTop: "1px solid var(--border, #eee)" }}>
-              <td>{t.created.slice(0, 10)}</td>
-              {kidId === ALL_KIDS && <td>{kids.find((k) => k.id === t.user)?.display_name ?? ""}</td>}
-              <td>{t.type}</td>
-              <td style={{ textAlign: "right", color: t.amount >= 0 ? "green" : "red" }}>
+            <tr key={t.id}>
+              <td data-label="Date">{t.created.slice(0, 10)}</td>
+              {kidId === ALL_KIDS && <td data-label="Kid">{kids.find((k) => k.id === t.user)?.display_name ?? ""}</td>}
+              <td data-label="Type">{t.type}</td>
+              <td data-label="Amount" className={`num ${t.amount >= 0 ? "pos" : "neg"}`}>
                 {t.amount >= 0 ? "+" : ""}
                 {t.amount} {currency}
               </td>
-              <td>{t.reason}</td>
+              <td data-label="Reason">{t.reason}</td>
             </tr>
           ))}
         </tbody>

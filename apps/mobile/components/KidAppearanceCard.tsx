@@ -4,7 +4,6 @@ import { Button, Card, IconButton, Text, TextInput, useTheme } from "react-nativ
 import { AVATAR_COLORS, errorMessage, featureTip, kidAccent, parseGoodsRateOverride } from "@paydirt/shared";
 import type { User } from "@paydirt/shared";
 import { client } from "../lib/client";
-import { pickAndUploadAvatar } from "../lib/uploadAvatar";
 
 /** Parent edits a kid's emoji, photo, accent colour, and bucks-per-dollar override. */
 export function KidAppearanceCard({
@@ -39,27 +38,11 @@ export function KidAppearanceCard({
     }
   }
 
-  async function choosePhoto() {
-    setBusy(true);
-    try {
-      const res = await pickAndUploadAvatar(kid.id);
-      if (res === "no-permission") onMessage("Allow photo access to pick an avatar.");
-      else if (res === "done") {
-        onMessage("Photo updated");
-        onSaved();
-      }
-    } catch (e) {
-      onMessage(errorMessage(e));
-    } finally {
-      setBusy(false);
-    }
-  }
-
   return (
     <Card style={styles.card}>
       <Card.Content>
         <Text variant="titleSmall">Avatar &amp; rate</Text>
-        <TextInput dense label="Emoji (e.g. 🦊)" value={emoji} onChangeText={setEmoji} style={styles.field} />
+        <TextInput dense label="Emoji (e.g. 🦊) — tap the picture above to use a photo" value={emoji} onChangeText={setEmoji} style={styles.field} />
         <View style={styles.swatches}>
           {AVATAR_COLORS.map((c) => (
             <TouchableOpacity
@@ -90,9 +73,6 @@ export function KidAppearanceCard({
           />
         </View>
         <View style={styles.actions}>
-          <Button mode="outlined" icon="image" onPress={() => void choosePhoto()} disabled={busy}>
-            Photo
-          </Button>
           <Button mode="contained-tonal" onPress={() => void save()} disabled={busy}>
             Save
           </Button>
@@ -105,9 +85,9 @@ export function KidAppearanceCard({
 const styles = StyleSheet.create({
   card: { borderRadius: 16 },
   field: { marginTop: 8 },
-  swatches: { flexDirection: "row", gap: 10, marginTop: 12 },
+  swatches: { flexDirection: "row", flexWrap: "wrap", gap: 10, marginTop: 12 },
   swatch: { width: 32, height: 32, borderRadius: 16, borderWidth: 3 },
-  rateRow: { flexDirection: "row", alignItems: "center", marginTop: 4 },
+  rateRow: { flexDirection: "row", alignItems: "center", marginTop: 16 },
   rateInput: { flex: 1 },
   actions: { flexDirection: "row", justifyContent: "space-between", marginTop: 8 },
 });

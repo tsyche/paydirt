@@ -356,3 +356,40 @@ test("chore row says who is assigned or already at the limit, before you try", a
     await api.deactivateChore(chore.id);
   }
 });
+
+test("add-chore form hides Due/Reminder/Max behind Advanced; ledger stacks on narrow screens", async ({ page }) => {
+  await signIn(page);
+  await goTab(page, /Chores/);
+  await expect(page.getByLabel("Max per period")).toHaveCount(0);
+  await page.getByRole("button", { name: /Advanced/ }).click();
+  await expect(page.getByLabel("Max per period")).toBeVisible();
+  await expect(page.getByText("Daily reminder")).toBeVisible();
+
+  await goTab(page, /Ledger/);
+  const table = page.locator("table.data-table");
+  await expect(table.locator("thead")).toBeVisible();
+  await page.setViewportSize({ width: 420, height: 800 });
+  await expect(table.locator("thead")).toBeHidden();
+});
+
+test("clicking a kid's picture uploads a new photo; no separate Photo field in settings", async ({ page }) => {
+  const api = new PaydirtClient(PB_URL);
+  await api.login("parent1@test.local", PW);
+  const kid1 = (await api.listChildren(api.currentUser!.household)).find((k) => k.display_name === "Kid 1")!;
+  try {
+    await signIn(page);
+    await goTab(page, /Kids/);
+    const png = Buffer.from(
+      "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==",
+      "base64",
+    );
+    await page.getByTestId(`avatar-file-${kid1.id}`).setInputFiles({ name: "k.png", mimeType: "image/png", buffer: png });
+    await expect(page.locator(`button.avatar-picker img`).first()).toBeVisible();
+    const card = page.locator(".card").filter({ hasText: "Kid 1" }).first();
+    await card.getByRole("button", { name: /Edit avatar & settings/ }).click();
+    await expect(card.getByText("Photo", { exact: true })).toHaveCount(0);
+    await expect(card.getByLabel("Emoji")).toBeVisible();
+  } finally {
+    await api.pb.collection("users").update(kid1.id, { avatar: null });
+  }
+});

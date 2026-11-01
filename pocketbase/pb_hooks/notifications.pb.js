@@ -121,6 +121,7 @@ onRecordAfterCreateSuccess((e) => {
   // The sender keeps a copy so parents can see what they've sent.
   logToInbox(e.app, sender, "You sent a message 📣", message, "broadcast_sent");
   notifyChildren(e.app, household, "Message from Mom/Dad 📣", message, "broadcast");
+  const senderName = e.app.findRecordById("users", sender).getString("display_name") || "A parent";
   // Other parents get the push too; the sender already has the inbox copy.
   const parents = e.app.findRecordsByFilter(
     "users",
@@ -131,10 +132,27 @@ onRecordAfterCreateSuccess((e) => {
     { hh: household, sender: sender },
   );
   for (const p of parents) {
-    notifyUserRecord(e.app, p, "Message sent to the kids 📣", message, "broadcast");
+    notifyUserRecord(e.app, p, senderName + " messaged the kids 📣", message, "broadcast");
   }
   e.next();
 }, "broadcasts");
+
+// ── Kid replies to a broadcast → notify parents ──────────────────────────────
+onRecordAfterCreateSuccess((e) => {
+  const { notifyParents } = require(`${__hooks}/lib/ntfy.js`);
+  const labels = { ok: "👍 OK", question: "❓ Question", later: "⏰ Later", please: "🙏 Please" };
+  const kid = e.app.findRecordById("users", e.record.getString("child"));
+  const broadcast = e.app.findRecordById("broadcasts", e.record.getString("broadcast"));
+  const code = e.record.getString("code");
+  notifyParents(
+    e.app,
+    broadcast.getString("household"),
+    kid.getString("display_name") + " replied " + (labels[code] || code),
+    "re: " + broadcast.getString("message"),
+    "broadcast_reply",
+  );
+  e.next();
+}, "broadcast_replies");
 
 // ── Spend request created → notify parents ────────────────────────────────────
 onRecordAfterCreateSuccess((e) => {

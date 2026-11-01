@@ -6,6 +6,7 @@ import { screenCost, screenDescription, type ScreenPreset } from "./screenTime";
 import type {
   Assignment,
   Broadcast,
+  BroadcastReply,
   Chore,
   ChoreProposal,
   ChoreTemplate,
@@ -625,6 +626,23 @@ export class PaydirtClient {
       household: householdId,
       sender: senderId,
       message,
+    });
+  }
+
+  /** Kid sends a canned reply to a broadcast (one per kid per broadcast; parents are pushed). */
+  sendBroadcastReply(broadcastId: string, childId: string, code: string): Promise<BroadcastReply> {
+    return this.pb.collection(Collections.BroadcastReplies).create<BroadcastReply>({
+      broadcast: broadcastId,
+      child: childId,
+      code,
+    });
+  }
+
+  /** A kid's own replies, so the UI can show what they already answered. */
+  async listBroadcastReplies(childId: string): Promise<BroadcastReply[]> {
+    return this.pb.collection(Collections.BroadcastReplies).getFullList<BroadcastReply>({
+      filter: this.pb.filter("child = {:c}", { c: childId }),
+      sort: "-created",
     });
   }
 

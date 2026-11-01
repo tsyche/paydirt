@@ -37,6 +37,7 @@ import { HouseholdSettings } from "../components/HouseholdSettings";
 import { LedgerView } from "../components/LedgerView";
 import { ActivityReport } from "../components/ActivityReport";
 import { InboxButton } from "../components/InboxDialog";
+import { useTabHistory } from "../lib/useTabHistory";
 
 const PARENT_TABS = [
   { key: "approvals", title: "Approvals", focusedIcon: "inbox", unfocusedIcon: "inbox-outline" },
@@ -83,7 +84,7 @@ export function ParentHome({
   const [broadcastMsg, setBroadcastMsg] = useState("");
   const [broadcasting, setBroadcasting] = useState(false);
   const [snack, setSnack] = useState("");
-  const [tab, setTab] = useState("approvals");
+  const [tab, setTab] = useTabHistory("approvals");
   const [detailKid, setDetailKid] = useState<string | null>(null);
   const [ledgerKid, setLedgerKid] = useState<string | undefined>();
   const [approvedKey, setApprovedKey] = useState(0);
@@ -106,6 +107,7 @@ export function ParentHome({
   // Due date for new chore
   const [choreDueAt, setChoreDueAt] = useState("");
   const [choreLimit, setChoreLimit] = useState("");
+  const [showAdvancedChore, setShowAdvancedChore] = useState(false);
 
   // Template state
   const [templates, setTemplates] = useState<ChoreTemplate[]>([]);
@@ -378,6 +380,7 @@ export function ParentHome({
     setChoreRace(t.race ?? false);
     setChoreReminder(t.reminder_time ?? "");
     setChoreLimit(t.max_per_period ? String(t.max_per_period) : "");
+    if (t.reminder_time || t.max_per_period) setShowAdvancedChore(true);
     setShowTemplates(false);
   }
 
@@ -1040,6 +1043,9 @@ export function ParentHome({
             {showCreateChore ? "Cancel" : "Add"}
           </Button>
         </View>
+        <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant, marginBottom: 8 }}>
+          Kid chips: ✓ already assigned · ⚠ at repeat limit (can still override)
+        </Text>
 
         <StarterChores
           householdId={user.household}
@@ -1132,6 +1138,25 @@ export function ParentHome({
                   />
                 </>
               )}
+              <View style={styles.switchRow}>
+                <Text>📷 Photo required</Text>
+                <Switch value={chorePhoto} onValueChange={setChorePhoto} />
+              </View>
+              <View style={styles.switchRow}>
+                <Text>🏁 Race (first to finish wins)</Text>
+                <Switch value={choreRace} onValueChange={setChoreRace} />
+              </View>
+              <Button
+                mode="text"
+                compact
+                icon={showAdvancedChore ? "chevron-up" : "chevron-down"}
+                onPress={() => setShowAdvancedChore((v) => !v)}
+                style={{ alignSelf: "flex-start" }}
+              >
+                Advanced (reminder, limit, due date)
+              </Button>
+              {showAdvancedChore && (
+                <>
               <TextInput
                 mode="outlined"
                 label="Reminder time (HH:MM, optional)"
@@ -1162,14 +1187,8 @@ export function ParentHome({
                 dense
                 style={{ marginTop: 4 }}
               />
-              <View style={styles.switchRow}>
-                <Text>📷 Photo required</Text>
-                <Switch value={chorePhoto} onValueChange={setChorePhoto} />
-              </View>
-              <View style={styles.switchRow}>
-                <Text>🏁 Race (first to finish wins)</Text>
-                <Switch value={choreRace} onValueChange={setChoreRace} />
-              </View>
+                </>
+              )}
               <Button
                 mode="contained"
                 onPress={createChore}
@@ -1292,10 +1311,10 @@ export function ParentHome({
                             disabled={held.has(kid.id)}
                             onPress={() => toggleKidForChore(chore.id, kid.id)}
                             compact
+                            icon={held.has(kid.id) ? "check-circle" : atLimit.has(kid.id) ? "alert-circle-outline" : undefined}
                             style={styles.kidAssignChip}
                           >
-                            {kid.avatar_emoji || "🧒"} {kid.display_name}
-                            {held.has(kid.id) ? " · assigned" : atLimit.has(kid.id) ? ` · at limit` : ""}
+                            {kid.display_name}
                           </Chip>
                         ))}
                         <Button

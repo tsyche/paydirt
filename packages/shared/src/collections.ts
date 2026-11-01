@@ -9,6 +9,7 @@ export const Collections = {
   CurrencyTransactions: "currency_transactions",
   SpendRequests: "spend_requests",
   Broadcasts: "broadcasts",
+  BroadcastReplies: "broadcast_replies",
   SavingsGoals: "savings_goals",
   ChoreProposals: "chore_proposals",
   ChoreTemplates: "chore_templates",

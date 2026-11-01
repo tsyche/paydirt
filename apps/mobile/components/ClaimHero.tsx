@@ -1,4 +1,4 @@
-import { Image, View, StyleSheet } from "react-native";
+import { Image, View, StyleSheet, TouchableOpacity } from "react-native";
 import { Text, useTheme } from "react-native-paper";
 import { ChunkyButton } from "./ChunkyButton";
 import { useCountUp } from "../lib/useCountUp";
@@ -23,6 +23,7 @@ export function ClaimHero({
   toDoLabel,
   accent,
   onSpend,
+  onAvatarPress,
   animated = false,
 }: {
   name: string;
@@ -35,6 +36,8 @@ export function ClaimHero({
   toDoLabel: string;
   accent: string;
   onSpend?: () => void;
+  /** Tap the picture to change it. */
+  onAvatarPress?: () => void;
   /** Count the number up when the balance increases. Off in calm mode. */
   animated?: boolean;
 }) {
@@ -43,11 +46,18 @@ export function ClaimHero({
   return (
     <View style={[styles.card, { backgroundColor: theme.colors.surfaceVariant }]}>
       <View style={[styles.header, { backgroundColor: accent }]}>
-        {avatarUri ? (
-          <Image source={{ uri: avatarUri }} style={styles.avatarImage} accessibilityIgnoresInvertColors />
-        ) : (
-          <Text style={styles.avatar}>{avatar}</Text>
-        )}
+        <TouchableOpacity
+          disabled={!onAvatarPress}
+          onPress={onAvatarPress}
+          accessibilityRole="button"
+          accessibilityLabel="Change picture"
+        >
+          {avatarUri ? (
+            <Image source={{ uri: avatarUri }} style={styles.avatarImage} accessibilityIgnoresInvertColors />
+          ) : (
+            <Text style={styles.avatar}>{avatar}</Text>
+          )}
+        </TouchableOpacity>
         <Text style={styles.headerName}>{name}</Text>
       </View>
       <View style={styles.body}>

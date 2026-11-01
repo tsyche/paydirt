@@ -24,4 +24,5 @@ export * from "./pendingCounts";
 // reason (consumed by scripts/familylink-grant.mjs), as is familylinkQueue.ts
 // (consumed by scripts/familylink-worker.mts).
 export * from "./approvalActions";
+export * from "./broadcastReply";
 export * from "./assignDraft";

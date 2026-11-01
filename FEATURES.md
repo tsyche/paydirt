@@ -19,7 +19,7 @@
 - **Starter chores** — curated chores by age band (4-6, 7-9, 10-12, 13+) in `packages/shared/src/starterChores.ts`; web Chores tab picker skips ones already added, and `just go-live` can seed whole bands.
 - **Approval undo** — "Recently approved" section in dashboard; `undoApproval()` moves the assignment back to completed and a server hook writes the compensating ledger entry (double-undo impossible; kids blocked from touching approved chores).
 - **Real-time updates** — kid screens subscribe to their assignments + balance via PocketBase realtime (`subscribeToKidUpdates()`); approvals appear without pull-to-refresh. SSE polyfill (`react-native-sse`) on mobile.
-- **Household broadcast** — parent sends a one-liner to all kids from the dashboard; `broadcasts` collection + ntfy fan-out hook; only parents can send.
+- **Household broadcast** — parent sends a one-liner to all kids from the dashboard; `broadcasts` collection + ntfy fan-out hook; only parents can send. The other parent gets the full text (attributed to the sender) and the kids can answer with one-tap canned replies (`broadcast_replies`), which push to both parents.
 - **Integration test suite** — live API tests for the shared client and every PB hook/guard (currency math, undo reversal, photo guard, balance guard, role guards, broadcast rules, realtime). `just test-integration`.
 - **Playwright e2e** — dashboard golden path (create → assign → complete → approve → undo) and broadcast UI. `just test-e2e`.
 - **ntfy kill-switch** — `NTFY_DISABLED=1` suppresses all sends so test runs don't blast the real public topics.

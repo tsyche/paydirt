@@ -178,6 +178,18 @@ update/delete rules).
 | sender | relation → users | parent; required |
 | message | text | required |
 
+### `broadcast_replies`
+A kid's one-tap canned answer to a broadcast (`ok`, `question`, `later`, `please`; see
+`packages/shared/src/broadcastReply.ts`). One per kid per broadcast (unique index);
+kids create their own, no update/delete. The notification hook pings every parent with the
+reply and the original message.
+
+| Field | Type | Notes |
+|-------|------|-------|
+| broadcast | relation → broadcasts | required; cascade delete |
+| child | relation → users | must be the caller; required |
+| code | select | ok / question / later / please |
+
 ### `inbox`
 Per-user copy of every push the server sends (also during quiet hours), so
 people can review and clear past alerts. Owner can list/view/delete; clients

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { View, ScrollView, StyleSheet, RefreshControl } from "react-native";
+import { View, ScrollView, StyleSheet, RefreshControl, TouchableOpacity } from "react-native";
 import {
   Appbar,
   Text,
@@ -25,6 +25,8 @@ import { takePhotoAndComplete } from "../lib/completeWithPhoto";
 import { useCountUp } from "../lib/useCountUp";
 import { useRealtimeResume } from "../lib/useRealtimeResume";
 import { Avatar } from "../components/Avatar";
+import { changeAvatar } from "../lib/uploadAvatar";
+import { BroadcastReplies } from "../components/BroadcastReplies";
 import { Celebration } from "../components/Celebration";
 import { InboxButton } from "../components/InboxDialog";
 
@@ -39,6 +41,7 @@ export function SimpleKidHome({ user, onLogout }: { user: User; onLogout: () => 
   const [householdRate, setHouseholdRate] = useState(0);
   const [rate, setRate] = useState(DEFAULT_SCREEN_RATE);
   const [broadcasts, setBroadcasts] = useState<Broadcast[]>([]);
+  const [replies, setReplies] = useState<Record<string, string>>({});
   const [refreshing, setRefreshing] = useState(false);
   const [snack, setSnack] = useState("");
   const [askError, setAskError] = useState<string | null>(null);
@@ -52,12 +55,13 @@ export function SimpleKidHome({ user, onLogout }: { user: User; onLogout: () => 
   const reload = useCallback(async () => {
     setRefreshing(true);
     try {
-      const [freshMe, bal, list, household, bcs] = await Promise.all([
+      const [freshMe, bal, list, household, bcs, reps] = await Promise.all([
         client.pb.collection("users").getOne<User>(user.id),
         client.getBalance(user.id),
         client.listActiveAssignmentsForChild(user.id),
         client.getHousehold(user.household),
         client.getRecentBroadcasts(user.household, 3),
+        client.listBroadcastReplies(user.id),
       ]);
       setMe(freshMe);
       setBalance(bal);
@@ -66,6 +70,7 @@ export function SimpleKidHome({ user, onLogout }: { user: User; onLogout: () => 
       setHouseholdRate(household.goods_rate ?? 0);
       setRate(screenRate(household));
       setBroadcasts(bcs);
+      setReplies(Object.fromEntries(reps.map((r) => [r.broadcast, r.code])));
       if (shouldCelebrate(prevBalance.current, bal, !!freshMe.calm_mode)) {
         setCelebrate((n) => n + 1);
       }
@@ -101,6 +106,16 @@ export function SimpleKidHome({ user, onLogout }: { user: User; onLogout: () => 
       unsub?.();
     };
   }, [user.id, reload]);
+
+  async function sendReply(broadcastId: string, code: string) {
+    try {
+      await client.sendBroadcastReply(broadcastId, user.id, code);
+      setReplies((r) => ({ ...r, [broadcastId]: code }));
+      setSnack("Sent to your parents ✅");
+    } catch (e) {
+      setSnack(errorMessage(e));
+    }
+  }
 
   async function requestHelp(id: string) {
     try {
@@ -167,7 +182,13 @@ export function SimpleKidHome({ user, onLogout }: { user: User; onLogout: () => 
         {/* Balance hero card */}
         <Surface style={styles.balanceSurface} elevation={3}>
           <View style={[styles.avatarBand, { backgroundColor: accentColor }]}>
-            <Avatar user={user} size={72} fallback="💰" />
+            <TouchableOpacity
+              accessibilityRole="button"
+              accessibilityLabel="Change picture"
+              onPress={() => void changeAvatar(user.id, setSnack).then((ok) => { if (ok) void reload(); })}
+            >
+              <Avatar user={user} size={72} fallback="💰" />
+            </TouchableOpacity>
           </View>
           <View style={styles.balanceBody}>
             <Text style={[styles.balanceNumber, { color: theme.colors.onSurface }]}>
@@ -296,6 +317,7 @@ export function SimpleKidHome({ user, onLogout }: { user: User; onLogout: () => 
             <Text style={[styles.broadcastText, { color: theme.colors.onSecondaryContainer }]}>
               {b.message}
             </Text>
+            <BroadcastReplies big sent={replies[b.id]} onReply={(c) => void sendReply(b.id, c)} />
           </Surface>
         ))}
       </ScrollView>

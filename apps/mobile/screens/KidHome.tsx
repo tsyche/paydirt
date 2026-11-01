@@ -45,6 +45,9 @@ import { ClaimHero } from "../components/ClaimHero";
 import { Celebration } from "../components/Celebration";
 import { OfflineBanner } from "../components/OfflineBanner";
 import { InboxButton } from "../components/InboxDialog";
+import { useTabHistory } from "../lib/useTabHistory";
+import { changeAvatar } from "../lib/uploadAvatar";
+import { BroadcastReplies } from "../components/BroadcastReplies";
 
 const KID_TABS = [
   { key: "home", title: "Home", focusedIcon: "home", unfocusedIcon: "home-outline" },
@@ -88,6 +91,7 @@ export function KidHome({
   const [siblings, setSiblings] = useState<User[]>([]);
   const [household, setHousehold] = useState<Household | null>(null);
   const [broadcasts, setBroadcasts] = useState<Broadcast[]>([]);
+  const [replies, setReplies] = useState<Record<string, string>>({});
   const [historyOpen, setHistoryOpen] = useState(false);
   const [leaderboardOpen, setLeaderboardOpen] = useState(false);
   const [siblingWins, setSiblingWins] = useState<Record<string, Assignment[]>>({});
@@ -99,7 +103,7 @@ export function KidHome({
   const [remindFor, setRemindFor] = useState<Expanded | null>(null);
   const [swapFor, setSwapFor] = useState<Expanded | null>(null);
   const [snack, setSnack] = useState("");
-  const [tab, setTab] = useState("home");
+  const [tab, setTab] = useTabHistory("home");
   const [celebrate, setCelebrate] = useState(0);
   const prevBalance = useRef<number | null>(null);
 
@@ -111,7 +115,7 @@ export function KidHome({
   const reload = useCallback(async () => {
     setRefreshing(true);
     try {
-      const [freshMe, list, hist, gs, swaps, kids, hh, bcs] = await Promise.all([
+      const [freshMe, list, hist, gs, swaps, kids, hh, bcs, reps] = await Promise.all([
         client.pb.collection("users").getOne<User>(user.id),
         client.listActiveAssignmentsForChild(user.id),
         client.listApprovedHistory(user.id, 50),
@@ -120,6 +124,7 @@ export function KidHome({
         client.listChildren(user.household),
         client.getHousehold(user.household),
         client.getRecentBroadcasts(user.household, 5),
+        client.listBroadcastReplies(user.id),
       ]);
       setMe(freshMe);
       setAssignments(list as Expanded[]);
@@ -129,6 +134,7 @@ export function KidHome({
       setSiblings(kids.filter((k) => k.id !== user.id));
       setHousehold(hh);
       setBroadcasts(bcs);
+      setReplies(Object.fromEntries(reps.map((r) => [r.broadcast, r.code])));
       if (shouldCelebrate(prevBalance.current, freshMe.balance, !!freshMe.calm_mode)) {
         setCelebrate((n) => n + 1);
       }
@@ -205,6 +211,16 @@ export function KidHome({
     }
   };
 
+  async function sendReply(broadcastId: string, code: string) {
+    try {
+      await client.sendBroadcastReply(broadcastId, user.id, code);
+      setReplies((r) => ({ ...r, [broadcastId]: code }));
+      setSnack("Sent to your parents ✅");
+    } catch (e) {
+      setSnack(errorMessage(e));
+    }
+  }
+
   async function requestHelp(id: string) {
     try {
       await client.pb.collection("assignments").update(id, { needs_help: true });
@@ -272,6 +288,7 @@ export function KidHome({
               toDoLabel={toDo.length === 0 ? "Nothing to do — go play! 🎉" : `${toDo.length} chore${toDo.length === 1 ? "" : "s"} to do`}
               accent={accentColor}
               onSpend={() => setSpendOpen(true)}
+              onAvatarPress={() => void changeAvatar(me.id, setSnack).then((ok) => { if (ok) void reload(); })}
               animated={!calm}
             />
             {!calm && <BadgeShelf badges={badges} />}
@@ -426,6 +443,7 @@ export function KidHome({
                   <Text variant="bodySmall" style={styles.date}>
                     {b.created.slice(0, 10)}
                   </Text>
+                  <BroadcastReplies sent={replies[b.id]} onReply={(c) => void sendReply(b.id, c)} />
                 </Card.Content>
               </Card>
             ))}

@@ -24,6 +24,7 @@ import { useReachability } from "../lib/useReachability";
 import { ClaimHero } from "./ClaimHero";
 import { ChunkyButton } from "./ChunkyButton";
 import { KidAppearanceCard } from "./KidAppearanceCard";
+import { changeAvatar } from "../lib/uploadAvatar";
 import { OfflineBanner } from "./OfflineBanner";
 
 type Expanded = Assignment & { expand?: { chore?: Chore } };
@@ -191,6 +192,7 @@ export function KidDetail({
             name={kid.display_name}
             avatar={kid.avatar_emoji || "🧒"}
             avatarUri={avatarUrl(client.pb, kid, "100x100")}
+            onAvatarPress={() => void changeAvatar(kid.id, setSnack).then((ok) => { if (ok) void reload(); })}
             balance={kid.balance}
             currencyName={currencyName}
             dollarValue={dollarValue}

@@ -397,6 +397,23 @@ describe("PocketBase hooks & guards (live)", () => {
     ).rejects.toThrow();
   });
 
+  it("kid replies to a broadcast with a canned answer; parents are told; once only; parents can't reply", async () => {
+    const msg = `reply test ${Date.now()}`;
+    const b = await parent.sendBroadcast(householdId, parent.currentUser!.id, msg);
+    const r = await kid.sendBroadcastReply(b.id, kidUser.id, "later");
+    expect(r.code).toBe("later");
+    const parent2 = new PaydirtClient(PB_URL);
+    await parent2.login("parent2@test.local", PW);
+    for (const p of [parent, parent2]) {
+      const item = (await p.listInbox(p.currentUser!.id)).find((i) => i.body === `re: ${msg}`);
+      expect(item?.title).toContain("⏰ Later");
+    }
+    await expect(kid.sendBroadcastReply(b.id, kidUser.id, "ok")).rejects.toThrow();
+    await expect(kid.sendBroadcastReply(b.id, kidUser.id, "bogus")).rejects.toThrow();
+    await expect(parent.sendBroadcastReply(b.id, parent.currentUser!.id, "ok")).rejects.toThrow();
+    expect((await kid.listBroadcastReplies(kidUser.id)).some((x) => x.broadcast === b.id)).toBe(true);
+  });
+
   it("inbox: broadcasts land in each recipient's history; owners can clear, nobody else can touch it", async () => {
     const msg = `inbox test ${Date.now()}`;
     await parent.sendBroadcast(householdId, parent.currentUser!.id, msg);
@@ -407,6 +424,13 @@ describe("PocketBase hooks & guards (live)", () => {
     // The sender keeps a copy too.
     const parentItems = await parent.listInbox(parent.currentUser!.id);
     expect(parentItems.find((i) => i.body === msg)?.type).toBe("broadcast_sent");
+
+    // The other parent gets the full text, attributed to the sender.
+    const parent2 = new PaydirtClient(PB_URL);
+    await parent2.login("parent2@test.local", PW);
+    const p2 = (await parent2.listInbox(parent2.currentUser!.id)).find((i) => i.body === msg);
+    expect(p2?.type).toBe("broadcast");
+    expect(p2?.title).toContain("messaged the kids");
 
     // Isolation: a kid can't read a parent's inbox, and clients can't forge items.
     const foreign = await kid.pb
@@ -515,23 +539,22 @@ describe("PocketBase hooks & guards (live)", () => {
     expect(await parent.getBalance(kidUser.id)).toBe(startBalance);
   });
 
-  it("avatar upload: a parent can set a kid's photo; the kid cannot set their own", async () => {
+  it("avatar upload: a kid can set their own photo, but not other profile fields", async () => {
     const form = () => {
       const f = new FormData();
       f.append("avatar", new Blob([TINY_JPEG], { type: "image/jpeg" }), "me.jpg");
       return f;
     };
-    // Kid has no avatar yet: the guard must still reject the new upload
-    // (a pending file reads as "" in getString, so a naive diff misses it).
-    await expect(kid.pb.collection("users").update(kidUser.id, form())).rejects.toThrow();
-
     try {
-      const updated = await parent.pb.collection("users").update<User>(kidUser.id, form());
+      const updated = await kid.pb.collection("users").update<User>(kidUser.id, form());
       expect(updated.avatar).toMatch(/\.jpg$/);
-      const res = await fetch(avatarUrl(parent.pb, updated, "100x100"));
+      const res = await fetch(avatarUrl(kid.pb, updated, "100x100"));
       expect(res.status).toBe(200);
-      // And with a photo already set, the kid still can't swap it.
-      await expect(kid.pb.collection("users").update(kidUser.id, form())).rejects.toThrow();
+      // Photo access doesn't widen anything else: color stays parent-only.
+      await expect(kid.pb.collection("users").update(kidUser.id, { color: "#123456" })).rejects.toThrow();
+      // A parent can still replace or clear it.
+      const byParent = await parent.pb.collection("users").update<User>(kidUser.id, form());
+      expect(byParent.avatar).toMatch(/\.jpg$/);
     } finally {
       await parent.pb.collection("users").update(kidUser.id, { avatar: null });
     }

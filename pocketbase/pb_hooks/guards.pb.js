@@ -80,7 +80,7 @@ onRecordUpdateRequest((e) => {
 onRecordUpdateRequest((e) => {
   const isParent = e.auth && e.auth.getString("role") === "parent";
   if (!isParent) {
-    const selfEditable = ["up_endpoint", "ntfy_topic"];
+    const selfEditable = ["up_endpoint", "ntfy_topic", "avatar"];
     const prev = e.record.original();
     for (const f of e.record.collection().fields) {
       const name = f.getName();
@@ -88,8 +88,8 @@ onRecordUpdateRequest((e) => {
       if (t === "autodate" || t === "password" || name === "tokenKey") continue;
       if (selfEditable.indexOf(name) !== -1) continue;
       if (t === "file") {
-        // A pending upload is a file object (getString() reads it as ""),
-        // so a plain string diff would let a kid with no avatar set one.
+        // Any future file field stays parent-only. A pending upload is a file object
+        // (getString() reads it as ""), so a plain string diff would let a kid set one.
         const now = [].concat(e.record.get(name) || []);
         const before = [].concat(prev.get(name) || []);
         const changed =

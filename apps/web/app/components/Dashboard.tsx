@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type {
   TimeGrant,
   PayMode,
@@ -236,16 +236,7 @@ export function Dashboard({
           >
             <div className="row">
               <div className="inline" style={{ gap: 12 }}>
-                <div
-                  className="kid-avatar"
-                  style={{ backgroundColor: `color-mix(in srgb, ${kidAccent(kid.color, "#2f7d4f")} 18%, transparent)` }}
-                >
-                  {kid.avatar ? (
-                    <img src={avatarUrl(client.pb, kid, "100x100")} alt="" />
-                  ) : (
-                    kid.avatar_emoji || "🧒"
-                  )}
-                </div>
+                <AvatarPicker kid={kid} onSaved={reload} />
                 <div>
                   <div style={{ fontWeight: 700, fontSize: 15 }}>
                     {kid.display_name}
@@ -1217,9 +1208,9 @@ function ChoreRow({
 
   if (!editing) {
     return (
-      <div className="card row" style={{ flexWrap: "wrap", gap: 10 }}>
-        <div style={{ flex: 1, minWidth: 160 }}>
-          <div className="chore-title">
+      <div className="card row" style={{ gap: 8, flexDirection: "column", alignItems: "stretch" }}>
+        <div className="row" style={{ gap: 10, alignItems: "center" }}>
+          <div className="chore-title" style={{ flex: 1 }}>
             <span style={{ fontWeight: 600 }}>{chore.name}</span>
             <span className="chore-badges">
               {chore.race && <span title="Race: first to finish wins">🏁</span>}
@@ -1227,19 +1218,17 @@ function ChoreRow({
               {chore.reminder_time && <span title="Daily reminder">⏰ {chore.reminder_time}</span>}
             </span>
           </div>
-          <div className="muted">
-            <span className="balance" style={{ fontSize: 13 }}>{payLabel(chore, currencyName)}</span>
-            {" "}· {chore.type}
-            {chore.cadence ? ` (${chore.cadence})` : ""}
-            {chore.due_at
-              ? ` · due ${new Date(chore.due_at.replace(" ", "T")).toLocaleString()}`
-              : ""}
-            {limitLabel(chore) ? ` · max ${limitLabel(chore)}` : ""}
-          </div>
-        </div>
-        <div className="inline" style={{ gap: 6 }}>
-          <AssignControl chore={chore} kids={kids} assignedKidIds={assignedKidIds} atLimit={atLimit} onAssigned={onChanged} />
           <button className="sm" onClick={() => setEditing(true)} title="Edit chore">✏️</button>
+        </div>
+        <AssignControl chore={chore} kids={kids} assignedKidIds={assignedKidIds} atLimit={atLimit} onAssigned={onChanged} />
+        <div className="muted">
+          <span className="balance" style={{ fontSize: 13 }}>{payLabel(chore, currencyName)}</span>
+          {" "}· {chore.type}
+          {chore.cadence ? ` (${chore.cadence})` : ""}
+          {chore.due_at
+            ? ` · due ${new Date(chore.due_at.replace(" ", "T")).toLocaleString()}`
+            : ""}
+          {limitLabel(chore) ? ` · max ${limitLabel(chore)}` : ""}
         </div>
       </div>
     );
@@ -1377,11 +1366,13 @@ function CreateChore({
   const [dueAt, setDueAt] = useState("");
   const [remindAt, setRemindAt] = useState("");
   const [limit, setLimit] = useState(0);
+  const [advanced, setAdvanced] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
 
   useEffect(() => {
     if (!template) return;
+    if (template.reminder_time || template.max_per_period) setAdvanced(true);
     setName(template.name);
     setReward(template.reward);
     setMode(payMode(template));
@@ -1537,37 +1528,43 @@ function CreateChore({
           />
           🏁 Race
         </label>
-        <label className="inline" style={{ gap: 6 }}>
-          Due
-          <input
-            type="datetime-local"
-            value={dueAt}
-            onChange={(e) => setDueAt(e.target.value)}
-          />
-        </label>
-        <label className="inline" style={{ gap: 6 }}>
-          Daily reminder
-          <input
-            type="time"
-            value={remindAt}
-            onChange={(e) => setRemindAt(e.target.value)}
-          />
-        </label>
-        <span className="muted">(optional)</span>
-        <label className="inline" style={{ gap: 6 }}>
-          Max per {limitUnit({ type, cadence })}
-          <input
-            type="number"
-            min={0}
-            step={1}
-            aria-label="Max per period"
-            value={limit || ""}
-            placeholder="none"
-            onChange={(e) => setLimit(Math.max(0, Math.floor(Number(e.target.value) || 0)))}
-            style={{ width: 110 }}
-          />
-        </label>
+        <button className="outlined sm" onClick={() => setAdvanced((a) => !a)} aria-expanded={advanced}>
+          Advanced {advanced ? "▲" : "▼"}
+        </button>
       </div>
+      {advanced && (
+        <div className="inline" style={{ fontSize: 13, gap: 12, marginTop: 8 }}>
+          <label className="inline" style={{ gap: 6 }}>
+            Due
+            <input
+              type="datetime-local"
+              value={dueAt}
+              onChange={(e) => setDueAt(e.target.value)}
+            />
+          </label>
+          <label className="inline" style={{ gap: 6 }}>
+            Daily reminder
+            <input
+              type="time"
+              value={remindAt}
+              onChange={(e) => setRemindAt(e.target.value)}
+            />
+          </label>
+          <label className="inline" style={{ gap: 6 }}>
+            Max per {limitUnit({ type, cadence })}
+            <input
+              type="number"
+              min={0}
+              step={1}
+              aria-label="Max per period"
+              value={limit || ""}
+              placeholder="none"
+              onChange={(e) => setLimit(Math.max(0, Math.floor(Number(e.target.value) || 0)))}
+              style={{ width: 110 }}
+            />
+          </label>
+        </div>
+      )}
       {error && <p className="error" style={{ marginTop: 8 }}>{error}</p>}
     </div>
   );
@@ -1649,10 +1646,50 @@ function ChoreTemplatesPanel({
   );
 }
 
+/** Kid's picture; click it to choose a new photo (uploads immediately). */
+function AvatarPicker({ kid, onSaved }: { kid: User; onSaved: () => void }) {
+  const input = useRef<HTMLInputElement>(null);
+  const [error, setError] = useState("");
+  async function upload(file: File | undefined) {
+    if (!file) return;
+    setError("");
+    try {
+      const form = new FormData();
+      form.append("avatar", file);
+      await client.pb.collection("users").update(kid.id, form);
+      onSaved();
+    } catch (e) {
+      setError(errorMessage(e));
+    }
+  }
+  return (
+    <>
+      <button
+        type="button"
+        className="kid-avatar avatar-picker"
+        title={error || "Change photo (JPEG, PNG, WebP or GIF, up to 2 MB)"}
+        aria-label={`Change ${kid.display_name}'s photo`}
+        onClick={() => input.current?.click()}
+        style={{ backgroundColor: `color-mix(in srgb, ${kidAccent(kid.color, "#2f7d4f")} 18%, transparent)` }}
+      >
+        {kid.avatar ? <img src={avatarUrl(client.pb, kid, "100x100")} alt="" /> : kid.avatar_emoji || "🧒"}
+      </button>
+      <input
+        ref={input}
+        type="file"
+        hidden
+        data-testid={`avatar-file-${kid.id}`}
+        accept="image/jpeg,image/png,image/webp,image/gif"
+        onChange={(e) => { void upload(e.target.files?.[0]); e.target.value = ""; }}
+      />
+      {error && <span className="error" style={{ fontSize: 12 }}>{error}</span>}
+    </>
+  );
+}
+
 function AvatarControl({ kid, onSaved }: { kid: User; onSaved: () => void }) {
   const [open, setOpen] = useState(false);
   const [avatar, setAvatar] = useState(kid.avatar_emoji ?? "");
-  const [photo, setPhoto] = useState<File | null>(null);
   const [color, setColor] = useState(kidAccent(kid.color, AVATAR_COLORS[0]));
   const [goodsRateOverride, setGoodsRateOverride] = useState(String(kid.goods_rate ?? ""));
   const [calmMode, setCalmMode] = useState(!!kid.calm_mode);
@@ -1679,18 +1716,12 @@ function AvatarControl({ kid, onSaved }: { kid: User; onSaved: () => void }) {
       <div className="kid-settings-row">
       <input
         placeholder="Emoji (e.g. 🦊)"
+        aria-label="Emoji"
         value={avatar}
         onChange={(e) => setAvatar(e.target.value)}
-        style={{ width: 110 }}
+        style={{ width: 190 }}
+        title="Click the picture at the top of the card to use a photo instead"
       />
-      <label style={{ fontSize: 13 }} title="JPEG, PNG, WebP or GIF, up to 2 MB">
-        Photo{" "}
-        <input
-          type="file"
-          accept="image/jpeg,image/png,image/webp,image/gif"
-          onChange={(e) => setPhoto(e.target.files?.[0] ?? null)}
-        />
-      </label>
       <div className="inline" style={{ gap: 4 }}>
         {AVATAR_COLORS.map((c) => (
           <button
@@ -1789,11 +1820,6 @@ function AvatarControl({ kid, onSaved }: { kid: User; onSaved: () => void }) {
         onClick={async () => {
           setBusy(true);
           try {
-            if (photo) {
-              const form = new FormData();
-              form.append("avatar", photo);
-              await client.pb.collection("users").update(kid.id, form);
-            }
             await client.pb.collection("users").update(kid.id, {
               avatar_emoji: avatar.trim(),
               color,
@@ -1937,7 +1963,7 @@ function KidEarnings({ kid, currencyName, onMore }: { kid: User; currencyName: s
   }, [kid.id, kid.balance]);
   return (
     <div className="goal-list">
-      <div className="goal-section-toggle" style={{ cursor: "default" }}>💰 Recent earnings</div>
+      <button type="button" className="goal-section-toggle" onClick={onMore}>💰 Recent earnings</button>
       {rows.length === 0 && <p className="muted" style={{ margin: "0 0 8px", fontSize: 13 }}>No approved chores yet.</p>}
       {rows.map((a) => {
         const chore = a.expand?.chore as Chore | undefined;
@@ -1949,7 +1975,7 @@ function KidEarnings({ kid, currencyName, onMore }: { kid: User; currencyName: s
         );
       })}
       {rows.length > 0 && (
-        <button type="button" className="sm" onClick={onMore}>More in ledger →</button>
+        <button type="button" className="more-link" onClick={onMore}>More in ledger →</button>
       )}
     </div>
   );

@@ -197,7 +197,7 @@ body {
 }
 
 .app-bar-inner {
-  max-width: 912px;
+  max-width: 1152px;
   margin: 0 auto;
   padding: 0 16px;
   height: 64px;
@@ -240,7 +240,7 @@ body {
 
 /* ─── Main Content ───────────────────────────────────────────────────────── */
 main {
-  max-width: 880px;
+  max-width: 1120px;
   margin: 0 auto;
   padding: 24px 16px 80px;
   width: 100%;
@@ -1032,3 +1032,39 @@ button.danger-filled:disabled { box-shadow: none; }
 .kid-settings-row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
 .chore-title { display: flex; flex-wrap: wrap; align-items: baseline; column-gap: 8px; }
 .chore-badges { display: inline-flex; gap: 6px; font-size: 13px; }
+
+/* Shared data table: stacks into labelled rows on narrow screens. */
+.data-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.data-table th { text-align: left; padding: 6px 8px; }
+.data-table td { padding: 6px 8px; }
+.data-table tbody tr { border-top: 1px solid var(--border, #eee); }
+.data-table .num { text-align: right; }
+.data-table .pos { color: green; }
+.data-table .neg { color: red; }
+@media (max-width: 700px) {
+  .data-table thead { display: none; }
+  .data-table tbody tr { display: block; padding: 6px 0; }
+  .data-table td { display: flex; justify-content: space-between; gap: 12px; padding: 2px 0; text-align: right; }
+  .data-table td::before { content: attr(data-label); color: var(--md-on-surface-variant, #666); text-align: left; }
+}
+
+/* Quiet inline "more…" link: text only, no button chrome. */
+.more-link {
+  display: inline-block;
+  margin: 8px 0 4px;
+  padding: 0;
+  background: transparent;
+  box-shadow: none;
+  border: 0;
+  border-radius: 0;
+  min-height: 0;
+  font: inherit;
+  font-size: 13px;
+  color: var(--md-primary);
+  cursor: pointer;
+}
+.more-link:hover { text-decoration: underline; }
+
+/* Kid picture doubles as the "change photo" control. */
+.avatar-picker { padding: 0; border: 0; cursor: pointer; overflow: hidden; position: relative; flex-shrink: 0; }
+.avatar-picker:hover, .avatar-picker:focus-visible { outline: 2px solid var(--md-primary); outline-offset: 2px; }
