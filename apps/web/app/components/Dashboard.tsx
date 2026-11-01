@@ -256,6 +256,7 @@ export function Dashboard({
             </div>
             <div className="inline" style={{ marginTop: 10 }}>
               <AdjustControl kid={kid} onAdjusted={reload} />
+              <GoalControl kid={kid} goals={goalsByKid[kid.id] ?? []} onChanged={reload} />
               <LedgerToggle kidId={kid.id} kidName={kid.display_name} />
               <AvatarControl kid={kid} onSaved={reload} />
             </div>
@@ -265,6 +266,7 @@ export function Dashboard({
         {kids.length > 0 && (
           <BroadcastControl householdId={householdId} senderId={user.id} />
         )}
+        <CoParentsPanel householdId={householdId} selfId={user.id} />
         </>)}
 
         {tab === "approvals" && (<>
@@ -769,6 +771,187 @@ function LedgerToggle({ kidId, kidName }: { kidId: string; kidName: string }) {
           ))}
         </div>
       )}
+    </div>
+  );
+}
+
+function GoalControl({
+  kid,
+  goals,
+  onChanged,
+}: {
+  kid: User;
+  goals: SavingsGoal[];
+  onChanged: () => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [name, setName] = useState("");
+  const [target, setTarget] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+  const targetNum = Math.floor(Number(target));
+
+  async function save() {
+    if (!name.trim() || !(targetNum > 0)) return;
+    setBusy(true);
+    setError("");
+    try {
+      await client.createGoal(kid.id, name.trim(), targetNum);
+      setName("");
+      setTarget("");
+      setOpen(false);
+      onChanged();
+    } catch (e) {
+      setError(errorMessage(e));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function remove(g: SavingsGoal) {
+    if (!window.confirm(`Delete the "${g.name}" goal? Their balance isn't affected.`)) return;
+    setError("");
+    try {
+      await client.deleteGoal(g.id);
+      onChanged();
+    } catch (e) {
+      setError(errorMessage(e));
+    }
+  }
+
+  return (
+    <>
+      {!open && (
+        <button className="sm" onClick={() => setOpen(true)}>
+          Set a goal
+        </button>
+      )}
+      {goals.map((g) => (
+        <button
+          key={g.id}
+          className="sm"
+          title={`Delete goal ${g.name}`}
+          aria-label={`Delete goal ${g.name}`}
+          onClick={() => void remove(g)}
+        >
+          🎯 {g.name} ✕
+        </button>
+      ))}
+      {open && (
+        <div className="stack" style={{ marginTop: 8, width: "100%" }}>
+          <div className="inline">
+            <input
+              placeholder="What are they saving for?"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              style={{ flex: 1 }}
+            />
+            <input
+              type="number"
+              min={1}
+              value={target}
+              onChange={(e) => setTarget(e.target.value)}
+              style={{ width: 110 }}
+              placeholder="Target"
+            />
+            <button
+              className="primary sm"
+              onClick={save}
+              disabled={busy || !name.trim() || !(targetNum > 0)}
+            >
+              Add goal
+            </button>
+            <button className="sm" onClick={() => { setOpen(false); setError(""); }}>
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
+      {error && <p className="error">{error}</p>}
+    </>
+  );
+}
+
+function CoParentsPanel({ householdId, selfId }: { householdId: string; selfId: string }) {
+  const [parents, setParents] = useState<User[]>([]);
+  const [open, setOpen] = useState(false);
+  const [email, setEmail] = useState("");
+  const [name, setName] = useState("");
+  const [pass, setPass] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [status, setStatus] = useState("");
+
+  const load = useCallback(async () => {
+    try {
+      setParents(await client.listParents(householdId));
+    } catch (e) {
+      setStatus(errorMessage(e));
+    }
+  }, [householdId]);
+
+  useEffect(() => {
+    void load();
+  }, [load]);
+
+  async function add() {
+    if (!email.trim() || !name.trim() || !pass) return;
+    setBusy(true);
+    setStatus("");
+    try {
+      await client.createCoParent(email.trim(), name.trim(), pass);
+      setEmail("");
+      setName("");
+      setPass("");
+      setOpen(false);
+      setStatus("Co-parent added ✅");
+      await load();
+    } catch (e) {
+      setStatus(errorMessage(e));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  const others = parents.filter((p) => p.id !== selfId);
+  return (
+    <div className="card" style={{ marginTop: 4 }}>
+      <div style={{ fontWeight: 700, marginBottom: 6 }}>Co-parents</div>
+      {others.length === 0 ? (
+        <p className="muted" style={{ margin: "0 0 8px" }}>
+          No co-parents yet. Add one so another parent can log in.
+        </p>
+      ) : (
+        others.map((p) => (
+          <div key={p.id} style={{ marginBottom: 4 }}>
+            {p.display_name}
+            {p.email ? ` — ${p.email}` : ""}
+          </div>
+        ))
+      )}
+      {!open ? (
+        <button className="sm" onClick={() => setOpen(true)}>
+          Add co-parent
+        </button>
+      ) : (
+        <div className="inline">
+          <input type="email" placeholder="Email" value={email} onChange={(e) => setEmail(e.target.value)} />
+          <input placeholder="Name" value={name} onChange={(e) => setName(e.target.value)} />
+          <input
+            type="password"
+            placeholder="Password"
+            autoComplete="new-password"
+            value={pass}
+            onChange={(e) => setPass(e.target.value)}
+          />
+          <button className="primary sm" onClick={add} disabled={busy || !email.trim() || !name.trim() || !pass}>
+            Add
+          </button>
+          <button className="sm" onClick={() => setOpen(false)}>
+            Cancel
+          </button>
+        </div>
+      )}
+      {status && <p className="muted" style={{ margin: "8px 0 0" }}>{status}</p>}
     </div>
   );
 }

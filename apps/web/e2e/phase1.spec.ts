@@ -174,3 +174,27 @@ test("add a starter chore from the age-band picker, then it shows as already add
   // Cleanup: retire the chore so reruns start clean
   await api.deactivateChore(created[0].id);
 });
+
+test("parent sets and deletes a kid savings goal on the web", async ({ page }) => {
+  await signIn(page);
+  await page.getByRole("tab", { name: /Kids/ }).click();
+
+  const goalName = `E2E goal ${Date.now()}`;
+  await page.getByRole("button", { name: "Set a goal" }).first().click();
+  await page.getByPlaceholder("What are they saving for?").fill(goalName);
+  await page.getByPlaceholder("Target").fill("50");
+  await page.getByRole("button", { name: "Add goal" }).click();
+  const deleteBtn = page.getByRole("button", { name: `Delete goal ${goalName}` });
+  await expect(deleteBtn).toBeVisible();
+
+  page.once("dialog", (d) => void d.accept());
+  await deleteBtn.click();
+  await expect(deleteBtn).toHaveCount(0);
+});
+
+test("co-parents panel lists the other parent on the web", async ({ page }) => {
+  await signIn(page);
+  await page.getByRole("tab", { name: /Kids/ }).click();
+  await expect(page.getByText("Co-parents", { exact: true })).toBeVisible();
+  await expect(page.getByText(/Parent 2/)).toBeVisible();
+});

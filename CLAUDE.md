@@ -84,6 +84,7 @@ PocketBase binary is not committed — run `just pb-download` (falls back to Hom
 - **parentBucks**: Virtual currency earned on parent-approved chore completion. Configurable reward per chore. Spent via request → parent approval → deduction.
 - **Race mechanic**: a chore assignable to multiple kids; first one approved wins the reward.
 - **Simplified mode**: per-child UI toggle — larger tap targets, icon-heavy, minimal reading. Default on for the youngest (age 6); standard UI for the 11-year-old.
+- **Parent parity**: every parent-facing capability ships on both web and mobile in the same change, or the gap is logged in `ROADMAP.md` (*Parent parity*). Kid surfaces are mobile-only by design.
 - **No Google**: Stack deliberately avoids Play Services. ntfy over FCM, PocketBase over Firebase.
 - **Family Link automation** (Phase 2, in progress): bonus time is granted through the Family Link web API from a copied Google session (`just fl-*` recipes; host setup in [docs/DEPLOYMENT.md](./docs/DEPLOYMENT.md#family-link-grants)). The Accessibility Service path is shelved; see `ROADMAP.md`.
 

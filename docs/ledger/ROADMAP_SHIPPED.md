@@ -4,6 +4,11 @@
 
 ## Shipped index
 
+- [x] 2026-11-01 — Web kid-goal form and co-parent panel (parent parity)
+- [x] 2026-10-31 — Per-chore pay mode (bucks, screen time, or both)
+- [x] 2026-10-31 — Advisory chore limits, streak bonuses, economy tuning
+- [x] 2026-10-31 — One-command deploy (`just ship`) and in-app update fixes
+- [x] 2026-10-23 — Go live on bb
 - [x] 2026-10-29 — Age-grouped starter chores (`packages/shared/src/starterChores.ts`; web picker, `go-live` step). Mobile parent picker not built; setup happens on web
 - [x] 2026-10-29 — Alert inbox (bell on mobile, Alerts tab on web), `needs_help` parent notification fix
 - [x] 2026-10-29 — Host backups (nightly PocketBase zips + `backup-pull`), `push-updates`, `host-reset`/`go-live` onboarding
@@ -157,3 +162,55 @@ Native tap-through later confirmed on the Pixel 8, 2026-10-21 (warm: lands KidHo
 - Notification quiet hours, chore templates, parent mobile view (approvals/spend/broadcast)
 - MD3 design overhaul (web + mobile), kid avatar + color
 - Phase 1 + 1.5 features: races, savings goals, streaks, chore swap, weekly digest, vacation mode
+
+### 2026-10-22 — Feature explanation tooltips
+
+- **Feature explanation tooltips** — shipped 2026-10-22: shared `FEATURE_TIPS` map in `packages/shared/src/featureTips.ts`; web hover ⓘ on HouseholdSettings fields; mobile ⓘ + dialog for Calm mode in KidDetail.
+
+### 2026-10-22 — Parent mobile parity (settings + ledger)
+
+- **Parent mobile parity** — shipped 2026-10-22: household settings screen + ledger tab added to mobile ParentHome (recent activity still web-only).
+
+### 2026-10-22 — Approval queue photo grid
+
+- **Approval queue photo grid** — shipped 2026-10-22: inline thumbnails (web + mobile) with tap-to-enlarge lightbox so parents verify photos without opening each request.
+
+### 2026-10-22 — In-app ledger view
+
+- **In-app ledger view** — shipped 2026-10-22: web '📒 Ledger' tab with per-kid + month filter and net total.
+
+### 2026-10-22 — Kid 'I need help' flag
+
+- **Kid "I need help" flag** — shipped 2026-10-22: `needs_help` field on assignments, kid tap (KidHome + SimpleKidHome) notifies parents via ntfy, cleared on mark-done/approve; shown in approval queues (web + mobile).
+
+### 2026-10-22 — Auto-save to savings goals
+
+- **Auto-save to savings goals** — shipped 2026-10-22: `auto_save_percent` on savings_goals, mobile goal form input, notification on earn with the slice; migration 1717000018.
+
+### 2026-10-22 — Kid weekly recap
+
+- **Kid weekly recap** — shipped 2026-10-22: `runKidWeeklyRecap` sends each kid a Sunday ntfy with earnings, chores completed, and nearest goal progress; vacation-mode gated; manual trigger `kid-recap`.
+
+### 2026-10-22 — Scheduled allowance (payday)
+
+- **Scheduled allowance ("payday")** — shipped 2026-10-22: household allowance_amount/cadence + daily cron grant (manual trigger `allowance`), notifies kids.
+
+### 2026-10-31 — Per-chore pay mode (bucks, screen time, or both)
+
+- `chores.pay_mode` per chore, paid via `time_grants` and the Family Link queue; pay math in `pocketbase/pb_hooks/lib/chorePay.js` and `packages/shared/src/chorePay.ts` (d621c20). Deployed to bb 2026-10-31. Tablet APK check and the first real time chore are still open (see Recommended Next 3). The kid "ask for more time" button and other follow-ups remain in the active backlog.
+
+### 2026-10-31 — Advisory chore limits, streak bonuses, economy tuning
+
+- Per-chore repeat limits with assign warning (7add3ea); `screen_rate` 3, `goods_rate` 88, streak bonuses 3/7/14/30 days = 40/100/250/600 set on bb. Limits are advisory and client-side only.
+
+### 2026-10-31 — One-command deploy (`just ship`) and in-app update fixes
+
+- `just ship` deploys the backend, builds and publishes the APK, and adb-installs where reachable (793886d); native download method and install permission fixed (570559a). Self-update validated end to end on one phone; other tablets still need one adb install of the new build.
+
+### 2026-10-23 — Go live on bb
+
+- PayDirt production runs on bb:3111 since 2026-10-23 (`update-service`, nightly backups, `go-live`, `push-updates`; see [deployment](../DEPLOYMENT.md#going-live-with-a-real-household)). Date taken from project memory, not a commit.
+
+### 2026-11-01 — Web kid-goal form and co-parent panel (parent parity)
+
+- `GoalControl` (set/delete goal, confirm on delete) and `CoParentsPanel` (list/add) in `apps/web/app/components/Dashboard.tsx`, matching mobile. Two Playwright tests in `phase1.spec.ts`; `just test-all` passes. Not deployed.
