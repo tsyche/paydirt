@@ -1248,7 +1248,7 @@ function ChoreRow({
             value={limit || ""}
             placeholder="none"
             onChange={(e) => setLimit(Math.max(0, Math.floor(Number(e.target.value) || 0)))}
-            style={{ width: 70 }}
+            style={{ width: 110 }}
           />
         </label>
       </div>
@@ -1521,7 +1521,7 @@ function CreateChore({
             value={limit || ""}
             placeholder="none"
             onChange={(e) => setLimit(Math.max(0, Math.floor(Number(e.target.value) || 0)))}
-            style={{ width: 70 }}
+            style={{ width: 110 }}
           />
         </label>
       </div>
