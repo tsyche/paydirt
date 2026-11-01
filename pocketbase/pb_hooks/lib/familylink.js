@@ -8,8 +8,13 @@ function exists(file) {
   try { $os.stat(file); return true; } catch (_) { return false; }
 }
 
+// spend_requests carry screen_minutes; time_grants (chore bonus) carry minutes.
+function minutesOf(record) {
+  return record.getInt("screen_minutes") || record.getInt("minutes");
+}
+
 function prepare(record, app) {
-  if (!record.getInt("screen_minutes")) return;
+  if (!minutesOf(record)) return;
   const child = app.findRecordById("users", record.getString("child"));
   let error = "";
   if ($os.getenv("FL_AUTOMATION_ENABLED") !== "1") {
@@ -34,7 +39,7 @@ function publish(app, record) {
     id: record.id,
     childId: child.getString("fl_child_id"),
     deviceId: child.getString("fl_device_id"),
-    seconds: record.getInt("screen_minutes") * 60,
+    seconds: minutesOf(record) * 60,
   };
   const temporary = dir + "/" + name + ".tmp";
   $os.writeFile(temporary, JSON.stringify(job), 0o600);
@@ -51,7 +56,8 @@ function notifyManual(app, record) {
 
 function reconcile(app) {
   const rows = app.findRecordsByFilter("spend_requests",
-    "status = 'approved' && grant_status = 'queued'", "created", 0, 0);
+    "status = 'approved' && grant_status = 'queued'", "created", 0, 0)
+    .concat(app.findRecordsByFilter("time_grants", "grant_status = 'queued'", "created", 0, 0));
   for (const record of rows) {
     try {
       const file = queueDir() + "/results/" + record.id + ".json";

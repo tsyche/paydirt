@@ -7,7 +7,6 @@
 
 function runBalanceReactions(app, record) {
   const { notifyUser, notifyParents } = require(`${__hooks}/lib/ntfy.js`);
-  const { STREAK_MILESTONES, computeStreak, getMilestoneBonus } = require(`${__hooks}/lib/streaks.js`);
   const amount = record.getFloat("amount");
   const child = app.findRecordById("users", record.getString("user"));
   if (child.getString("role") !== "child") return;
@@ -69,35 +68,42 @@ function runBalanceReactions(app, record) {
   }
 
   // ── streak bonuses: only chore earnings count toward streaks ───────────────
-  if (record.getString("type") === "earn") {
-    const streak = computeStreak(app, child.id);
-    const prevStreak = child.getFloat("streak_count");
-    if (streak !== prevStreak) {
-      child.set("streak_count", streak);
-      app.save(child);
-    }
-    // Per-household overrides; fall back to hardcoded defaults when 0/unset.
-    const milestones = {};
-    for (const [days, def] of Object.entries(STREAK_MILESTONES)) {
-      const override = household.getFloat(`streak_bonus_${days}`);
-      milestones[days] = override > 0 ? override : def;
-    }
-    const bonus = getMilestoneBonus(streak, prevStreak, milestones);
-    if (bonus) {
-      const tx = new Record(app.findCollectionByNameOrId("currency_transactions"));
-      tx.set("user", child.id);
-      tx.set("amount", bonus);
-      tx.set("type", "manual_adjustment");
-      tx.set("reason", "Streak bonus: " + streak + " days in a row! 🔥");
-      app.save(tx);
-      notifyUser(
-        app,
-        child.id,
-        streak + "-day streak! 🔥",
-        "+" + bonus + " " + currency + " bonus — keep it going!",
-      );
-    }
+  if (record.getString("type") === "earn") refreshStreak(app, child, household);
+}
+
+// Recompute the kid's streak and grant any milestone bonus. Called after an
+// earn row, and directly for chores paid only in screen time (no earn row).
+function refreshStreak(app, child, household) {
+  const { notifyUser } = require(`${__hooks}/lib/ntfy.js`);
+  const { STREAK_MILESTONES, computeStreak, getMilestoneBonus } = require(`${__hooks}/lib/streaks.js`);
+  const currency = household.getString("currency_name") || "Grit";
+  const streak = computeStreak(app, child.id);
+  const prevStreak = child.getFloat("streak_count");
+  if (streak !== prevStreak) {
+    child.set("streak_count", streak);
+    app.save(child);
+  }
+  // Per-household overrides; fall back to hardcoded defaults when 0/unset.
+  const milestones = {};
+  for (const [days, def] of Object.entries(STREAK_MILESTONES)) {
+    const override = household.getFloat(`streak_bonus_${days}`);
+    milestones[days] = override > 0 ? override : def;
+  }
+  const bonus = getMilestoneBonus(streak, prevStreak, milestones);
+  if (bonus) {
+    const tx = new Record(app.findCollectionByNameOrId("currency_transactions"));
+    tx.set("user", child.id);
+    tx.set("amount", bonus);
+    tx.set("type", "manual_adjustment");
+    tx.set("reason", "Streak bonus: " + streak + " days in a row! 🔥");
+    app.save(tx);
+    notifyUser(
+      app,
+      child.id,
+      streak + "-day streak! 🔥",
+      "+" + bonus + " " + currency + " bonus — keep it going!",
+    );
   }
 }
 
-module.exports = { runBalanceReactions };
+module.exports = { runBalanceReactions, refreshStreak };

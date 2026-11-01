@@ -29,6 +29,7 @@ import {
   shouldCelebrate,
   errorMessage,
   kidAccent,
+  payLabel,
 } from "@paydirt/shared";
 import { client } from "../lib/client";
 import { kidTabForNotificationType } from "../lib/deepLinks";
@@ -285,7 +286,7 @@ export function KidHome({
                   <Text variant="titleMedium">{a.expand?.chore?.name ?? "Chore"}</Text>
                   <Text variant="bodySmall">
                     {a.expand?.child?.display_name ?? "Someone"} wants you to take this
-                    {a.expand?.chore ? ` (+${a.expand.chore.reward} ${currencyName})` : ""}
+                    {a.expand?.chore ? ` (+${payLabel(a.expand.chore, currencyName)})` : ""}
                   </Text>
                   <View style={styles.buttonRow}>
                     <Button mode="contained" onPress={act(() => client.respondToSwap(a, user.id, true), "It's yours now!")}>
@@ -329,7 +330,7 @@ export function KidHome({
                   <Chip compact>{STATUS_LABEL[a.status] ?? a.status}</Chip>
                 </View>
                 {chore ? (
-                  <Text variant="bodySmall">{chore.reward} {currencyName}</Text>
+                  <Text variant="bodySmall">{payLabel(chore, currencyName)}</Text>
                 ) : null}
                 {due ? (
                   <Chip compact icon="clock-outline" style={[due.overdue ? styles.overdueChip : styles.dueChip, due.overdue ? { backgroundColor: theme.colors.errorContainer } : {}]}>
@@ -491,7 +492,7 @@ export function KidHome({
                       {a.reaction ? `  ${a.reaction}` : ""}
                     </Text>
                     <Text variant="bodyMedium" style={[styles.earned, { color: theme.colors.primary }]}>
-                      +{a.expand?.chore?.reward ?? "?"} {currencyName}
+                      +{a.expand?.chore ? payLabel(a.expand.chore, currencyName) : "?"}
                     </Text>
                   </View>
                   {a.approved_at ? (

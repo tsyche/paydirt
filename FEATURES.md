@@ -32,6 +32,7 @@
 - **Bank threshold** — one-time ntfy nudge to the kid when their balance crosses the household threshold.
 - **Currency expiry** — optional: earn entries older than N days lapse via compensating adjustments (daily cron), capped at current balance.
 - **Goods conversion display** — household `goods_rate` (bucks per $1) shown on spend requests and the kid's spend dialog.
+- **Per-chore pay mode** — each chore (and template) pays bucks, screen minutes, or both (`pay_mode`, `reward_minutes`); change it any time, it applies to future approvals. Minutes go through the Family Link queue as `time_grants` with the same manual fallback; approval of a chore that granted time can't be undone. Web + mobile forms, badges on chore cards, kid views and approvals. Plan: [bonus-minutes-and-time-asks](docs/plans/bonus-minutes-and-time-asks.md).
 - **Screen-time requests** — kids pick 15/30/45/60 min (both kid UIs); the server prices it at the household `screen_rate` (bucks per minute, default 1:1). Opt-in Family Link approval grants use a serialized worker; both parent UIs show results and manual completion. Host rollout remains in [ROADMAP Phase 2](ROADMAP.md#phase-2--family-link-automation).
 - **Scheduled chore reminders** — per-chore "HH:MM"; cron reminds assigned kids once a day.
 - **Approval nudges** — parents pinged when a completion sits unapproved longer than `nudge_hours`.

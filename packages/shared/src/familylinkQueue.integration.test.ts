@@ -153,6 +153,39 @@ describe("Family Link approval queue (isolated PocketBase)", () => {
     expect(calls).toBe(1);
   });
 
+  it("queues a chore's bonus minutes, publishes once, and the worker result lands on the grant", async () => {
+    await parent.pb.collection("users").update(kid.currentUser!.id, {
+      fl_child_id: "123456789012", fl_device_id: "a".repeat(30),
+    });
+    const chore = await parent.createChore({
+      household: parent.currentUser!.household, name: "Queue bonus chore", reward: 0, type: "oneoff",
+      created_by: parent.currentUser!.id, active: true, pay_mode: "time", reward_minutes: 10,
+    });
+    const assignment = await parent.assignChore(chore.id, kid.currentUser!.id);
+    await kid.markComplete(assignment.id);
+    await parent.approveAssignment(assignment.id);
+
+    const grant = (await parent.listBonusGrants(parent.currentUser!.household)).find((g) => g.assignment === assignment.id)!;
+    expect(grant.grant_status).toBe("queued");
+    const filename = `${grant.id}.json`;
+    expect(JSON.parse(readFileSync(join(queue, "pending", filename), "utf8"))).toEqual({
+      id: grant.id, childId: "123456789012", deviceId: "a".repeat(30), seconds: 600,
+    });
+    // Clients can't forge results or edit terms; nobody can delete a queued grant.
+    await expect(kid.pb.collection("time_grants").update(grant.id, { grant_status: "granted" })).rejects.toThrow();
+    await expect(parent.pb.collection("time_grants").update(grant.id, { grant_status: "granted" })).rejects.toThrow();
+    await expect(parent.pb.collection("time_grants").update(grant.id, { minutes: 60 })).rejects.toThrow();
+    await expect(parent.pb.collection("time_grants").delete(grant.id)).rejects.toThrow();
+
+    let calls = 0;
+    await processFamilyLinkQueue(queue, async () => { calls++; return 0; }, true);
+    await fetch(`${url}/test/reconcile`, { method: "POST" });
+    expect((await parent.pb.collection("time_grants").getOne(grant.id)).grant_status).toBe("granted");
+    await fetch(`${url}/test/reconcile`, { method: "POST" });
+    await processFamilyLinkQueue(queue, async () => { calls++; return 0; }, true);
+    expect(calls).toBe(1);
+  });
+
   it("repairs an unpublished committed approval and surfaces session expiry", async () => {
     const request = await approve();
     rmSync(join(queue, "pending", `${request.id}.json`));
@@ -168,5 +201,22 @@ describe("Family Link approval queue (isolated PocketBase)", () => {
     expect((await admin.collection("spend_requests").getOne(old.id)).status).toBe("approved");
     await fetch(`${url}/test/reconcile`, { method: "POST" });
     expect(readdirSync(join(queue, "pending"))).not.toContain(`${old.id}.json`);
+  });
+
+  it("falls back to a manual bonus grant when Family Link IDs are absent", async () => {
+    await parent.pb.collection("users").update(kid.currentUser!.id, { fl_child_id: "", fl_device_id: "" });
+    const chore = await parent.createChore({
+      household: parent.currentUser!.household, name: "Manual bonus chore", reward: 5, type: "oneoff",
+      created_by: parent.currentUser!.id, active: true, pay_mode: "both", reward_minutes: 5,
+    });
+    const assignment = await parent.assignChore(chore.id, kid.currentUser!.id);
+    await kid.markComplete(assignment.id);
+    await parent.approveAssignment(assignment.id);
+    const grant = (await parent.listBonusGrants(parent.currentUser!.household)).find((g) => g.assignment === assignment.id)!;
+    expect(grant.grant_status).toBe("manual");
+    expect(grant.grant_error).toContain("target is missing");
+    const done = await parent.confirmBonusGrant(grant.id);
+    expect(done.grant_status).toBe("manual_done");
+    expect(done.grant_error).toBe("");
   });
 });

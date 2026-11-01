@@ -19,7 +19,7 @@ import {
   SCREEN_PRESETS,
   screenCost,
   screenRate,
-  shouldCelebrate, errorMessage, kidAccent } from "@paydirt/shared";
+  shouldCelebrate, errorMessage, kidAccent, payLabel } from "@paydirt/shared";
 import { client } from "../lib/client";
 import { takePhotoAndComplete } from "../lib/completeWithPhoto";
 import { useCountUp } from "../lib/useCountUp";
@@ -224,7 +224,7 @@ export function SimpleKidHome({ user, onLogout }: { user: User; onLogout: () => 
             </Text>
             {a.expand?.chore ? (
               <Text style={[styles.choreReward, { color: accentColor }]}>
-                +{a.expand.chore.reward} {user.avatar_emoji || "💰"}
+                +{payLabel(a.expand.chore, user.avatar_emoji || "💰")}
               </Text>
             ) : null}
             <Button

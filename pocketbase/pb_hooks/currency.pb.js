@@ -77,40 +77,82 @@ onRecordUpdate((e) => {
   e.next();
 }, "spend_requests");
 
-// ── assignments → approved: create an earn transaction for the chore reward ──
+// ── assignments → approved: pay the chore (bucks, screen time, or both) ──────
+// The earn transaction / time_grants row recorded here is the snapshot of what
+// was paid; later chore edits never rewrite it. See lib/chorePay.js.
 onRecordAfterUpdateSuccess((e) => {
   const becameApproved =
     e.record.getString("status") === "approved" &&
     e.record.original().getString("status") !== "approved";
   if (becameApproved) {
     const chore = e.app.findRecordById("chores", e.record.getString("chore"));
-    const tx = new Record(e.app.findCollectionByNameOrId("currency_transactions"));
-    tx.set("user", e.record.getString("child"));
-    tx.set("amount", chore.getFloat("reward"));
-    tx.set("type", "earn");
-    tx.set("reason", "Chore: " + chore.getString("name"));
-    tx.set("related_assignment", e.record.id);
-    e.app.save(tx);
+    const pay = require(`${__hooks}/lib/chorePay.js`).normalizePay(chore);
+    if (pay.bucks > 0) {
+      const tx = new Record(e.app.findCollectionByNameOrId("currency_transactions"));
+      tx.set("user", e.record.getString("child"));
+      tx.set("amount", pay.bucks);
+      tx.set("type", "earn");
+      tx.set("reason", "Chore: " + chore.getString("name"));
+      tx.set("related_assignment", e.record.id);
+      e.app.save(tx);
+    }
+    if (pay.minutes > 0) {
+      const fl = require(`${__hooks}/lib/familylink.js`);
+      const grant = new Record(e.app.findCollectionByNameOrId("time_grants"));
+      grant.set("child", e.record.getString("child"));
+      grant.set("assignment", e.record.id);
+      grant.set("minutes", pay.minutes);
+      grant.set("description", "Chore: " + chore.getString("name") + " (" + pay.minutes + " min bonus)");
+      fl.prepare(grant, e.app);
+      e.app.save(grant);
+      if (grant.getString("grant_status") === "queued") {
+        try { fl.publish(e.app, grant); } catch (_) {
+          e.app.logger().error("Family Link publish deferred to cron", "time_grant", grant.id);
+        }
+      } else {
+        fl.notifyManual(e.app, grant);
+      }
+      if (pay.bucks <= 0) {
+        // No earn row to trigger the streak check, so run it here.
+        const child = e.app.findRecordById("users", e.record.getString("child"));
+        const household = e.app.findRecordById("households", child.getString("household"));
+        require(`${__hooks}/lib/balanceReactions.js`).refreshStreak(e.app, child, household);
+      }
+    }
   }
   e.next();
 }, "assignments");
 
-// ── assignments → un-approved: compensate the earn (approval undo) ───────────
-// Moving an assignment OUT of approved (parent undo) reverses the reward, so
-// the ledger and the assignment status can never drift apart.
+// ── assignments → un-approved: compensate what was actually paid ─────────────
+// Moving an assignment OUT of approved (parent undo) reverses the net of this
+// assignment's own ledger rows (not the chore's current reward, which may have
+// been edited since), so the ledger and the status can never drift apart.
+// Chores that granted screen time can't reach here (guards.pb.js blocks it).
 onRecordAfterUpdateSuccess((e) => {
   const becameUnapproved =
     e.record.original().getString("status") === "approved" &&
     e.record.getString("status") !== "approved";
   if (becameUnapproved) {
     const chore = e.app.findRecordById("chores", e.record.getString("chore"));
-    const tx = new Record(e.app.findCollectionByNameOrId("currency_transactions"));
-    tx.set("user", e.record.getString("child"));
-    tx.set("amount", -chore.getFloat("reward"));
-    tx.set("type", "manual_adjustment");
-    tx.set("reason", "Reversal: " + chore.getString("name"));
-    tx.set("related_assignment", e.record.id);
-    e.app.save(tx);
+    const rows = e.app.findRecordsByFilter(
+      "currency_transactions",
+      "related_assignment = {:a}",
+      "",
+      0,
+      0,
+      { a: e.record.id },
+    );
+    let net = 0;
+    for (const r of rows) net += r.getFloat("amount");
+    if (net !== 0) {
+      const tx = new Record(e.app.findCollectionByNameOrId("currency_transactions"));
+      tx.set("user", e.record.getString("child"));
+      tx.set("amount", -net);
+      tx.set("type", "manual_adjustment");
+      tx.set("reason", "Reversal: " + chore.getString("name"));
+      tx.set("related_assignment", e.record.id);
+      e.app.save(tx);
+    }
   }
   e.next();
 }, "assignments");

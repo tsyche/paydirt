@@ -87,6 +87,8 @@ export interface User extends BaseRecord {
 
 export type ChoreType = "oneoff" | "recurring";
 
+export type PayMode = "bucks" | "time" | "both";
+
 export interface Chore extends BaseRecord {
   household: string; // -> households.id
   name: string;
@@ -107,6 +109,10 @@ export interface Chore extends BaseRecord {
   reminder_time?: string;
   /** Normal repeat limit per kid per cadence window (0/unset = none); assigning past it warns. */
   max_per_period?: number;
+  /** What approval pays: bucks (default when empty), screen minutes, or both. */
+  pay_mode?: PayMode | "";
+  /** Screen minutes granted on approval (pay_mode time/both); multiples of 5. */
+  reward_minutes?: number;
 }
 
 // ─── Chore Templates ─────────────────────────────────────────────────────────
@@ -123,6 +129,8 @@ export interface ChoreTemplate extends BaseRecord {
   race?: boolean;
   reminder_time?: string;
   max_per_period?: number;
+  pay_mode?: PayMode | "";
+  reward_minutes?: number;
 }
 
 // ─── Assignments ─────────────────────────────────────────────────────────────
@@ -231,6 +239,17 @@ export interface InboxItem extends BaseRecord {
 }
 
 // ─── Spend Requests ──────────────────────────────────────────────────────────
+
+/** Bonus screen minutes earned by an approved chore; created only by the approval hook. */
+export interface TimeGrant extends BaseRecord {
+  child: string; // -> users.id
+  assignment?: string; // -> assignments.id
+  minutes: number;
+  description?: string;
+  /** Server-owned automation result; manual_done is a parent's confirmation. */
+  grant_status?: "queued" | "granted" | "manual" | "manual_done" | "";
+  grant_error?: string;
+}
 
 export type SpendRequestStatus = "pending" | "approved" | "denied";
 

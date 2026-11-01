@@ -14,6 +14,17 @@ onRecordUpdateRequest((e) => {
   const status = e.record.getString("status");
   const prev = e.record.original().getString("status");
 
+  // Screen time already granted through Family Link can't be clawed back, so an
+  // assignment that earned a time grant stays approved. Keyed off the grant row,
+  // not the chore's current pay_mode, which parents are free to edit.
+  if (prev === "approved" && status !== "approved") {
+    let granted = false;
+    try { e.app.findFirstRecordByData("time_grants", "assignment", e.record.id); granted = true; } catch (_) { /* none */ }
+    if (granted) {
+      throw new BadRequestError("This chore granted screen time, which can't be taken back. Adjust the time in Family Link instead.");
+    }
+  }
+
   if (!isParent) {
     // Only parents move chores into a settled state...
     if (status !== prev && (status === "approved" || status === "rejected" || status === "closed")) {
@@ -128,3 +139,16 @@ onRecordUpdate((e) => {
   }
   e.next();
 }, "assignments");
+
+// Pay mode: validate on every chore/template write and zero whatever the mode
+// doesn't pay. Server-side so old APKs and direct API calls get the same rules.
+for (const collection of ["chores", "chore_templates"]) {
+  onRecordCreateRequest((e) => {
+    require(__hooks + "/lib/chorePay.js").enforce(e.record);
+    e.next();
+  }, collection);
+  onRecordUpdateRequest((e) => {
+    require(__hooks + "/lib/chorePay.js").enforce(e.record);
+    e.next();
+  }, collection);
+}

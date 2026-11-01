@@ -2,7 +2,7 @@ import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { EventSource } from "eventsource";
 import { PaydirtClient } from "./client";
 import { Collections } from "./collections";
-import { cleanupChores, cleanupSpendRequests } from "./integration.cleanup";
+import { adminPb, cleanupChores, cleanupSpendRequests, cleanupUsers } from "./integration.cleanup";
 import { TINY_JPEG, completionFormWithPhoto } from "./integration.fixtures";
 import { avatarUrl } from "./avatar";
 import type { SpendRequest, User } from "./types";
@@ -29,6 +29,7 @@ describe("PocketBase hooks & guards (live)", () => {
   let householdId: string;
   const createdChores: string[] = [];
   const createdSpendRequests: string[] = [];
+  const createdUsers: string[] = [];
 
   beforeAll(async () => {
     parent = new PaydirtClient(PB_URL);
@@ -42,6 +43,7 @@ describe("PocketBase hooks & guards (live)", () => {
   // leftover "test chore" assignments otherwise pile up on the kid screens.
   afterAll(async () => {
     await cleanupChores(createdChores);
+    await cleanupUsers(createdUsers);
     await cleanupSpendRequests(createdSpendRequests);
   });
 
@@ -98,6 +100,109 @@ describe("PocketBase hooks & guards (live)", () => {
     // Final undo restores the starting balance (records removed in afterAll)
     await parent.undoApproval(assignment.id);
     expect(await parent.getBalance(kidUser.id)).toBe(start);
+  });
+
+  describe("per-chore pay mode", () => {
+    async function grantsFor(assignmentId: string) {
+      const all = await parent.listBonusGrants(householdId);
+      return all.filter((g) => g.assignment === assignmentId);
+    }
+
+    it("undo reverses what was paid, even if the chore's reward is edited after approval", async () => {
+      const start = await parent.getBalance(kidUser.id);
+      const { chore, assignment } = await completedAssignment(17, "Undo after edit chore");
+      await parent.approveAssignment(assignment.id);
+      expect(await parent.getBalance(kidUser.id)).toBe(start + 17);
+
+      await parent.updateChore(chore.id, { reward: 40 });
+      await parent.undoApproval(assignment.id);
+      expect(await parent.getBalance(kidUser.id)).toBe(start);
+    });
+
+    it("a time-only chore pays minutes and no bucks", async () => {
+      const start = await parent.getBalance(kidUser.id);
+      const chore = await createTestChore(0, "Time-only chore", { pay_mode: "time", reward_minutes: 10 });
+      const assignment = await parent.assignChore(chore.id, kidUser.id);
+      await kid.markComplete(assignment.id);
+      await parent.approveAssignment(assignment.id);
+
+      expect(await parent.getBalance(kidUser.id)).toBe(start);
+      const grants = await grantsFor(assignment.id);
+      expect(grants).toHaveLength(1);
+      expect(grants[0]?.minutes).toBe(10);
+      expect(["queued", "manual"]).toContain(grants[0]?.grant_status);
+    });
+
+    it("a time-only approval alone starts a streak (fresh kid, no earn rows)", async () => {
+      const email = `streak-kid-${Date.now()}@test.local`;
+      const su = await adminPb();
+      const fresh = await su.collection("users").create({
+        email,
+        password: PW,
+        passwordConfirm: PW,
+        verified: true,
+        role: "child",
+        display_name: "Streak Kid",
+        household: householdId,
+      });
+      createdUsers.push(fresh.id);
+      const freshKid = new PaydirtClient(PB_URL);
+      await freshKid.login(email, PW);
+      expect(fresh.streak_count ?? 0).toBe(0);
+
+      const chore = await createTestChore(0, "Streak time chore", { pay_mode: "time", reward_minutes: 5 });
+      const assignment = await parent.assignChore(chore.id, fresh.id);
+      await freshKid.markComplete(assignment.id);
+      await parent.approveAssignment(assignment.id);
+
+      expect(await parent.getBalance(fresh.id)).toBe(0);
+      const k = (await parent.listChildren(householdId)).find((c) => c.id === fresh.id)!;
+      expect(k.streak_count).toBe(1);
+    });
+
+    it("'both' pays bucks and minutes", async () => {
+      const start = await parent.getBalance(kidUser.id);
+      const chore = await createTestChore(12, "Both chore", { pay_mode: "both", reward_minutes: 5 });
+      const assignment = await parent.assignChore(chore.id, kidUser.id);
+      await kid.markComplete(assignment.id);
+      await parent.approveAssignment(assignment.id);
+
+      expect(await parent.getBalance(kidUser.id)).toBe(start + 12);
+      const grants = await grantsFor(assignment.id);
+      expect(grants.map((g) => g.minutes)).toEqual([5]);
+    });
+
+    it("a chore that granted time cannot be undone, even after the chore is edited back to bucks", async () => {
+      const chore = await createTestChore(0, "No-undo time chore", { pay_mode: "time", reward_minutes: 15 });
+      const assignment = await parent.assignChore(chore.id, kidUser.id);
+      await kid.markComplete(assignment.id);
+      await parent.approveAssignment(assignment.id);
+
+      await parent.updateChore(chore.id, { pay_mode: "bucks", reward: 5, reward_minutes: 0 });
+      await expect(parent.undoApproval(assignment.id)).rejects.toThrow();
+      expect(await grantsFor(assignment.id)).toHaveLength(1);
+    });
+
+    it("bucks-only chores never create a grant, and a stale reward_minutes is ignored", async () => {
+      const chore = await createTestChore(8, "Bucks chore", { pay_mode: "bucks", reward_minutes: 30 });
+      expect(chore.reward_minutes).toBe(0);
+      const assignment = await parent.assignChore(chore.id, kidUser.id);
+      await kid.markComplete(assignment.id);
+      await parent.approveAssignment(assignment.id);
+      expect(await grantsFor(assignment.id)).toHaveLength(0);
+    });
+
+    it("rejects invalid pay setups on create and edit", async () => {
+      const base = { household: householdId, name: "Invalid pay", type: "oneoff" as const, created_by: parent.currentUser!.id, active: true };
+      await expect(parent.createChore({ ...base, reward: 0 })).rejects.toThrow();
+      await expect(parent.createChore({ ...base, reward: 0, pay_mode: "time", reward_minutes: 0 })).rejects.toThrow();
+      await expect(parent.createChore({ ...base, reward: 0, pay_mode: "time", reward_minutes: 7 })).rejects.toThrow();
+      await expect(parent.createChore({ ...base, reward: 0, pay_mode: "time", reward_minutes: 600 })).rejects.toThrow();
+      await expect(parent.createChore({ ...base, reward: 0, pay_mode: "both", reward_minutes: 10 })).rejects.toThrow();
+
+      const ok = await createTestChore(5, "Valid then invalid");
+      await expect(parent.updateChore(ok.id, { pay_mode: "time", reward_minutes: 0 })).rejects.toThrow();
+    });
   });
 
   it("a child cannot approve, reject, or undo-approve an assignment", async () => {

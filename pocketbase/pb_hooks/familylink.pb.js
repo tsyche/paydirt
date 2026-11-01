@@ -61,3 +61,22 @@ onRecordAfterUpdateSuccess((e) => {
 cronAdd("paydirt_familylink", "* * * * *", () => {
   require(__hooks + "/lib/familylink.js").reconcile($app);
 });
+
+// Chore bonus grants are created only by the approval hook (no create rule).
+// Clients may only confirm a manual grant; everything else is server-owned.
+onRecordUpdateRequest((e) => {
+  const r = e.record;
+  const prev = r.original();
+  for (const field of ["child", "assignment", "minutes", "description", "grant_error"]) {
+    if (r.getString(field) !== prev.getString(field)) {
+      throw new BadRequestError("Time grant details cannot change.");
+    }
+  }
+  const manualDone = prev.getString("grant_status") === "manual" &&
+    r.getString("grant_status") === "manual_done";
+  if (r.getString("grant_status") !== prev.getString("grant_status") && !manualDone) {
+    throw new ForbiddenError("Grant results are maintained by the server.");
+  }
+  if (manualDone) r.set("grant_error", "");
+  e.next();
+}, "time_grants");

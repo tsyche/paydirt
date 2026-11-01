@@ -22,12 +22,18 @@ async function syncPath(path: string) {
   try { await handle.sync(); } finally { await handle.close(); }
 }
 
+// Purchases are 15-60 min; chore bonuses are 5-120 min. All whole 5-minute steps.
+function isGrantSeconds(seconds: unknown) {
+  return typeof seconds === "number" && Number.isInteger(seconds) &&
+    seconds >= 300 && seconds <= 7200 && seconds % 300 === 0;
+}
+
 function validJob(value: unknown, id: string): value is FamilyLinkJob {
   if (!value || typeof value !== "object") return false;
   const job = value as FamilyLinkJob;
   return job.id === id && /^\d{10,30}$/.test(job.childId) &&
     /^[a-z0-9]{20,80}$/.test(job.deviceId) &&
-    [900, 1800, 2700, 3600].includes(job.seconds);
+    isGrantSeconds(job.seconds);
 }
 
 export async function processFamilyLinkQueue(

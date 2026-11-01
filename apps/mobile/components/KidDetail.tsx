@@ -17,7 +17,7 @@ import {
 } from "react-native-paper";
 import { SafeAreaView } from "react-native-safe-area-context";
 import type { Assignment, Chore, Household, SavingsGoal, User } from "@paydirt/shared";
-import { avatarUrl, currencyDisplayName, featureTip, errorMessage, kidAccent } from "@paydirt/shared";
+import { avatarUrl, currencyDisplayName, featureTip, errorMessage, kidAccent, payLabel } from "@paydirt/shared";
 import { client } from "../lib/client";
 import { isNetworkError } from "../lib/reachability";
 import { useReachability } from "../lib/useReachability";
@@ -285,7 +285,7 @@ export function KidDetail({
                   {a.expand?.chore?.name ?? "Chore"}{a.reaction ? `  ${a.reaction}` : ""}
                 </Text>
                 <Text variant="bodyMedium" style={{ color: theme.colors.primary, fontWeight: "700" }}>
-                  +{a.expand?.chore?.reward ?? "?"}
+                  +{a.expand?.chore ? payLabel(a.expand.chore, "") : "?"}
                 </Text>
               </Card.Content>
             </Card>

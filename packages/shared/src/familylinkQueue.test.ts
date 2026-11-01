@@ -96,8 +96,19 @@ describe("Family Link queue worker", () => {
     expect(await result(root)).toMatchObject({ status: "granted" });
   });
 
+  it.each([300, 600, 7200])("accepts a %i second grant (chore bonus sizes)", async (seconds) => {
+    const root = await setup("pending", { ...job, seconds });
+    let granted = 0;
+    await processFamilyLinkQueue(root, async (j) => { granted = j.seconds; return 0; }, true);
+    expect(granted).toBe(seconds);
+    expect(await result(root)).toMatchObject({ status: "granted" });
+  });
+
   it.each([
     { ...job, seconds: 1 },
+    { ...job, seconds: 420 },
+    { ...job, seconds: 0 },
+    { ...job, seconds: 7500 },
     { ...job, id: "other" },
     { ...job, childId: "bad" },
     { ...job, deviceId: "--flag" },

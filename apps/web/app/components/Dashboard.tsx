@@ -2,6 +2,8 @@
 
 import { useCallback, useEffect, useState } from "react";
 import type {
+  TimeGrant,
+  PayMode,
   Assignment,
   Chore,
   ChoreProposal,
@@ -12,7 +14,7 @@ import type {
   SpendRequest,
   User,
 } from "@paydirt/shared";
-import { AVATAR_COLORS, REACTIONS, undoApprovalPrompt, avatarUrl, currencyDisplayName, kidAccent, parseGoodsRateOverride, featureTip, screenGrantLabel, errorMessage, limitLabel, limitUnit } from "@paydirt/shared";
+import { AVATAR_COLORS, REACTIONS, undoApprovalPrompt, avatarUrl, currencyDisplayName, kidAccent, parseGoodsRateOverride, featureTip, screenGrantLabel, errorMessage, limitLabel, limitUnit, payLabel, approveTimePrompt, payMode, validatePay, MINUTES_STEP, MAX_REWARD_MINUTES } from "@paydirt/shared";
 import { client } from "../lib/client";
 import { HouseholdSettings } from "./HouseholdSettings";
 import { AppearanceControls } from "./AppearanceControls";
@@ -73,6 +75,7 @@ export function Dashboard({
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
   const [spend, setSpend] = useState<Expanded<SpendRequest>[]>([]);
   const [screenGrants, setScreenGrants] = useState<Expanded<SpendRequest>[]>([]);
+  const [bonusGrants, setBonusGrants] = useState<Expanded<TimeGrant>[]>([]);
   const [proposals, setProposals] = useState<Expanded<ChoreProposal>[]>([]);
   const [recentApproved, setRecentApproved] = useState<Expanded<Assignment>[]>([]);
   const [error, setError] = useState("");
@@ -80,6 +83,16 @@ export function Dashboard({
   const [tab, setTab] = useState<TabKey>("approvals");
   const [celebrate, setCelebrate] = useState(0);
   const party = () => setCelebrate((n) => n + 1);
+  /** True to proceed; asks first only when an approval grants screen time (irreversible). */
+  const confirmApprove = (list: Expanded<Assignment>[]) => {
+    const msg = approveTimePrompt(
+      list.map((x) => ({
+        chore: x.expand?.chore as Chore | undefined,
+        kidName: (x.expand?.child as User | undefined)?.display_name,
+      })),
+    );
+    return msg === null || window.confirm(msg);
+  };
 
   const currencyName = currencyDisplayName(household);
   const goodsRate = household?.goods_rate ?? 0;
@@ -87,7 +100,7 @@ export function Dashboard({
 
   const reload = useCallback(async () => {
     try {
-      const [hh, k, c, a, s, p, ra, grants] = await Promise.all([
+      const [hh, k, c, a, s, p, ra, grants, bonus] = await Promise.all([
         client.getHousehold(householdId),
         client.listChildren(householdId),
         client.listChores(householdId),
@@ -96,6 +109,7 @@ export function Dashboard({
         client.listPendingProposals(householdId),
         client.listRecentlyApproved(householdId, 8),
         client.listScreenTimeGrants(householdId),
+        client.listBonusGrants(householdId),
       ]);
       const goals = await Promise.all(k.map((kid) => client.listGoals(kid.id)));
       setHousehold(hh);
@@ -106,6 +120,7 @@ export function Dashboard({
       setSelectedApprovals(new Set());
       setSpend(s as Expanded<SpendRequest>[]);
       setScreenGrants(grants as Expanded<SpendRequest>[]);
+      setBonusGrants(bonus as Expanded<TimeGrant>[]);
       setProposals(p as Expanded<ChoreProposal>[]);
       setRecentApproved(ra as Expanded<Assignment>[]);
     } catch (e) {
@@ -281,6 +296,7 @@ export function Dashboard({
                   <button
                     className="primary sm"
                     onClick={() => {
+                      if (!confirmApprove(approvals.filter((a) => selectedApprovals.has(a.id)))) return;
                       party();
                       act(() =>
                         Promise.all(
@@ -295,6 +311,7 @@ export function Dashboard({
                 <button
                   className="primary sm"
                   onClick={() => {
+                    if (!confirmApprove(approvals)) return;
                     party();
                     act(() =>
                       Promise.all(approvals.map((a) => client.approveAssignment(a.id))).then(
@@ -344,6 +361,9 @@ export function Dashboard({
                   </div>
                   <div className="muted">
                     {(a.expand?.child as User | undefined)?.display_name ?? "child"}
+                    {a.expand?.chore && (
+                      <> · <span className="balance" style={{ fontSize: 13 }}>{payLabel(a.expand.chore as Chore, currencyName)}</span></>
+                    )}
                   </div>
                   {a.needs_help && (
                     <div className="muted" style={{ fontSize: 12, marginTop: 2, color: "#c0392b" }}>
@@ -380,6 +400,7 @@ export function Dashboard({
                 <button
                   className="primary sm"
                   onClick={() => {
+                    if (!confirmApprove([a])) return;
                     party();
                     act(() => client.approveAssignment(a.id));
                   }}
@@ -437,8 +458,24 @@ export function Dashboard({
           );
         })}
 
-        {screenGrants.length > 0 && <>
+        {(screenGrants.length > 0 || bonusGrants.length > 0) && <>
           <h2>Screen-time grants</h2>
+          {bonusGrants.map((g) => (
+            <div className="card row" key={g.id}>
+              <div>
+                <div style={{ fontWeight: 600 }}>
+                  {(g.expand?.child as User | undefined)?.display_name ?? "child"} — {g.description}
+                </div>
+                <div>{screenGrantLabel(g.grant_status)}</div>
+                {g.grant_error && <div role="status" className="muted">{g.grant_error}</div>}
+              </div>
+              {g.grant_status === "manual" && <button className="sm" onClick={() => {
+                if (window.confirm("Check Family Link first. Confirm this bonus time has been granted manually?")) {
+                  void act(() => client.confirmBonusGrant(g.id));
+                }
+              }}>Mark granted manually</button>}
+            </div>
+          ))}
           {screenGrants.map((s) => (
             <div className="card row" key={s.id}>
               <div>
@@ -470,9 +507,8 @@ export function Dashboard({
                 <div className="muted">
                   {kid?.display_name ?? "child"} ·{" "}
                   <span className="balance" style={{ fontSize: 13 }}>
-                    +{chore?.reward ?? "?"}
-                  </span>{" "}
-                  {currencyName}
+                    +{chore ? payLabel(chore, currencyName) : "?"}
+                  </span>
                 </div>
               </div>
               <div className="inline">
@@ -490,7 +526,7 @@ export function Dashboard({
                     </button>
                   ))
                 )}
-                <button
+                {(!chore || payMode(chore) === "bucks") && <button
                   className="danger sm"
                   onClick={() => {
                     const prompt = undoApprovalPrompt(chore?.name, chore?.reward, kid?.display_name, currencyName);
@@ -499,7 +535,7 @@ export function Dashboard({
                   }}
                 >
                   Undo
-                </button>
+                </button>}
               </div>
             </div>
           );
@@ -821,6 +857,8 @@ function ChoreRow({
   const [editing, setEditing] = useState(false);
   const [name, setName] = useState(chore.name);
   const [reward, setReward] = useState(chore.reward);
+  const [mode, setMode] = useState<PayMode>(payMode(chore));
+  const [minutes, setMinutes] = useState(chore.reward_minutes ?? 0);
   const [type, setType] = useState<"oneoff" | "recurring">(chore.type);
   const [cadence, setCadence] = useState<"daily" | "weekly" | "monthly">(
     (chore.cadence as "daily" | "weekly" | "monthly") ?? "weekly"
@@ -835,6 +873,8 @@ function ChoreRow({
   function cancelEdit() {
     setName(chore.name);
     setReward(chore.reward);
+    setMode(payMode(chore));
+    setMinutes(chore.reward_minutes ?? 0);
     setType(chore.type);
     setCadence((chore.cadence as "daily" | "weekly" | "monthly") ?? "weekly");
     setPhotoRequired(chore.photo_required);
@@ -847,12 +887,16 @@ function ChoreRow({
 
   async function save() {
     if (!name.trim()) return;
+    const payError = validatePay({ pay_mode: mode, reward, reward_minutes: minutes });
+    if (payError) { setError(payError); return; }
     setBusy(true);
     setError("");
     try {
       await client.updateChore(chore.id, {
         name: name.trim(),
         reward,
+        pay_mode: mode,
+        reward_minutes: minutes,
         type,
         cadence: type === "recurring" ? cadence : undefined,
         photo_required: photoRequired,
@@ -892,8 +936,8 @@ function ChoreRow({
             {chore.photo_required && <span className="muted"> 📷</span>}
           </div>
           <div className="muted">
-            <span className="balance" style={{ fontSize: 13 }}>{chore.reward}</span>
-            {" "}{currencyName} · {chore.type}
+            <span className="balance" style={{ fontSize: 13 }}>{payLabel(chore, currencyName)}</span>
+            {" "}· {chore.type}
             {chore.cadence ? ` (${chore.cadence})` : ""}
             {chore.due_at
               ? ` · due ${new Date(chore.due_at.replace(" ", "T")).toLocaleString()}`
@@ -920,14 +964,7 @@ function ChoreRow({
           onKeyDown={(e) => { if (e.key === "Enter") void save(); }}
           style={{ flex: 1 }}
         />
-        <input
-          type="number"
-          min={0}
-          value={reward}
-          onChange={(e) => setReward(Number(e.target.value))}
-          style={{ width: 90 }}
-          placeholder="Reward"
-        />
+        <PayControls mode={mode} reward={reward} minutes={minutes} onMode={setMode} onReward={setReward} onMinutes={setMinutes} />
         <select value={type} onChange={(e) => setType(e.target.value as "oneoff" | "recurring")}>
           <option value="oneoff">one-off</option>
           <option value="recurring">recurring</option>
@@ -979,6 +1016,52 @@ function ChoreRow({
   );
 }
 
+/** Pay mode + amounts for a chore: bucks, screen minutes, or both. */
+function PayControls({
+  mode, reward, minutes, onMode, onReward, onMinutes,
+}: {
+  mode: PayMode;
+  reward: number;
+  minutes: number;
+  onMode: (m: PayMode) => void;
+  onReward: (n: number) => void;
+  onMinutes: (n: number) => void;
+}) {
+  return (
+    <>
+      <select aria-label="Pay mode" value={mode} onChange={(e) => onMode(e.target.value as PayMode)}>
+        <option value="bucks">pays bucks</option>
+        <option value="time">pays time</option>
+        <option value="both">bucks + time</option>
+      </select>
+      {mode !== "time" && (
+        <input
+          type="number"
+          min={0}
+          value={reward}
+          onChange={(e) => onReward(Number(e.target.value))}
+          style={{ width: 90 }}
+          placeholder="Reward"
+          aria-label="Reward"
+        />
+      )}
+      {mode !== "bucks" && (
+        <input
+          type="number"
+          min={MINUTES_STEP}
+          max={MAX_REWARD_MINUTES}
+          step={MINUTES_STEP}
+          value={minutes || ""}
+          onChange={(e) => onMinutes(Number(e.target.value) || 0)}
+          style={{ width: 80 }}
+          placeholder="min"
+          aria-label="Bonus minutes"
+        />
+      )}
+    </>
+  );
+}
+
 function CreateChore({
   household,
   parentId,
@@ -994,6 +1077,8 @@ function CreateChore({
 }) {
   const [name, setName] = useState("");
   const [reward, setReward] = useState(10);
+  const [mode, setMode] = useState<PayMode>("bucks");
+  const [minutes, setMinutes] = useState(0);
   const [type, setType] = useState<"oneoff" | "recurring">("oneoff");
   const [cadence, setCadence] = useState<"daily" | "weekly" | "monthly">("weekly");
   const [photoRequired, setPhotoRequired] = useState(false);
@@ -1008,6 +1093,8 @@ function CreateChore({
     if (!template) return;
     setName(template.name);
     setReward(template.reward);
+    setMode(payMode(template));
+    setMinutes(template.reward_minutes ?? 0);
     setType(template.type);
     if (template.cadence && (template.cadence === "daily" || template.cadence === "weekly" || template.cadence === "monthly")) {
       setCadence(template.cadence);
@@ -1021,6 +1108,8 @@ function CreateChore({
   function reset() {
     setName("");
     setReward(10);
+    setMode("bucks");
+    setMinutes(0);
     setType("oneoff");
     setCadence("weekly");
     setPhotoRequired(false);
@@ -1033,6 +1122,8 @@ function CreateChore({
 
   async function create() {
     if (!name.trim()) return;
+    const payError = validatePay({ pay_mode: mode, reward, reward_minutes: minutes });
+    if (payError) { setError(payError); return; }
     setBusy(true);
     setError("");
     try {
@@ -1040,6 +1131,8 @@ function CreateChore({
         household,
         name: name.trim(),
         reward,
+        pay_mode: mode,
+        reward_minutes: minutes,
         type,
         cadence: type === "recurring" ? cadence : undefined,
         photo_required: photoRequired,
@@ -1061,6 +1154,8 @@ function CreateChore({
 
   async function saveTemplate() {
     if (!name.trim()) return;
+    const payError = validatePay({ pay_mode: mode, reward, reward_minutes: minutes });
+    if (payError) { setError(payError); return; }
     setBusy(true);
     setError("");
     try {
@@ -1068,6 +1163,8 @@ function CreateChore({
         household,
         name: name.trim(),
         reward,
+        pay_mode: mode,
+        reward_minutes: minutes,
         type,
         cadence: type === "recurring" ? cadence : undefined,
         photo_required: photoRequired,
@@ -1098,14 +1195,7 @@ function CreateChore({
           onKeyDown={(e) => { if (e.key === "Enter") void create(); }}
           style={{ flex: 1 }}
         />
-        <input
-          type="number"
-          min={0}
-          value={reward}
-          onChange={(e) => setReward(Number(e.target.value))}
-          style={{ width: 90 }}
-          placeholder="Reward"
-        />
+        <PayControls mode={mode} reward={reward} minutes={minutes} onMode={setMode} onReward={setReward} onMinutes={setMinutes} />
         <select
           value={type}
           onChange={(e) => setType(e.target.value as "oneoff" | "recurring")}
@@ -1239,7 +1329,7 @@ function ChoreTemplatesPanel({
               <span style={{ fontWeight: 600, fontSize: 14 }}>
                 {t.name}
                 <span className="muted" style={{ fontWeight: 400, marginLeft: 8, fontSize: 13 }}>
-                  {t.reward} · {t.type}{t.cadence ? ` · ${t.cadence}` : ""}
+                  {payLabel(t, "")} · {t.type}{t.cadence ? ` · ${t.cadence}` : ""}
                   {t.photo_required ? " · 📷" : ""}
                   {t.race ? " · 🏁" : ""}
                 </span>

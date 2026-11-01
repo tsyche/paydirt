@@ -14,6 +14,7 @@ import type {
   InboxItem,
   SavingsGoal,
   SpendRequest,
+  TimeGrant,
   User,
 } from "./types";
 
@@ -437,6 +438,27 @@ export class PaydirtClient {
       }),
     ]);
     return [...outstanding, ...recent.items];
+  }
+
+  /** Bonus minutes from approved chores: outstanding first, then the latest completed. */
+  async listBonusGrants(householdId: string): Promise<TimeGrant[]> {
+    const options = { sort: "-created", expand: "child" };
+    const scope = "child.household = {:hh}";
+    const [outstanding, recent] = await Promise.all([
+      this.pb.collection(Collections.TimeGrants).getFullList<TimeGrant>({
+        ...options,
+        filter: this.pb.filter(`${scope} && (grant_status = 'queued' || grant_status = 'manual')`, { hh: householdId }),
+      }),
+      this.pb.collection(Collections.TimeGrants).getList<TimeGrant>(1, 10, {
+        ...options,
+        filter: this.pb.filter(`${scope} && (grant_status = 'granted' || grant_status = 'manual_done')`, { hh: householdId }),
+      }),
+    ]);
+    return [...outstanding, ...recent.items];
+  }
+
+  confirmBonusGrant(id: string): Promise<TimeGrant> {
+    return this.pb.collection(Collections.TimeGrants).update<TimeGrant>(id, { grant_status: "manual_done" });
   }
 
   confirmManualGrant(id: string): Promise<SpendRequest> {

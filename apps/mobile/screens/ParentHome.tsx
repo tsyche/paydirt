@@ -15,8 +15,8 @@ import {
   useTheme,
 } from "react-native-paper";
 import { SafeAreaView } from "react-native-safe-area-context";
-import type { Assignment, Chore, ChoreProposal, ChoreTemplate, Household, SpendRequest, User } from "@paydirt/shared";
-import { currencyDisplayName, screenGrantLabel, errorMessage, kidAccent, limitLabel, limitUnit } from "@paydirt/shared";
+import type { Assignment, Chore, ChoreProposal, ChoreTemplate, Household, PayMode, SpendRequest, TimeGrant, User } from "@paydirt/shared";
+import { currencyDisplayName, screenGrantLabel, errorMessage, kidAccent, limitLabel, limitUnit, payLabel, payMode, validatePay } from "@paydirt/shared";
 import { client } from "../lib/client";
 import { isNetworkError } from "../lib/reachability";
 import { useRealtimeResume } from "../lib/useRealtimeResume";
@@ -30,6 +30,7 @@ import { Celebration } from "../components/Celebration";
 import { KidDetail } from "../components/KidDetail";
 import { RecentlyApproved } from "../components/RecentlyApproved";
 import { StarterChores } from "../components/StarterChores";
+import { PayModeFields } from "../components/PayModeFields";
 import { OfflineBanner } from "../components/OfflineBanner";
 import { HouseholdSettings } from "../components/HouseholdSettings";
 import { LedgerView } from "../components/LedgerView";
@@ -45,6 +46,7 @@ const PARENT_TABS = [
 
 type ExpandedAssignment = Assignment & { expand?: { chore?: Chore; child?: User } };
 type ExpandedSpend = SpendRequest & { expand?: { child?: User } };
+type ExpandedGrant = TimeGrant & { expand?: { child?: User } };
 type ExpandedProposal = ChoreProposal & { expand?: { child?: User } };
 
 export function ParentHome({
@@ -72,6 +74,7 @@ export function ParentHome({
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
   const [spend, setSpend] = useState<ExpandedSpend[]>([]);
   const [screenGrants, setScreenGrants] = useState<ExpandedSpend[]>([]);
+  const [bonusGrants, setBonusGrants] = useState<ExpandedGrant[]>([]);
   const [proposals, setProposals] = useState<ExpandedProposal[]>([]);
   const [chores, setChores] = useState<Chore[]>([]);
   const [refreshing, setRefreshing] = useState(false);
@@ -88,6 +91,8 @@ export function ParentHome({
   const [showCreateChore, setShowCreateChore] = useState(false);
   const [choreName, setChoreName] = useState("");
   const [choreReward, setChoreReward] = useState("10");
+  const [chorePayMode, setChorePayMode] = useState<PayMode>("bucks");
+  const [choreMinutes, setChoreMinutes] = useState("");
   const [choreType, setChoreType] = useState<"oneoff" | "recurring">("oneoff");
   const [choreCadence, setChoreCadence] = useState<"daily" | "weekly" | "monthly">("weekly");
   const [chorePhoto, setChorePhoto] = useState(false);
@@ -108,6 +113,8 @@ export function ParentHome({
   const [editingChoreId, setEditingChoreId] = useState<string | null>(null);
   const [editName, setEditName] = useState("");
   const [editReward, setEditReward] = useState("10");
+  const [editPayMode, setEditPayMode] = useState<PayMode>("bucks");
+  const [editMinutes, setEditMinutes] = useState("");
   const [editType, setEditType] = useState<"oneoff" | "recurring">("oneoff");
   const [editCadence, setEditCadence] = useState<"daily" | "weekly" | "monthly">("weekly");
   const [editPhoto, setEditPhoto] = useState(false);
@@ -137,7 +144,7 @@ export function ParentHome({
     setRefreshing(true);
     setApprovedKey((k) => k + 1);
     try {
-      const [hh, k, a, s, c, p, grants] = await Promise.all([
+      const [hh, k, a, s, c, p, grants, bonus] = await Promise.all([
         client.getHousehold(user.household),
         client.listChildren(user.household),
         client.listPendingApprovals(user.household),
@@ -145,12 +152,14 @@ export function ParentHome({
         client.listChores(user.household),
         client.listPendingProposals(user.household),
         client.listScreenTimeGrants(user.household),
+        client.listBonusGrants(user.household),
       ]);
       setHousehold(hh);
       setKids(k);
       setApprovals(a as ExpandedAssignment[]);
       setSpend(s as ExpandedSpend[]);
       setScreenGrants(grants as ExpandedSpend[]);
+      setBonusGrants(bonus as ExpandedGrant[]);
       setChores(c);
       setProposals(p as ExpandedProposal[]);
     } catch (e) {
@@ -288,12 +297,16 @@ export function ParentHome({
 
   async function createChore() {
     if (!choreName.trim()) return;
+    const payError = validatePay({ pay_mode: chorePayMode, reward: Number(choreReward) || 0, reward_minutes: Number(choreMinutes) || 0 });
+    if (payError) { setSnack(payError); return; }
     setCreatingChore(true);
     try {
       await client.createChore({
         household: user.household,
         name: choreName.trim(),
         reward: Number(choreReward) || 0,
+        pay_mode: chorePayMode,
+        reward_minutes: Number(choreMinutes) || 0,
         type: choreType,
         cadence: choreType === "recurring" ? choreCadence : undefined,
         photo_required: chorePhoto,
@@ -306,6 +319,8 @@ export function ParentHome({
       });
       setChoreName("");
       setChoreReward("10");
+      setChorePayMode("bucks");
+      setChoreMinutes("");
       setChoreType("oneoff");
       setChoreCadence("weekly");
       setChorePhoto(false);
@@ -326,6 +341,8 @@ export function ParentHome({
   function applyTemplate(t: ChoreTemplate) {
     setChoreName(t.name);
     setChoreReward(String(t.reward));
+    setChorePayMode(payMode(t));
+    setChoreMinutes(t.reward_minutes ? String(t.reward_minutes) : "");
     setChoreType(t.type);
     if (t.cadence === "daily" || t.cadence === "weekly" || t.cadence === "monthly") {
       setChoreCadence(t.cadence);
@@ -354,12 +371,16 @@ export function ParentHome({
 
   async function saveAsTemplate() {
     if (!choreName.trim()) return;
+    const payError = validatePay({ pay_mode: chorePayMode, reward: Number(choreReward) || 0, reward_minutes: Number(choreMinutes) || 0 });
+    if (payError) { setSnack(payError); return; }
     setSavingTemplate(true);
     try {
       const t = await client.createTemplate({
         household: user.household,
         name: choreName.trim(),
         reward: Number(choreReward) || 0,
+        pay_mode: chorePayMode,
+        reward_minutes: Number(choreMinutes) || 0,
         type: choreType,
         cadence: choreType === "recurring" ? choreCadence : undefined,
         photo_required: chorePhoto,
@@ -380,6 +401,8 @@ export function ParentHome({
     setEditingChoreId(chore.id);
     setEditName(chore.name);
     setEditReward(String(chore.reward));
+    setEditPayMode(payMode(chore));
+    setEditMinutes(chore.reward_minutes ? String(chore.reward_minutes) : "");
     setEditType(chore.type);
     setEditCadence((chore.cadence as "daily" | "weekly" | "monthly") ?? "weekly");
     setEditPhoto(chore.photo_required ?? false);
@@ -391,11 +414,15 @@ export function ParentHome({
 
   async function saveChoreEdit(choreId: string) {
     if (!editName.trim()) return;
+    const payError = validatePay({ pay_mode: editPayMode, reward: Number(editReward) || 0, reward_minutes: Number(editMinutes) || 0 });
+    if (payError) { setSnack(payError); return; }
     setSavingEdit(true);
     try {
       await client.updateChore(choreId, {
         name: editName.trim(),
         reward: Number(editReward) || 0,
+        pay_mode: editPayMode,
+        reward_minutes: Number(editMinutes) || 0,
         type: editType,
         cadence: editType === "recurring" ? editCadence : undefined,
         photo_required: editPhoto,
@@ -787,7 +814,7 @@ export function ParentHome({
                           )}
                           {chore && (
                             <Chip compact style={[styles.rewardChip, { backgroundColor: theme.colors.primaryContainer }]}>
-                              +{chore.reward} {currencyName}
+                              +{payLabel(chore, currencyName)}
                             </Chip>
                           )}
                         </View>
@@ -844,9 +871,27 @@ export function ParentHome({
           </>
         )}
 
-        {screenGrants.length > 0 && <>
+        {(screenGrants.length > 0 || bonusGrants.length > 0) && <>
           <Divider style={styles.divider} />
           <Text variant="labelLarge" style={styles.sectionLabel}>SCREEN-TIME GRANTS</Text>
+          {bonusGrants.map((g) => (
+            <Card key={g.id} style={styles.approvalCard}>
+              <Card.Content>
+                <Text variant="titleMedium">{g.expand?.child?.display_name ?? "Child"} — {g.description}</Text>
+                <Text>{screenGrantLabel(g.grant_status)}</Text>
+                {!!g.grant_error && <Text>{g.grant_error}</Text>}
+                {g.grant_status === "manual" && <Button onPress={() =>
+                  Alert.alert("Confirm manual grant",
+                    "Check Family Link first. Has this bonus time been granted manually?",
+                    [
+                      { text: "Cancel", style: "cancel" },
+                      { text: "Confirm", onPress: () => void act(() => client.confirmBonusGrant(g.id), "Manual grant recorded.") },
+                    ],
+                  )
+                }>Mark granted manually</Button>}
+              </Card.Content>
+            </Card>
+          ))}
           {screenGrants.map((s) => (
             <Card key={s.id} style={styles.approvalCard}>
               <Card.Content>
@@ -978,7 +1023,7 @@ export function ParentHome({
                       <View style={{ flex: 1 }}>
                         <Text variant="bodyMedium" style={{ fontWeight: "600" }}>{t.name}</Text>
                         <Text variant="bodySmall" style={{ color: "gray" }}>
-                          {t.reward} · {t.type}{t.cadence ? ` · ${t.cadence}` : ""}{t.photo_required ? " · 📷" : ""}{t.race ? " · 🏁" : ""}
+                          {payLabel(t, "")} · {t.type}{t.cadence ? ` · ${t.cadence}` : ""}{t.photo_required ? " · 📷" : ""}{t.race ? " · 🏁" : ""}
                         </Text>
                       </View>
                       <Button
@@ -1008,14 +1053,14 @@ export function ParentHome({
                 onChangeText={setChoreName}
                 dense
               />
-              <TextInput
-                mode="outlined"
-                label="Reward"
-                value={choreReward}
-                onChangeText={setChoreReward}
-                keyboardType="numeric"
-                dense
-                style={styles.rewardInput}
+              <PayModeFields
+                mode={chorePayMode}
+                reward={choreReward}
+                minutes={choreMinutes}
+                onMode={setChorePayMode}
+                onReward={setChoreReward}
+                onMinutes={setChoreMinutes}
+                currencyName={currencyName}
               />
               <Text variant="labelMedium" style={{ color: theme.colors.onSurfaceVariant, marginTop: 4 }}>Type</Text>
               <SegmentedButtons
@@ -1119,7 +1164,15 @@ export function ParentHome({
                   <View style={styles.createChoreContent}>
                     <Text variant="labelMedium" style={{ color: theme.colors.onSurfaceVariant }}>Editing: {chore.name}</Text>
                     <TextInput mode="outlined" label="Chore name" value={editName} onChangeText={setEditName} dense />
-                    <TextInput mode="outlined" label="Reward" value={editReward} onChangeText={setEditReward} keyboardType="numeric" dense style={styles.rewardInput} />
+                    <PayModeFields
+                      mode={editPayMode}
+                      reward={editReward}
+                      minutes={editMinutes}
+                      onMode={setEditPayMode}
+                      onReward={setEditReward}
+                      onMinutes={setEditMinutes}
+                      currencyName={currencyName}
+                    />
                     <Text variant="labelMedium" style={{ color: theme.colors.onSurfaceVariant, marginTop: 4 }}>Type</Text>
                     <SegmentedButtons
                       value={editType}
@@ -1167,7 +1220,7 @@ export function ParentHome({
                           {chore.photo_required ? " 📷" : ""}
                         </Text>
                         <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant }}>
-                          {chore.reward} {currencyName} · {chore.type}
+                          {payLabel(chore, currencyName)} · {chore.type}
                           {chore.cadence ? ` (${chore.cadence})` : ""}
                           {chore.reminder_time ? ` · ⏰ ${chore.reminder_time}` : ""}
                           {limitLabel(chore) ? ` · max ${limitLabel(chore)}` : ""}

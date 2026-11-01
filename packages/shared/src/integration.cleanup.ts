@@ -28,6 +28,10 @@ export async function cleanupChores(choreIds: string[]): Promise<void> {
       for (const t of txs) {
         await pb.collection("currency_transactions").update(t.id, { related_assignment: null });
       }
+      const grants = await pb.collection("time_grants").getFullList({
+        filter: pb.filter("assignment = {:a}", { a: a.id }),
+      });
+      for (const g of grants) await pb.collection("time_grants").delete(g.id);
       await pb.collection("assignments").delete(a.id);
     }
     await pb.collection("chores").delete(choreId);
@@ -48,5 +52,27 @@ export async function cleanupSpendRequests(spendRequestIds: string[]): Promise<v
       await pb.collection("currency_transactions").update(t.id, { related_spend_request: null });
     }
     await pb.collection("spend_requests").delete(id);
+  }
+}
+
+export async function adminPb(): Promise<PocketBase> {
+  const pb = new PocketBase(PB_URL);
+  pb.autoCancellation(false);
+  await pb.collection("_superusers").authWithPassword(ADMIN_EMAIL, ADMIN_PASSWORD);
+  return pb;
+}
+
+/** Delete throwaway users (after their chores are cleaned up). Ledger rows go with them; best-effort. */
+export async function cleanupUsers(userIds: string[]): Promise<void> {
+  if (userIds.length === 0) return;
+  const pb = await adminPb();
+  for (const id of userIds) {
+    const txs = await pb.collection("currency_transactions").getFullList({
+      filter: pb.filter("user = {:u}", { u: id }),
+    });
+    for (const t of txs) await pb.collection("currency_transactions").delete(t.id).catch(() => {});
+    const grants = await pb.collection("time_grants").getFullList({ filter: pb.filter("child = {:u}", { u: id }) });
+    for (const g of grants) await pb.collection("time_grants").delete(g.id).catch(() => {});
+    await pb.collection("users").delete(id).catch(() => {});
   }
 }

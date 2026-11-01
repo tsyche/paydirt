@@ -32,7 +32,7 @@ function computeStreakFromDays(now, days) {
 }
 
 // Count consecutive days, ending today (UTC), on which the child earned from
-// a chore (type = "earn" ledger entries).
+// a chore (type = "earn" ledger entries or time_grants).
 function computeStreak(app, childId) {
   const txs = app.findRecordsByFilter(
     "currency_transactions",
@@ -45,6 +45,11 @@ function computeStreak(app, childId) {
   const days = {};
   for (const t of txs) {
     days[t.getString("created").slice(0, 10)] = true;
+  }
+  // Chores paid only in screen time leave no earn row, so their grants count too.
+  const grants = app.findRecordsByFilter("time_grants", "child = {:c}", "-created", 200, 0, { c: childId });
+  for (const g of grants) {
+    days[g.getString("created").slice(0, 10)] = true;
   }
   return computeStreakFromDays(new Date(), days);
 }

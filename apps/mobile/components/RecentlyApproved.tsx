@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { Alert, StyleSheet, View } from "react-native";
 import { Button, Card, Text, useTheme } from "react-native-paper";
 import type { Assignment, Chore, User } from "@paydirt/shared";
-import { REACTIONS, errorMessage, undoApprovalPrompt } from "@paydirt/shared";
+import { REACTIONS, errorMessage, payLabel, payMode, undoApprovalPrompt } from "@paydirt/shared";
 import { client } from "../lib/client";
 
 type Expanded = Assignment & { expand?: { chore?: Chore; child?: User } };
@@ -73,7 +73,7 @@ export function RecentlyApproved({
           <Card.Content>
             <Text variant="titleSmall">{a.expand?.chore?.name ?? "Chore"}</Text>
             <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant }}>
-              {a.expand?.child?.display_name ?? "child"} · +{a.expand?.chore?.reward ?? "?"} {currencyName}
+              {a.expand?.child?.display_name ?? "child"} · +{a.expand?.chore ? payLabel(a.expand.chore, currencyName) : "?"}
             </Text>
             <View style={styles.actions}>
               <View style={styles.reactions}>
@@ -95,9 +95,11 @@ export function RecentlyApproved({
                   ))
                 )}
               </View>
-              <Button compact textColor={theme.colors.error} onPress={() => confirmUndo(a)}>
-                Undo
-              </Button>
+              {(!a.expand?.chore || payMode(a.expand.chore) === "bucks") && (
+                <Button compact textColor={theme.colors.error} onPress={() => confirmUndo(a)}>
+                  Undo
+                </Button>
+              )}
             </View>
           </Card.Content>
         </Card>

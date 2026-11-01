@@ -143,6 +143,85 @@ test("create → assign → kid completes → approve → undo", async ({ page }
   await api.deactivateChore(choreId);
 });
 
+test("a chore that pays time grants minutes on approval and can't be undone", async ({ page }) => {
+  const choreName = `E2E time chore ${Date.now()}`;
+  const api = new PaydirtClient(PB_URL);
+  await api.login("parent1@test.local", PW);
+  const kids = await api.listChildren(api.currentUser!.household);
+  const kid1 = kids.find((k) => k.display_name === "Kid 1");
+  expect(kid1).toBeDefined();
+
+  page.on("dialog", (d) => void d.accept());
+  await signIn(page);
+
+  // Create a chore that pays 10 minutes instead of bucks.
+  await goTab(page, /Chores/);
+  await page.getByPlaceholder("New chore name").fill(choreName);
+  const createCard = page
+    .locator(".card-filled")
+    .filter({ has: page.getByPlaceholder("New chore name") });
+  await createCard.getByLabel("Pay mode").selectOption("time");
+  await expect(createCard.getByLabel("Reward")).toHaveCount(0);
+  await createCard.getByLabel("Bonus minutes").fill("10");
+  await page.getByRole("button", { name: "Add chore" }).click();
+
+  const choreRow = page
+    .locator(".card.row")
+    .filter({ hasText: choreName })
+    .filter({ has: page.getByRole("button", { name: "Assign" }) });
+  await expect(choreRow).toBeVisible();
+  await expect(choreRow).toContainText("10 min");
+  await choreRow.getByRole("checkbox", { name: /Kid 1/ }).check();
+  await choreRow.getByRole("button", { name: "Assign" }).click();
+
+  let assignmentId = "";
+  let choreId = "";
+  await expect
+    .poll(async () => {
+      const list = await api.listAssignmentsForChild(kid1!.id);
+      const match = list.find(
+        (a) => (a as { expand?: { chore?: { name?: string } } }).expand?.chore?.name === choreName,
+      );
+      assignmentId = match?.id ?? "";
+      choreId = match?.chore ?? "";
+      return assignmentId;
+    })
+    .not.toBe("");
+  await api.markComplete(assignmentId);
+
+  await page.reload();
+  const approvalRow = page
+    .locator(".card.row")
+    .filter({ hasText: choreName })
+    .filter({ has: page.getByRole("button", { name: "Approve" }) });
+  await expect(approvalRow).toBeVisible();
+  await expect(approvalRow).toContainText("10 min");
+  // Time approvals are irreversible: dismissing the confirm must not approve.
+  let confirmText = "";
+  page.removeAllListeners("dialog");
+  page.once("dialog", (d) => { confirmText = d.message(); void d.dismiss(); });
+  await approvalRow.getByRole("button", { name: "Approve" }).click();
+  expect(confirmText).toContain("can't be undone");
+  expect(confirmText).toContain("10 min");
+  await expect(approvalRow).toBeVisible();
+  page.on("dialog", (d) => void d.accept());
+  await approvalRow.getByRole("button", { name: "Approve" }).click();
+
+  // A grant shows up under Screen-time grants, and the approved row has no Undo.
+  const grantRow = page.locator(".card.row").filter({ hasText: `Chore: ${choreName} (10 min bonus)` });
+  await expect(grantRow).toBeVisible();
+  const approvedRow = page
+    .locator(".card.row")
+    .filter({ hasText: choreName })
+    .filter({ has: page.getByRole("button", { name: /Send a reaction/ }) });
+  await expect(approvedRow.getByRole("button", { name: "Undo" })).toHaveCount(0);
+
+  // Cleanup: settle the manual grant and retire the chore.
+  await grantRow.getByRole("button", { name: "Mark granted manually" }).click();
+  await expect(grantRow).toContainText("Granted manually");
+  await api.deactivateChore(choreId);
+});
+
 test("assigning past a chore's repeat limit asks first, and can be overridden", async ({ page }) => {
   const choreName = `E2E limit ${Date.now()}`;
   const api = new PaydirtClient(PB_URL);
