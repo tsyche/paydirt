@@ -4,6 +4,7 @@
 
 ## Shipped index
 
+- [x] 2026-11-01 — Mobile parent Activity report (parent parity)
 - [x] 2026-11-01 — Web kid-goal form and co-parent panel (parent parity)
 - [x] 2026-10-31 — Per-chore pay mode (bucks, screen time, or both)
 - [x] 2026-10-31 — Advisory chore limits, streak bonuses, economy tuning
@@ -214,3 +215,7 @@ Native tap-through later confirmed on the Pixel 8, 2026-10-21 (warm: lands KidHo
 ### 2026-11-01 — Web kid-goal form and co-parent panel (parent parity)
 
 - `GoalControl` (set/delete goal, confirm on delete) and `CoParentsPanel` (list/add) in `apps/web/app/components/Dashboard.tsx`, matching mobile. Two Playwright tests in `phase1.spec.ts`; `just test-all` passes. Not deployed.
+
+### 2026-11-01 — Mobile parent Activity report (parent parity)
+
+- `ActivityReport` on the mobile Kids tab mirrors the web report. `streakPeak` and `summarizeMonthActivity` moved to `packages/shared/src/activity.ts` (unit-tested) and are used by both. Closes the last gap from the parity pass. Not deployed; not viewed on emulator.

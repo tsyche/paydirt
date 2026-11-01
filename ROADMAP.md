@@ -22,7 +22,7 @@ MVP, Phase 1, and Phase 1.5 all shipped by 2026-06-10 — full entries preserved
 
 Completed work is indexed in [docs/ledger/ROADMAP_SHIPPED.md](./docs/ledger/ROADMAP_SHIPPED.md) (most recent: 2026-10-31 — per-chore pay mode, advisory chore limits and economy tuning, `just ship`; 2026-10-23 — live on bb; 2026-10-22 — app auto-updates Tier 2, tooltips, parity, photo grid, ledger view, help flag, auto-save, recap, allowance).
 
-Last audit 2026-11-01: moved the eight shipped backlog bullets, pay mode, chore limits, `just ship` and go-live to the shipped ledger, dropped the stale "Best agent-doable" and duplicate Tier 2 entries, ran a keyword-level web/mobile parent parity pass (gaps below), and added 3 gated items. Previous audit 2026-10-21.
+Last audit 2026-11-01: moved the eight shipped backlog bullets, pay mode, chore limits, `just ship` and go-live to the shipped ledger, dropped the stale "Best agent-doable" and duplicate Tier 2 entries, ran a keyword-level web/mobile parent parity pass (all gaps closed same day), and added 3 gated items. Previous audit 2026-10-21.
 
 ## Known Issues
 
@@ -44,9 +44,8 @@ Last audit 2026-11-01: moved the eight shipped backlog bullets, pay mode, chore 
 
 ### Best agent-doable next
 
-1. **Parent web/mobile parity gaps** — see [Parent parity](#parent-parity-web--mobile). Remaining: port the Activity report to mobile; ~2-3 hrs.
-2. **Chore notes / extra details** — mostly UI, schema field already exists; see [Backlog](#backlog-unscheduled). ~2-3 hrs.
-3. **Backup restore drill** — prove the nightly backups restore; see [Quality & Infrastructure](#quality--infrastructure).
+1. **Chore notes / extra details** — mostly UI, schema field already exists; see [Backlog](#backlog-unscheduled). ~2-3 hrs.
+2. **Backup restore drill** — prove the nightly backups restore; see [Quality & Infrastructure](#quality--infrastructure).
 
 ## Phase 2 — Family Link Automation
 
@@ -82,10 +81,7 @@ Added 2026-08-10. Items 1-4 (CI pipeline, ledger integrity verifier, cron/schedu
 
 **Rule (2026-11-01):** every parent-facing capability ships on both web and mobile in the same change, or the gap is logged here with a reason. Kid-only surfaces are mobile-only by design. Acceptance for any parent feature: the same fields, validation and confirmations on both, and shared logic in `packages/shared`.
 
-Keyword-level pass 2026-11-01 (not an on-screen comparison). Web kid-goal form and co-parent panel closed the same day (see the shipped ledger). Known gaps:
-
-- **Activity report** — web only (`ActivityReport` in `Dashboard.tsx`); mobile has the ledger tab but no earnings/activity summary. Port it. ~2-3 hrs.
-- Next audit should compare screens directly (create/edit chore, templates, thresholds, settings) rather than by keyword.
+Known gaps: none from the 2026-11-01 keyword-level pass (closed the same day; see the shipped ledger). Next audit should compare screens directly (create/edit chore, templates, thresholds, settings) rather than by keyword.
 
 ## Backlog (unscheduled)
 

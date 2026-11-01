@@ -34,6 +34,7 @@ import { PayModeFields } from "../components/PayModeFields";
 import { OfflineBanner } from "../components/OfflineBanner";
 import { HouseholdSettings } from "../components/HouseholdSettings";
 import { LedgerView } from "../components/LedgerView";
+import { ActivityReport } from "../components/ActivityReport";
 import { InboxButton } from "../components/InboxDialog";
 
 const PARENT_TABS = [
@@ -588,6 +589,7 @@ export function ParentHome({
             ))}
           </View>
         )}
+        {tab === "kids" && kids.length > 0 && <ActivityReport kids={kids} currencyName={currencyName} />}
 
         {tab === "ledger" && household && <LedgerView household={household} />}
         {/* Settings tab: broadcast + appearance */}

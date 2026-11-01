@@ -15,6 +15,7 @@ export * from "./errors";
 export * from "./starterChores";
 export * from "./choreLimit";
 export * from "./chorePay";
+export * from "./activity";
 // updates.ts is NOT exported here — it uses node:crypto/Buffer and is only
 // consumed by scripts/publish-update.mjs (via --experimental-strip-types) and
 // its own unit tests. Exporting it would make mobile/web typechecks pull in

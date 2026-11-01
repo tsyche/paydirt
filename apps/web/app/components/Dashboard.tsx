@@ -11,10 +11,11 @@ import type {
   CurrencyTransaction,
   Household,
   SavingsGoal,
+  MonthActivity,
   SpendRequest,
   User,
 } from "@paydirt/shared";
-import { AVATAR_COLORS, REACTIONS, undoApprovalPrompt, avatarUrl, currencyDisplayName, kidAccent, parseGoodsRateOverride, featureTip, screenGrantLabel, errorMessage, limitLabel, limitUnit, payLabel, approveTimePrompt, payMode, validatePay, MINUTES_STEP, MAX_REWARD_MINUTES } from "@paydirt/shared";
+import { AVATAR_COLORS, REACTIONS, undoApprovalPrompt, avatarUrl, currencyDisplayName, kidAccent, parseGoodsRateOverride, featureTip, screenGrantLabel, errorMessage, limitLabel, limitUnit, payLabel, approveTimePrompt, summarizeMonthActivity, payMode, validatePay, MINUTES_STEP, MAX_REWARD_MINUTES } from "@paydirt/shared";
 import { client } from "../lib/client";
 import { HouseholdSettings } from "./HouseholdSettings";
 import { AppearanceControls } from "./AppearanceControls";
@@ -1761,30 +1762,6 @@ function AssignControl({
   );
 }
 
-function streakPeak(assignments: Assignment[]): number {
-  const days = [
-    ...new Set(
-      assignments
-        .map((a) => a.approved_at?.slice(0, 10))
-        .filter((d): d is string => !!d)
-    ),
-  ].sort();
-  let peak = 0;
-  let run = 0;
-  let prev: Date | null = null;
-  for (const d of days) {
-    const cur = new Date(d);
-    if (prev && (cur.getTime() - prev.getTime()) / 86400000 === 1) {
-      run++;
-    } else {
-      run = 1;
-    }
-    if (run > peak) peak = run;
-    prev = cur;
-  }
-  return peak;
-}
-
 function ActivityReport({
   kids,
   currencyName,
@@ -1797,7 +1774,7 @@ function ActivityReport({
   const [month, setMonth] = useState(now.getMonth() + 1);
   const [open, setOpen] = useState(false);
   const [data, setData] = useState<
-    { kid: User; chores: number; earned: number; spent: number; peak: number }[]
+    ({ kid: User } & MonthActivity)[]
   >([]);
   const [loading, setLoading] = useState(false);
 
@@ -1810,9 +1787,7 @@ function ActivityReport({
           client.listTransactionsForMonth(kid.id, year, month),
           client.listApprovedAssignmentsForMonth(kid.id, year, month),
         ]);
-        const earned = txns.filter((t) => t.amount > 0).reduce((s, t) => s + t.amount, 0);
-        const spent = txns.filter((t) => t.amount < 0).reduce((s, t) => s + Math.abs(t.amount), 0);
-        return { kid, chores: assignments.length, earned, spent, peak: streakPeak(assignments) };
+        return { kid, ...summarizeMonthActivity(txns, assignments) };
       })
     )
       .then(setData)

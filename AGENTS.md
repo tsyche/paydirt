@@ -88,4 +88,4 @@ PocketBase binary is not committed — run `just pb-download` (falls back to Hom
 - **No Google**: Stack deliberately avoids Play Services. ntfy over FCM, PocketBase over Firebase.
 - **Family Link automation** (Phase 2, in progress): bonus time is granted through the Family Link web API from a copied Google session (`just fl-*` recipes; host setup in [docs/DEPLOYMENT.md](./docs/DEPLOYMENT.md#family-link-grants)). The Accessibility Service path is shelved; see `ROADMAP.md`.
 
-`ROADMAP.md` is the authoritative source for phase and status; `FEATURES.md` tracks scope. The original design scratchpad (rationale + alternatives, archived 2026-08-10) is at `~/.claude/plans/archive/paydirt-plan.md` — codename was "choregalore".
+When a roadmap item or parity gap is finished, move it to `docs/ledger/ROADMAP_SHIPPED.md` (index line + full entry) in the same change; don't wait for an audit. `ROADMAP.md` is the authoritative source for phase and status; `FEATURES.md` tracks scope. The original design scratchpad (rationale + alternatives, archived 2026-08-10) is at `~/.claude/plans/archive/paydirt-plan.md` — codename was "choregalore".
