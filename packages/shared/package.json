@@ -19,11 +19,11 @@
     "pocketbase": "^0.27.3"
   },
   "devDependencies": {
-    "@types/node": "^22.20.4",
-    "eslint": "^10.11.0",
+    "@types/node": "^22.20.5",
+    "eslint": "^10.13.0",
     "eventsource": "^4.1.1",
     "typescript": "^6.0.3",
-    "typescript-eslint": "^8.71.0",
+    "typescript-eslint": "^8.72.1",
     "vite": "^6.4.5",
     "vitest": "^4.1.12"
   }
