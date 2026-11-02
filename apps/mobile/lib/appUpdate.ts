@@ -42,7 +42,29 @@ export function justUpdated(lastSeen: number | null, installed: number): boolean
 type UpdateNative = {
   downloadUpdate?: (url: string) => Promise<boolean>;
   installUpdate?: () => Promise<"started" | "permission" | "missing">;
+  readyUpdate?: () => Promise<boolean>;
+  takeInstallPending?: () => Promise<boolean>;
 };
+
+// True when a finished, newer APK is already in the cache (survives an app restart).
+export async function hasReadyUpdate(): Promise<boolean> {
+  try {
+    const native = NativeModules.PayDirtNative as UpdateNative | undefined;
+    return (await native?.readyUpdate?.()) ?? false;
+  } catch {
+    return false;
+  }
+}
+
+// True once if the user was just sent to "Install unknown apps" and should now continue installing.
+export async function takeInstallPending(): Promise<boolean> {
+  try {
+    const native = NativeModules.PayDirtNative as UpdateNative | undefined;
+    return (await native?.takeInstallPending?.()) ?? false;
+  } catch {
+    return false;
+  }
+}
 
 // Starts the in-app APK download (progress/ready/failed arrive as native events).
 // False = could not start or one is already running.

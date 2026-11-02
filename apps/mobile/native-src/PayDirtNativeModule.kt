@@ -115,6 +115,38 @@ class PayDirtNativeModule(reactContext: ReactApplicationContext) :
     }.start()
   }
 
+  // True when a finished download in the cache is newer than the installed app.
+  // Restores the "Update ready" dialog after the app process restarted (e.g. after
+  // the Install-unknown-apps toggle); a stale or already-installed APK is deleted.
+  @ReactMethod
+  fun readyUpdate(promise: Promise) {
+    try {
+      val ctx = reactApplicationContext
+      val apk = File(File(ctx.cacheDir, UPDATE_DIR), UPDATE_FILE)
+      if (!apk.exists()) {
+        promise.resolve(false)
+        return
+      }
+      val pm = ctx.packageManager
+      val archive = pm.getPackageArchiveInfo(apk.path, 0)
+      val installed = pm.getPackageInfo(ctx.packageName, 0).longVersionCode
+      val newer = archive != null && archive.packageName == ctx.packageName && archive.longVersionCode > installed
+      if (!newer) apk.delete()
+      promise.resolve(newer)
+    } catch (e: Exception) {
+      promise.resolve(false)
+    }
+  }
+
+  // Returns (and clears) the flag set when the user was sent to the permission screen.
+  @ReactMethod
+  fun takeInstallPending(promise: Promise) {
+    val p = prefs(reactApplicationContext)
+    val pending = p.getBoolean("install_pending", false)
+    p.edit().remove("install_pending").apply()
+    promise.resolve(pending)
+  }
+
   // Opens the system installer for the downloaded APK. Call it while the app is
   // in the foreground (the "Install" button): background launches are blocked.
   // Resolves "started", "permission" (sent to the Install-unknown-apps screen) or "missing".
@@ -128,6 +160,8 @@ class PayDirtNativeModule(reactContext: ReactApplicationContext) :
         return
       }
       if (!ctx.packageManager.canRequestPackageInstalls()) {
+        // Granting the permission can restart the app process, so remember to resume the install.
+        prefs(ctx).edit().putBoolean("install_pending", true).apply()
         ctx.startActivity(
           Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES, Uri.parse("package:${ctx.packageName}"))
             .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
@@ -154,6 +188,7 @@ class PayDirtNativeModule(reactContext: ReactApplicationContext) :
     private const val UPDATE_DIR = "updates"
     private const val UPDATE_FILE = "paydirt-update.apk"
     private val downloading = AtomicBoolean(false)
+    private fun prefs(ctx: Context) = ctx.getSharedPreferences("paydirt_update", Context.MODE_PRIVATE)
     @Volatile private var reactCtx: ReactApplicationContext? = null
 
     private fun emit(event: String, value: Int) {

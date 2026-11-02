@@ -11,6 +11,10 @@ describe("updateReducer", () => {
     expect(s).toEqual({ phase: "ready" });
   });
 
+  it("restores 'ready' straight from idle (finished APK found after an app restart)", () => {
+    expect(updateReducer(IDLE, { type: "ready" })).toEqual({ phase: "ready" });
+  });
+
   it("ignores a second start while downloading or ready (duplicate taps)", () => {
     const dl = updateReducer(updateReducer(IDLE, { type: "start" }), { type: "progress", percent: 50 });
     expect(updateReducer(dl, { type: "start" })).toBe(dl);

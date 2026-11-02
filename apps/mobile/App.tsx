@@ -12,7 +12,7 @@ import {
 } from "@expo-google-fonts/fredoka";
 import type { User } from "@paydirt/shared";
 import { client, pbUrl } from "./lib/client";
-import { describeDownloadFailure, takeUpdateFailure, fetchLatestVersion, getInstalledVersionCode, installDownloadedUpdate, justUpdated, shouldUpdate, startUpdateDownload } from "./lib/appUpdate";
+import { describeDownloadFailure, takeUpdateFailure, fetchLatestVersion, getInstalledVersionCode, hasReadyUpdate, installDownloadedUpdate, justUpdated, shouldUpdate, startUpdateDownload, takeInstallPending } from "./lib/appUpdate";
 import { IDLE, dialogVisible, updateReducer } from "./lib/updateFlow";
 import { Login } from "./screens/Login";
 import { KidHome } from "./screens/KidHome";
@@ -154,6 +154,19 @@ function AppContent() {
         dispatchUpd({ type: "failed", reason: r });
       }),
     ];
+    // A finished download can outlive the app process (granting "Install unknown apps"
+    // often restarts it): restore the ready dialog, and continue the install if the
+    // user was just sent to the permission screen. True = an update is already staged.
+    async function resume(): Promise<boolean> {
+      let staged = updRef.current.phase === "ready";
+      if (updRef.current.phase === "idle" && (await hasReadyUpdate())) {
+        staged = true;
+        setUpdHidden(false);
+        dispatchUpd({ type: "ready" });
+      }
+      if (staged && (await takeInstallPending())) await installNow();
+      return staged;
+    }
     async function check() {
       if (prompting || updRef.current.phase !== "idle") return;
       const latest = await fetchLatestVersion(pbUrl);
@@ -177,7 +190,7 @@ function AppContent() {
         { onDismiss: () => { prompting = false; } },
       );
     }
-    void check();
+    void resume().then((staged) => { if (!staged) void check(); });
     const timer = setInterval(() => {
       if (AppState.currentState === "active") void check();
     }, UPDATE_POLL_MS);
@@ -185,7 +198,7 @@ function AppContent() {
       if (s !== "active") return;
       setUpdHidden(false); // bring a hidden "ready" dialog back on return
       void takeUpdateFailure().then((r) => { if (r) dispatchUpd({ type: "failed", reason: r }); });
-      void check();
+      void resume().then((staged) => { if (!staged) void check(); });
     });
     return () => {
       cancelled = true;
