@@ -69,7 +69,7 @@ export function LedgerView({ household, initialKidId }: { household: Household |
       {error && <p className="error">{error}</p>}
       {busy && <p className="muted">Loading…</p>}
 
-      <table className="data-table">
+      <table className="data-table ledger-table">
         <thead>
           <tr>
             <th>Date</th>
@@ -84,7 +84,7 @@ export function LedgerView({ household, initialKidId }: { household: Household |
             <tr key={t.id}>
               <td data-label="Date">{t.created.slice(0, 10)}</td>
               {kidId === ALL_KIDS && <td data-label="Kid">{kids.find((k) => k.id === t.user)?.display_name ?? ""}</td>}
-              <td data-label="Type">{t.type}</td>
+              <td data-label="Type"><span className={`type-chip type-${t.type}`}>{t.type.replace("_", " ")}</span></td>
               <td data-label="Amount" className={`num ${t.amount >= 0 ? "pos" : "neg"}`}>
                 {t.amount >= 0 ? "+" : ""}
                 {t.amount} {currency}

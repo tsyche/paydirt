@@ -58,6 +58,8 @@
 - **Approval photo grid** — inline photo thumbnails with tap-to-enlarge in both approval queues.
 - **Quiet hours** — household window that holds back pushes (still logged to the inbox).
 - **Backups + in-app updates** — nightly PocketBase backups (7 kept) and APK self-update from the host (`just ship`); see [docs/DEPLOYMENT.md](./docs/DEPLOYMENT.md).
+- **Parent Overview** — chart-icon modal (web + mobile): paid vs. potential for a week/month/year, screen-time vs. real-money redemptions, per-kid chores, streak and earnings, weekly potential.
+- **In-app update** — the app downloads the new APK in-process with progress, then hands it to the installer (survives the "Install unknown apps" restart).
 
 ## Not Yet Implemented
 

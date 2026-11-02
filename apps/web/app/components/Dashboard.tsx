@@ -20,7 +20,7 @@ import { kidsAtLimit, knownChoreNames, GOAL_NAME_MAX, GOAL_DETAILS_MAX, parseAss
 import { client } from "../lib/client";
 import { HouseholdSettings } from "./HouseholdSettings";
 import { AppearanceControls } from "./AppearanceControls";
-import { OverviewView } from "./OverviewView";
+import { OverviewModalButton } from "./OverviewView";
 import { LedgerView } from "./LedgerView";
 import { InboxView } from "./InboxView";
 import { StarterChores } from "./StarterChores";
@@ -208,6 +208,7 @@ export function Dashboard({
           </a>
           <div className="inline">
             <AppearanceControls />
+            <OverviewModalButton household={household} kids={kids} chores={chores} activeAssignments={activeAssignments} />
             {household && (
               <HouseholdSettings household={household} onSaved={reload} />
             )}
@@ -622,7 +623,6 @@ export function Dashboard({
 
         {tab === "ledger" && (
           <>
-            <OverviewView household={household} kids={kids} chores={chores} activeAssignments={activeAssignments} />
             <LedgerView household={household} initialKidId={ledgerKid} />
           </>
         )}

@@ -396,6 +396,21 @@ export class PaydirtClient {
     return lists.flat();
   }
 
+  /** Approved spend requests resolved in [start, end) for several kids, for the overview's screen-vs-goods split. */
+  async listSpendRequestsInRange(childIds: string[], start: string, end: string): Promise<SpendRequest[]> {
+    const lists = await Promise.all(
+      childIds.map((id) =>
+        this.pb.collection(Collections.SpendRequests).getFullList<SpendRequest>({
+          filter: this.pb.filter(
+            "child = {:c} && status = 'approved' && resolved_at >= {:s} && resolved_at < {:e}",
+            { c: id, s: start, e: end },
+          ),
+        }),
+      ),
+    );
+    return lists.flat();
+  }
+
   /** Parent grants or docks parentBucks outside of chores. */
   adjustBalance(userId: string, amount: number, reason: string): Promise<CurrencyTransaction> {
     return this.pb.collection(Collections.CurrencyTransactions).create<CurrencyTransaction>({

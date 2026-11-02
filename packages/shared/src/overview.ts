@@ -5,7 +5,7 @@
 
 import { choreLimit, limitWindowDays } from "./choreLimit";
 import { MINUTES_STEP, normalizePay } from "./chorePay";
-import type { Assignment, Chore, CurrencyTransaction } from "./types";
+import type { Assignment, Chore, CurrencyTransaction, SpendRequest } from "./types";
 
 /** bucks / goodsRate, or null when no dollar rate is set. */
 export function toDollars(bucks: number, goodsRate: number): number | null {
@@ -163,4 +163,70 @@ export function addSummaries(list: PeriodSummary[]): PeriodSummary {
 /** Percent change from `prev` to `cur`, or null when there's no baseline. */
 export function pctChange(cur: number, prev: number): number | null {
   return prev > 0 ? Math.round(((cur - prev) / prev) * 100) : null;
+}
+
+// ─── Cost strip (paid vs. ceiling, screen time vs. goods) ────────────────────
+
+/** Length of a `periodRange` in weeks (7 days = 1). */
+export function periodWeeks(range: { start: string; end: string }): number {
+  const days = (Date.parse(`${range.end}T00:00:00Z`) - Date.parse(`${range.start}T00:00:00Z`)) / 86_400_000;
+  return days / 7;
+}
+
+export interface SpendSplit {
+  /** Grit redeemed for screen time (spend rows linked to a request with screen_minutes). */
+  screenBucks: number;
+  /** Minutes those screen-time requests bought. */
+  screenMinutes: number;
+  /** Grit redeemed for everything else: goods, cash, unlinked spends. */
+  goodsBucks: number;
+}
+
+/**
+ * Splits `spend` rows into screen time vs. real goods. A row is screen time when
+ * its `related_spend_request` has `screen_minutes > 0`; screen minutes are counted
+ * once per distinct request.
+ */
+export function splitSpend(
+  txns: Pick<CurrencyTransaction, "amount" | "type" | "related_spend_request">[],
+  requests: Pick<SpendRequest, "id" | "screen_minutes">[],
+): SpendSplit {
+  const minutes = new Map(requests.map((r) => [r.id, r.screen_minutes ?? 0]));
+  const counted = new Set<string>();
+  const out: SpendSplit = { screenBucks: 0, screenMinutes: 0, goodsBucks: 0 };
+  for (const t of txns) {
+    if (t.type !== "spend") continue;
+    const bucks = Math.abs(t.amount);
+    const id = t.related_spend_request;
+    const m = id ? (minutes.get(id) ?? 0) : 0;
+    if (m > 0 && id) {
+      out.screenBucks += bucks;
+      if (!counted.has(id)) { counted.add(id); out.screenMinutes += m; }
+    } else {
+      out.goodsBucks += bucks;
+    }
+  }
+  return out;
+}
+
+export interface CostStrip {
+  /** Bucks kids actually earned in the period. */
+  paid: number;
+  /** Ceiling: weekly potential x weeks in the period. */
+  max: number;
+  /** paid / max as a whole percent, or null when there is no ceiling. */
+  pct: number | null;
+  paidDollars: number | null;
+  maxDollars: number | null;
+}
+
+export function costStrip(paid: number, weeklyMaxBucks: number, weeks: number, goodsRate: number): CostStrip {
+  const max = Math.round(weeklyMaxBucks * weeks);
+  return {
+    paid,
+    max,
+    pct: max > 0 ? Math.round((paid / max) * 100) : null,
+    paidDollars: toDollars(paid, goodsRate),
+    maxDollars: toDollars(max, goodsRate),
+  };
 }

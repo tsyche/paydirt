@@ -87,6 +87,8 @@ Known gaps: none from the 2026-11-01 keyword-level pass (closed the same day; se
 
 Ordered by impact-to-effort (2026-11-01 audit). Shipped items live in the ledger, not here.
 
+- **Overview reassessment (2026-11-02)** — the parent Overview modal shipped (cost strip, screen-vs-goods split, streaks). Skipped for now; reassess after a few weeks of real use: (a) dollar figure in the app header; (b) kid-facing lifetime totals ("grand total accomplished"); (c) My Bank extras: pending bucks, goal progress, streak; (d) actual-vs-potential trend across weeks; (e) heatmap (parked): kids see only their own, parents get a household grid. Open: reprice pending spend requests on approval (default no; prices lock at request time).
+
 - **Kid ↔ parent messaging, next steps** (2026-11-01) — canned broadcast replies and the "I need help" flag are shipped. Still open: (a) a short free-text reply (~140 chars) with a rate limit and a mute option, only if canned replies prove too limiting; (b) formalize the kids' goal-text back channel as a "note to parents" field with an inbox badge.
 
 - **Kid "ask for more time"** — per-chore pay mode shipped 2026-10-31 (see the shipped ledger). Still deferred: the kid ask button with a parent reply sheet that offers a bonus chore, suggested chores/minutes, parent-triggered nudges, and a daily bonus-minutes cap. Rejected for now: kid picks bucks or time, staleness premiums, automatic nudges. Full design: [docs/plans/bonus-minutes-and-time-asks.md](docs/plans/bonus-minutes-and-time-asks.md).

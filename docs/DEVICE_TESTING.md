@@ -1,6 +1,6 @@
 # Physical Device Testing
 
-**TL;DR:** Pair each tablet once, pin it to a fixed port with `adb tcpip 5555`, list its IP in `deploy-devices`, then `just ship` (or `just push` for an adb-only install). The checklist and findings below record the 2026-10-21 Pixel 8 / GrapheneOS smoke test.
+**TL;DR:** Pair each tablet once, list its IP in `deploy-devices` (`just conn` pins port 5555), then `just ship` (or `just push` for an adb-only install). The checklist and findings below record the 2026-10-21 Pixel 8 / GrapheneOS smoke test.
 
 ## Contents
 
@@ -40,13 +40,9 @@ One-time pairing per device (same Wi-Fi/network as the Mac):
    ```bash
    adb pair <ip>:<pair-port> <pairing-code>
    ```
-3. `adb connect <ip>:<main-port>` (port from the Wireless debugging screen), then
-   pin a **fixed port** so the connection survives sleep (until the next reboot):
-   ```bash
-   adb -s <ip>:<main-port> tcpip 5555
-   ```
-4. Save the device to `deploy-devices` in the repo root, one per line. A bare IP
-   is enough once the port is pinned (`ip:port` also works):
+3. Save the device to `deploy-devices` in the repo root, one per line. A bare IP
+   is enough (`ip:port` also works). `just conn` connects on the Wireless debugging
+   port and pins the fixed port 5555 automatically (survives sleep, not a reboot):
    ```
    192.168.20.152
    ```
@@ -62,8 +58,8 @@ Notes:
 
 - `scripts/tablet-connect.sh` tries each entry as written, then `ip:5555`, then mDNS.
 - A device **reboot** drops the pinned port and the random Wireless-debugging
-  port changes: re-enable Wireless debugging, `adb connect` the new port, and
-  re-run `tcpip 5555`.
+  port changes: re-enable Wireless debugging and run `just conn` (list the new
+  `ip:port` once if the bare IP fails); it re-pins 5555.
 - `DEPLOY_DEVICES="ip:port ip:port" just push-remote` overrides the file.
 - mDNS auto-discovery (no config file) only works on the same network segment;
   across VLANs the explicit `ip:port` entries are required, with the router

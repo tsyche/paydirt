@@ -35,7 +35,7 @@ import { StarterChores } from "../components/StarterChores";
 import { PayModeFields } from "../components/PayModeFields";
 import { OfflineBanner } from "../components/OfflineBanner";
 import { HouseholdSettings } from "../components/HouseholdSettings";
-import { OverviewView } from "../components/OverviewView";
+import { OverviewModalButton } from "../components/OverviewView";
 import { LedgerView } from "../components/LedgerView";
 import { ActivityReport } from "../components/ActivityReport";
 import { InboxButton } from "../components/InboxDialog";
@@ -581,6 +581,7 @@ export function ParentHome({
           subtitle={pendingCount > 0 ? `${pendingCount} item${pendingCount === 1 ? "" : "s"} waiting` : "All clear 🎉"}
         />
         <AppearanceButton />
+        <OverviewModalButton household={household} kids={kids} chores={chores} heldByChore={heldByChore} />
         <InboxButton userId={user.id} />
         <Appbar.Action icon="logout" onPress={onLogout} />
       </Appbar.Header>
@@ -669,7 +670,6 @@ export function ParentHome({
 
         {tab === "ledger" && household && (
           <>
-            <OverviewView household={household} kids={kids} chores={chores} heldByChore={heldByChore} />
             <LedgerView household={household} initialKidId={ledgerKid} />
           </>
         )}

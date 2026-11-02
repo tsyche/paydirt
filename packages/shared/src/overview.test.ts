@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
-  addSummaries, bankView, bucksToMinutes, occurrencesPerWeek, pctChange, periodRange, summarizePeriod,
+  addSummaries, bankView, bucksToMinutes, costStrip, occurrencesPerWeek, pctChange, periodRange, periodWeeks,
+  splitSpend, summarizePeriod,
   toDollars, weeklyPotential,
 } from "./overview";
 
@@ -85,5 +86,29 @@ describe("summarizePeriod", () => {
     expect(addSummaries([a, a])).toEqual({ earned: 2, adjustments: 0, spent: 4, bonusMinutes: 10, chores: 2 });
     expect(pctChange(150, 100)).toBe(50);
     expect(pctChange(5, 0)).toBeNull();
+  });
+});
+
+describe("periodWeeks / splitSpend / costStrip", () => {
+  it("periodWeeks measures a range in weeks", () => {
+    expect(periodWeeks({ start: "2026-11-02", end: "2026-11-09" })).toBe(1);
+    expect(periodWeeks({ start: "2026-11-01", end: "2026-12-01" })).toBeCloseTo(30 / 7);
+  });
+  it("splitSpend separates screen time from goods and counts minutes once per request", () => {
+    const s = splitSpend(
+      [
+        { amount: -6, type: "spend", related_spend_request: "a" },
+        { amount: -4, type: "spend", related_spend_request: "a" },
+        { amount: -20, type: "spend", related_spend_request: "g" },
+        { amount: -3, type: "spend" },
+        { amount: 9, type: "earn", related_spend_request: "a" },
+      ],
+      [{ id: "a", screen_minutes: 30 }, { id: "g" }],
+    );
+    expect(s).toEqual({ screenBucks: 10, screenMinutes: 30, goodsBucks: 23 });
+  });
+  it("costStrip scales the weekly ceiling and guards divide-by-zero", () => {
+    expect(costStrip(50, 100, 2, 10)).toEqual({ paid: 50, max: 200, pct: 25, paidDollars: 5, maxDollars: 20 });
+    expect(costStrip(5, 0, 4, 0)).toEqual({ paid: 5, max: 0, pct: null, paidDollars: null, maxDollars: null });
   });
 });

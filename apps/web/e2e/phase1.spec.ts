@@ -366,7 +366,7 @@ test("add-chore form hides Due/Reminder/Max behind Advanced; ledger stacks on na
   await expect(page.getByText("Daily reminder")).toBeVisible();
 
   await goTab(page, /Ledger/);
-  const table = page.locator("table.data-table").last(); // ledger table sits below the overview tables
+  const table = page.locator("table.ledger-table");
   await expect(table.locator("thead")).toBeVisible();
   await page.setViewportSize({ width: 420, height: 800 });
   await expect(table.locator("thead")).toBeHidden();
@@ -412,13 +412,19 @@ test("browser Back/Forward move between tabs; the logo is a link home", async ({
   await expect(page.getByRole("link", { name: "PayDirt home" })).toHaveAttribute("href", "/");
 });
 
-test("ledger tab opens with the parent overview: period totals and weekly potential", async ({ page }) => {
+test("overview modal: cost strip, period totals and weekly potential; ledger tab stays a plain table", async ({ page }) => {
   await signIn(page);
   await goTab(page, /Ledger/);
+  await expect(page.getByRole("heading", { name: /Overview/ })).toHaveCount(0);
+  await expect(page.locator("table.ledger-table")).toBeVisible();
+  await page.getByRole("button", { name: "Overview" }).click();
   await expect(page.getByRole("heading", { name: /Overview/ })).toBeVisible();
+  await expect(page.getByTestId("cost-strip")).toContainText("Paid vs. potential");
+  await expect(page.getByTestId("cost-strip")).toContainText("Screen time redeemed");
+  await expect(page.getByTestId("cost-strip")).toContainText("Real-money redeemed");
   await expect(page.getByText("Earned by kids")).toBeVisible();
   await expect(page.getByText("Weekly potential per kid")).toBeVisible();
-  const cell = page.locator("table.data-table").first().getByRole("cell", { name: "Kid 1" });
+  const cell = page.getByRole("dialog", { name: "Overview" }).locator("table.data-table").first().getByRole("cell", { name: "Kid 1" });
   await expect(cell).toBeVisible();
   await page.getByRole("button", { name: "Year", exact: true }).click();
   await expect(page.getByText(String(new Date().getFullYear()), { exact: true })).toBeVisible();
