@@ -40,6 +40,8 @@ export interface Household extends BaseRecord {
   allowance_cadence?: "daily" | "weekly";
   /** Last time the allowance was paid. */
   allowance_last_paid?: string;
+  /** Kids may see their siblings' balances. Unset/false = private between kids (enforced server-side). */
+  kids_see_balances?: boolean;
   /** parentBucks per minute of screen time. 0/unset = DEFAULT_SCREEN_RATE. */
   screen_rate?: number;
 }

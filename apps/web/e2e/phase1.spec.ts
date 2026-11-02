@@ -417,6 +417,7 @@ test("overview modal: cost strip, period totals and weekly potential; ledger tab
   await goTab(page, /Ledger/);
   await expect(page.getByRole("heading", { name: /Overview/ })).toHaveCount(0);
   await expect(page.locator("table.ledger-table")).toBeVisible();
+  await expect(page.getByTestId("grit-chip")).toBeVisible(); // household total in the header
   await page.getByRole("button", { name: "Overview" }).click();
   await expect(page.getByRole("heading", { name: /Overview/ })).toBeVisible();
   await expect(page.getByTestId("cost-strip")).toContainText("Paid vs. potential");

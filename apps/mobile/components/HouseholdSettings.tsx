@@ -61,6 +61,7 @@ export function HouseholdSettings({
     screen_rate: String(screenRate(household)),
     nudge_hours: String(household.nudge_hours ?? 0),
     paused: household.paused ?? false,
+    kids_see_balances: household.kids_see_balances ?? false,
     quiet_start: household.quiet_start ?? "",
     quiet_end: household.quiet_end ?? "",
     streak_bonus_3: String(household.streak_bonus_3 ?? 0),
@@ -85,6 +86,7 @@ export function HouseholdSettings({
         screen_rate: num(form.screen_rate),
         nudge_hours: num(form.nudge_hours),
         paused: form.paused,
+        kids_see_balances: form.kids_see_balances,
         quiet_start: form.quiet_start,
         quiet_end: form.quiet_end,
         streak_bonus_3: num(form.streak_bonus_3),
@@ -184,6 +186,12 @@ export function HouseholdSettings({
             <Switch
               value={form.paused}
               onValueChange={(v) => setForm({ ...form, paused: v })}
+              style={{ marginBottom: 8 }}
+            />
+            <SettingLabel label="Kids see each other's balance" tip="kids_see_balances" />
+            <Switch
+              value={form.kids_see_balances}
+              onValueChange={(v) => setForm({ ...form, kids_see_balances: v })}
               style={{ marginBottom: 8 }}
             />
             <SettingLabel label="Allowance amount (0 = off)" tip="allowance_amount" />

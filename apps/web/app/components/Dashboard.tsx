@@ -207,6 +207,16 @@ export function Dashboard({
             </span>
           </a>
           <div className="inline">
+            {kids.length > 0 && (
+              <span
+                className="grit-chip"
+                data-testid="grit-chip"
+                title={kids.map((k) => `${k.display_name}: ${k.balance}`).join("\n")}
+                aria-label={`${currencyName}: ${kids.map((k) => `${k.display_name} ${k.balance}`).join(", ")}`}
+              >
+                🪙 <span className="grit-num">{kids.reduce((n, k) => n + k.balance, 0)}</span>
+              </span>
+            )}
             <AppearanceControls />
             <OverviewModalButton household={household} kids={kids} chores={chores} activeAssignments={activeAssignments} />
             {household && (

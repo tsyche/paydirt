@@ -152,3 +152,19 @@ for (const collection of ["chores", "chore_templates"]) {
     e.next();
   }, collection);
 }
+
+// Sibling balance privacy. The users list/view rules let any household member
+// read any other member, so strip `balance` from other kids' records unless the
+// household opted in (kids_see_balances). Parents, superusers and the kid
+// themselves always see it. Runs on API serialization only.
+onRecordEnrich((e) => {
+  const info = e.requestInfo;
+  if (!info || info.hasSuperuserAuth()) return;
+  const auth = info.auth;
+  if (!auth || auth.id === e.record.id || auth.getString("role") === "parent") return;
+  try {
+    const hh = e.app.findRecordById("households", e.record.getString("household"));
+    if (hh.getBool("kids_see_balances")) return;
+  } catch (_) { /* no household: hide */ }
+  e.record.hide("balance");
+}, "users");

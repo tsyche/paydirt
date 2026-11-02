@@ -581,4 +581,20 @@ describe("PocketBase hooks & guards (live)", () => {
     await parent.pb.collection("assignments").update(a.id, { status: "closed" });
     expect(await parent.assignLimitWarnings(raced.id, [kidUser.id])).toEqual([]);
   });
+
+  it("sibling balances are hidden from kids unless the household opts in; parents and self always see them", async () => {
+    const sibling = (await parent.listChildren(householdId)).find((k) => k.id !== kidUser.id)!;
+    try {
+      await parent.updateHousehold(householdId, { kids_see_balances: false });
+      const hidden = await kid.pb.collection(Collections.Users).getOne<User>(sibling.id);
+      expect(hidden.balance).toBeUndefined();
+      expect((await kid.pb.collection(Collections.Users).getOne<User>(kidUser.id)).balance).toBeTypeOf("number");
+      expect((await parent.pb.collection(Collections.Users).getOne<User>(sibling.id)).balance).toBeTypeOf("number");
+
+      await parent.updateHousehold(householdId, { kids_see_balances: true });
+      expect((await kid.pb.collection(Collections.Users).getOne<User>(sibling.id)).balance).toBeTypeOf("number");
+    } finally {
+      await parent.updateHousehold(householdId, { kids_see_balances: false });
+    }
+  });
 });

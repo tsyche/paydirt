@@ -63,6 +63,7 @@ export function HouseholdSettings({
     screen_rate: screenRate(household),
     nudge_hours: household.nudge_hours ?? 0,
     paused: household.paused ?? false,
+    kids_see_balances: household.kids_see_balances ?? false,
     quiet_start: household.quiet_start ?? "",
     quiet_end: household.quiet_end ?? "",
     streak_bonus_3: household.streak_bonus_3 ?? 0,
@@ -215,6 +216,14 @@ export function HouseholdSettings({
             type="checkbox"
             checked={form.paused}
             onChange={(e) => setForm({ ...form, paused: e.target.checked })}
+          />
+        </div>
+        <div className="settings-row">
+          <label>👀 Kids see each other's balance <Tip k="kids_see_balances" /></label>
+          <input
+            type="checkbox"
+            checked={form.kids_see_balances}
+            onChange={(e) => setForm({ ...form, kids_see_balances: e.target.checked })}
           />
         </div>
         <div className="settings-row">

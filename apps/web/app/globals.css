@@ -1109,3 +1109,7 @@ button.danger-filled:disabled { box-shadow: none; }
   .ledger-table { table-layout: auto; }
   .ledger-table th:nth-child(1), .ledger-table td:nth-child(1), .ledger-table .num { width: auto; }
 }
+
+/* Header balance chip: parents see the household total; hover for per-kid. */
+.grit-chip { display: inline-flex; align-items: center; gap: 4px; padding: 2px 10px; border-radius: 999px; font-size: 13px; font-weight: 600; background: var(--md-surface-container-high, #eee); cursor: default; }
+@media (max-width: 520px) { .grit-chip .grit-num { display: none; } }

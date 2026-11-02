@@ -18,6 +18,8 @@ export const FEATURE_TIPS: Record<string, string> = {
   quiet_end: "Notifications resume at this time.",
   paused:
     "Vacation mode: suspends reminders, nudges, the weekly digest, and currency expiry.",
+  kids_see_balances:
+    "Let kids see their siblings' parentBucks balances. Off = each kid sees only their own (enforced by the server).",
   streak_bonus_3: "Bonus parentBucks awarded at a 3-day chore streak. 0 = use the default (5).",
   streak_bonus_7: "Bonus parentBucks awarded at a 7-day chore streak. 0 = use the default (15).",
   streak_bonus_14: "Bonus parentBucks awarded at a 14-day chore streak. 0 = use the default (40).",

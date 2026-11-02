@@ -45,6 +45,7 @@ import { ChunkyButton } from "../components/ChunkyButton";
 import { ClaimHero } from "../components/ClaimHero";
 import { Celebration } from "../components/Celebration";
 import { OfflineBanner } from "../components/OfflineBanner";
+import { GritButton } from "../components/GritButton";
 import { InboxButton } from "../components/InboxDialog";
 import { useTabHistory } from "../lib/useTabHistory";
 import { changeAvatar } from "../lib/uploadAvatar";
@@ -266,6 +267,13 @@ export function KidHome({
       <Appbar.Header statusBarHeight={0}>
         <Appbar.Content title={`${me.avatar_emoji ? me.avatar_emoji + " " : ""}Hi, ${user.display_name}`} />
         {streak >= 2 ? <Chip compact style={styles.streakChip}>{`🔥 ${streak}-day streak`}</Chip> : null}
+        <GritButton
+          rows={[
+            { name: "You", balance: me.balance },
+            ...(household?.kids_see_balances ? siblings.map((s) => ({ name: s.display_name, balance: s.balance })) : []),
+          ]}
+          currency={currencyName}
+        />
         <AppearanceButton />
         <InboxButton userId={user.id} />
         <Appbar.Action icon="logout" onPress={onLogout} />

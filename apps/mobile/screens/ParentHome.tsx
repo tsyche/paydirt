@@ -35,6 +35,7 @@ import { StarterChores } from "../components/StarterChores";
 import { PayModeFields } from "../components/PayModeFields";
 import { OfflineBanner } from "../components/OfflineBanner";
 import { HouseholdSettings } from "../components/HouseholdSettings";
+import { GritButton } from "../components/GritButton";
 import { OverviewModalButton } from "../components/OverviewView";
 import { LedgerView } from "../components/LedgerView";
 import { ActivityReport } from "../components/ActivityReport";
@@ -580,6 +581,7 @@ export function ParentHome({
           title={<BrandTitle size={30} tagline />}
           subtitle={pendingCount > 0 ? `${pendingCount} item${pendingCount === 1 ? "" : "s"} waiting` : "All clear 🎉"}
         />
+        <GritButton rows={kids.map((k) => ({ name: k.display_name, balance: k.balance }))} currency={currencyName} total />
         <AppearanceButton />
         <OverviewModalButton household={household} kids={kids} chores={chores} heldByChore={heldByChore} />
         <InboxButton userId={user.id} />

@@ -29,6 +29,7 @@ import { Avatar } from "../components/Avatar";
 import { changeAvatar } from "../lib/uploadAvatar";
 import { BroadcastReplies } from "../components/BroadcastReplies";
 import { Celebration } from "../components/Celebration";
+import { GritButton } from "../components/GritButton";
 import { InboxButton } from "../components/InboxDialog";
 
 type Expanded = Assignment & { expand?: { chore?: Chore } };
@@ -172,6 +173,7 @@ export function SimpleKidHome({ user, onLogout }: { user: User; onLogout: () => 
     <SafeAreaView style={styles.container} edges={["top"]}>
       <Appbar.Header statusBarHeight={0}>
         <Appbar.Content title={`Hi ${user.display_name}! 👋`} />
+        <GritButton rows={[{ name: "You", balance }]} currency={currencyName} />
         <InboxButton userId={user.id} />
         <Appbar.Action icon="logout" onPress={onLogout} />
       </Appbar.Header>
