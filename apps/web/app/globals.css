@@ -1032,6 +1032,14 @@ button.danger-filled:disabled { box-shadow: none; }
 .kid-settings-row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
 .chore-title { display: flex; flex-wrap: wrap; align-items: baseline; column-gap: 8px; }
 .chore-badges { display: inline-flex; gap: 6px; font-size: 13px; }
+/* Chore list row: table-like grid on wide screens, stacks on narrow ones. */
+.chore-row { display: grid; grid-template-columns: minmax(150px, 1.2fr) minmax(150px, 1fr) auto auto; gap: 8px 16px; align-items: center; }
+.chore-row .chore-meta { font-size: 13px; }
+@media (max-width: 900px) {
+  .chore-row { grid-template-columns: 1fr auto; }
+  .chore-row .chore-meta, .chore-row > :nth-child(3) { grid-column: 1 / -1; }
+  .chore-row .chore-edit { grid-column: 2; grid-row: 1; }
+}
 
 /* Shared data table: stacks into labelled rows on narrow screens. */
 .data-table { width: 100%; border-collapse: collapse; font-size: 13px; }

@@ -372,6 +372,32 @@ test("add-chore form hides Due/Reminder/Max behind Advanced; ledger stacks on na
   await expect(table.locator("thead")).toBeHidden();
 });
 
+test("editing a chore hides Reminder/Max behind Advanced", async ({ page }) => {
+  const name = `E2E edit adv ${Date.now()}`;
+  const api = new PaydirtClient(PB_URL);
+  await api.login("parent1@test.local", PW);
+  const chore = await api.createChore({
+    household: api.currentUser!.household,
+    name,
+    reward: 1,
+    type: "oneoff",
+    created_by: api.currentUser!.id,
+    active: true,
+  });
+  try {
+    await signIn(page);
+    await goTab(page, /Chores/);
+    await page.locator(".card.row").filter({ hasText: name }).getByRole("button", { name: "Edit chore" }).click();
+    const form = page.locator(".card-filled").filter({ has: page.getByRole("button", { name: "Archive" }) });
+    await expect(form.getByLabel("Max per period")).toHaveCount(0);
+    await form.getByRole("button", { name: /Advanced/ }).click();
+    await expect(form.getByLabel("Max per period")).toBeVisible();
+    await expect(form.getByText("Daily reminder")).toBeVisible();
+  } finally {
+    await api.deactivateChore(chore.id);
+  }
+});
+
 test("clicking a kid's picture uploads a new photo; no separate Photo field in settings", async ({ page }) => {
   const api = new PaydirtClient(PB_URL);
   await api.login("parent1@test.local", PW);

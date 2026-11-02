@@ -1147,6 +1147,7 @@ function ChoreRow({
   const [race, setRace] = useState(chore.race ?? false);
   const [remindAt, setRemindAt] = useState(chore.reminder_time ?? "");
   const [limit, setLimit] = useState(chore.max_per_period ?? 0);
+  const [advanced, setAdvanced] = useState(Boolean(chore.reminder_time || chore.max_per_period));
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
 
@@ -1208,20 +1209,16 @@ function ChoreRow({
 
   if (!editing) {
     return (
-      <div className="card row" style={{ gap: 8, flexDirection: "column", alignItems: "stretch" }}>
-        <div className="row" style={{ gap: 10, alignItems: "center" }}>
-          <div className="chore-title" style={{ flex: 1 }}>
-            <span style={{ fontWeight: 600 }}>{chore.name}</span>
-            <span className="chore-badges">
-              {chore.race && <span title="Race: first to finish wins">🏁</span>}
-              {chore.photo_required && <span title="Photo required">📷</span>}
-              {chore.reminder_time && <span title="Daily reminder">⏰ {chore.reminder_time}</span>}
-            </span>
-          </div>
-          <button className="sm" onClick={() => setEditing(true)} title="Edit chore">✏️</button>
+      <div className="card row chore-row">
+        <div className="chore-title">
+          <span style={{ fontWeight: 600 }}>{chore.name}</span>
+          <span className="chore-badges">
+            {chore.race && <span title="Race: first to finish wins">🏁</span>}
+            {chore.photo_required && <span title="Photo required">📷</span>}
+            {chore.reminder_time && <span title="Daily reminder">⏰ {chore.reminder_time}</span>}
+          </span>
         </div>
-        <AssignControl chore={chore} kids={kids} assignedKidIds={assignedKidIds} atLimit={atLimit} onAssigned={onChanged} />
-        <div className="muted">
+        <div className="muted chore-meta">
           <span className="balance" style={{ fontSize: 13 }}>{payLabel(chore, currencyName)}</span>
           {" "}· {chore.type}
           {chore.cadence ? ` (${chore.cadence})` : ""}
@@ -1230,6 +1227,8 @@ function ChoreRow({
             : ""}
           {limitLabel(chore) ? ` · max ${limitLabel(chore)}` : ""}
         </div>
+        <AssignControl chore={chore} kids={kids} assignedKidIds={assignedKidIds} atLimit={atLimit} onAssigned={onChanged} />
+        <button className="sm chore-edit" onClick={() => setEditing(true)} title="Edit chore" aria-label="Edit chore">✏️</button>
       </div>
     );
   }
@@ -1266,24 +1265,31 @@ function ChoreRow({
           <input type="checkbox" checked={race} onChange={(e) => setRace(e.target.checked)} />
           🏁 Race
         </label>
-        <label className="inline" style={{ gap: 6 }}>
-          Daily reminder
-          <input type="time" value={remindAt} onChange={(e) => setRemindAt(e.target.value)} />
-        </label>
-        <label className="inline" style={{ gap: 6 }}>
-          Max per {limitUnit({ type, cadence })}
-          <input
-            type="number"
-            min={0}
-            step={1}
-            aria-label="Max per period"
-            value={limit || ""}
-            placeholder="none"
-            onChange={(e) => setLimit(Math.max(0, Math.floor(Number(e.target.value) || 0)))}
-            style={{ width: 110 }}
-          />
-        </label>
+        <button className="outlined sm" onClick={() => setAdvanced((a) => !a)} aria-expanded={advanced}>
+          Advanced {advanced ? "▲" : "▼"}
+        </button>
       </div>
+      {advanced && (
+        <div className="inline" style={{ fontSize: 13, gap: 12, marginBottom: 8 }}>
+          <label className="inline" style={{ gap: 6 }}>
+            Daily reminder
+            <input type="time" value={remindAt} onChange={(e) => setRemindAt(e.target.value)} />
+          </label>
+          <label className="inline" style={{ gap: 6 }}>
+            Max per {limitUnit({ type, cadence })}
+            <input
+              type="number"
+              min={0}
+              step={1}
+              aria-label="Max per period"
+              value={limit || ""}
+              placeholder="none"
+              onChange={(e) => setLimit(Math.max(0, Math.floor(Number(e.target.value) || 0)))}
+              style={{ width: 110 }}
+            />
+          </label>
+        </div>
+      )}
       <div className="inline" style={{ gap: 8 }}>
         <button className="primary sm" onClick={save} disabled={busy || !name.trim()}>Save</button>
         <button className="sm" onClick={cancelEdit} disabled={busy}>Cancel</button>

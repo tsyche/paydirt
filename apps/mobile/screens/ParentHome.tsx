@@ -127,6 +127,7 @@ export function ParentHome({
   const [editReminder, setEditReminder] = useState("");
   const [editLimit, setEditLimit] = useState("");
   const [editDueAt, setEditDueAt] = useState("");
+  const [editAdvanced, setEditAdvanced] = useState(false);
   const [savingEdit, setSavingEdit] = useState(false);
 
   // Assignment state: choreId → Set of selected kidIds
@@ -440,6 +441,7 @@ export function ParentHome({
     setEditReminder(chore.reminder_time ?? "");
     setEditDueAt(chore.due_at ? chore.due_at.slice(0, 10) : "");
     setEditLimit(chore.max_per_period ? String(chore.max_per_period) : "");
+    setEditAdvanced(Boolean(chore.reminder_time || chore.due_at || chore.max_per_period));
   }
 
   async function saveChoreEdit(choreId: string) {
@@ -1258,9 +1260,6 @@ export function ParentHome({
                         />
                       </>
                     )}
-                    <TextInput mode="outlined" label="Reminder time (HH:MM, optional)" value={editReminder} onChangeText={setEditReminder} keyboardType="numbers-and-punctuation" placeholder="e.g. 15:30" dense style={{ marginTop: 4 }} />
-                    <TextInput mode="outlined" label={`Max per ${limitUnit({ type: editType, cadence: editCadence })} (optional)`} value={editLimit} onChangeText={setEditLimit} keyboardType="number-pad" placeholder="no limit" dense style={{ marginTop: 4 }} />
-                    <TextInput mode="outlined" label="Due date (optional)" value={editDueAt} onChangeText={setEditDueAt} keyboardType="numbers-and-punctuation" placeholder="YYYY-MM-DD" dense style={{ marginTop: 4 }} />
                     <View style={styles.switchRow}>
                       <Text>📷 Photo required</Text>
                       <Switch value={editPhoto} onValueChange={setEditPhoto} />
@@ -1269,6 +1268,16 @@ export function ParentHome({
                       <Text>🏁 Race (first to finish wins)</Text>
                       <Switch value={editRace} onValueChange={setEditRace} />
                     </View>
+                    <Button mode="text" compact icon={editAdvanced ? "chevron-up" : "chevron-down"} onPress={() => setEditAdvanced((v) => !v)} style={{ alignSelf: "flex-start" }}>
+                      Advanced (reminder, limit, due date)
+                    </Button>
+                    {editAdvanced && (
+                      <>
+                      <TextInput mode="outlined" label="Reminder time (HH:MM, optional)" value={editReminder} onChangeText={setEditReminder} keyboardType="numbers-and-punctuation" placeholder="e.g. 15:30" dense style={{ marginTop: 4 }} />
+                      <TextInput mode="outlined" label={`Max per ${limitUnit({ type: editType, cadence: editCadence })} (optional)`} value={editLimit} onChangeText={setEditLimit} keyboardType="number-pad" placeholder="no limit" dense style={{ marginTop: 4 }} />
+                      <TextInput mode="outlined" label="Due date (optional)" value={editDueAt} onChangeText={setEditDueAt} keyboardType="numbers-and-punctuation" placeholder="YYYY-MM-DD" dense style={{ marginTop: 4 }} />
+                      </>
+                    )}
                     <View style={[styles.approvalActions, { marginTop: 8 }]}>
                       <Button mode="contained" icon="check" onPress={() => void saveChoreEdit(chore.id)} disabled={savingEdit || !editName.trim()} style={[styles.approveBtn, { borderRadius: 12 }]}>
                         {savingEdit ? "Saving…" : "Save"}
