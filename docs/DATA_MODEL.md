@@ -102,7 +102,7 @@ Append-only ledger. `+` earn, `−` spend. Sum = balance. `just verify-ledger` r
 | reason | text | optional |
 | related_assignment | relation → assignments | optional |
 | related_spend_request | relation → spend_requests | optional |
-| expiry_processed | bool | set by daily cron after expiry entry written (dedupe guard) |
+| expiry_processed | bool | set by daily cron once an earn row is past `expiry_days` (dedupe guard; processed lots count as gone for later spends) |
 
 ### `spend_requests`
 | Field | Type | Notes |
@@ -227,7 +227,7 @@ The separate Family Link reconciliation job lives in `familylink.pb.js`; it proc
 | Job | Schedule | Does |
 |-----|----------|------|
 | paydirt_tick | every 10 min | approval nudges (`nudge_hours`), daily chore reminders (`reminder_time`), deadline escalation (`due_at`: 24h → 2h → overdue, parents pinged on overdue), kid one-shot reminders, per-kid chore summary (`digest_*`) |
-| paydirt_daily | 03:00 | currency expiry (`expiry_days`, compensating negative adjustment capped at balance), streak refresh (zeroes broken streaks), recurring chore auto-assignment (silent: `assignments.auto_created`, no per-chore push; re-creates assignments for recurring chores when no open one exists per kid) |
+| paydirt_daily | 03:00 | currency expiry (`expiry_days`, per-kid ledger replay oldest-first via `expiryLapse`, one compensating negative adjustment capped at balance), streak refresh (zeroes broken streaks), recurring chore auto-assignment (silent: `assignments.auto_created`, no per-chore push; re-creates assignments for recurring chores when no open one exists per kid) |
 | paydirt_digest | Sun 18:00 | weekly per-kid summary (chores, earned/spent, balances, pending count) to parents |
 | paydirt_kid_recap | Sun 10:00 | per-kid weekly ntfy recap (earnings, chores, nearest goal); skips `paused` households |
 | paydirt_allowance | daily 06:00 | pays the scheduled allowance when due (`allowance_*`), notifies kids |

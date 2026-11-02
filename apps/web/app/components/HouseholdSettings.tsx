@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { createPortal } from "react-dom";
 import type { Household } from "@paydirt/shared";
-import { CURRENCY_PRESETS, DEFAULT_CURRENCY_NAME, featureTip, screenRate } from "@paydirt/shared";
+import { CURRENCY_PRESETS, DEFAULT_CURRENCY_NAME, currencyDisplayName, featureTip, screenRate } from "@paydirt/shared";
 import { client } from "../lib/client";
 
 function Tip({ k }: { k: string }) {
@@ -73,6 +73,8 @@ export function HouseholdSettings({
     allowance_amount: household.allowance_amount ?? 0,
     allowance_cadence: household.allowance_cadence ?? "weekly",
   });
+  // Labels follow the currency name as it is typed, not the saved one.
+  const cur = currencyDisplayName({ currency_name: form.currency_name });
 
   async function save() {
     setBusy(true);
@@ -161,7 +163,7 @@ export function HouseholdSettings({
           />
         </div>
         <div className="settings-row">
-          <label>Bucks per $1 <Tip k="goods_rate" /> <span className="muted">(0 = off)</span></label>
+          <label>{cur} per $1 <Tip k="goods_rate" /> <span className="muted">(0 = off)</span></label>
           <input
             type="number"
             min={0}
@@ -171,12 +173,12 @@ export function HouseholdSettings({
           />
         </div>
         <div className="settings-row">
-          <label>📱 Bucks per screen-time minute <Tip k="screen_rate" /></label>
+          <label>📱 {cur} per screen-time minute <Tip k="screen_rate" /></label>
           <input
             type="number"
             min={0}
             step="any"
-            aria-label="Bucks per screen-time minute"
+            aria-label={`${cur} per screen-time minute`}
             value={form.screen_rate}
             onChange={(e) => setForm({ ...form, screen_rate: num(e.target.value) })}
             style={{ width: 90 }}

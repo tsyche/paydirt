@@ -5,10 +5,10 @@ import { AppearanceDialog } from "./AppearanceDialog";
 import { InboxDialog, useUnreadAlerts } from "./InboxDialog";
 
 /**
- * Header overflow menu: Theme, Alerts, Sign out. A dot on the icon (and on the Alerts
+ * Header overflow menu: Theme, Alerts, Sign out, plus Household settings when `onSettings` is given (parents). A dot on the icon (and on the Alerts
  * row) shows unread alerts, so folding the bell away doesn't hide new ones.
  */
-export function HeaderMenu({ userId, onLogout }: { userId: string; onLogout: () => void }) {
+export function HeaderMenu({ userId, onLogout, onSettings }: { userId: string; onLogout: () => void; onSettings?: () => void }) {
   const [menu, setMenu] = useState(false);
   const [theme, setTheme] = useState(false);
   const [inbox, setInbox] = useState(false);
@@ -38,6 +38,7 @@ export function HeaderMenu({ userId, onLogout }: { userId: string; onLogout: () 
           title={unread ? "Alerts (new)" : "Alerts"}
           onPress={pick(() => { markSeen(); setInbox(true); })}
         />
+        {onSettings ? <Menu.Item leadingIcon="cog-outline" title="Household settings" onPress={pick(onSettings)} /> : null}
         <Menu.Item leadingIcon="logout" title="Sign out" onPress={pick(onLogout)} />
       </Menu>
       <AppearanceDialog visible={theme} onDismiss={() => setTheme(false)} />

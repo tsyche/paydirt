@@ -97,6 +97,60 @@ export function isCurrencyExpired(
   return createdAt.getTime() <= cutoff;
 }
 
+export interface LedgerRow {
+  id: string;
+  type: "earn" | "spend" | "manual_adjustment";
+  amount: number;
+  created: Date;
+  reason?: string;
+  expiry_processed?: boolean;
+}
+
+/** Reason prefix on the compensating row the expiry cron writes; those rows are lapses, not spends. */
+export const EXPIRED_REASON_PREFIX = "Expired rewards";
+
+/**
+ * What the expiry cron should do for one kid. Replays the ledger oldest-first:
+ * each `earn` row is a lot, and every debit (spend or negative adjustment other than
+ * a past lapse) consumes the oldest lots first, so spent grit can't expire twice
+ * and a fresh earn is never charged for an old one. Credits that are not `earn`
+ * (manual bonuses, future kudos) never expire. Already-processed lots are treated
+ * as gone once they passed their expiry date.
+ *
+ * `staleIds`: unprocessed earn rows past `expiryDays` (mark processed, even at 0
+ * remaining). `lapse`: grit still left in those lots, capped at `balance`.
+ */
+export function expiryLapse(
+  rows: LedgerRow[],
+  now: Date,
+  expiryDays: number,
+  balance: number,
+): { lapse: number; staleIds: string[] } {
+  if (expiryDays <= 0) return { lapse: 0, staleIds: [] };
+  const span = expiryDays * DAY_MS;
+  const sorted = [...rows].sort((a, b) => a.created.getTime() - b.created.getTime());
+  const lots: { row: LedgerRow; left: number }[] = [];
+  for (const r of sorted) {
+    if (r.type === "earn" && r.amount > 0) {
+      lots.push({ row: r, left: r.amount });
+      continue;
+    }
+    if (r.amount >= 0 || r.reason?.startsWith(EXPIRED_REASON_PREFIX)) continue;
+    let debit = -r.amount;
+    for (const lot of lots) {
+      if (debit <= 0) break;
+      const gone = lot.row.expiry_processed && lot.row.created.getTime() + span <= r.created.getTime();
+      if (gone || lot.left <= 0) continue;
+      const take = Math.min(lot.left, debit);
+      lot.left -= take;
+      debit -= take;
+    }
+  }
+  const stale = lots.filter((l) => !l.row.expiry_processed && l.row.created.getTime() + span <= now.getTime());
+  const left = stale.reduce((n, l) => n + l.left, 0);
+  return { lapse: Math.max(0, Math.min(left, balance)), staleIds: stale.map((l) => l.row.id) };
+}
+
 /** Weekly parent digest (runWeeklyDigest): skipped entirely on vacation. */
 export function shouldSendWeeklyDigest(vacationMode: boolean): boolean {
   return !vacationMode;

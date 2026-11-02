@@ -582,7 +582,7 @@ export function ParentHome({
         />
         <GritButton rows={kids} currency={currencyName} goodsRate={goodsRate} screenRate={screenRate(household)} total />
         <OverviewModalButton household={household} kids={kids} chores={chores} heldByChore={heldByChore} />
-        <HeaderMenu userId={user.id} onLogout={onLogout} />
+        <HeaderMenu userId={user.id} onLogout={onLogout} onSettings={() => setHhSettingsOpen(true)} />
       </Appbar.Header>
 
       <OfflineBanner />

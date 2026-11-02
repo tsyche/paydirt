@@ -63,6 +63,42 @@ function isCurrencyExpired(now, createdAt, expiryDays, vacationMode) {
   return createdAt.getTime() <= cutoff;
 }
 
+// Reason prefix on the compensating row runDaily writes; those rows are lapses, not spends.
+const EXPIRED_REASON_PREFIX = "Expired rewards";
+
+// What the expiry cron should do for one kid (mirrors expiryLapse in
+// packages/shared/src/scheduling.ts, which holds the tested spec). Replays the
+// ledger oldest-first: each `earn` row is a lot and every debit consumes the
+// oldest lots first, so spent grit can't expire twice and a fresh earn is never
+// charged for an old one. Non-earn credits never expire. rows: [{id, type,
+// amount, created: Date, reason, expiry_processed}].
+function expiryLapse(rows, now, expiryDays, balance) {
+  if (expiryDays <= 0) return { lapse: 0, staleIds: [] };
+  const span = expiryDays * DAY_MS;
+  const sorted = rows.slice().sort((a, b) => a.created.getTime() - b.created.getTime());
+  const lots = [];
+  for (const r of sorted) {
+    if (r.type === "earn" && r.amount > 0) {
+      lots.push({ row: r, left: r.amount });
+      continue;
+    }
+    if (r.amount >= 0 || (r.reason || "").indexOf(EXPIRED_REASON_PREFIX) === 0) continue;
+    let debit = -r.amount;
+    for (const lot of lots) {
+      if (debit <= 0) break;
+      const gone = lot.row.expiry_processed && lot.row.created.getTime() + span <= r.created.getTime();
+      if (gone || lot.left <= 0) continue;
+      const take = Math.min(lot.left, debit);
+      lot.left -= take;
+      debit -= take;
+    }
+  }
+  const stale = lots.filter((l) => !l.row.expiry_processed && l.row.created.getTime() + span <= now.getTime());
+  let left = 0;
+  for (const l of stale) left += l.left;
+  return { lapse: Math.max(0, Math.min(left, balance)), staleIds: stale.map((l) => l.row.id) };
+}
+
 function shouldSendWeeklyDigest(vacationMode) {
   return !vacationMode;
 }
@@ -330,9 +366,10 @@ function runDaily(app) {
       }
     }
 
-    // Expiry: earn entries older than expiry_days lapse via a compensating
-    // negative adjustment, capped at the current balance (already-spent
-    // rewards can't expire twice). Skipped while on vacation.
+    // Expiry: earn lots older than expiry_days lapse via one compensating
+    // negative adjustment per kid. Spends consume the oldest lots first
+    // (expiryLapse), so already-spent grit never expires and fresh earns are
+    // never charged for old ones. Skipped while on vacation.
     const expiryDays = hh.getFloat("expiry_days");
     const vacationMode = hh.getBool("paused");
     if (expiryDays > 0 && !vacationMode) {
@@ -345,24 +382,31 @@ function runDaily(app) {
         0,
         { cutoff: cutoff, hh: hh.id },
       );
-      const byChild = {};
-      for (const t of stale) {
-        const createdAt = new Date(t.getString("created").replace(" ", "T"));
-        if (!isCurrencyExpired(now, createdAt, expiryDays, vacationMode)) continue;
-        const uid = t.getString("user");
-        byChild[uid] = (byChild[uid] || 0) + t.getFloat("amount");
-        t.set("expiry_processed", true);
-        app.save(t);
-      }
-      for (const uid in byChild) {
+      const kidIds = {};
+      for (const t of stale) kidIds[t.getString("user")] = true;
+      for (const uid in kidIds) {
+        const all = app.findRecordsByFilter("currency_transactions", "user = {:u}", "created", 0, 0, { u: uid });
+        const rows = all.map((t) => ({
+          id: t.id,
+          type: t.getString("type"),
+          amount: t.getFloat("amount"),
+          created: new Date(t.getString("created").replace(" ", "T")),
+          reason: t.getString("reason"),
+          expiry_processed: t.getBool("expiry_processed"),
+        }));
         const child = app.findRecordById("users", uid);
-        const lapse = Math.min(byChild[uid], child.getFloat("balance"));
-        if (lapse <= 0) continue;
+        const res = expiryLapse(rows, now, expiryDays, child.getFloat("balance"));
+        for (const id of res.staleIds) {
+          const t = app.findRecordById("currency_transactions", id);
+          t.set("expiry_processed", true);
+          app.save(t);
+        }
+        if (res.lapse <= 0) continue;
         const tx = new Record(app.findCollectionByNameOrId("currency_transactions"));
         tx.set("user", uid);
-        tx.set("amount", -lapse);
+        tx.set("amount", -res.lapse);
         tx.set("type", "manual_adjustment");
-        tx.set("reason", "Expired rewards (older than " + expiryDays + " days)");
+        tx.set("reason", EXPIRED_REASON_PREFIX + " (older than " + expiryDays + " days)");
         app.save(tx);
       }
     }

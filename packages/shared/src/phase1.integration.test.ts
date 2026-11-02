@@ -274,6 +274,42 @@ describe("Phase 1 features (live)", () => {
     expect(await count()).toBe(before + 1);
   });
 
+  it("expiry: a spent old earn is not charged to a fresh earn; a still-held old earn lapses", async () => {
+    const admin = new PaydirtClient(PB_URL);
+    await admin.pb.collection("_superusers").authWithPassword(ADMIN_EMAIL, ADMIN_PASSWORD);
+    const hh = await admin.pb.collection("households").getOne(householdId);
+    const daysAgo = (n: number) => new Date(Date.now() - n * 864e5).toISOString().replace("T", " ");
+    const add = (type: string, amount: number, ago: number, reason: string) =>
+      admin.pb.collection("currency_transactions").create({ user: kid2User.id, type, amount, reason, created: daysAgo(ago) });
+    const balance = async () => (await admin.pb.collection("users").getOne(kid2User.id)).balance as number;
+    const lapses = async () =>
+      (await admin.pb.collection("currency_transactions").getFullList({ filter: `user = "${kid2User.id}" && reason ~ "Expired rewards"` })).length;
+    try {
+      await admin.pb.collection("households").update(householdId, { expiry_days: 30, paused: false });
+      const start = await balance();
+      const lapsesBefore = await lapses();
+      // earn 100 (40d ago), spend it (35d ago), earn 50 (10d ago): nothing old is left to lapse.
+      await add("earn", 100, 40, "expiry test earn");
+      await add("spend", -100, 35, "expiry test spend");
+      await add("earn", 50, 10, "expiry test fresh");
+      await admin.pb.send("/api/paydirt/cron/daily", { method: "POST" });
+      expect(await balance()).toBe(start + 50);
+      expect(await lapses()).toBe(lapsesBefore);
+      // Running again is a no-op (old earn is marked processed).
+      await admin.pb.send("/api/paydirt/cron/daily", { method: "POST" });
+      expect(await balance()).toBe(start + 50);
+      // An old earn that is still held does lapse, and only once.
+      await add("earn", 20, 45, "expiry test held");
+      await admin.pb.send("/api/paydirt/cron/daily", { method: "POST" });
+      expect(await balance()).toBe(start + 30);
+      expect(await lapses()).toBe(lapsesBefore + 1);
+      await admin.pb.send("/api/paydirt/cron/daily", { method: "POST" });
+      expect(await lapses()).toBe(lapsesBefore + 1);
+    } finally {
+      await admin.pb.collection("households").update(householdId, { expiry_days: hh.expiry_days, paused: hh.paused });
+    }
+  });
+
   it.each(["weekly", "monthly"] as const)(
     "recurring chore auto-assignment: %s cadence waits instead of re-creating same-day",
     async (cadence) => {

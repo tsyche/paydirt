@@ -3,7 +3,9 @@ import {
   buildDigestMessage,
   computeDueStage,
   digestTimeFor,
+  expiryLapse,
   isCurrencyExpired,
+  type LedgerRow,
   shouldEscalate,
   shouldFireDigest,
   shouldFireNudge,
@@ -183,5 +185,67 @@ describe("kid chore digest", () => {
   it("summarises with a count and at most three names", () => {
     expect(buildDigestMessage(["Dishes"])).toBe("1 chore today: Dishes");
     expect(buildDigestMessage(["A", "B", "C", "D", "E"])).toBe("5 chores today: A, B, C +2 more");
+  });
+});
+
+describe("expiryLapse", () => {
+  const d = (iso: string) => new Date(`${iso}T12:00:00Z`);
+  const row = (id: string, type: LedgerRow["type"], amount: number, day: string, extra: Partial<LedgerRow> = {}): LedgerRow => ({
+    id, type, amount, created: d(day), ...extra,
+  });
+  const now = d("2026-08-31");
+
+  it("does not charge a fresh earn for an old one that was already spent", () => {
+    const rows = [
+      row("a", "earn", 100, "2026-07-01"),
+      row("s", "spend", -100, "2026-07-05"),
+      row("b", "earn", 50, "2026-08-10"),
+    ];
+    // balance 50; the old 100 is fully spent, so nothing lapses (the old code lapsed 50).
+    expect(expiryLapse(rows, now, 30, 50)).toEqual({ lapse: 0, staleIds: ["a"] });
+  });
+
+  it("lapses only what is left of a partly spent lot", () => {
+    const rows = [row("a", "earn", 100, "2026-07-01"), row("s", "spend", -30, "2026-07-05")];
+    expect(expiryLapse(rows, now, 30, 70)).toEqual({ lapse: 70, staleIds: ["a"] });
+  });
+
+  it("spends consume the oldest lot first", () => {
+    const rows = [
+      row("a", "earn", 40, "2026-07-01"),
+      row("b", "earn", 40, "2026-07-02"),
+      row("s", "spend", -50, "2026-07-10"),
+    ];
+    // 40 from a, 10 from b -> only 30 of b is left to lapse.
+    expect(expiryLapse(rows, now, 30, 30)).toEqual({ lapse: 30, staleIds: ["a", "b"] });
+  });
+
+  it("never lapses non-earn credits, and caps at balance", () => {
+    const rows = [row("a", "earn", 100, "2026-07-01"), row("k", "manual_adjustment", 100, "2026-07-02")];
+    expect(expiryLapse(rows, now, 30, 100)).toEqual({ lapse: 100, staleIds: ["a"] });
+    expect(expiryLapse(rows, now, 30, 60).lapse).toBe(60);
+  });
+
+  it("ignores earn rows inside the window and expiry-off", () => {
+    expect(expiryLapse([row("a", "earn", 10, "2026-08-25")], now, 30, 10)).toEqual({ lapse: 0, staleIds: [] });
+    expect(expiryLapse([row("a", "earn", 10, "2026-01-01")], now, 0, 10)).toEqual({ lapse: 0, staleIds: [] });
+  });
+
+  it("is idempotent: a processed lot and its lapse row are not counted again", () => {
+    const rows = [
+      row("a", "earn", 100, "2026-06-01", { expiry_processed: true }),
+      row("lapse", "manual_adjustment", -100, "2026-07-01", { reason: "Expired rewards (older than 30 days)" }),
+      row("b", "earn", 20, "2026-07-20"),
+    ];
+    expect(expiryLapse(rows, now, 30, 20)).toEqual({ lapse: 20, staleIds: ["b"] });
+  });
+
+  it("a spend after a lot lapsed cannot consume that dead lot", () => {
+    const rows = [
+      row("a", "earn", 100, "2026-06-01", { expiry_processed: true }),
+      row("b", "earn", 50, "2026-07-20"),
+      row("s", "spend", -20, "2026-08-10"),
+    ];
+    expect(expiryLapse(rows, now, 30, 30)).toEqual({ lapse: 30, staleIds: ["b"] });
   });
 });

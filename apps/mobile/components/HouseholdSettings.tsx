@@ -10,7 +10,7 @@ import {
   TextInput,
 } from "react-native-paper";
 import type { Household } from "@paydirt/shared";
-import { CURRENCY_PRESETS, DEFAULT_CURRENCY_NAME, screenRate, errorMessage, featureTip } from "@paydirt/shared";
+import { CURRENCY_PRESETS, DEFAULT_CURRENCY_NAME, currencyDisplayName, screenRate, errorMessage, featureTip } from "@paydirt/shared";
 import { client } from "../lib/client";
 
 /** Setting label with an info icon that reveals the shared feature tip inline (no hover on touch). */
@@ -71,6 +71,8 @@ export function HouseholdSettings({
     allowance_amount: String(household.allowance_amount ?? 0),
     allowance_cadence: household.allowance_cadence ?? "weekly",
   });
+  // Labels follow the currency name as it is typed, not the saved one.
+  const cur = currencyDisplayName({ currency_name: form.currency_name });
 
   const num = (v: string) => (Number(v) >= 0 ? Number(v) : 0);
 
@@ -147,14 +149,14 @@ export function HouseholdSettings({
               onChangeText={(v) => setForm({ ...form, expiry_days: v })}
               style={{ marginBottom: 8 }}
             />
-            <SettingLabel label="Bucks per $1 (0 = off)" tip="goods_rate" />
+            <SettingLabel label={`${cur} per $1 (0 = off)`} tip="goods_rate" />
             <TextInput
               keyboardType="numeric"
               value={form.goods_rate}
               onChangeText={(v) => setForm({ ...form, goods_rate: v })}
               style={{ marginBottom: 8 }}
             />
-            <SettingLabel label="Bucks per screen-time minute" tip="screen_rate" />
+            <SettingLabel label={`${cur} per screen-time minute`} tip="screen_rate" />
             <TextInput
               keyboardType="numeric"
               value={form.screen_rate}

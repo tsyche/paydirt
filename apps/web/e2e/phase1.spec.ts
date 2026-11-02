@@ -119,7 +119,7 @@ test("screen-time request is priced from the household rate set in settings", as
     // Parent sets 2 bucks/minute in the settings panel
     await signIn(page);
     await page.getByRole("button", { name: /Settings/ }).click();
-    await page.getByLabel("Bucks per screen-time minute").fill("2");
+    await page.getByLabel(/per screen-time minute/).fill("2");
     await page.getByRole("button", { name: "Save" }).click();
     await expect.poll(async () => (await parent.getHousehold(householdId)).screen_rate).toBe(2);
 
@@ -145,7 +145,7 @@ test("screen-time request is priced from the household rate set in settings", as
 test("settings info icons show their help text instantly on hover", async ({ page }) => {
   await signIn(page);
   await page.getByRole("button", { name: /Settings/ }).click();
-  const row = page.locator(".settings-row").filter({ hasText: "Bucks per $1" });
+  const row = page.locator(".settings-row").filter({ hasText: /per \$1/ });
   await expect(row.getByRole("note")).toHaveCount(0);
   await row.getByRole("button", { name: "More info" }).hover();
   await expect(row.getByRole("note")).toContainText("parentBucks equal $1", { timeout: 250 });

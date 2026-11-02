@@ -4,6 +4,7 @@
 
 ## Shipped index
 
+- [x] 2026-11-02 — Expiry takes the right grit: daily cron replays each kid's ledger oldest-first (`expiryLapse`), so spends consume expiring grit first (code only, not yet deployed to bb)
 - [x] 2026-11-02 — Mobile header menu (Theme / Alerts / Sign out, unread dot), grit dialog with dollars and screen minutes per kid and combined (web + mobile), `kids_see_balances` household setting
 - [x] 2026-11-02 — Overview dashboards: parent cost overview + per-kid weekly potential (web + mobile, Ledger tab), kid "My Bank" minutes on both kid homes
 - [x] 2026-11-01 — Per-kid daily chore summary push; silent 3 AM recurring assignments
@@ -45,6 +46,9 @@
 
 ## Archived entries
 
+### 2026-11-02 — Expiry takes the right grit
+
+Bug: `runDaily` summed stale `earn` rows and lapsed `min(sum, balance)`, so earn 100 (d1), spend 100 (d5), earn 50 (d20) lapsed the fresh 50 at d31. Fix: `expiryLapse` (`packages/shared/src/scheduling.ts`, hand-mirrored in `pb_hooks/lib/scheduler.js`) replays the kid's ledger oldest-first; each earn is a lot, debits consume the oldest lots, non-earn credits never expire. Seven unit tests cover it, including the spend-between-earns case. Not deployed yet; existing wrongly lapsed rows are not repaired. Known approximation: a reversal (parent un-approve) is a negative adjustment, so it consumes the oldest lot rather than the specific earn it undoes.
 ### 2026-11-02 — Overview dashboards (parent cost, weekly potential, kid My Bank)
 
 - **Shared math** (`packages/shared/src/overview.ts`, unit-tested): `bankView`, `weeklyPotential`/`occurrencesPerWeek`, `periodRange`, `summarizePeriod`/`addSummaries`/`pctChange`. Client gained `listTransactionsInRange` and `listApprovedInRange`.
