@@ -39,24 +39,33 @@ export function justUpdated(lastSeen: number | null, installed: number): boolean
   return lastSeen !== null && installed > lastSeen;
 }
 
-// Triggers the system DownloadManager to fetch + install the APK. Returns true
-// if the native call was dispatched. The OS handles the install prompt.
-export async function triggerApkDownload(downloadUrl: string): Promise<boolean> {
+type UpdateNative = {
+  downloadUpdate?: (url: string) => Promise<boolean>;
+  installUpdate?: () => Promise<"started" | "permission" | "missing">;
+};
+
+// Starts the in-app APK download (progress/ready/failed arrive as native events).
+// False = could not start or one is already running.
+export async function startUpdateDownload(downloadUrl: string): Promise<boolean> {
   try {
-    const native = NativeModules.PayDirtNative as
-      | { downloadAndInstallApk?: (url: string) => Promise<boolean> }
-      | undefined;
-    if (native?.downloadAndInstallApk) {
-      await native.downloadAndInstallApk(downloadUrl);
-      return true;
-    }
-    return false;
+    const native = NativeModules.PayDirtNative as UpdateNative | undefined;
+    return (await native?.downloadUpdate?.(downloadUrl)) ?? false;
   } catch {
     return false;
   }
 }
 
-// Maps a DownloadManager failure reason to something a parent can act on.
+// Opens the system installer for the downloaded APK (must be called from the foreground).
+export async function installDownloadedUpdate(): Promise<"started" | "permission" | "missing" | "error"> {
+  try {
+    const native = NativeModules.PayDirtNative as UpdateNative | undefined;
+    return (await native?.installUpdate?.()) ?? "error";
+  } catch {
+    return "error";
+  }
+}
+
+// Maps a download failure code to something a parent can act on.
 // 1006 = no space, 1004/1002/1005 = network/HTTP trouble, 1001/1007/1008 = file/storage, 4xx/5xx = HTTP status.
 export function describeDownloadFailure(reason: number): string {
   if (reason === 1006) return "The device is out of storage. Free some space and try again.";

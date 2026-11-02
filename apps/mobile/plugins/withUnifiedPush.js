@@ -1,11 +1,13 @@
 // Expo Config Plugin: wires up UnifiedPush support after expo prebuild.
 //
-// Applies four changes to the generated Android project:
+// Applies five changes to the generated Android project:
 //   1. Adds .UnifiedPushReceiver to AndroidManifest.xml with UP intent filters
 //   2. Adds io.heckel.ntfy to <queries> for package visibility (Android 11+)
 //   3. Copies native-src/{UnifiedPushReceiver,PayDirtNativeModule}.kt into the
 //      app package directory
-//   4. Patches MainApplication.kt to call registerAppWithNtfy() on startup and
+//   4. Adds a FileProvider (+ res/xml/update_file_paths.xml) so the in-app update
+//      can hand the downloaded APK to the installer
+//   5. Patches MainApplication.kt to call registerAppWithNtfy() on startup and
 //      register PayDirtPackage (JS-callable re-registration)
 //
 // Keep this plugin in sync with native-src/*.kt.
@@ -75,6 +77,48 @@ function addUpReceiver(config) {
   });
 }
 
+const UPDATE_PATHS_XML = `<?xml version="1.0" encoding="utf-8"?>
+<paths>
+  <cache-path name="updates" path="updates/" />
+</paths>
+`;
+
+function addUpdateFileProvider(config) {
+  config = withAndroidManifest(config, (cfg) => {
+    const app = cfg.modResults.manifest.application[0];
+    if (!app.provider) app.provider = [];
+    const name = "androidx.core.content.FileProvider";
+    const authority = "${applicationId}.updatefiles";
+    if (app.provider.some((p) => p.$?.["android:authorities"] === authority)) return cfg;
+    app.provider.push({
+      $: {
+        "android:name": name,
+        "android:authorities": authority,
+        "android:exported": "false",
+        "android:grantUriPermissions": "true",
+      },
+      "meta-data": [
+        {
+          $: {
+            "android:name": "android.support.FILE_PROVIDER_PATHS",
+            "android:resource": "@xml/update_file_paths",
+          },
+        },
+      ],
+    });
+    return cfg;
+  });
+  return withDangerousMod(config, [
+    "android",
+    (cfg) => {
+      const xmlDir = path.join(cfg.modRequest.platformProjectRoot, "app/src/main/res/xml");
+      fs.mkdirSync(xmlDir, { recursive: true });
+      fs.writeFileSync(path.join(xmlDir, "update_file_paths.xml"), UPDATE_PATHS_XML);
+      return cfg;
+    },
+  ]);
+}
+
 function addNativeFiles(config) {
   return withDangerousMod(config, [
     "android",
@@ -115,6 +159,7 @@ module.exports = (config) => {
   config = addInstallPermission(config);
   config = addNtfyToQueries(config);
   config = addUpReceiver(config);
+  config = addUpdateFileProvider(config);
   config = addNativeFiles(config);
   return config;
 };

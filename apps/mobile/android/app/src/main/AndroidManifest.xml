@@ -36,6 +36,14 @@
         <data android:scheme="paydirt"/>
       </intent-filter>
     </activity>
+    <!-- Serves the downloaded update APK to the system installer (PayDirtNativeModule.installUpdate). -->
+    <provider
+      android:name="androidx.core.content.FileProvider"
+      android:authorities="${applicationId}.updatefiles"
+      android:exported="false"
+      android:grantUriPermissions="true">
+      <meta-data android:name="android.support.FILE_PROVIDER_PATHS" android:resource="@xml/update_file_paths"/>
+    </provider>
     <receiver android:name=".UnifiedPushReceiver" android:exported="true">
       <intent-filter>
         <action android:name="org.unifiedpush.android.connector.NEW_ENDPOINT"/>
