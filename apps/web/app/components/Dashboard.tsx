@@ -20,6 +20,7 @@ import { kidsAtLimit, knownChoreNames, GOAL_NAME_MAX, GOAL_DETAILS_MAX, parseAss
 import { client } from "../lib/client";
 import { HouseholdSettings } from "./HouseholdSettings";
 import { AppearanceControls } from "./AppearanceControls";
+import { OverviewView } from "./OverviewView";
 import { LedgerView } from "./LedgerView";
 import { InboxView } from "./InboxView";
 import { StarterChores } from "./StarterChores";
@@ -86,7 +87,21 @@ export function Dashboard({
   const [recentApproved, setRecentApproved] = useState<Expanded<Assignment>[]>([]);
   const [error, setError] = useState("");
   const [templateFill, setTemplateFill] = useState<ChoreTemplate | null>(null);
-  const [tab, setTab] = useState<TabKey>("approvals");
+  const [tab, setTabState] = useState<TabKey>("approvals");
+  // Tabs are browser history entries so Back/Forward move between them instead of leaving the app.
+  const setTab = (next: TabKey) => {
+    setTabState(next);
+    try { window.history.pushState({ tab: next }, ""); } catch {}
+  };
+  useEffect(() => {
+    try { window.history.replaceState({ tab: "approvals" }, ""); } catch {}
+    const onPop = (e: PopStateEvent) => {
+      const t = (e.state as { tab?: TabKey } | null)?.tab;
+      setTabState(TABS.some((x) => x.key === t) ? (t as TabKey) : "approvals");
+    };
+    window.addEventListener("popstate", onPop);
+    return () => window.removeEventListener("popstate", onPop);
+  }, []);
   const [ledgerKid, setLedgerKid] = useState<string | undefined>();
   const [celebrate, setCelebrate] = useState(0);
   const party = () => setCelebrate((n) => n + 1);
@@ -181,7 +196,8 @@ export function Dashboard({
       {/* ── App Bar ── */}
       <header className="app-bar">
         <div className="app-bar-inner">
-          <div className="app-bar-title">
+          {/* Plain <a>, not next/link: a full reload is the point. */}
+          <a className="app-bar-title" href="/" aria-label="PayDirt home">
             <img className="app-bar-logo" src="/bag.svg" alt="" />
             <span className="app-bar-brand">
               <span>
@@ -189,7 +205,7 @@ export function Dashboard({
               </span>
               <span className="app-bar-tagline">Do. The. Thing.</span>
             </span>
-          </div>
+          </a>
           <div className="inline">
             <AppearanceControls />
             {household && (
@@ -570,6 +586,10 @@ export function Dashboard({
 
         {/* ── Chores ── */}
         <h2>📋 Chores</h2>
+        <div className="assign-key muted">
+          <span><span className="ico-ok">✓</span> Already assigned</span>
+          <span><span className="ico-warn">⚠</span> At repeat limit (can still override)</span>
+        </div>
         <ChoreTemplatesPanel
           householdId={householdId}
           onUse={(t) => setTemplateFill(t)}
@@ -600,7 +620,12 @@ export function Dashboard({
         ))}
         </>)}
 
-        {tab === "ledger" && <LedgerView household={household} initialKidId={ledgerKid} />}
+        {tab === "ledger" && (
+          <>
+            <OverviewView household={household} kids={kids} chores={chores} activeAssignments={activeAssignments} />
+            <LedgerView household={household} initialKidId={ledgerKid} />
+          </>
+        )}
         {tab === "alerts" && <InboxView userId={user.id} />}
       </main>
 
@@ -852,13 +877,13 @@ function GoalList({
         const open = expanded.has(g.id);
         const pct = g.achieved ? 100 : Math.min(100, Math.round((kid.balance / g.target) * 100));
         return (
-          <div className="goal-row" key={g.id}>
+          <div className="goal-row goal-row-click" key={g.id} onClick={() => toggle(g.id)}>
             <button
               type="button"
               className={`goal-name${open ? " goal-name-open" : ""}`}
               aria-expanded={open}
               title={open ? "Click to collapse" : g.name}
-              onClick={() => toggle(g.id)}
+              onClick={(e) => { e.stopPropagation(); toggle(g.id); }}
             >
               <span className="twisty" aria-hidden="true">{open ? "▾" : "▸"}</span>
               {g.name}
@@ -870,7 +895,7 @@ function GoalList({
               className="sm"
               aria-label={`Delete goal ${g.name}`}
               title="Delete goal"
-              onClick={() => void remove(g)}
+              onClick={(e) => { e.stopPropagation(); void remove(g); }}
             >
               ✕
             </button>
@@ -1958,10 +1983,10 @@ function AssignControl({
             disabled={busy || held(k.id)}
           />
           {k.avatar_emoji ? `${k.avatar_emoji} ` : ""}{k.display_name}
-          {held(k.id) && <span className="muted"> ✓ assigned</span>}
+          {held(k.id) && <span className="muted"> <span className="ico-ok">✓</span> assigned</span>}
           {!held(k.id) && atLimit?.has(k.id) && (
             <span className="muted" title={`Already at the limit (${limitLabel(chore)}). You can still assign to override.`}>
-              {" "}· at limit ({limitLabel(chore)})
+              {" "}<span className="ico-warn">⚠</span> at limit ({limitLabel(chore)})
             </span>
           )}
         </label>

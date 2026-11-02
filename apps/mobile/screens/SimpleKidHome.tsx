@@ -18,6 +18,7 @@ import {
   DEFAULT_SCREEN_RATE,
   SCREEN_PRESETS,
   screenCost,
+  bankView,
   screenRate,
   shouldCelebrate, errorMessage, kidAccent, payLabel } from "@paydirt/shared";
 import { client } from "../lib/client";
@@ -51,6 +52,7 @@ export function SimpleKidHome({ user, onLogout }: { user: User; onLogout: () => 
   const goodsRate = me.goods_rate ?? householdRate;
   const calm = !!me.calm_mode;
   const shownBalance = useCountUp(balance, !calm);
+  const bank = bankView(balance, goodsRate, rate);
 
   const reload = useCallback(async () => {
     setRefreshing(true);
@@ -194,9 +196,14 @@ export function SimpleKidHome({ user, onLogout }: { user: User; onLogout: () => 
             <Text style={[styles.balanceNumber, { color: theme.colors.onSurface }]}>
               {shownBalance}
             </Text>
-            {goodsRate > 0 ? (
+            {bank.dollars !== null ? (
               <Text style={[styles.dollarValue, { color: theme.colors.onSurfaceVariant }]}>
-                ${(balance / goodsRate).toFixed(2)}
+                ${bank.dollars.toFixed(2)}
+              </Text>
+            ) : null}
+            {bank.screenMinutes > 0 ? (
+              <Text style={[styles.dollarValue, { color: theme.colors.onSurfaceVariant }]}>
+                ⏱ {bank.screenMinutes} min
               </Text>
             ) : null}
             <Text style={[styles.balanceLabel, { color: theme.colors.onSurfaceVariant }]}>

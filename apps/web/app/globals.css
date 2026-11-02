@@ -207,6 +207,8 @@ body {
   gap: 12px;
 }
 
+a.app-bar-title, a.login-home { color: inherit; text-decoration: none; }
+.login-home { display: flex; flex-direction: column; align-items: center; }
 .app-bar-title {
   font-family: var(--font-display);
   font-size: 28px;
@@ -966,8 +968,10 @@ button.danger-filled:disabled { box-shadow: none; }
 .goal-list { margin-top: 12px; border-top: 1px solid var(--md-outline-variant); }
 .goal-section-toggle {
   display: block;
-  width: 100%;
-  padding: 8px 0;
+  /* Hit area runs edge to edge of the card (cancels its 16px side padding). */
+  width: calc(100% + 32px);
+  margin: 0 -16px;
+  padding: 8px 16px;
   background: transparent;
   box-shadow: none;
   border: 0;
@@ -997,6 +1001,7 @@ button.danger-filled:disabled { box-shadow: none; }
   padding: 8px 0 6px;
   border-bottom: 1px solid var(--md-outline-variant);
 }
+.goal-row-click { cursor: pointer; }
 .goal-row:last-child { border-bottom: none; }
 .goal-name {
   display: block;
@@ -1032,6 +1037,10 @@ button.danger-filled:disabled { box-shadow: none; }
 .kid-settings-row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
 .chore-title { display: flex; flex-wrap: wrap; align-items: baseline; column-gap: 8px; }
 .chore-badges { display: inline-flex; gap: 6px; font-size: 13px; }
+/* Assign status icons: ✓ always green, ⚠ always yellow. */
+.ico-ok { color: #2e7d32; font-weight: 700; }
+.ico-warn { color: #f9a825; font-weight: 700; }
+.assign-key { display: flex; flex-direction: column; gap: 2px; font-size: 13px; margin-bottom: 8px; }
 /* Chore list row: table-like grid on wide screens, stacks on narrow ones. */
 .chore-row { display: grid; grid-template-columns: minmax(150px, 1.2fr) minmax(150px, 1fr) auto auto; gap: 8px 16px; align-items: center; }
 .chore-row .chore-meta { font-size: 13px; }
@@ -1076,3 +1085,8 @@ button.danger-filled:disabled { box-shadow: none; }
 /* Kid picture doubles as the "change photo" control. */
 .avatar-picker { padding: 0; border: 0; cursor: pointer; overflow: hidden; position: relative; flex-shrink: 0; }
 .avatar-picker:hover, .avatar-picker:focus-visible { outline: 2px solid var(--md-primary); outline-offset: 2px; }
+
+/* Overview stat tiles */
+.stat-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 8px; }
+.stat { display: flex; flex-direction: column; gap: 2px; padding: 12px 14px; border-radius: var(--md-shape-lg); background: var(--md-surface-container-low); font-size: 13px; }
+.stat strong { font-size: 20px; }

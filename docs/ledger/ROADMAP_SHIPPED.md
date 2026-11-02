@@ -4,6 +4,7 @@
 
 ## Shipped index
 
+- [x] 2026-11-02 — Overview dashboards: parent cost overview + per-kid weekly potential (web + mobile, Ledger tab), kid "My Bank" minutes on both kid homes
 - [x] 2026-11-01 — Per-kid daily chore summary push; silent 3 AM recurring assignments
 - [x] 2026-11-01 — Mobile parent Activity report (parent parity)
 - [x] 2026-11-01 — Web kid-goal form and co-parent panel (parent parity)
@@ -42,6 +43,13 @@
 - [x] 2026-06-10 — MVP, Phase 1, and Phase 1.5 (migrated 2026-10-21)
 
 ## Archived entries
+
+### 2026-11-02 — Overview dashboards (parent cost, weekly potential, kid My Bank)
+
+- **Shared math** (`packages/shared/src/overview.ts`, unit-tested): `bankView`, `weeklyPotential`/`occurrencesPerWeek`, `periodRange`, `summarizePeriod`/`addSummaries`/`pctChange`. Client gained `listTransactionsInRange` and `listApprovedInRange`.
+- **Parent** (web `OverviewView.tsx`, mobile `components/OverviewView.tsx`, atop the Ledger tab): week/month/year totals with previous-period navigation: earned, redeemed, parent adjustments, bonus minutes from time chores, chores done, per-kid split, `% vs last period`. Weekly potential per kid (recurring chores only, one-offs counted separately) with dollar and screen-minute equivalents. Parent-only; no sibling comparison on kid screens.
+- **Kid**: `ClaimHero` and `SimpleKidHome` show 'could buy N min' (potential, floored to 5 min) beside the dollar value, recomputed from live rates.
+- **Caveats:** dollars use today's `goods_rate`, so past periods shift if it changes (the page says so); potential is a ceiling since limits are advisory. Heatmap remains in the backlog.
 
 ### 2026-10-25 — Phase 2 spike: Family Link API grant
 

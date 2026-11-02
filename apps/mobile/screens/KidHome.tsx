@@ -21,6 +21,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { GOAL_NAME_MAX } from "@paydirt/shared";
 import type { Assignment, Broadcast, Chore, Household, SavingsGoal, ScreenPreset, User } from "@paydirt/shared";
 import {
+  bankView,
   SCREEN_PRESETS,
   avatarUrl,
   currencyDisplayName,
@@ -110,7 +111,8 @@ export function KidHome({
   const currencyName = currencyDisplayName(household);
   const accentColor = kidAccent(me.color, theme.colors.primary);
   const goodsRate = me.goods_rate ?? household?.goods_rate ?? 0;
-  const dollarValue = goodsRate > 0 ? (me.balance / goodsRate).toFixed(2) : null;
+  const bank = bankView(me.balance, goodsRate, screenRate(household));
+  const dollarValue = bank.dollars === null ? null : bank.dollars.toFixed(2);
 
   const reload = useCallback(async () => {
     setRefreshing(true);
@@ -285,6 +287,7 @@ export function KidHome({
               balance={me.balance}
               currencyName={currencyName}
               dollarValue={dollarValue}
+              screenMinutes={bank.screenMinutes}
               toDoLabel={toDo.length === 0 ? "Nothing to do — go play! 🎉" : `${toDo.length} chore${toDo.length === 1 ? "" : "s"} to do`}
               accent={accentColor}
               onSpend={() => setSpendOpen(true)}

@@ -20,6 +20,7 @@ export function ClaimHero({
   balance,
   currencyName,
   dollarValue,
+  screenMinutes = 0,
   toDoLabel,
   accent,
   onSpend,
@@ -33,6 +34,8 @@ export function ClaimHero({
   balance: number;
   currencyName: string;
   dollarValue: string | null;
+  /** Potential only ("could buy"): a request still needs a parent's OK. */
+  screenMinutes?: number;
   toDoLabel: string;
   accent: string;
   onSpend?: () => void;
@@ -71,6 +74,11 @@ export function ClaimHero({
         {dollarValue ? (
           <Text style={[styles.dollar, { color: theme.colors.onSurfaceVariant }]}>
             ≈ ${dollarValue}
+          </Text>
+        ) : null}
+        {screenMinutes > 0 ? (
+          <Text style={[styles.dollar, { color: theme.colors.onSurfaceVariant }]}>
+            ⏱ could buy {screenMinutes} min
           </Text>
         ) : null}
         <Text style={[styles.todo, { color: theme.colors.onSurfaceVariant }]}>{toDoLabel}</Text>

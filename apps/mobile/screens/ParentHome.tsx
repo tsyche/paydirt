@@ -9,6 +9,7 @@ import {
   Button,
   TextInput,
   Chip,
+  Icon,
   Snackbar,
   Divider,
   Switch,
@@ -34,10 +35,15 @@ import { StarterChores } from "../components/StarterChores";
 import { PayModeFields } from "../components/PayModeFields";
 import { OfflineBanner } from "../components/OfflineBanner";
 import { HouseholdSettings } from "../components/HouseholdSettings";
+import { OverviewView } from "../components/OverviewView";
 import { LedgerView } from "../components/LedgerView";
 import { ActivityReport } from "../components/ActivityReport";
 import { InboxButton } from "../components/InboxDialog";
 import { useTabHistory } from "../lib/useTabHistory";
+
+/** Status colors for the kid-chip icons and their key (always green / yellow). */
+const OK_GREEN = "#2e7d32";
+const WARN_YELLOW = "#f9a825";
 
 const PARENT_TABS = [
   { key: "approvals", title: "Approvals", focusedIcon: "inbox", unfocusedIcon: "inbox-outline" },
@@ -661,7 +667,12 @@ export function ParentHome({
         )}
         {tab === "kids" && kids.length > 0 && <ActivityReport kids={kids} currencyName={currencyName} />}
 
-        {tab === "ledger" && household && <LedgerView household={household} initialKidId={ledgerKid} />}
+        {tab === "ledger" && household && (
+          <>
+            <OverviewView household={household} kids={kids} chores={chores} heldByChore={heldByChore} />
+            <LedgerView household={household} initialKidId={ledgerKid} />
+          </>
+        )}
         {/* Settings tab: appearance + household */}
         {tab === "settings" && (
           <>
@@ -1045,9 +1056,16 @@ export function ParentHome({
             {showCreateChore ? "Cancel" : "Add"}
           </Button>
         </View>
-        <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant, marginBottom: 8 }}>
-          Kid chips: ✓ already assigned · ⚠ at repeat limit (can still override)
-        </Text>
+        <View style={{ marginBottom: 8, gap: 2 }}>
+          <View style={styles.keyRow}>
+            <Icon source="check-circle" size={16} color={OK_GREEN} />
+            <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant }}>Already assigned</Text>
+          </View>
+          <View style={styles.keyRow}>
+            <Icon source="alert-circle" size={16} color={WARN_YELLOW} />
+            <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant }}>At repeat limit (can still override)</Text>
+          </View>
+        </View>
 
         <StarterChores
           householdId={user.household}
@@ -1306,13 +1324,11 @@ export function ParentHome({
                           {chore.due_at ? ` · 📅 ${chore.due_at.slice(0, 10)}` : ""}
                         </Text>
                       </View>
-                      <View style={{ flexDirection: "column", alignItems: "center" }}>
-                        <Button mode="text" compact onPress={() => startEditChore(chore)} icon="pencil" style={{ minWidth: 0 }}>{""}</Button>
-                        <Button mode="text" compact onPress={() => confirmDeactivate(chore.id, chore.name)} icon="archive-off-outline" textColor={theme.colors.error} style={{ minWidth: 0 }}>{""}</Button>
-                      </View>
+                      <Button mode="text" compact onPress={() => startEditChore(chore)} icon="pencil" style={{ minWidth: 0 }}>{""}</Button>
                     </View>
-                    {kids.length > 0 && (
-                      <View style={styles.assignRow}>
+                    <View style={styles.assignRow}>
+                      {kids.length > 0 && (
+                      <>
                         {kids.map((kid) => (
                           <Chip
                             key={kid.id}
@@ -1320,7 +1336,13 @@ export function ParentHome({
                             disabled={held.has(kid.id)}
                             onPress={() => toggleKidForChore(chore.id, kid.id)}
                             compact
-                            icon={held.has(kid.id) ? "check-circle" : atLimit.has(kid.id) ? "alert-circle-outline" : undefined}
+                            icon={
+                              held.has(kid.id)
+                                ? ({ size }: { size: number }) => <Icon source="check-circle" size={size} color={OK_GREEN} />
+                                : atLimit.has(kid.id)
+                                  ? ({ size }: { size: number }) => <Icon source="alert-circle" size={size} color={WARN_YELLOW} />
+                                  : undefined
+                            }
                             style={styles.kidAssignChip}
                           >
                             {kid.display_name}
@@ -1335,8 +1357,10 @@ export function ParentHome({
                         >
                           Assign
                         </Button>
-                      </View>
-                    )}
+                      </>
+                      )}
+                      <Button mode="text" compact onPress={() => confirmDeactivate(chore.id, chore.name)} icon="archive-off-outline" textColor={theme.colors.error} style={{ minWidth: 0, marginLeft: "auto" }}>{""}</Button>
+                    </View>
                   </>
                 )}
               </Card.Content>
@@ -1434,7 +1458,8 @@ const styles = StyleSheet.create({
   switchRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingVertical: 6 },
   templateRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingVertical: 4, gap: 8 },
   choreTitle: { flexDirection: "row", flexWrap: "wrap", alignItems: "baseline", columnGap: 8 },
-  choreRow: { flexDirection: "row", justifyContent: "space-between", marginBottom: 8 },
+  choreRow: { flexDirection: "row", justifyContent: "space-between", marginBottom: 2 },
+  keyRow: { flexDirection: "row", alignItems: "center", gap: 6 },
   assignRow: { flexDirection: "row", flexWrap: "wrap", gap: 6, marginTop: 4, alignItems: "center" },
   kidAssignChip: {},
   assignBtn: { borderRadius: 12 },

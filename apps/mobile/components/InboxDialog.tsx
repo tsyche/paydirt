@@ -85,7 +85,12 @@ export function InboxButton({ userId }: { userId: string }) {
                   <IconButton
                     icon="close"
                     size={20}
-                    onPress={() => void remove(i.id)}
+                    onPress={() =>
+                      Alert.alert("Delete notification", "Delete this notification?", [
+                        { text: "Cancel", style: "cancel" },
+                        { text: "Delete", style: "destructive", onPress: () => void remove(i.id) },
+                      ])
+                    }
                     accessibilityLabel={`Dismiss ${i.title}`}
                   />
                 </View>

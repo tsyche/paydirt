@@ -26,6 +26,7 @@ export function InboxView({ userId }: { userId: string }) {
   }, [userId]);
 
   async function remove(id: string) {
+    if (!window.confirm("Delete this notification?")) return;
     setItems((prev) => prev.filter((i) => i.id !== id));
     try {
       await client.deleteInboxItem(id);

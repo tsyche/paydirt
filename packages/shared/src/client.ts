@@ -367,6 +367,35 @@ export class PaydirtClient {
     });
   }
 
+  /** Ledger rows for several kids in [start, end) (YYYY-MM-DD local dates), for the overview. */
+  async listTransactionsInRange(userIds: string[], start: string, end: string): Promise<CurrencyTransaction[]> {
+    const lists = await Promise.all(
+      userIds.map((id) =>
+        this.pb.collection(Collections.CurrencyTransactions).getFullList<CurrencyTransaction>({
+          filter: this.pb.filter("user = {:u} && created >= {:s} && created < {:e}", { u: id, s: start, e: end }),
+          sort: "-created",
+        }),
+      ),
+    );
+    return lists.flat();
+  }
+
+  /** Approved assignments (chore expanded) for several kids in [start, end), for the overview. */
+  async listApprovedInRange(childIds: string[], start: string, end: string): Promise<Assignment[]> {
+    const lists = await Promise.all(
+      childIds.map((id) =>
+        this.pb.collection(Collections.Assignments).getFullList<Assignment>({
+          filter: this.pb.filter(
+            "child = {:c} && status = 'approved' && approved_at >= {:s} && approved_at < {:e}",
+            { c: id, s: start, e: end },
+          ),
+          expand: "chore",
+        }),
+      ),
+    );
+    return lists.flat();
+  }
+
   /** Parent grants or docks parentBucks outside of chores. */
   adjustBalance(userId: string, amount: number, reason: string): Promise<CurrencyTransaction> {
     return this.pb.collection(Collections.CurrencyTransactions).create<CurrencyTransaction>({
