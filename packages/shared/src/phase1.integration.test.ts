@@ -274,41 +274,48 @@ describe("Phase 1 features (live)", () => {
     expect(await count()).toBe(before + 1);
   });
 
-  it("expiry: a spent old earn is not charged to a fresh earn; a still-held old earn lapses", async () => {
+  it("expiry: a spent old earn is not charged to a fresh earn; a still-held earn lapses once", async () => {
+    // The API ignores a backdated `created`, so shrink the window to 2s and wait it out instead.
+    const WINDOW_S = 2;
+    const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
     const admin = new PaydirtClient(PB_URL);
     await admin.pb.collection("_superusers").authWithPassword(ADMIN_EMAIL, ADMIN_PASSWORD);
     const hh = await admin.pb.collection("households").getOne(householdId);
-    const daysAgo = (n: number) => new Date(Date.now() - n * 864e5).toISOString().replace("T", " ");
-    const add = (type: string, amount: number, ago: number, reason: string) =>
-      admin.pb.collection("currency_transactions").create({ user: kid2User.id, type, amount, reason, created: daysAgo(ago) });
+    const add = (type: string, amount: number, reason: string) =>
+      admin.pb.collection("currency_transactions").create({ user: kid2User.id, type, amount, reason });
     const balance = async () => (await admin.pb.collection("users").getOne(kid2User.id)).balance as number;
     const lapses = async () =>
       (await admin.pb.collection("currency_transactions").getFullList({ filter: `user = "${kid2User.id}" && reason ~ "Expired rewards"` })).length;
+    const daily = () => admin.pb.send("/api/paydirt/cron/daily", { method: "POST" });
     try {
-      await admin.pb.collection("households").update(householdId, { expiry_days: 30, paused: false });
+      await admin.pb.collection("households").update(householdId, { expiry_days: WINDOW_S / 86400, paused: false });
+      // Settle anything the seed left past the tiny window, then measure from there.
+      await sleep((WINDOW_S + 0.5) * 1000);
+      await daily();
       const start = await balance();
       const lapsesBefore = await lapses();
-      // earn 100 (40d ago), spend it (35d ago), earn 50 (10d ago): nothing old is left to lapse.
-      await add("earn", 100, 40, "expiry test earn");
-      await add("spend", -100, 35, "expiry test spend");
-      await add("earn", 50, 10, "expiry test fresh");
-      await admin.pb.send("/api/paydirt/cron/daily", { method: "POST" });
-      expect(await balance()).toBe(start + 50);
+
+      // earn 100, spend it, wait past the window, earn 50: nothing old is left to lapse.
+      await add("earn", 100, "expiry test earn");
+      await add("spend", -100, "expiry test spend");
+      await sleep((WINDOW_S + 0.5) * 1000);
+      await add("earn", 50, "expiry test fresh");
+      await daily();
+      expect(await balance()).toBe(start + 50); // the old math lapsed the fresh 50 here
       expect(await lapses()).toBe(lapsesBefore);
-      // Running again is a no-op (old earn is marked processed).
-      await admin.pb.send("/api/paydirt/cron/daily", { method: "POST" });
-      expect(await balance()).toBe(start + 50);
-      // An old earn that is still held does lapse, and only once.
-      await add("earn", 20, 45, "expiry test held");
-      await admin.pb.send("/api/paydirt/cron/daily", { method: "POST" });
-      expect(await balance()).toBe(start + 30);
+
+      // Once the fresh 50 is past the window and still held, it lapses, and only once.
+      await sleep((WINDOW_S + 0.5) * 1000);
+      await daily();
+      expect(await balance()).toBe(start);
       expect(await lapses()).toBe(lapsesBefore + 1);
-      await admin.pb.send("/api/paydirt/cron/daily", { method: "POST" });
+      await daily();
+      expect(await balance()).toBe(start);
       expect(await lapses()).toBe(lapsesBefore + 1);
     } finally {
       await admin.pb.collection("households").update(householdId, { expiry_days: hh.expiry_days, paused: hh.paused });
     }
-  });
+  }, 30_000);
 
   it.each(["weekly", "monthly"] as const)(
     "recurring chore auto-assignment: %s cadence waits instead of re-creating same-day",
