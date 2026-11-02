@@ -285,11 +285,12 @@ function handleApk(e) {
     e.json(404, { error: "No APK published." });
     return;
   }
-  const bytes = readBytesFile(apkPath);
+  // Stream from disk (Range-capable). Reading the ~80 MB APK into JS memory
+  // made DownloadManager report "Download unsuccessful" on the host.
   e.response.header().set("Content-Type", "application/vnd.android.package-archive");
   e.response.header().set("Content-Disposition", 'attachment; filename="paydirt.apk"');
   e.response.header().set("Cache-Control", "public, max-age=31536000, immutable");
-  e.blob(200, "application/vnd.android.package-archive", bytes);
+  e.fileFS($os.dirFS(updatesRoot(e.app)), "app-release.apk");
 }
 
 function handleConfig(e) {

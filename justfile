@@ -551,6 +551,11 @@ test-all:
     {{pb}} migrate up --dir "${EDIR}/pb_data" --migrationsDir pocketbase/pb_migrations 2>&1 | grep -v '^$' || true
     {{pb}} superuser upsert admin@paydirt.local password123 --dir "${EDIR}/pb_data" 2>&1 | grep -v '^$' || true
 
+    # Dummy APK so the in-app-update download endpoint can be exercised (3 MB).
+    mkdir -p "${EDIR}/pb_data/updates"
+    head -c 3145728 /dev/urandom > "${EDIR}/pb_data/updates/app-release.apk"
+    printf '{"versionCode":1,"versionName":"test","downloadUrl":"/api/updates/apk"}' > "${EDIR}/pb_data/updates/version.json"
+
     NTFY_DISABLED=1 {{pb}} serve \
         --dir "${EDIR}/pb_data" \
         --hooksDir pocketbase/pb_hooks \
