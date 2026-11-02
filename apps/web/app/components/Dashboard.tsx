@@ -1119,6 +1119,15 @@ function AdjustControl({ kid, onAdjusted }: { kid: User; onAdjusted: () => void 
   );
 }
 
+/** PocketBase UTC timestamp -> value for <input type="datetime-local"> (local time). */
+function toLocalInput(due?: string): string {
+  if (!due) return "";
+  const d = new Date(due.replace(" ", "T"));
+  if (Number.isNaN(d.getTime())) return "";
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
 function ChoreRow({
   chore,
   kids,
@@ -1147,7 +1156,8 @@ function ChoreRow({
   const [race, setRace] = useState(chore.race ?? false);
   const [remindAt, setRemindAt] = useState(chore.reminder_time ?? "");
   const [limit, setLimit] = useState(chore.max_per_period ?? 0);
-  const [advanced, setAdvanced] = useState(Boolean(chore.reminder_time || chore.max_per_period));
+  const [dueAt, setDueAt] = useState(toLocalInput(chore.due_at));
+  const [advanced, setAdvanced] = useState(Boolean(chore.reminder_time || chore.max_per_period || chore.due_at));
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
 
@@ -1162,6 +1172,7 @@ function ChoreRow({
     setRace(chore.race ?? false);
     setRemindAt(chore.reminder_time ?? "");
     setLimit(chore.max_per_period ?? 0);
+    setDueAt(toLocalInput(chore.due_at));
     setError("");
     setEditing(false);
   }
@@ -1184,6 +1195,7 @@ function ChoreRow({
         race,
         reminder_time: remindAt,
         max_per_period: limit,
+        due_at: dueAt ? new Date(dueAt).toISOString() : "",
       });
       setEditing(false);
       onChanged();
@@ -1271,6 +1283,10 @@ function ChoreRow({
       </div>
       {advanced && (
         <div className="inline" style={{ fontSize: 13, gap: 12, marginBottom: 8 }}>
+          <label className="inline" style={{ gap: 6 }}>
+            Due
+            <input type="datetime-local" value={dueAt} onChange={(e) => setDueAt(e.target.value)} />
+          </label>
           <label className="inline" style={{ gap: 6 }}>
             Daily reminder
             <input type="time" value={remindAt} onChange={(e) => setRemindAt(e.target.value)} />

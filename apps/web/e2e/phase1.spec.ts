@@ -393,6 +393,7 @@ test("editing a chore hides Reminder/Max behind Advanced", async ({ page }) => {
     await form.getByRole("button", { name: /Advanced/ }).click();
     await expect(form.getByLabel("Max per period")).toBeVisible();
     await expect(form.getByText("Daily reminder")).toBeVisible();
+    await expect(form.getByText("Due")).toBeVisible();
   } finally {
     await api.deactivateChore(chore.id);
   }
