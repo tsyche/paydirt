@@ -1,16 +1,16 @@
 import { useCallback, useEffect, useState } from "react";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Alert, ScrollView, StyleSheet, View } from "react-native";
-import { Appbar, Button, Dialog, IconButton, Portal, Text } from "react-native-paper";
+import { Button, Dialog, IconButton, Portal, Text } from "react-native-paper";
 import { errorMessage, type InboxItem } from "@paydirt/shared";
 import { client } from "../lib/client";
 
 /**
- * Appbar bell that opens the user's alert history. Items are only copies of
+ * Alert history dialog (opened from the header menu). Items are only copies of
  * pushes (the real data lives in assignments/ledger/requests), so the owner
  * can delete any of them.
  */
-export function InboxButton({ userId }: { userId: string }) {
-  const [open, setOpen] = useState(false);
+export function InboxDialog({ userId, visible, onDismiss }: { userId: string; visible: boolean; onDismiss: () => void }) {
   const [items, setItems] = useState<InboxItem[]>([]);
   const [error, setError] = useState("");
 
@@ -24,8 +24,8 @@ export function InboxButton({ userId }: { userId: string }) {
   }, [userId]);
 
   useEffect(() => {
-    if (open) void load();
-  }, [open, load]);
+    if (visible) void load();
+  }, [visible, load]);
 
   const remove = async (id: string) => {
     setItems((prev) => prev.filter((i) => i.id !== id));
@@ -67,9 +67,8 @@ export function InboxButton({ userId }: { userId: string }) {
 
   return (
     <>
-      <Appbar.Action icon="bell-outline" onPress={() => setOpen(true)} accessibilityLabel="Alerts" />
       <Portal>
-        <Dialog visible={open} onDismiss={() => setOpen(false)}>
+        <Dialog visible={visible} onDismiss={onDismiss}>
           <Dialog.Title>Alerts</Dialog.Title>
           <Dialog.ScrollArea style={styles.scrollArea}>
             <ScrollView>
@@ -100,7 +99,7 @@ export function InboxButton({ userId }: { userId: string }) {
           <Dialog.Actions>
             <Button onPress={() => void sendTest()}>Send test</Button>
             <Button onPress={clearAll} disabled={items.length === 0}>Clear all</Button>
-            <Button onPress={() => setOpen(false)}>Done</Button>
+            <Button onPress={onDismiss}>Done</Button>
           </Dialog.Actions>
         </Dialog>
       </Portal>
@@ -114,3 +113,32 @@ const styles = StyleSheet.create({
   row: { flexDirection: "row", alignItems: "center", paddingLeft: 24, paddingVertical: 6 },
   text: { flex: 1, gap: 2 },
 });
+
+const seenKey = (userId: string) => `paydirt.alertsSeen.${userId}`;
+
+/** True when an alert newer than the last time the Alerts dialog was opened exists. Refreshes every minute and on close. */
+export function useUnreadAlerts(userId: string, dialogOpen: boolean): { unread: boolean; markSeen: () => void } {
+  const [unread, setUnread] = useState(false);
+  const check = useCallback(async () => {
+    try {
+      const [items, seen] = await Promise.all([client.listInbox(userId, 20), AsyncStorage.getItem(seenKey(userId))]);
+      const last = Date.parse(seen ?? "") || 0;
+      setUnread(items.some((i) => i.type !== "broadcast_sent" && Date.parse(i.created.replace(" ", "T")) > last));
+    } catch {
+      /* offline: keep the previous dot */
+    }
+  }, [userId]);
+  useEffect(() => {
+    void check();
+    const t = setInterval(() => void check(), 60_000);
+    return () => clearInterval(t);
+  }, [check]);
+  useEffect(() => {
+    if (!dialogOpen) void check();
+  }, [dialogOpen, check]);
+  const markSeen = useCallback(() => {
+    setUnread(false);
+    void AsyncStorage.setItem(seenKey(userId), new Date().toISOString()).catch(() => {});
+  }, [userId]);
+  return { unread, markSeen };
+}

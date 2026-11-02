@@ -89,6 +89,10 @@ Ordered by impact-to-effort (2026-11-01 audit). Shipped items live in the ledger
 
 - **Overview reassessment (2026-11-02)** — the parent Overview modal shipped (cost strip, screen-vs-goods split, streaks). Skipped for now; reassess after a few weeks of real use: (a) dollar figure in the app header; (b) kid-facing lifetime totals ("grand total accomplished"); (c) My Bank extras: pending bucks, goal progress, streak; (d) actual-vs-potential trend across weeks; (e) heatmap (parked): kids see only their own, parents get a household grid. Open: reprice pending spend requests on approval (default no; prices lock at request time).
 
+- **Household shopping list / "we're out of X" requests** (2026-11-02) — kids and parents flag missing household items; parents get one de-duplicated list with Bought / Dismiss and the kid gets a push back. No grit reward. Draft: [docs/plans/shopping-list.md](docs/plans/shopping-list.md). Parent list must ship on web and mobile together.
+
+- **Overview weekly potential looks high (2026-11-02)** — it is a perfect-compliance ceiling (every daily chore, every day, no missed days). The race double-count is fixed (the household total counts a race chore once). Still open: add a realistic figure next to it, such as the trailing 4-week actual average per week, once there are a few weeks of real data.
+
 - **Kid ↔ parent messaging, next steps** (2026-11-01) — canned broadcast replies and the "I need help" flag are shipped. Still open: (a) a short free-text reply (~140 chars) with a rate limit and a mute option, only if canned replies prove too limiting; (b) formalize the kids' goal-text back channel as a "note to parents" field with an inbox badge.
 
 - **Kid "ask for more time"** — per-chore pay mode shipped 2026-10-31 (see the shipped ledger). Still deferred: the kid ask button with a parent reply sheet that offers a bonus chore, suggested chores/minutes, parent-triggered nudges, and a daily bonus-minutes cap. Rejected for now: kid picks bucks or time, staleness premiums, automatic nudges. Full design: [docs/plans/bonus-minutes-and-time-asks.md](docs/plans/bonus-minutes-and-time-asks.md).

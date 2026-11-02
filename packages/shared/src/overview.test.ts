@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
-  addSummaries, bankView, bucksToMinutes, costStrip, occurrencesPerWeek, pctChange, periodRange, periodWeeks,
+  addSummaries, bankSummary, effectiveGoodsRate, bankView, householdWeeklyBucks, bucksToMinutes, costStrip, occurrencesPerWeek, pctChange, periodRange, periodWeeks,
   splitSpend, summarizePeriod,
   toDollars, weeklyPotential,
 } from "./overview";
@@ -110,5 +110,47 @@ describe("periodWeeks / splitSpend / costStrip", () => {
   it("costStrip scales the weekly ceiling and guards divide-by-zero", () => {
     expect(costStrip(50, 100, 2, 10)).toEqual({ paid: 50, max: 200, pct: 25, paidDollars: 5, maxDollars: 20 });
     expect(costStrip(5, 0, 4, 0)).toEqual({ paid: 5, max: 0, pct: null, paidDollars: null, maxDollars: null });
+  });
+});
+
+describe("bankSummary", () => {
+  it("totals are the sum of per-kid rows, honoring per-kid dollar rates", () => {
+    const b = bankSummary(
+      [
+        { id: "a", display_name: "A", balance: 176, goods_rate: 44 },
+        { id: "b", display_name: "B", balance: 88 },
+      ],
+      88,
+      0.6,
+    );
+    expect(b.rows.map((r) => r.dollars)).toEqual([4, 1]);
+    expect(b.total).toEqual({ balance: 264, dollars: 5, screenMinutes: 290 + 145 });
+  });
+  it("has no dollar total without any rate", () => {
+    expect(bankSummary([{ id: "a", display_name: "A", balance: 10 }], 0, 0.6).total.dollars).toBeNull();
+  });
+});
+
+describe("householdWeeklyBucks", () => {
+  const base = { type: "recurring", cadence: "weekly", reward: 10 } as const;
+  it("counts a race chore once but a normal chore per holder", () => {
+    const chores = [{ ...base, id: "r", race: true }, { ...base, id: "n" }];
+    expect(householdWeeklyBucks(chores, { r: 2, n: 2 })).toBe(10 + 20);
+  });
+  it("ignores unheld chores and one-offs", () => {
+    expect(householdWeeklyBucks([{ ...base, id: "x" }, { type: "oneoff", reward: 9, id: "y" }], { y: 1 })).toBe(0);
+  });
+});
+
+describe("effectiveGoodsRate", () => {
+  it("treats 0/null/undefined kid rates as no override (PocketBase stores empty numbers as 0)", () => {
+    expect(effectiveGoodsRate(0, 10)).toBe(10);
+    expect(effectiveGoodsRate(null, 10)).toBe(10);
+    expect(effectiveGoodsRate(undefined, 10)).toBe(10);
+    expect(effectiveGoodsRate(44, 10)).toBe(44);
+    expect(effectiveGoodsRate(0, undefined)).toBe(0);
+  });
+  it("bankSummary gives dollars to kids with a 0 override", () => {
+    expect(bankSummary([{ id: "a", display_name: "A", balance: 85, goods_rate: 0 }], 10, 1).rows[0]?.dollars).toBe(8.5);
   });
 });

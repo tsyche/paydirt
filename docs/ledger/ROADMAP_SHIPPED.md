@@ -4,6 +4,7 @@
 
 ## Shipped index
 
+- [x] 2026-11-02 — Mobile header menu (Theme / Alerts / Sign out, unread dot), grit dialog with dollars and screen minutes per kid and combined (web + mobile), `kids_see_balances` household setting
 - [x] 2026-11-02 — Overview dashboards: parent cost overview + per-kid weekly potential (web + mobile, Ledger tab), kid "My Bank" minutes on both kid homes
 - [x] 2026-11-01 — Per-kid daily chore summary push; silent 3 AM recurring assignments
 - [x] 2026-11-01 — Mobile parent Activity report (parent parity)

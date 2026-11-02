@@ -17,7 +17,7 @@ import {
 } from "react-native-paper";
 import { SafeAreaView } from "react-native-safe-area-context";
 import type { Assignment, Chore, Household, SavingsGoal, User } from "@paydirt/shared";
-import { GOAL_NAME_MAX, GOAL_DETAILS_MAX, avatarUrl, currencyDisplayName, featureTip, errorMessage, kidAccent, payLabel } from "@paydirt/shared";
+import { GOAL_NAME_MAX, GOAL_DETAILS_MAX, avatarUrl, currencyDisplayName, featureTip, errorMessage, kidAccent, payLabel, effectiveGoodsRate } from "@paydirt/shared";
 import { client } from "../lib/client";
 import { isNetworkError } from "../lib/reachability";
 import { useReachability } from "../lib/useReachability";
@@ -74,7 +74,7 @@ export function KidDetail({
   const [goalsOpen, setGoalsOpen] = useState(true);
 
   const currencyName = currencyDisplayName(household);
-  const goodsRate = kid?.goods_rate ?? household?.goods_rate ?? 0;
+  const goodsRate = effectiveGoodsRate(kid?.goods_rate, household?.goods_rate);
   const dollarValue =
     kid && goodsRate > 0 ? (kid.balance / goodsRate).toFixed(2) : null;
 

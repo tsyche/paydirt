@@ -28,6 +28,7 @@ import {
   computeBadges,
   screenCost,
   screenRate,
+  effectiveGoodsRate,
   shouldCelebrate,
   errorMessage,
   kidAccent,
@@ -39,14 +40,13 @@ import { isNetworkError } from "../lib/reachability";
 import { useRealtimeResume } from "../lib/useRealtimeResume";
 import { takePhotoAndComplete } from "../lib/completeWithPhoto";
 import { Avatar } from "../components/Avatar";
-import { AppearanceButton } from "../components/AppearanceButton";
 import { BadgeShelf } from "../components/BadgeShelf";
 import { ChunkyButton } from "../components/ChunkyButton";
 import { ClaimHero } from "../components/ClaimHero";
 import { Celebration } from "../components/Celebration";
 import { OfflineBanner } from "../components/OfflineBanner";
 import { GritButton } from "../components/GritButton";
-import { InboxButton } from "../components/InboxDialog";
+import { HeaderMenu } from "../components/HeaderMenu";
 import { useTabHistory } from "../lib/useTabHistory";
 import { changeAvatar } from "../lib/uploadAvatar";
 import { BroadcastReplies } from "../components/BroadcastReplies";
@@ -111,7 +111,7 @@ export function KidHome({
 
   const currencyName = currencyDisplayName(household);
   const accentColor = kidAccent(me.color, theme.colors.primary);
-  const goodsRate = me.goods_rate ?? household?.goods_rate ?? 0;
+  const goodsRate = effectiveGoodsRate(me.goods_rate, household?.goods_rate);
   const bank = bankView(me.balance, goodsRate, screenRate(household));
   const dollarValue = bank.dollars === null ? null : bank.dollars.toFixed(2);
 
@@ -269,14 +269,14 @@ export function KidHome({
         {streak >= 2 ? <Chip compact style={styles.streakChip}>{`🔥 ${streak}-day streak`}</Chip> : null}
         <GritButton
           rows={[
-            { name: "You", balance: me.balance },
-            ...(household?.kids_see_balances ? siblings.map((s) => ({ name: s.display_name, balance: s.balance })) : []),
+            { id: me.id, display_name: "You", balance: me.balance, goods_rate: me.goods_rate },
+            ...(household?.kids_see_balances ? siblings : []),
           ]}
           currency={currencyName}
+          goodsRate={household?.goods_rate ?? 0}
+          screenRate={screenRate(household)}
         />
-        <AppearanceButton />
-        <InboxButton userId={user.id} />
-        <Appbar.Action icon="logout" onPress={onLogout} />
+        <HeaderMenu userId={user.id} onLogout={onLogout} />
       </Appbar.Header>
 
       <OfflineBanner />
@@ -554,7 +554,7 @@ export function KidHome({
 
       <SpendDialog
         currencyName={currencyName}
-        goodsRate={me.goods_rate ?? household?.goods_rate ?? 0}
+        goodsRate={effectiveGoodsRate(me.goods_rate, household?.goods_rate)}
         screenRate={screenRate(household)}
         balance={me.balance}
         visible={spendOpen}

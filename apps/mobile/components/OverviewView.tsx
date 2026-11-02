@@ -4,12 +4,23 @@ import { Appbar, Button, Card, SegmentedButtons, Text, useTheme } from "react-na
 import type { Chore, Household, User } from "@paydirt/shared";
 import {
   addSummaries, costStrip, currencyDisplayName, errorMessage, pctChange, periodRange, periodWeeks, screenRate,
-  splitSpend, summarizePeriod, toDollars, weeklyPotential,
+  householdWeeklyBucks, splitSpend, summarizePeriod, toDollars, weeklyPotential,
 } from "@paydirt/shared";
 import type { PeriodKind, PeriodSummary, SpendSplit } from "@paydirt/shared";
 import { client } from "../lib/client";
 
 const usd = (n: number | null) => (n === null ? "–" : `$${n.toFixed(2)}`);
+
+function Tile({ label, value, sub, wide = false }: { label: string; value: string; sub?: string; wide?: boolean }) {
+  const theme = useTheme();
+  return (
+    <View style={[styles.tile, wide && styles.wide, { backgroundColor: theme.colors.surfaceVariant }]}>
+      <Text variant="labelMedium" style={{ color: theme.colors.onSurfaceVariant }}>{label}</Text>
+      <Text variant="titleMedium" style={styles.bold}>{value}</Text>
+      {sub ? <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant }}>{sub}</Text> : null}
+    </View>
+  );
+}
 
 /** Parent-only: what the economy actually cost over a period, plus each kid's weekly potential. */
 export function OverviewView({
@@ -71,11 +82,13 @@ export function OverviewView({
   }, [kidIds, kind, offset]);
 
   const total = cur ? addSummaries(Object.values(cur)) : null;
-  const delta = total && prev ? pctChange(total.earned, prev.earned) : null;
+  const delta = total && prev && offset < 0 ? pctChange(total.earned, prev.earned) : null;
 
-  const weeklyBucks = kids.reduce(
-    (n, k) => n + weeklyPotential(chores.filter((c) => heldByChore[c.id]?.has(k.id)), goodsRate, sRate).bucks,
-    0,
+  const weeklyBucks = householdWeeklyBucks(
+    chores,
+    Object.fromEntries(
+      chores.map((c) => [c.id, kids.filter((k) => heldByChore[c.id]?.has(k.id)).length]),
+    ),
   );
   const strip = total ? costStrip(total.earned, weeklyBucks, periodWeeks(range), goodsRate) : null;
 
@@ -94,41 +107,27 @@ export function OverviewView({
       {error ? <Text style={{ color: theme.colors.error }}>{error}</Text> : null}
 
       {total && strip && (
-        <Card>
-          <Card.Content style={{ gap: 6 }}>
-            <Text variant="bodyMedium" testID="cost-strip">
-              Paid vs. potential: <Text style={styles.bold}>{strip.paid} / {strip.max} {currency}</Text>
-              {strip.pct === null ? "" : ` (${strip.pct}%)`} · {usd(strip.paidDollars)} of {usd(strip.maxDollars)}
-            </Text>
-            <Text variant="bodyMedium">
-              Screen time redeemed: <Text style={styles.bold}>{split?.screenBucks ?? 0} {currency}</Text> · {split?.screenMinutes ?? 0} min
-            </Text>
-            <Text variant="bodyMedium">
-              Real money redeemed: <Text style={styles.bold}>{usd(toDollars(split?.goodsBucks ?? 0, goodsRate))}</Text> ({split?.goodsBucks ?? 0} {currency} on goods)
-            </Text>
-            <Text variant="bodyMedium">
-              Earned by kids: <Text style={styles.bold}>{total.earned} {currency}</Text> ({usd(toDollars(total.earned, goodsRate))})
-              {delta !== null ? ` · ${delta >= 0 ? "+" : ""}${delta}% vs last ${kind}` : ""}
-            </Text>
-            <Text variant="bodyMedium">
-              Redeemed: <Text style={styles.bold}>{total.spent} {currency}</Text> ({usd(toDollars(total.spent, goodsRate))})
-            </Text>
-            <Text variant="bodyMedium">
-              Bonus time from chores: <Text style={styles.bold}>{total.bonusMinutes} min</Text> · {total.chores} chores done
-            </Text>
-            <Text variant="bodyMedium">
-              Parent adjustments: <Text style={styles.bold}>{total.adjustments >= 0 ? "+" : ""}{total.adjustments} {currency}</Text>
-            </Text>
-            {kids.map((k) => {
-              const s = cur?.[k.id];
-              return (
-                <Text key={k.id} variant="bodySmall" style={muted}>
-                  {k.display_name}: {s?.chores ?? 0} chores · {k.streak_count ?? 0}d streak · earned {s?.earned ?? 0} · redeemed {s?.spent ?? 0} · {s?.bonusMinutes ?? 0} bonus min
-                </Text>
-              );
-            })}
-          </Card.Content>
-        </Card>
+        <>
+          <View style={styles.grid} testID="cost-strip">
+            <Tile wide label="Paid vs. potential" value={`${strip.paid} / ${strip.max} ${currency}`}
+              sub={`${strip.pct === null ? "no ceiling" : `${strip.pct}% of max`} · ${usd(strip.paidDollars)} of ${usd(strip.maxDollars)}`} />
+            <Tile label="Screen time redeemed" value={`${split?.screenBucks ?? 0} ${currency}`} sub={`${split?.screenMinutes ?? 0} min · not real money`} />
+            <Tile label="Real money redeemed" value={usd(toDollars(split?.goodsBucks ?? 0, goodsRate))} sub={`${split?.goodsBucks ?? 0} ${currency} on goods`} />
+            <Tile label="Earned by kids" value={`${total.earned} ${currency}`}
+              sub={`${usd(toDollars(total.earned, goodsRate))}${delta !== null ? ` · ${delta >= 0 ? "+" : ""}${delta}% vs last ${kind}` : ""}`} />
+            <Tile label="Redeemed" value={`${total.spent} ${currency}`} sub={usd(toDollars(total.spent, goodsRate))} />
+            <Tile label="Bonus time from chores" value={`${total.bonusMinutes} min`} sub={`${total.chores} chores done`} />
+            <Tile label="Parent adjustments" value={`${total.adjustments >= 0 ? "+" : ""}${total.adjustments} ${currency}`} />
+          </View>
+          {kids.map((k) => {
+            const s = cur?.[k.id];
+            return (
+              <Text key={k.id} variant="bodySmall" style={muted}>
+                {k.display_name}: {s?.chores ?? 0} chores · {k.streak_count ?? 0}d streak · earned {s?.earned ?? 0} · redeemed {s?.spent ?? 0} · {s?.bonusMinutes ?? 0} bonus min
+              </Text>
+            );
+          })}
+        </>
       )}
 
       <Text variant="titleSmall" style={{ fontWeight: "700", marginTop: 4 }}>Weekly potential per kid</Text>
@@ -151,7 +150,7 @@ export function OverviewView({
       </Card>
       <Text variant="bodySmall" style={muted}>
         Dollars use today's rate ({goodsRate > 0 ? `${goodsRate} ${currency} = $1` : "no dollar rate set"}); past periods shift if it changes.
-        Potential is a ceiling: limits are advisory and one-offs are not counted. Screen minutes use {sRate} {currency}/min.
+        Potential is a ceiling: limits are advisory, one-offs are not counted, per-kid figures assume that kid wins every race (the total counts a race chore once). Screen minutes use {sRate} {currency}/min.
       </Text>
     </View>
   );
@@ -188,4 +187,7 @@ const styles = StyleSheet.create({
   wrap: { gap: 8, padding: 12, paddingBottom: 0 },
   nav: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
   bold: { fontWeight: "700" },
+  grid: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
+  tile: { flexGrow: 1, flexBasis: "47%", borderRadius: 12, padding: 12, gap: 2 },
+  wide: { flexBasis: "100%" },
 });

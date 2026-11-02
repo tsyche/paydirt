@@ -20,7 +20,7 @@ import {
   screenCost,
   bankView,
   screenRate,
-  shouldCelebrate, errorMessage, kidAccent, payLabel } from "@paydirt/shared";
+  shouldCelebrate, errorMessage, kidAccent, payLabel, effectiveGoodsRate } from "@paydirt/shared";
 import { client } from "../lib/client";
 import { takePhotoAndComplete } from "../lib/completeWithPhoto";
 import { useCountUp } from "../lib/useCountUp";
@@ -30,7 +30,7 @@ import { changeAvatar } from "../lib/uploadAvatar";
 import { BroadcastReplies } from "../components/BroadcastReplies";
 import { Celebration } from "../components/Celebration";
 import { GritButton } from "../components/GritButton";
-import { InboxButton } from "../components/InboxDialog";
+import { HeaderMenu } from "../components/HeaderMenu";
 
 type Expanded = Assignment & { expand?: { chore?: Chore } };
 
@@ -50,7 +50,7 @@ export function SimpleKidHome({ user, onLogout }: { user: User; onLogout: () => 
   const [celebrate, setCelebrate] = useState(0);
   const prevBalance = useRef<number | null>(null);
 
-  const goodsRate = me.goods_rate ?? householdRate;
+  const goodsRate = effectiveGoodsRate(me.goods_rate, householdRate);
   const calm = !!me.calm_mode;
   const shownBalance = useCountUp(balance, !calm);
   const bank = bankView(balance, goodsRate, rate);
@@ -173,9 +173,13 @@ export function SimpleKidHome({ user, onLogout }: { user: User; onLogout: () => 
     <SafeAreaView style={styles.container} edges={["top"]}>
       <Appbar.Header statusBarHeight={0}>
         <Appbar.Content title={`Hi ${user.display_name}! 👋`} />
-        <GritButton rows={[{ name: "You", balance }]} currency={currencyName} />
-        <InboxButton userId={user.id} />
-        <Appbar.Action icon="logout" onPress={onLogout} />
+        <GritButton
+          rows={[{ id: user.id, display_name: "You", balance, goods_rate: me.goods_rate }]}
+          currency={currencyName}
+          goodsRate={householdRate}
+          screenRate={rate}
+        />
+        <HeaderMenu userId={user.id} onLogout={onLogout} />
       </Appbar.Header>
 
       <ScrollView

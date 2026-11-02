@@ -16,10 +16,11 @@ import type {
   SpendRequest,
   User,
 } from "@paydirt/shared";
-import { kidsAtLimit, knownChoreNames, GOAL_NAME_MAX, GOAL_DETAILS_MAX, parseAssignDraft, serializeAssignDraft, AVATAR_COLORS, REACTIONS, undoApprovalPrompt, avatarUrl, currencyDisplayName, kidAccent, parseGoodsRateOverride, featureTip, screenGrantLabel, errorMessage, limitLabel, limitUnit, payLabel, approveTimePrompt, summarizeMonthActivity, waitingActionCount, payMode, validatePay, MINUTES_STEP, MAX_REWARD_MINUTES } from "@paydirt/shared";
+import { kidsAtLimit, knownChoreNames, GOAL_NAME_MAX, GOAL_DETAILS_MAX, parseAssignDraft, serializeAssignDraft, AVATAR_COLORS, REACTIONS, undoApprovalPrompt, avatarUrl, currencyDisplayName, effectiveGoodsRate, kidAccent, parseGoodsRateOverride, featureTip, screenGrantLabel, errorMessage, limitLabel, limitUnit, payLabel, approveTimePrompt, summarizeMonthActivity, waitingActionCount, payMode, validatePay, MINUTES_STEP, MAX_REWARD_MINUTES } from "@paydirt/shared";
 import { client } from "../lib/client";
 import { HouseholdSettings } from "./HouseholdSettings";
 import { AppearanceControls } from "./AppearanceControls";
+import { GritChip } from "./GritChip";
 import { OverviewModalButton } from "./OverviewView";
 import { LedgerView } from "./LedgerView";
 import { InboxView } from "./InboxView";
@@ -118,7 +119,7 @@ export function Dashboard({
 
   const currencyName = currencyDisplayName(household);
   const goodsRate = household?.goods_rate ?? 0;
-  const kidRate = (kid: User) => kid.goods_rate ?? goodsRate;
+  const kidRate = (kid: User) => effectiveGoodsRate(kid.goods_rate, goodsRate);
 
   const reload = useCallback(async () => {
     try {
@@ -207,16 +208,7 @@ export function Dashboard({
             </span>
           </a>
           <div className="inline">
-            {kids.length > 0 && (
-              <span
-                className="grit-chip"
-                data-testid="grit-chip"
-                title={kids.map((k) => `${k.display_name}: ${k.balance}`).join("\n")}
-                aria-label={`${currencyName}: ${kids.map((k) => `${k.display_name} ${k.balance}`).join(", ")}`}
-              >
-                🪙 <span className="grit-num">{kids.reduce((n, k) => n + k.balance, 0)}</span>
-              </span>
-            )}
+            {kids.length > 0 && <GritChip household={household} kids={kids} />}
             <AppearanceControls />
             <OverviewModalButton household={household} kids={kids} chores={chores} activeAssignments={activeAssignments} />
             {household && (

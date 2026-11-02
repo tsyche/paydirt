@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import type { Assignment, Chore, Household, User } from "@paydirt/shared";
 import {
   addSummaries, costStrip, currencyDisplayName, errorMessage, pctChange, periodRange, periodWeeks, screenRate,
-  splitSpend, summarizePeriod, toDollars, weeklyPotential,
+  householdWeeklyBucks, splitSpend, summarizePeriod, toDollars, weeklyPotential,
 } from "@paydirt/shared";
 import type { PeriodKind, PeriodSummary, SpendSplit } from "@paydirt/shared";
 import { client } from "../lib/client";
@@ -75,14 +75,22 @@ export function OverviewView({
   }, [kidIds, kind, offset]);
 
   const total = cur ? addSummaries(Object.values(cur)) : null;
-  const delta = total && prev ? pctChange(total.earned, prev.earned) : null;
+  const delta = total && prev && offset < 0 ? pctChange(total.earned, prev.earned) : null;
 
   const potential = kids.map((k) => {
     const ids = new Set(activeAssignments.filter((a) => a.child === k.id).map((a) => a.chore));
     return { kid: k, p: weeklyPotential(chores.filter((c) => ids.has(c.id)), goodsRate, sRate) };
   });
 
-  const weeklyBucks = potential.reduce((n, { p }) => n + p.bucks, 0);
+  const weeklyBucks = householdWeeklyBucks(
+    chores,
+    Object.fromEntries(
+      chores.map((c) => [
+        c.id,
+        kids.filter((k) => activeAssignments.some((a) => a.child === k.id && a.chore === c.id)).length,
+      ]),
+    ),
+  );
   const strip = total ? costStrip(total.earned, weeklyBucks, periodWeeks(range), goodsRate) : null;
 
   return (
@@ -193,7 +201,7 @@ export function OverviewView({
       </table>
       <p className="muted" style={{ fontSize: 12, margin: 0 }}>
         Dollars use today's rate ({goodsRate > 0 ? `${goodsRate} ${currency} = $1` : "no dollar rate set"}); past periods shift if it changes.
-        Potential is a ceiling: limits are advisory, one-offs are not counted, and screen minutes use {sRate} {currency}/min.
+        Potential is a ceiling: limits are advisory, one-offs are not counted, per-kid figures assume that kid wins every race (the total counts a race chore once), and screen minutes use {sRate} {currency}/min.
       </p>
     </div>
   );

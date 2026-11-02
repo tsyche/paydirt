@@ -7,6 +7,11 @@ import { choreLimit, limitWindowDays } from "./choreLimit";
 import { MINUTES_STEP, normalizePay } from "./chorePay";
 import type { Assignment, Chore, CurrencyTransaction, SpendRequest } from "./types";
 
+/** A kid's own dollar rate when set (> 0), else the household's. PocketBase returns 0, not null, for an empty number. */
+export function effectiveGoodsRate(kidRate: number | null | undefined, householdRate: number | null | undefined): number {
+  return kidRate && kidRate > 0 ? kidRate : (householdRate ?? 0);
+}
+
 /** bucks / goodsRate, or null when no dollar rate is set. */
 export function toDollars(bucks: number, goodsRate: number): number | null {
   return goodsRate > 0 ? bucks / goodsRate : null;
@@ -27,6 +32,43 @@ export interface BankView {
 
 export function bankView(balance: number, goodsRate: number, screenRate: number): BankView {
   return { dollars: toDollars(balance, goodsRate), screenMinutes: bucksToMinutes(balance, screenRate) };
+}
+
+export interface BankRow {
+  id: string;
+  name: string;
+  balance: number;
+  dollars: number | null;
+  screenMinutes: number;
+}
+
+export interface BankSummary {
+  rows: BankRow[];
+  /** Sum of the rows, so it always agrees with them even when kids have their own dollar rates. */
+  total: { balance: number; dollars: number | null; screenMinutes: number };
+}
+
+/** Per-kid and combined grit / dollars / screen minutes. A kid's own `goods_rate` wins over the household's. */
+export function bankSummary(
+  kids: { id: string; display_name: string; balance: number; goods_rate?: number | null }[],
+  goodsRate: number,
+  screenRate: number,
+): BankSummary {
+  const rows = kids.map((k) => ({
+    id: k.id,
+    name: k.display_name,
+    balance: k.balance,
+    ...bankView(k.balance, effectiveGoodsRate(k.goods_rate, goodsRate), screenRate),
+  }));
+  const priced = rows.filter((r) => r.dollars !== null);
+  return {
+    rows,
+    total: {
+      balance: rows.reduce((n, r) => n + r.balance, 0),
+      dollars: priced.length ? priced.reduce((n, r) => n + (r.dollars ?? 0), 0) : null,
+      screenMinutes: rows.reduce((n, r) => n + r.screenMinutes, 0),
+    },
+  };
 }
 
 // ─── Weekly potential (forward-looking, parent-only) ─────────────────────────
@@ -83,6 +125,23 @@ export function weeklyPotential(
     dollars: toDollars(bucks, goodsRate),
     screenMinutes: bucksToMinutes(bucks, screenRate),
   };
+}
+
+/**
+ * Household weekly grit ceiling. A race chore held by several kids pays once (first
+ * approved wins), so it counts once; any other chore counts per holder.
+ */
+export function householdWeeklyBucks(
+  chores: (PotentialChore & { id: string; race?: boolean })[],
+  holders: Record<string, number>,
+): number {
+  let bucks = 0;
+  for (const c of chores) {
+    const n = holders[c.id] ?? 0;
+    if (c.type !== "recurring" || n <= 0) continue;
+    bucks += occurrencesPerWeek(c) * normalizePay(c).bucks * (c.race ? 1 : n);
+  }
+  return Math.round(bucks);
 }
 
 // ─── Period cost (what actually happened, parent-only) ───────────────────────

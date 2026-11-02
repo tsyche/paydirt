@@ -180,3 +180,8 @@ just install-apk  # build + install the debug APK in one step
 - One-time per tablet: Settings → Apps → PayDirt → Install unknown apps → allow. Without it the install silently fails.
 - JS-only changes can use `just update-publish` + `just push-updates` (OTA, no prompt).
 - Verified end to end on one phone 2026-10-31 (alert, download, installer, "PayDirt updated"); the other tablets need one adb install of a 2026-10-31+ build first (older builds lack the native method). `just push` stays the fallback.
+
+## Header menu and grit dialog
+
+- [x] Emulator 2026-11-02 (Pixel-size, parent + kid): header shows title, grit chip, (parent) overview icon and a hamburger; menu has Theme, Alerts and Sign out; unread dot on the hamburger and "Alerts (new)" until the dialog is opened; grit dialog lists grit, dollars and screen minutes per kid plus a parent total.
+- [ ] Real phone and tablets: confirm the chip fits at 360 dp, the dot clears after opening Alerts, and a pushed alert lights the dot within a minute.

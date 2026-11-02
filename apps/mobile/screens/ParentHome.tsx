@@ -18,14 +18,13 @@ import {
 } from "react-native-paper";
 import { SafeAreaView } from "react-native-safe-area-context";
 import type { Assignment, Chore, ChoreProposal, ChoreTemplate, Household, PayMode, RecentAssignmentRow, SpendRequest, TimeGrant, User } from "@paydirt/shared";
-import { kidsAtLimit, knownChoreNames, parseAssignDraft, serializeAssignDraft, currencyDisplayName, screenGrantLabel, errorMessage, kidAccent, limitLabel, limitUnit, payLabel, payMode, validatePay, waitingActionCount } from "@paydirt/shared";
+import { kidsAtLimit, knownChoreNames, parseAssignDraft, serializeAssignDraft, currencyDisplayName, screenRate, effectiveGoodsRate, screenGrantLabel, errorMessage, kidAccent, limitLabel, limitUnit, payLabel, payMode, validatePay, waitingActionCount } from "@paydirt/shared";
 import { client } from "../lib/client";
 import { isNetworkError } from "../lib/reachability";
 import { useRealtimeResume } from "../lib/useRealtimeResume";
 import { tabForNotificationType } from "../lib/deepLinks";
 import { Avatar } from "../components/Avatar";
 import { BrandTitle } from "../components/BrandTitle";
-import { AppearanceButton } from "../components/AppearanceButton";
 import { AppearanceControls } from "../components/AppearanceControls";
 import { ChunkyButton } from "../components/ChunkyButton";
 import { Celebration } from "../components/Celebration";
@@ -39,7 +38,7 @@ import { GritButton } from "../components/GritButton";
 import { OverviewModalButton } from "../components/OverviewView";
 import { LedgerView } from "../components/LedgerView";
 import { ActivityReport } from "../components/ActivityReport";
-import { InboxButton } from "../components/InboxDialog";
+import { HeaderMenu } from "../components/HeaderMenu";
 import { useTabHistory } from "../lib/useTabHistory";
 
 /** Status colors for the kid-chip icons and their key (always green / yellow). */
@@ -581,11 +580,9 @@ export function ParentHome({
           title={<BrandTitle size={30} tagline />}
           subtitle={pendingCount > 0 ? `${pendingCount} item${pendingCount === 1 ? "" : "s"} waiting` : "All clear 🎉"}
         />
-        <GritButton rows={kids.map((k) => ({ name: k.display_name, balance: k.balance }))} currency={currencyName} total />
-        <AppearanceButton />
+        <GritButton rows={kids} currency={currencyName} goodsRate={goodsRate} screenRate={screenRate(household)} total />
         <OverviewModalButton household={household} kids={kids} chores={chores} heldByChore={heldByChore} />
-        <InboxButton userId={user.id} />
-        <Appbar.Action icon="logout" onPress={onLogout} />
+        <HeaderMenu userId={user.id} onLogout={onLogout} />
       </Appbar.Header>
 
       <OfflineBanner />
@@ -633,7 +630,7 @@ export function ParentHome({
                     <Text style={styles.kidName}>{kid.display_name}</Text>
                     <Text style={[styles.kidBalance, { color: theme.colors.primary }]}>
                       {kid.balance} {currencyName}
-                      {(kid.goods_rate ?? goodsRate) > 0 ? `  ·  $${(kid.balance / (kid.goods_rate ?? goodsRate)).toFixed(2)}` : ""}
+                      {effectiveGoodsRate(kid.goods_rate, goodsRate) > 0 ? `  ·  $${(kid.balance / effectiveGoodsRate(kid.goods_rate, goodsRate)).toFixed(2)}` : ""}
                     </Text>
                   </View>
                   <Text style={[styles.kidChevron, { color: theme.colors.onSurfaceVariant }]}>›</Text>
@@ -996,7 +993,7 @@ export function ParentHome({
                       )}
                       <Chip compact style={[styles.rewardChip, { backgroundColor: theme.colors.secondaryContainer }]}>
                         {s.amount} {currencyName}
-                        {(child?.goods_rate ?? goodsRate) > 0 ? ` ≈ $${(s.amount / (child?.goods_rate ?? goodsRate)).toFixed(2)}` : ""}
+                        {effectiveGoodsRate(child?.goods_rate, goodsRate) > 0 ? ` ≈ $${(s.amount / effectiveGoodsRate(child?.goods_rate, goodsRate)).toFixed(2)}` : ""}
                       </Chip>
                     </View>
                     <View style={styles.approvalActions}>
