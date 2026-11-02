@@ -530,6 +530,11 @@ test-all:
     EDIR=$(mktemp -d)
 
     cleanup() {
+        rc=$?
+        if [ "${rc}" -ne 0 ] && [ -f "${EDIR}/pb.log" ]; then
+            printf '\033[0;33m--- PocketBase log (last 40 lines) ---\033[0m\n'
+            tail -40 "${EDIR}/pb.log"
+        fi
         if [ -f "${EDIR}/pb.pid" ]; then
             kill "$(cat "${EDIR}/pb.pid")" 2>/dev/null || true
         fi
@@ -556,7 +561,7 @@ test-all:
     head -c 3145728 /dev/urandom > "${EDIR}/pb_data/updates/app-release.apk"
     printf '{"versionCode":1,"versionName":"test","downloadUrl":"/api/updates/apk"}' > "${EDIR}/pb_data/updates/version.json"
 
-    NTFY_DISABLED=1 {{pb}} serve \
+    NTFY_DISABLED=1 {{pb}} serve --dev \
         --dir "${EDIR}/pb_data" \
         --hooksDir pocketbase/pb_hooks \
         --migrationsDir pocketbase/pb_migrations \

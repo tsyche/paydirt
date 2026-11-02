@@ -2,7 +2,7 @@
 
 ## TL;DR
 
-MVP, Phase 1, and Phase 1.5 are shipped, and PayDirt is live on bb. The Family Link grant queue is deployed; one real 15-minute purchase is the last check. The per-kid daily summary push is deployed and delivering. Other priorities: tablet APK updates, off-LAN access, and keeping parent web and mobile at parity.
+MVP, Phase 1, and Phase 1.5 are shipped, and PayDirt is live on bb. Family Link automatic grants and the per-kid daily summary push are live and verified. Other priorities: kudos, tablet APK updates, off-LAN access, and keeping parent web and mobile at parity.
 
 Scope checklist: [FEATURES.md](./FEATURES.md). **This file is the authoritative
 status tracker.**
@@ -20,39 +20,37 @@ MVP, Phase 1, and Phase 1.5 all shipped by 2026-06-10 — full entries preserved
 
 ## Recently Completed
 
-Completed work is indexed in [docs/ledger/ROADMAP_SHIPPED.md](./docs/ledger/ROADMAP_SHIPPED.md) (most recent: 2026-10-31 — per-chore pay mode, advisory chore limits and economy tuning, `just ship`; 2026-10-23 — live on bb; 2026-10-22 — app auto-updates Tier 2, tooltips, parity, photo grid, ledger view, help flag, auto-save, recap, allowance).
+Completed work is indexed in [docs/ledger/ROADMAP_SHIPPED.md](./docs/ledger/ROADMAP_SHIPPED.md) (most recent: 2026-11-02 — Family Link automatic grants verified in production, expiry takes the right grit, mobile header menu and grit dialog, Overview dashboards; 2026-10-31 — per-chore pay mode, advisory chore limits and economy tuning, `just ship`; 2026-10-23 — live on bb).
 
-Last audit 2026-11-01: moved the eight shipped backlog bullets, pay mode, chore limits, `just ship` and go-live to the shipped ledger, dropped the stale "Best agent-doable" and duplicate Tier 2 entries, ran a keyword-level web/mobile parent parity pass (all gaps closed same day), and added 3 gated items. Previous audit 2026-10-21.
+Last audit 2026-11-02: closed the Family Link checks (moved to the shipped ledger), refreshed Recommended Next 3 and the agent-doable list, logged the `test-all` seed flake, and added 4 gated items. Previous audits 2026-11-01 and 2026-10-21.
 
 ## Known Issues
 
-
-
+- **`just test-all` seed step fails intermittently (found 2026-11-02, unexplained)** — `pocketbase/seed.mjs` dies with a generic 'Something went wrong' while creating `child2`, in about half of 8 runs on 2026-11-02, then passed on retry; 67 runs in a loop (idle, CPU-loaded, recipe-exact setup) never reproduced it. The failures clustered around concurrent `just ship` builds and hand-edited `scheduler.js` swaps. Diagnostics added 2026-11-02: `test-all` now runs PocketBase with `--dev` and dumps the last 40 log lines on any failure, and the seeder prints the failing status and URL. Next time it fails, read that output and fix the cause; if it never recurs in a few weeks, drop this entry.
 - **`pocketbase/pocketbase` upstream has tags with no Release objects (found 2026-08-17)** — `just pb-download` now handles this: authenticated `releases/latest` lookup (gh/GITHUB_TOKEN) with a Homebrew fallback on macOS and actionable manual options elsewhere (fixed 2026-08-17, `a197def` + `8be6569`; docs updated). Remaining gap: non-macOS hosts during an upstream zero-Releases stretch still need a manual download — a tag-tarball/`go build` fallback is the possible follow-up.
 - **Dependabot: dismissed, re-check for fixes (2026-10-31)** — `zod` 3.25.76 (#79; fix is 4.6.6+ only) and `deepmerge` 4.3.1 (#80; no patched release) are dismissed as tolerable risk: both arrive only through `@expo/cli` / `@expo/config`, build-time tooling that never ships in the APK. `node-forge` (#62) is fixed by a `pnpm.overrides` entry (1.4.2); its alert stayed open on a stale scan and was dismissed as inaccurate 2026-10-31. Re-check on each Expo SDK bump (and `pnpm outdated zod deepmerge`): drop the dismissals' reason if a patch lands, and remove the `node-forge` override once `@expo/cli` depends on a fixed version itself.
 
 
 ## Recommended Next 3
 
-**All three need a human** (deploys, tablets, accounts). Best agent-doable items are listed below.
+**Two of three need a human** (tablets, accounts). Kudos is agent-doable.
 
-1. **Finish the Family Link checks** — summary push and per-chore pay mode are live on bb (2026-11-01). Remaining: confirm the second tablet also shows the "Pays" selector, and run one real 15-minute purchase (kid requests, parent approves on web, row goes Queued then Granted, tablet gains 900 s; check `systemctl status paydirt-fl.path paydirt-fl.service`). A grit + time chore approved the same day paid out correctly but the time grant took noticeably longer than the grit to land; measure the approve-to-granted delay and find where it waits (queue worker trigger vs. the minute cron repair). See [deployment](docs/DEPLOYMENT.md#enable-automatic-grants). 🧑 needs-human: real tablets, a real approval.
-   - Done on bb: pricing and per-kid IDs, host tooling, session moves between machines, additive grants (59 + 60 = 119 s), approval queue and worker with `FL_AUTOMATION_ENABLED=1`, session verified 2026-10-31. Details: [shipped ledger](docs/ledger/ROADMAP_SHIPPED.md).
-   - Still open: how long the session lives with only occasional grants (see *Family Link session keep-alive* in the backlog).
-2. **Tier 2 app auto-updates on the other tablets** — validated end to end on one phone 2026-10-31; the other tablets need one adb install of the 2026-10-31+ build (older builds lack the native method), then confirm each self-updates. 🧑 needs-human.
+1. **Kudos: parent "you did good" bonus** — the plan is decided; see [docs/plans/kudos.md](docs/plans/kudos.md) and the backlog entry. Ships on web and mobile together. ~4-6 hrs.
+2. **Tier 2 app auto-updates on the other tablets** — validated end to end on one phone 2026-10-31; the other tablets need one adb install of the 2026-10-31+ build (older builds lack the native method), then confirm each self-updates. The 2026-11-02 `just ship` may already have covered this; confirm per tablet. 🧑 needs-human.
 3. **Off-LAN access (Tailscale)** — `EXPO_PUBLIC_POCKETBASE_URL` is a LAN IP; devices can't reach PocketBase on 5G or outside the home, and app auto-updates can't either. Tailscale is the lowest-friction fix: private mesh VPN, no public exposure, point the URL at the Tailscale hostname. ~2-4 hrs. 🧑 needs-human: Tailscale account + per-device enrollment (the env-var change itself is trivial).
 
 ### Best agent-doable next
 
-1. **Chore notes / extra details** — mostly UI, schema field already exists; see [Backlog](#backlog-unscheduled). ~2-3 hrs.
-2. **Backup restore drill** — prove the nightly backups restore; see [Quality & Infrastructure](#quality--infrastructure).
+1. **Backup restore drill** — prove the nightly backups restore; see [Quality & Infrastructure](#quality--infrastructure).
+2. **Chore notes / extra details** — mostly UI, schema field already exists; see [Backlog](#backlog-unscheduled). ~2-3 hrs.
+3. **Expiry dry-run preview** and **expiry warnings** — de-risk turning expiry on; see the backlog.
 
 ## Phase 2 — Family Link Automation
 
 **Status: API-first; spike proven 2026-10-25.** The accessibility-service path is shelved: on the Pixel 8, Family Link is installed in a separate GrapheneOS profile from PayDirt, and a service in one profile can't see another profile's apps. The live session also fixed two latent bugs in the service, so it is ready if ever revived: wrong parent package name (`familylinkparental` → `familylink`, now `FamilyLinkPackages`) and tapping with no pending grant (now `GrantArm`, 60 s window), plus a `PayDirtDump` view-tree logger for label tuning.
 
 - **API grant spike** — shipped 2026-10-25 (see the [shipped ledger](docs/ledger/ROADMAP_SHIPPED.md)); type `10` replacement behavior and additive preservation verified 2026-10-28. Session lifetime remains open.
-- **API grant in production** — see [Recommended Next 3](#recommended-next-3) #1.
+- **API grant in production** — shipped 2026-11-02 (see the [shipped ledger](docs/ledger/ROADMAP_SHIPPED.md)). Session lifetime is tracked by *Family Link session keep-alive* in the backlog.
 - **Accessibility fallback (shelved)** — `FamilyLinkAccessibilityService.kt`; only revisit if the API path dies. Would require PayDirt + a push distributor in the same profile as Family Link.
 - **Manual fallback** — retained regardless; users who don't have/need Family Link still get the approval flow.
 
@@ -77,11 +75,16 @@ Added 2026-08-10. Items 1-4 (CI pipeline, ledger integrity verifier, cron/schedu
 
 8. **Backup restore drill** (2026-11-01) — nightly PocketBase zips and `backup-pull` exist, but no one has restored one. Add `just restore-drill`: unzip the newest pulled backup into an ephemeral PocketBase on a free port, boot it, run `just verify-ledger` against it, and report pass/fail; document the manual restore steps in [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md). Never touches bb. ~1-2 hrs. **Gotchas:** use the port block (3110-3119), not bb's port; pulled backups contain real household data, so keep the unzip dir under `$TMPDIR` and delete it after; the PocketBase binary version must match the one that wrote the backup.
 
+9. **Nightly ledger-verify alert** (2026-11-02) — `just verify-ledger` only runs by hand and in `test-all`, so a balance that drifts from `currency_transactions` on bb goes unnoticed. Run the same recompute daily on bb (a systemd timer or a `pb_hooks` cron calling the check) and send a parent ntfy only on a mismatch, naming the kid and the difference. ~1-2 hrs. 🧑 needs-human: deploy to bb. **Gotchas:** read-only; never auto-correct a balance; quiet when clean so it can't become noise.
+10. **Document the sandbox `test-all` gotcha** (2026-11-02) — under the Claude Code sandbox the in-app update test fails because file responses are cut at 512 bytes (full 3 MB outside it), and the seed/e2e steps need ports and Playwright. Add one note to [AGENTS.md](./AGENTS.md) (Development) that `just test-all` must run unsandboxed. ~15 min.
+
 ## Parent parity (web ↔ mobile)
 
 **Rule (2026-11-01):** every parent-facing capability ships on both web and mobile in the same change, or the gap is logged here with a reason. Kid-only surfaces are mobile-only by design. Acceptance for any parent feature: the same fields, validation and confirmations on both, and shared logic in `packages/shared`.
 
-Known gaps: none from the 2026-11-01 keyword-level pass (closed the same day; see the shipped ledger). Next audit should compare screens directly (create/edit chore, templates, thresholds, settings) rather than by keyword.
+Known gaps: none from the 2026-11-01 keyword-level pass (closed the same day; see the shipped ledger).
+
+- **Screen-by-screen parity pass (2026-11-02)** — compare web and mobile directly rather than by keyword: create/edit chore, templates, thresholds, household settings, kid detail. List every field, validation and confirmation that differs, fix the cheap gaps in the same change, and log the rest here. Include the new settings menu item and grit dialog. ~2 hrs.
 
 ## Backlog (unscheduled)
 
@@ -93,6 +96,8 @@ Ordered by impact-to-effort (2026-11-01 audit). Shipped items live in the ledger
 
 - **Expiry warnings for kids (2026-11-02)** — when `expiry_days` is on, ntfy the kid a week and a day before grit lapses ("40 Grit expires in 7 days; spend it or lose it"). Expiry is tracked per earn row by its `created` date, so each chore's grit has its own clock. The daily cron computes what will actually lapse in the next 7 days and 1 day, and dedupes (a warned-at marker per kid and window) so it never repeats. Expiry math fixed 2026-11-02 (`expiryLapse`); reuse it for the lot-remaining data: share one pure function in `packages/shared` for the cron, the warning and a "expiring soon" line in the kid bank card. Suppressed during vacation mode. Kudos grit is excluded.
 
+
+- **Expiry dry-run preview (2026-11-02)** — before a parent turns `expiry_days` on (or changes it), settings shows 'N grit would lapse today' per kid, computed with the shared `expiryLapse` against the live ledger, so the first cron run is never a surprise. Read-only; web and mobile together. ~1-2 hrs.
 
 - **Kudos: parent "you did good" bonus** (2026-11-02) — subjective bonus (default 100 grit, adjustable) with an optional reason, a push, a celebration on next open, a "Great work ×N" badge and a private history list. Own ledger type so Overview shows it separately. No minutes, no per-grade pay. Draft: [docs/plans/kudos.md](docs/plans/kudos.md). Parent action ships on web and mobile together.
 

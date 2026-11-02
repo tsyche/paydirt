@@ -216,6 +216,7 @@ async function main() {
 
 main().catch((err) => {
   console.error("\nSeed failed:", err?.message ?? err);
+  if (err?.status || err?.url) console.error(`  ${err.status ?? "?"} ${err.url ?? ""}`);
   if (err?.response) console.error(JSON.stringify(err.response, null, 2));
   process.exit(1);
 });
