@@ -57,6 +57,8 @@ export function HouseholdSettings({
     currency_name: household.currency_name ?? "",
     bank_threshold: String(household.bank_threshold ?? 0),
     kudos_default_bucks: String(kudosDefaultBucks(household)),
+    grant_weekday_window: household.grant_weekday_window ?? "",
+    grant_weekend_window: household.grant_weekend_window ?? "",
     expiry_days: String(household.expiry_days ?? 0),
     goods_rate: String(household.goods_rate ?? 0),
     screen_rate: String(screenRate(household)),
@@ -85,6 +87,8 @@ export function HouseholdSettings({
         currency_name: form.currency_name.trim(),
         bank_threshold: num(form.bank_threshold),
         kudos_default_bucks: Math.max(1, num(form.kudos_default_bucks)),
+        grant_weekday_window: form.grant_weekday_window.trim(),
+        grant_weekend_window: form.grant_weekend_window.trim(),
         expiry_days: num(form.expiry_days),
         goods_rate: num(form.goods_rate),
         screen_rate: num(form.screen_rate),
@@ -138,6 +142,9 @@ export function HouseholdSettings({
             </ScrollView>
 
             <SettingLabel label="Bank threshold (0 = off)" tip="bank_threshold" />
+            <Text>Screen-time delivery windows (server-local time). Blank = all day.</Text>
+            <TextInput label="Weekdays (HH:MM-HH:MM)" placeholder="15:30-20:00" value={form.grant_weekday_window} onChangeText={(v) => setForm({ ...form, grant_weekday_window: v })} maxLength={11} />
+            <TextInput label="Weekends (HH:MM-HH:MM)" placeholder="08:00-20:00" value={form.grant_weekend_window} onChangeText={(v) => setForm({ ...form, grant_weekend_window: v })} maxLength={11} />
             <TextInput
               keyboardType="numeric"
               value={form.bank_threshold}

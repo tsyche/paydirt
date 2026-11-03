@@ -24,6 +24,9 @@ import { isNetworkError } from "../lib/reachability";
 import { useRealtimeResume } from "../lib/useRealtimeResume";
 import { tabForNotificationType } from "../lib/deepLinks";
 import { Avatar } from "../components/Avatar";
+import { ChoreNotes } from "../components/ChoreNotes";
+import { RecurringDueFields } from "../components/RecurringDueFields";
+import { PartialCredit } from "../components/PartialCredit";
 import { BrandTitle } from "../components/BrandTitle";
 import { AppearanceControls } from "../components/AppearanceControls";
 import { ChunkyButton } from "../components/ChunkyButton";
@@ -100,6 +103,9 @@ export function ParentHome({
   // Create chore form state
   const [showCreateChore, setShowCreateChore] = useState(false);
   const [choreName, setChoreName] = useState("");
+  const [choreNotes, setChoreNotes] = useState("");
+  const [choreDueTime, setChoreDueTime] = useState("");
+  const [choreDueDay, setChoreDueDay] = useState("1");
   const [choreReward, setChoreReward] = useState("10");
   const [chorePayMode, setChorePayMode] = useState<PayMode>("bucks");
   const [choreMinutes, setChoreMinutes] = useState("");
@@ -123,6 +129,9 @@ export function ParentHome({
   // Inline chore edit state
   const [editingChoreId, setEditingChoreId] = useState<string | null>(null);
   const [editName, setEditName] = useState("");
+  const [editNotes, setEditNotes] = useState("");
+  const [editDueTime, setEditDueTime] = useState("");
+  const [editDueDay, setEditDueDay] = useState("1");
   const [editReward, setEditReward] = useState("10");
   const [editPayMode, setEditPayMode] = useState<PayMode>("bucks");
   const [editMinutes, setEditMinutes] = useState("");
@@ -340,6 +349,9 @@ export function ParentHome({
       await client.createChore({
         household: user.household,
         name: choreName.trim(),
+        description: choreNotes.trim(),
+        due_time: choreType === "recurring" ? choreDueTime.trim() : "",
+        due_day: Number(choreDueDay),
         reward: Number(choreReward) || 0,
         pay_mode: chorePayMode,
         reward_minutes: Number(choreMinutes) || 0,
@@ -354,6 +366,9 @@ export function ParentHome({
         active: true,
       });
       setChoreName("");
+      setChoreNotes("");
+      setChoreDueTime("");
+      setChoreDueDay("1");
       setChoreReward("10");
       setChorePayMode("bucks");
       setChoreMinutes("");
@@ -376,6 +391,9 @@ export function ParentHome({
 
   function applyTemplate(t: ChoreTemplate) {
     setChoreName(t.name);
+    setChoreNotes(t.description ?? "");
+    setChoreDueTime(t.due_time ?? "");
+    setChoreDueDay(String(t.due_day ?? 1));
     setChoreReward(String(t.reward));
     setChorePayMode(payMode(t));
     setChoreMinutes(t.reward_minutes ? String(t.reward_minutes) : "");
@@ -415,6 +433,9 @@ export function ParentHome({
       const t = await client.createTemplate({
         household: user.household,
         name: choreName.trim(),
+        description: choreNotes.trim(),
+        due_time: choreType === "recurring" ? choreDueTime.trim() : "",
+        due_day: Number(choreDueDay),
         reward: Number(choreReward) || 0,
         pay_mode: chorePayMode,
         reward_minutes: Number(choreMinutes) || 0,
@@ -437,6 +458,9 @@ export function ParentHome({
   function startEditChore(chore: Chore) {
     setEditingChoreId(chore.id);
     setEditName(chore.name);
+    setEditNotes(chore.description ?? "");
+    setEditDueTime(chore.due_time ?? "");
+    setEditDueDay(String(chore.due_day ?? 1));
     setEditReward(String(chore.reward));
     setEditPayMode(payMode(chore));
     setEditMinutes(chore.reward_minutes ? String(chore.reward_minutes) : "");
@@ -458,6 +482,9 @@ export function ParentHome({
     try {
       await client.updateChore(choreId, {
         name: editName.trim(),
+        description: editNotes.trim(),
+        due_time: editType === "recurring" ? editDueTime.trim() : "",
+        due_day: Number(editDueDay),
         reward: Number(editReward) || 0,
         pay_mode: editPayMode,
         reward_minutes: Number(editMinutes) || 0,
@@ -866,6 +893,8 @@ export function ParentHome({
                         <Text variant="titleMedium" style={styles.choreName}>
                           {chore?.name ?? "Chore"}
                         </Text>
+                        <ChoreNotes text={chore?.description} />
+                        {!!a.due_at && <Text variant="bodySmall">Due {new Date(a.due_at).toLocaleString()}</Text>}
                         <View style={styles.approvalMeta}>
                           {child && (
                             <Chip compact style={styles.kidChip}>
@@ -913,6 +942,10 @@ export function ParentHome({
                         }}
                         style={styles.approveBtn}
                       />
+                      {chore && <PartialCredit chore={chore} currency={currencyName} onApprove={async (percent) => {
+                        await client.approveAssignment(a.id, percent);
+                        await reload();
+                      }} />}
                       <Button
                         mode="outlined"
                         icon="close"
@@ -1123,6 +1156,8 @@ export function ParentHome({
                 onChangeText={setChoreName}
                 dense
               />
+              <TextInput mode="outlined" label="Instructions (optional, visible to kids)" value={choreNotes} onChangeText={setChoreNotes} multiline maxLength={1000} />
+              {choreType === "recurring" && <RecurringDueFields cadence={choreCadence} time={choreDueTime} day={choreDueDay} onTime={setChoreDueTime} onDay={setChoreDueDay} />}
               <PayModeFields
                 mode={chorePayMode}
                 reward={choreReward}
@@ -1250,6 +1285,8 @@ export function ParentHome({
                   <View style={styles.createChoreContent}>
                     <Text variant="labelMedium" style={{ color: theme.colors.onSurfaceVariant }}>Editing: {chore.name}</Text>
                     <TextInput mode="outlined" label="Chore name" value={editName} onChangeText={setEditName} dense />
+                    <TextInput mode="outlined" label="Instructions (optional, visible to kids)" value={editNotes} onChangeText={setEditNotes} multiline maxLength={1000} />
+                    {editType === "recurring" && <RecurringDueFields cadence={editCadence} time={editDueTime} day={editDueDay} onTime={setEditDueTime} onDay={setEditDueDay} />}
                     <PayModeFields
                       mode={editPayMode}
                       reward={editReward}

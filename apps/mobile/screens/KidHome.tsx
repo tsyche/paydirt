@@ -42,6 +42,10 @@ import { takePhotoAndComplete } from "../lib/completeWithPhoto";
 import { Avatar } from "../components/Avatar";
 import { BadgeShelf } from "../components/BadgeShelf";
 import { KudosHistory } from "../components/KudosHistory";
+import { ChoreNotes } from "../components/ChoreNotes";
+import { MyBank } from "../components/MyBank";
+import type { SpendRequest } from "@paydirt/shared";
+import type { TimeGrant } from "@paydirt/shared";
 import { ChunkyButton } from "../components/ChunkyButton";
 import { ClaimHero } from "../components/ClaimHero";
 import { Celebration } from "../components/Celebration";
@@ -91,6 +95,8 @@ export function KidHome({
   const [history, setHistory] = useState<Expanded[]>([]);
   const [goals, setGoals] = useState<SavingsGoal[]>([]);
   const [kudos, setKudos] = useState<KudosAward[]>([]);
+  const [bankRequests, setBankRequests] = useState<SpendRequest[]>([]);
+  const [bankGrants, setBankGrants] = useState<TimeGrant[]>([]);
   const [swapsIn, setSwapsIn] = useState<Expanded[]>([]);
   const [siblings, setSiblings] = useState<User[]>([]);
   const [household, setHousehold] = useState<Household | null>(null);
@@ -121,7 +127,7 @@ export function KidHome({
   const reload = useCallback(async () => {
     setRefreshing(true);
     try {
-      const [freshMe, list, hist, gs, awards, swaps, kids, hh, bcs, reps] = await Promise.all([
+      const [freshMe, list, hist, gs, awards, swaps, kids, hh, bcs, reps, requests, grants] = await Promise.all([
         client.pb.collection("users").getOne<User>(user.id),
         client.listActiveAssignmentsForChild(user.id),
         client.listApprovedHistory(user.id, 50),
@@ -132,12 +138,16 @@ export function KidHome({
         client.getHousehold(user.household),
         client.getRecentBroadcasts(user.household, 5),
         client.listBroadcastReplies(user.id),
+        client.listSpendRequestsForChild(user.id),
+        client.listQueuedGrantsForChild(user.id),
       ]);
       setMe(freshMe);
       setAssignments(list as Expanded[]);
       setHistory(hist as Expanded[]);
       setGoals(gs);
       setKudos(awards);
+      setBankRequests(requests);
+      setBankGrants(grants);
       setSwapsIn((swaps as Expanded[]).filter((s) => s.child !== user.id));
       setSiblings(kids.filter((k) => k.id !== user.id));
       setHousehold(hh);
@@ -320,6 +330,7 @@ export function KidHome({
             />
             {!calm && <BadgeShelf badges={badges} kudosCount={kudos.length} />}
             <KudosHistory awards={kudos} currencyName={currencyName} />
+            <MyBank balance={me.balance} currency={currencyName} goodsRate={goodsRate} screenRate={screenRate(household)} streak={me.streak_count ?? 0} assignments={assignments} goals={goals} requests={bankRequests} grants={bankGrants} />
 
         {swapsIn.length > 0 && (
           <>
@@ -363,7 +374,7 @@ export function KidHome({
         {assignments.length === 0 && <Text>No chores right now. 🎉</Text>}
         {assignments.map((a) => {
           const chore = a.expand?.chore;
-          const due = dueInfo(chore);
+          const due = dueInfo(a.due_at ? { ...chore, due_at: a.due_at } as Chore : chore);
           const offered = !!a.swap_to;
           return (
             <Card key={a.id} style={styles.choreCard}>
@@ -375,6 +386,9 @@ export function KidHome({
                   </Text>
                   <Chip compact>{STATUS_LABEL[a.status] ?? a.status}</Chip>
                 </View>
+                {chore ? (
+                  <ChoreNotes text={chore.description} />
+                ) : null}
                 {chore ? (
                   <Text variant="bodySmall">{payLabel(chore, currencyName)}</Text>
                 ) : null}
@@ -544,7 +558,8 @@ export function KidHome({
                       {a.reaction ? `  ${a.reaction}` : ""}
                     </Text>
                     <Text variant="bodyMedium" style={[styles.earned, { color: theme.colors.primary }]}>
-                      +{a.expand?.chore ? payLabel(a.expand.chore, currencyName) : "?"}
+                      +{a.expand?.chore ? payLabel(a.expand.chore, currencyName, a.credit_percent) : "?"}
+                      {a.credit_percent && a.credit_percent < 100 ? ` (${a.credit_percent}% credit)` : ""}
                     </Text>
                   </View>
                   {a.approved_at ? (

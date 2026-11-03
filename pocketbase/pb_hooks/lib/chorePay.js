@@ -43,4 +43,12 @@ function enforce(record) {
   if (!record.getString("pay_mode")) record.set("pay_mode", "bucks");
 }
 
-module.exports = { normalizePay, validatePay, enforce };
+function partialPay(record, percent) {
+  const pay = normalizePay(record);
+  return {
+    mode: pay.mode,
+    bucks: Math.round(pay.bucks * percent) / 100,
+    minutes: Math.floor(pay.minutes * percent / 100 / 5) * 5,
+  };
+}
+module.exports = { normalizePay, validatePay, enforce, partialPay };

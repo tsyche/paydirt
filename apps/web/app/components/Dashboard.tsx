@@ -19,6 +19,8 @@ import type {
 import { kidsAtLimit, knownChoreNames, GOAL_NAME_MAX, GOAL_DETAILS_MAX, parseAssignDraft, serializeAssignDraft, AVATAR_COLORS, REACTIONS, undoApprovalPrompt, avatarUrl, currencyDisplayName, effectiveGoodsRate, kidAccent, kudosDefaultBucks, KUDOS_REASON_MAX, parseGoodsRateOverride, featureTip, screenGrantLabel, errorMessage, limitLabel, limitUnit, payLabel, approveTimePrompt, summarizeMonthActivity, waitingActionCount, payMode, validatePay, MINUTES_STEP, MAX_REWARD_MINUTES } from "@paydirt/shared";
 import { client } from "../lib/client";
 import { HouseholdSettings } from "./HouseholdSettings";
+import { RecurringDueFields } from "./RecurringDueFields";
+import { PartialCredit } from "./PartialCredit";
 import { AppearanceControls } from "./AppearanceControls";
 import { GritChip } from "./GritChip";
 import { OverviewModalButton } from "./OverviewView";
@@ -407,6 +409,10 @@ export function Dashboard({
                   <div style={{ fontWeight: 600 }}>
                     {(a.expand?.chore as Chore | undefined)?.name ?? "Chore"}
                   </div>
+                  {(a.expand?.chore as Chore | undefined)?.description && (
+                    <details><summary>Instructions</summary><p style={{ whiteSpace: "pre-wrap", overflowWrap: "anywhere" }}>{(a.expand?.chore as Chore).description}</p></details>
+                  )}
+                  {a.due_at && <div className="muted">Due {new Date(a.due_at).toLocaleString()}</div>}
                   <div className="muted">
                     {(a.expand?.child as User | undefined)?.display_name ?? "child"}
                     {a.expand?.chore && (
@@ -455,6 +461,7 @@ export function Dashboard({
                 >
                   Approve
                 </button>
+                {a.expand?.chore && <PartialCredit chore={a.expand.chore as Chore} currency={currencyName} onApprove={(percent) => act(() => client.approveAssignment(a.id, percent))} />}
                 <button
                   className="danger sm"
                   onClick={() => {
@@ -555,7 +562,8 @@ export function Dashboard({
                 <div className="muted">
                   {kid?.display_name ?? "child"} ·{" "}
                   <span className="balance" style={{ fontSize: 13 }}>
-                    +{chore ? payLabel(chore, currencyName) : "?"}
+                    +{chore ? payLabel(chore, currencyName, a.credit_percent) : "?"}
+                    {a.credit_percent && a.credit_percent < 100 ? ` (${a.credit_percent}% credit)` : ""}
                   </span>
                 </div>
               </div>
@@ -1265,6 +1273,9 @@ function ChoreRow({
 }) {
   const [editing, setEditing] = useState(false);
   const [name, setName] = useState(chore.name);
+  const [notes, setNotes] = useState(chore.description ?? "");
+  const [dueTime, setDueTime] = useState(chore.due_time ?? "");
+  const [dueDay, setDueDay] = useState(chore.due_day ?? 1);
   const [reward, setReward] = useState(chore.reward);
   const [mode, setMode] = useState<PayMode>(payMode(chore));
   const [minutes, setMinutes] = useState(chore.reward_minutes ?? 0);
@@ -1283,6 +1294,9 @@ function ChoreRow({
 
   function cancelEdit() {
     setName(chore.name);
+    setNotes(chore.description ?? "");
+    setDueTime(chore.due_time ?? "");
+    setDueDay(chore.due_day ?? 1);
     setReward(chore.reward);
     setMode(payMode(chore));
     setMinutes(chore.reward_minutes ?? 0);
@@ -1305,6 +1319,9 @@ function ChoreRow({
     setError("");
     try {
       await client.updateChore(chore.id, {
+        description: notes.trim(),
+        due_time: type === "recurring" ? dueTime : "",
+        due_day: dueDay,
         name: name.trim(),
         reward,
         pay_mode: mode,
@@ -1375,6 +1392,8 @@ function ChoreRow({
           onKeyDown={(e) => { if (e.key === "Enter") void save(); }}
           style={{ flex: 1 }}
         />
+        <textarea aria-label="Chore instructions" placeholder="Instructions (optional, visible to kids)" value={notes} maxLength={1000} onChange={(e) => setNotes(e.target.value)} />
+        {type === "recurring" && <RecurringDueFields cadence={cadence} time={dueTime} day={dueDay} onTime={setDueTime} onDay={setDueDay} />}
         <PayControls mode={mode} reward={reward} minutes={minutes} onMode={setMode} onReward={setReward} onMinutes={setMinutes} />
         <select value={type} onChange={(e) => setType(e.target.value as "oneoff" | "recurring")}>
           <option value="oneoff">one-off</option>
@@ -1499,6 +1518,9 @@ function CreateChore({
 }) {
   const [name, setName] = useState("");
   const [reward, setReward] = useState(10);
+  const [notes, setNotes] = useState("");
+  const [dueTime, setDueTime] = useState("");
+  const [dueDay, setDueDay] = useState(1);
   const [mode, setMode] = useState<PayMode>("bucks");
   const [minutes, setMinutes] = useState(0);
   const [type, setType] = useState<"oneoff" | "recurring">("oneoff");
@@ -1516,6 +1538,9 @@ function CreateChore({
     if (!template) return;
     if (template.reminder_time || template.max_per_period) setAdvanced(true);
     setName(template.name);
+    setNotes(template.description ?? "");
+    setDueTime(template.due_time ?? "");
+    setDueDay(template.due_day ?? 1);
     setReward(template.reward);
     setMode(payMode(template));
     setMinutes(template.reward_minutes ?? 0);
@@ -1531,6 +1556,9 @@ function CreateChore({
 
   function reset() {
     setName("");
+    setNotes("");
+    setDueTime("");
+    setDueDay(1);
     setReward(10);
     setMode("bucks");
     setMinutes(0);
@@ -1552,6 +1580,9 @@ function CreateChore({
     setError("");
     try {
       await client.createChore({
+        description: notes.trim(),
+        due_time: type === "recurring" ? dueTime : "",
+        due_day: dueDay,
         household,
         name: name.trim(),
         reward,
@@ -1584,6 +1615,9 @@ function CreateChore({
     setError("");
     try {
       await client.createTemplate({
+        description: notes.trim(),
+        due_time: type === "recurring" ? dueTime : "",
+        due_day: dueDay,
         household,
         name: name.trim(),
         reward,
@@ -1619,6 +1653,8 @@ function CreateChore({
           onKeyDown={(e) => { if (e.key === "Enter") void create(); }}
           style={{ flex: 1 }}
         />
+        <textarea aria-label="Chore instructions" placeholder="Instructions (optional, visible to kids)" value={notes} maxLength={1000} onChange={(e) => setNotes(e.target.value)} />
+        {type === "recurring" && <RecurringDueFields cadence={cadence} time={dueTime} day={dueDay} onTime={setDueTime} onDay={setDueDay} />}
         <PayControls mode={mode} reward={reward} minutes={minutes} onMode={setMode} onReward={setReward} onMinutes={setMinutes} />
         <select
           value={type}

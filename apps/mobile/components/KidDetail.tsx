@@ -316,7 +316,8 @@ export function KidDetail({
                     {a.expand?.chore?.name ?? "Chore"}{a.reaction ? `  ${a.reaction}` : ""}
                   </Text>
                   <Text variant="bodyMedium" style={{ color: theme.colors.primary, fontWeight: "700" }}>
-                    +{a.expand?.chore ? payLabel(a.expand.chore, "") : "?"}
+                    +{a.expand?.chore ? payLabel(a.expand.chore, "", a.credit_percent) : "?"}
+                    {a.credit_percent && a.credit_percent < 100 ? ` (${a.credit_percent}%)` : ""}
                   </Text>
                 </Card.Content>
               </Card>

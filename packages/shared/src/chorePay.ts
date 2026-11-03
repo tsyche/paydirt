@@ -29,6 +29,16 @@ export function normalizePay(chore: ChorePayFields): { mode: PayModeValue; bucks
   return { mode, bucks, minutes };
 }
 
+/** Partial approvals close the chore. Minutes round down to avoid overpaying. */
+export function partialPay(chore: ChorePayFields, percent: number) {
+  const pay = normalizePay(chore);
+  return {
+    ...pay,
+    bucks: Math.round(pay.bucks * percent) / 100,
+    minutes: Math.floor(pay.minutes * percent / 100 / MINUTES_STEP) * MINUTES_STEP,
+  };
+}
+
 /** Error text for an invalid pay setup, or null when it is fine. */
 export function validatePay(chore: ChorePayFields): string | null {
   const { mode, bucks, minutes } = normalizePay(chore);
@@ -44,8 +54,8 @@ export function validatePay(chore: ChorePayFields): string | null {
 }
 
 /** Short payout label, e.g. "15 Grit", "10 min", or "15 Grit + 10 min"; "" currency omits the name. */
-export function payLabel(chore: ChorePayFields, currencyName: string): string {
-  const { bucks, minutes } = normalizePay(chore);
+export function payLabel(chore: ChorePayFields, currencyName: string, creditPercent = 100): string {
+  const { bucks, minutes } = partialPay(chore, creditPercent || 100);
   const parts: string[] = [];
   if (bucks > 0) parts.push(currencyName ? `${bucks} ${currencyName}` : `${bucks}`);
   if (minutes > 0) parts.push(`${minutes} min`);

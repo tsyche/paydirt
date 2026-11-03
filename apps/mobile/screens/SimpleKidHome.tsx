@@ -32,6 +32,10 @@ import { Celebration } from "../components/Celebration";
 import { GritButton } from "../components/GritButton";
 import { HeaderMenu } from "../components/HeaderMenu";
 import { KudosHistory } from "../components/KudosHistory";
+import { ChoreNotes } from "../components/ChoreNotes";
+import { MyBank } from "../components/MyBank";
+import type { SavingsGoal, SpendRequest } from "@paydirt/shared";
+import type { TimeGrant } from "@paydirt/shared";
 
 type Expanded = Assignment & { expand?: { chore?: Chore } };
 
@@ -45,6 +49,9 @@ export function SimpleKidHome({ user, onLogout }: { user: User; onLogout: () => 
   const [rate, setRate] = useState(DEFAULT_SCREEN_RATE);
   const [broadcasts, setBroadcasts] = useState<Broadcast[]>([]);
   const [kudos, setKudos] = useState<KudosAward[]>([]);
+  const [bankGoals, setBankGoals] = useState<SavingsGoal[]>([]);
+  const [bankRequests, setBankRequests] = useState<SpendRequest[]>([]);
+  const [bankGrants, setBankGrants] = useState<TimeGrant[]>([]);
   const [replies, setReplies] = useState<Record<string, string>>({});
   const [refreshing, setRefreshing] = useState(false);
   const [snack, setSnack] = useState("");
@@ -61,7 +68,7 @@ export function SimpleKidHome({ user, onLogout }: { user: User; onLogout: () => 
   const reload = useCallback(async () => {
     setRefreshing(true);
     try {
-      const [freshMe, bal, list, household, bcs, reps, awards] = await Promise.all([
+      const [freshMe, bal, list, household, bcs, reps, awards, goals, requests, grants] = await Promise.all([
         client.pb.collection("users").getOne<User>(user.id),
         client.getBalance(user.id),
         client.listActiveAssignmentsForChild(user.id),
@@ -69,6 +76,9 @@ export function SimpleKidHome({ user, onLogout }: { user: User; onLogout: () => 
         client.getRecentBroadcasts(user.household, 3),
         client.listBroadcastReplies(user.id),
         client.listKudosForChild(user.id),
+        client.listGoals(user.id),
+        client.listSpendRequestsForChild(user.id),
+        client.listQueuedGrantsForChild(user.id),
       ]);
       setMe(freshMe);
       setBalance(bal);
@@ -79,6 +89,9 @@ export function SimpleKidHome({ user, onLogout }: { user: User; onLogout: () => 
       setBroadcasts(bcs);
       setReplies(Object.fromEntries(reps.map((r) => [r.broadcast, r.code])));
       setKudos(awards);
+      setBankGoals(goals);
+      setBankRequests(requests);
+      setBankGrants(grants);
       const unseen = awards.filter((award) => !award.seen_at && !acknowledgedKudos.current.has(award.id));
       if (
         unseen.length === 0 &&
@@ -235,6 +248,7 @@ export function SimpleKidHome({ user, onLogout }: { user: User; onLogout: () => 
         </Surface>
 
         <KudosHistory awards={kudos} currencyName={currencyName} simple />
+        <MyBank balance={balance} currency={currencyName} goodsRate={goodsRate} screenRate={rate} streak={me.streak_count ?? 0} assignments={assignments} goals={bankGoals} requests={bankRequests} grants={bankGrants} simple />
 
         <Surface style={styles.choreCard} elevation={2}>
           <Text style={styles.choreEmoji}>📱</Text>
@@ -274,6 +288,10 @@ export function SimpleKidHome({ user, onLogout }: { user: User; onLogout: () => 
             <Text style={[styles.choreName, { color: theme.colors.onSurface }]}>
               {a.expand?.chore?.name ?? "Chore"}
             </Text>
+            {a.expand?.chore ? (
+              <ChoreNotes text={a.expand.chore.description} />
+            ) : null}
+            {!!a.due_at && <Text>Due {new Date(a.due_at).toLocaleString()}</Text>}
             {a.expand?.chore ? (
               <Text style={[styles.choreReward, { color: accentColor }]}>
                 +{payLabel(a.expand.chore, user.avatar_emoji || "💰")}

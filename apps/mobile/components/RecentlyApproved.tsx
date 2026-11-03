@@ -73,7 +73,8 @@ export function RecentlyApproved({
           <Card.Content>
             <Text variant="titleSmall">{a.expand?.chore?.name ?? "Chore"}</Text>
             <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant }}>
-              {a.expand?.child?.display_name ?? "child"} · +{a.expand?.chore ? payLabel(a.expand.chore, currencyName) : "?"}
+              {a.expand?.child?.display_name ?? "child"} · +{a.expand?.chore ? payLabel(a.expand.chore, currencyName, a.credit_percent) : "?"}
+              {a.credit_percent && a.credit_percent < 100 ? ` (${a.credit_percent}% credit)` : ""}
             </Text>
             <View style={styles.actions}>
               <View style={styles.reactions}>

@@ -46,6 +46,9 @@ export interface Household extends BaseRecord {
   screen_rate?: number;
   /** Suggested amount for a parent "Great work" kudos award. */
   kudos_default_bucks?: number;
+  /** Server-local HH:MM-HH:MM delivery windows; blank means all day. */
+  grant_weekday_window?: string;
+  grant_weekend_window?: string;
 }
 
 // ─── Users ───────────────────────────────────────────────────────────────────
@@ -115,6 +118,10 @@ export interface Chore extends BaseRecord {
   active: boolean;
   /** Optional deadline (one-offs). Cron escalates reminders: 24h → 2h → overdue. */
   due_at?: string;
+  /** Recurring deadline in server-local time (HH:MM); blank disables it. */
+  due_time?: string;
+  /** Weekly: Sunday=0..Saturday=6. Monthly: 1..31 (clamped to month end). */
+  due_day?: number;
   /** Race chore: assigned to several kids; first approval wins, others close. */
   race?: boolean;
   /** "HH:MM" server-local; cron reminds assigned kids daily at this time. */
@@ -137,6 +144,8 @@ export interface ChoreTemplate extends BaseRecord {
   reward: number;
   type: ChoreType;
   cadence?: string;
+  due_time?: string;
+  due_day?: number;
   photo_required: boolean;
   race?: boolean;
   reminder_time?: string;
@@ -160,6 +169,10 @@ export interface Assignment extends BaseRecord {
   chore: string; // -> chores.id
   child: string; // -> users.id
   status: AssignmentStatus;
+  /** Parent approval percentage; empty/0 on legacy rows means full credit. */
+  credit_percent?: number;
+  /** Server-computed deadline for this recurring cycle. */
+  due_at?: string;
   completed_at?: string;
   approved_at?: string;
   /** PocketBase file name; present when photo proof was attached. */

@@ -144,10 +144,18 @@ onRecordUpdate((e) => {
 // doesn't pay. Server-side so old APKs and direct API calls get the same rules.
 for (const collection of ["chores", "chore_templates"]) {
   onRecordCreateRequest((e) => {
+    if (e.record.getString("description").length > 1000) {
+      throw new BadRequestError("Chore notes must be 1000 characters or fewer.");
+    }
+    require(__hooks + "/lib/recurringDue.js").validate(e.record);
     require(__hooks + "/lib/chorePay.js").enforce(e.record);
     e.next();
   }, collection);
   onRecordUpdateRequest((e) => {
+    if (e.record.getString("description").length > 1000) {
+      throw new BadRequestError("Chore notes must be 1000 characters or fewer.");
+    }
+    require(__hooks + "/lib/recurringDue.js").validate(e.record);
     require(__hooks + "/lib/chorePay.js").enforce(e.record);
     e.next();
   }, collection);

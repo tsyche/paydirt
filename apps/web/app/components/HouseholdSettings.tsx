@@ -59,6 +59,8 @@ export function HouseholdSettings({
     currency_name: household.currency_name ?? "",
     bank_threshold: household.bank_threshold ?? 0,
     kudos_default_bucks: kudosDefaultBucks(household),
+    grant_weekday_window: household.grant_weekday_window ?? "",
+    grant_weekend_window: household.grant_weekend_window ?? "",
     expiry_days: household.expiry_days ?? 0,
     goods_rate: household.goods_rate ?? 0,
     screen_rate: screenRate(household),
@@ -163,6 +165,16 @@ export function HouseholdSettings({
             onChange={(e) => setForm({ ...form, kudos_default_bucks: Math.max(1, num(e.target.value)) })}
             style={{ width: 90 }}
           />
+        </div>
+        <div className="settings-row">
+          <label>Weekday time delivery (server-local; blank = all day)
+            <input placeholder="15:30-20:00" maxLength={11} value={form.grant_weekday_window} onChange={(e) => setForm({ ...form, grant_weekday_window: e.target.value.trim() })} />
+          </label>
+        </div>
+        <div className="settings-row">
+          <label>Weekend time delivery (server-local; blank = all day)
+            <input placeholder="08:00-20:00" maxLength={11} value={form.grant_weekend_window} onChange={(e) => setForm({ ...form, grant_weekend_window: e.target.value.trim() })} />
+          </label>
         </div>
         <div className="settings-row">
           <label>Rewards expire after days <Tip k="expiry_days" /> <span className="muted">(0 = off)</span></label>

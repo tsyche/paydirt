@@ -86,13 +86,14 @@ onRecordAfterUpdateSuccess((e) => {
     e.record.original().getString("status") !== "approved";
   if (becameApproved) {
     const chore = e.app.findRecordById("chores", e.record.getString("chore"));
-    const pay = require(`${__hooks}/lib/chorePay.js`).normalizePay(chore);
+    const percent = e.record.getFloat("credit_percent") || 100;
+    const pay = require(`${__hooks}/lib/chorePay.js`).partialPay(chore, percent);
     if (pay.bucks > 0) {
       const tx = new Record(e.app.findCollectionByNameOrId("currency_transactions"));
       tx.set("user", e.record.getString("child"));
       tx.set("amount", pay.bucks);
       tx.set("type", "earn");
-      tx.set("reason", "Chore: " + chore.getString("name"));
+      tx.set("reason", "Chore: " + chore.getString("name") + (percent < 100 ? " (" + percent + "% credit)" : ""));
       tx.set("related_assignment", e.record.id);
       e.app.save(tx);
     }

@@ -251,9 +251,10 @@ export class PaydirtClient {
   }
 
   /** Parent approval — the hook creates the earn transaction and bumps balance. */
-  approveAssignment(assignmentId: string): Promise<Assignment> {
+  approveAssignment(assignmentId: string, creditPercent = 100): Promise<Assignment> {
     return this.pb.collection(Collections.Assignments).update<Assignment>(assignmentId, {
       status: "approved",
+      credit_percent: creditPercent,
       approved_at: new Date().toISOString(),
       needs_help: false,
     });
@@ -561,6 +562,13 @@ export class PaydirtClient {
     return this.pb.collection(Collections.TimeGrants).update<TimeGrant>(id, { grant_status: "manual_done" });
   }
 
+  listQueuedGrantsForChild(childId: string): Promise<TimeGrant[]> {
+    return this.pb.collection(Collections.TimeGrants).getFullList<TimeGrant>({
+      filter: this.pb.filter("child = {:child} && grant_status = 'queued'", { child: childId }),
+      sort: "created",
+    });
+  }
+
   confirmManualGrant(id: string): Promise<SpendRequest> {
     return this.pb.collection(Collections.SpendRequests).update<SpendRequest>(id, {
       grant_status: "manual_done",
@@ -788,6 +796,12 @@ export class PaydirtClient {
         filter: this.pb.filter("child = {:c}", { c: childId }),
       }),
       this.pb.collection(Collections.Kudos).subscribe("*", onChange, {
+        filter: this.pb.filter("child = {:c}", { c: childId }),
+      }),
+      this.pb.collection(Collections.SpendRequests).subscribe("*", onChange, {
+        filter: this.pb.filter("child = {:c}", { c: childId }),
+      }),
+      this.pb.collection(Collections.TimeGrants).subscribe("*", onChange, {
         filter: this.pb.filter("child = {:c}", { c: childId }),
       }),
       this.pb.collection(Collections.Users).subscribe(childId, onChange),

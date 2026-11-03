@@ -17,8 +17,10 @@
 - **Ledger view** — web "📒 Ledger" tab (per-kid + month filter, net total) and a mobile ledger tab show the full transaction history.
 - **photo_required enforcement** — server guard (`guards.pb.js`) rejects completion without a photo; `KidHome` shows camera button for photo-required chores (`expo-image-picker`).
 - **Chore repeat limits** — optional `max_per_period` per chore (and every starter chore); assigning a kid past it prompts "assign anyway?" in web and mobile. Advisory only.
+- **Chore notes** — optional plain-text instructions (up to 1,000 characters) in web/mobile create and edit forms, copied through templates and shown on kid cards and approval rows. Existing assignments display the current chore note.
 - **Starter chores** — curated chores by age band (4-6, 7-9, 10-12, 13+) in `packages/shared/src/starterChores.ts`; web Chores tab picker skips ones already added, and `just go-live` can seed whole bands.
 - **Approval undo** — "Recently approved" section in dashboard; `undoApproval()` moves the assignment back to completed and a server hook writes the compensating ledger entry (double-undo impossible; kids blocked from touching approved chores).
+- **Partial credit** — parent-only percentage approval on web/mobile, with 25/50/75% picks and a custom percentage. Grit scales to two decimals; minutes round down to five-minute steps. Approval closes the chore and counts as done (including race resolution); no remainder stays open. Zero-payout percentages are rejected. Undo reverses the actual payout; time grants remain irreversible. Validation is deferred.
 - **Real-time updates** — kid screens subscribe to their assignments + balance via PocketBase realtime (`subscribeToKidUpdates()`); approvals appear without pull-to-refresh. SSE polyfill (`react-native-sse`) on mobile.
 - **Household broadcast** — parent sends a one-liner to all kids from the dashboard; `broadcasts` collection + ntfy fan-out hook; only parents can send. The other parent gets the full text (attributed to the sender) and the kids can answer with one-tap canned replies (`broadcast_replies`), which push to both parents.
 - **Integration test suite** — live API tests for the shared client and every PB hook/guard (currency math, undo reversal, photo guard, balance guard, role guards, broadcast rules, realtime). `just test-integration`.
@@ -27,6 +29,7 @@
 - **Rejected-chore flow** — kids reply to rejections (`kid_response`, parents notified + shown in dashboard) or resubmit; resubmission requires a freshly uploaded photo, enforced server-side. Simplified mode gets a big "Try again 📷" button.
 - **Collapsible history** — kid history is an accordion, closed by default, capped at the 50 most recent approvals (paged query, not getFullList).
 - **Deadlines + escalating reminders** — optional `due_at` per chore; cron escalates 24h → 2h → overdue (parents pinged on overdue).
+- **Recurring due days** — daily due time, weekly weekday/time, or monthly day/time on chores and templates (server-local timezone). Each new assignment snapshots its next deadline; overdue chores stay open at full pay and reminders escalate once per stage. Monthly days clamp to month end. Validation is deferred.
 - **Race mechanic** — race chores assigned to everyone; first approval wins, the rest auto-close with a "who won" notification.
 - **Kid-proposed chores** — kids pitch a chore + asking price; parents approve at a negotiated reward (auto-creates chore + assignment) or decline.
 - **Savings goals** — kid-created targets with progress bars; hook marks achieved + notifies both sides when the balance crosses the target.
@@ -58,8 +61,10 @@
 - **Auto-save to goals** — `auto_save_percent` on a savings goal diverts that slice of each earn.
 - **Approval photo grid** — inline photo thumbnails with tap-to-enlarge in both approval queues.
 - **Quiet hours** — household window that holds back pushes (still logged to the inbox).
+- **Screen-time delivery windows (first slice)** — weekday/weekend household windows in web/mobile settings hold queued purchases and chore bonuses until allowed server-local hours. Blank means unrestricted. Parent views and kid My Bank show unlock information; successful delivery sends a kid notification. Already-published jobs continue normally. Further scope and deferred validation are tracked in ROADMAP.
 - **Backups + in-app updates** — nightly PocketBase backups (7 kept) and APK self-update from the host (`just ship`); see [docs/DEPLOYMENT.md](./docs/DEPLOYMENT.md).
 - **Parent Overview** — chart-icon modal (web + mobile): paid vs. potential for a week/month/year, screen-time vs. real-money redemptions, per-kid chores, streak and earnings, weekly potential.
+- **Kid My Bank** — both kid homes show available grit after pending requests, dollar/screen-minute equivalents, estimated rewards awaiting approval, streak, and savings-goal progress. Goals share the bank balance rather than reserving separate pots; no sibling information is shown. Validation is deferred.
 - **In-app update** — the app downloads the new APK in-process with progress, then hands it to the installer (survives the "Install unknown apps" restart).
 
 ## Not Yet Implemented

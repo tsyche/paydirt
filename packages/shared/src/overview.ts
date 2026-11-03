@@ -4,7 +4,7 @@
 // `goods_rate` changes; the UI says which rate it used.
 
 import { choreLimit, limitWindowDays } from "./choreLimit";
-import { MINUTES_STEP, normalizePay } from "./chorePay";
+import { MINUTES_STEP, normalizePay, partialPay } from "./chorePay";
 import type { Assignment, Chore, CurrencyTransaction, SpendRequest } from "./types";
 
 /** A kid's own dollar rate when set (> 0), else the household's. PocketBase returns 0, not null, for an empty number. */
@@ -32,6 +32,18 @@ export interface BankView {
 
 export function bankView(balance: number, goodsRate: number, screenRate: number): BankView {
   return { dollars: toDollars(balance, goodsRate), screenMinutes: bucksToMinutes(balance, screenRate) };
+}
+
+/** Pending chore rewards are estimates; pending spending reduces availability. */
+export function kidBankSummary(
+  balance: number,
+  assignments: { status: string; expand?: { chore?: Chore } }[],
+  requests: Pick<SpendRequest, "status" | "amount">[],
+) {
+  const pendingSpend = requests.filter((r) => r.status === "pending").reduce((sum, r) => sum + r.amount, 0);
+  const pendingEarn = assignments.filter((a) => a.status === "completed")
+    .reduce((sum, a) => sum + (a.expand?.chore ? normalizePay(a.expand.chore).bucks : 0), 0);
+  return { pendingSpend, pendingEarn, available: Math.max(0, balance - pendingSpend) };
 }
 
 export interface BankRow {
@@ -189,7 +201,7 @@ export interface PeriodSummary {
 }
 
 type PeriodTxn = Pick<CurrencyTransaction, "amount" | "type">;
-type PeriodAssignment = Pick<Assignment, "approved_at"> & { expand?: { chore?: Pick<Chore, "reward" | "reward_minutes" | "pay_mode"> } };
+type PeriodAssignment = Pick<Assignment, "approved_at" | "credit_percent"> & { expand?: { chore?: Pick<Chore, "reward" | "reward_minutes" | "pay_mode"> } };
 
 export function summarizePeriod(txns: PeriodTxn[], assignments: PeriodAssignment[]): PeriodSummary {
   let earned = 0;
@@ -205,7 +217,7 @@ export function summarizePeriod(txns: PeriodTxn[], assignments: PeriodAssignment
   let bonusMinutes = 0;
   for (const a of assignments) {
     const c = a.expand?.chore;
-    if (c) bonusMinutes += normalizePay(c).minutes;
+    if (c) bonusMinutes += partialPay(c, a.credit_percent || 100).minutes;
   }
   return { earned, kudos, adjustments, spent, bonusMinutes, chores: assignments.length };
 }

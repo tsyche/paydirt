@@ -210,16 +210,13 @@ function runTick(app) {
     // 2 = within 2h, 3 = overdue (parents get pinged on overdue too).
     const dueChores = app.findRecordsByFilter(
       "chores",
-      "household = {:hh} && active = true && due_at != ''",
+      "household = {:hh} && active = true",
       "",
       0,
       0,
       { hh: hh.id },
     );
     for (const chore of dueChores) {
-      const due = new Date(chore.getString("due_at").replace(" ", "T"));
-      const stage = computeDueStage(now, due);
-      if (stage === 0) continue;
       const open = app.findRecordsByFilter(
         "assignments",
         "chore = {:c} && status = 'assigned'",
@@ -229,6 +226,10 @@ function runTick(app) {
         { c: chore.id },
       );
       for (const a of open) {
+        const deadline = a.getString("due_at") || chore.getString("due_at");
+        if (!deadline) continue;
+        const stage = computeDueStage(now, new Date(deadline.replace(" ", "T")));
+        if (stage === 0) continue;
         const prevStage = a.getFloat("reminder_stage");
         if (!shouldEscalate(stage, prevStage, false)) continue;
         const name = chore.getString("name");
@@ -350,7 +351,10 @@ function runDaily(app) {
           // the last was created. Daily (or anything else) re-assigns as soon
           // as there's no open assignment.
           const cadenceDays = cadence === "weekly" ? 7 : cadence === "monthly" ? 30 : 0;
-          if (cadenceDays > 0) {
+          const lastDeadline = lastByChild[childId].getString("due_at");
+          if (chore.getString("due_time") && lastDeadline &&
+              now < new Date(lastDeadline.replace(" ", "T"))) continue;
+          if (cadenceDays > 0 && !chore.getString("due_time")) {
             const lastCreated = new Date(lastByChild[childId].getString("created").replace(" ", "T"));
             if ((now.getTime() - lastCreated.getTime()) < cadenceDays * 86400e3) continue;
           }

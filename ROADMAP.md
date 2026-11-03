@@ -34,14 +34,14 @@ Last audit 2026-11-02: closed the Family Link checks (moved to the shipped ledge
 ## Recommended Next 3
 
 1. **Kudos: parent "you did good" bonus** — **Building.** A parent chooses the kid, amount, and optional reason; the server creates an immutable award plus a non-expiring ledger credit, and the kid gets a push, one-time celebration, private history, and count badge. Web + mobile parent action ships together. [Plan](docs/plans/kudos.md). ~4-6 hrs.
-2. **Chore notes / extra details** — schema already has the field; add forms, template pre-fill, kid display, and approval display. See [Backlog](#backlog-unscheduled). ~2-3 hrs.
-3. **Recurring due days** — recurring deadline rule plus cycle-specific assignment deadline, existing escalation, and web/mobile display. See [Backlog](#backlog-unscheduled). ~3-5 hrs.
+2. **Chore notes / extra details** — implemented locally; validation deferred at owner's request. Web/mobile forms and templates, kid cards, and approval rows use the current chore note; server cap is 1,000 characters.
+3. **Recurring due days** — implemented locally; validation deferred at owner's request. Daily/weekly/monthly rules use server-local time, snapshot the next deadline per new assignment, and retain existing escalation. Overdue chores stay open at full pay; rule edits affect future assignments.
 
 ### Then, in order
 
-1. **Partial credit**
-2. **Kid "My Bank" dashboard**
-3. **Time-grant windows (after-hours delivery)**
+1. **Partial credit** — implemented locally; validation deferred at owner's request. Parent-only percentage approval on web/mobile; closes the chore, scales grit, rounds minutes down to five-minute steps, and rejects a zero payout.
+2. **Kid "My Bank" dashboard** — implemented locally; validation deferred at owner's request. Both kid homes show available balance after pending spending, conversions, estimated pending earnings, savings goals, and streak.
+3. **Time-grant windows (after-hours delivery)** — first slice implemented locally; validation deferred. Household weekday/weekend windows gate publication of purchase and chore grants, with queued unlock messages in parent views and kid My Bank. Uses server-local time. Remaining: stored household timezone, per-kid overrides, expiry/caps, and a worker-side delivery-time check (already-published jobs can finish after a window closes).
 4. **Timed chores**
 
 ## Phase 2 — Family Link Automation
@@ -52,6 +52,9 @@ Last audit 2026-11-02: closed the Family Link checks (moved to the shipped ledge
 - **API grant in production** — shipped 2026-11-02 (see the [shipped ledger](docs/ledger/ROADMAP_SHIPPED.md)). Session lifetime is tracked by *Family Link session keep-alive* in the backlog.
 - **Accessibility fallback (shelved)** — `FamilyLinkAccessibilityService.kt`; only revisit if the API path dies. Would require PayDirt + a push distributor in the same profile as Family Link.
 - **Manual fallback** — retained regardless; users who don't have/need Family Link still get the approval flow.
+
+- **Per-kid bonus screen time** — extend the normal parent Bonus action with a minutes option on web and mobile. A parent picks the kid, minutes, and optional reason; no chore or grit purchase is required. Reuse the existing Family Link grant queue, additive delivery, status display, and manual fallback. Record an auditable standalone grant without inventing a currency transaction; show the exact minutes before confirmation and prevent duplicate delivery on retries. Time cannot be deducted or undone through this action. Apply time-grant windows when that feature lands.
+- **Remaining daily Family Link time** — show each kid's current remaining daily screen time in the parent kid detail on web and mobile. First verify whether the existing authenticated Family Link API exposes a reliable remaining-time value and what it includes (base allowance, bonus time, device usage, school-time/bedtime restrictions, and multiple devices). Display the source's last-updated time and an unavailable/stale state; never infer remaining time from PayDirt grants alone. Keep Google session material on bb and return only the needed summary. API feasibility and comparison against a real tablet remain unverified; device confirmation needs a human.
 
 ## Phase 3 — Custom MDM
 

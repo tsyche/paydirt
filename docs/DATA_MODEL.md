@@ -30,6 +30,7 @@ declare them in their own creation migration. Omitting them previously caused
 | streak_bonus_3 / _7 / _14 / _30 | number | bonus granted at each streak milestone; 0 = default |
 | allowance_amount / allowance_cadence / allowance_last_paid | number / select(`daily`,`weekly`) / date | scheduled allowance; paid by the daily cron, `allowance_last_paid` is the dedupe marker |
 | kudos_default_bucks | number | default amount for a parent "Great work" bonus; unset = 100 |
+| grant_weekday_window / grant_weekend_window | text | optional HH:MM-HH:MM server-local delivery windows; blank = all day, overnight allowed; checked before publishing a queued grant |
 
 ### `users` (extends PocketBase auth)
 | Field | Type | Notes |
@@ -55,7 +56,7 @@ declare them in their own creation migration. Omitting them previously caused
 |-------|------|-------|
 | household | relation → households | required |
 | name | text | required |
-| description | text | optional |
+| description | text | optional chore instructions; API capped at 1,000 characters; assignments show the current value |
 | reward | number | parentBucks on approval; required for `bucks`/`both`, forced to 0 for `time` |
 | pay_mode | select(`bucks`,`time`,`both`) | what approval pays; empty = `bucks`. Same on `chore_templates` |
 | reward_minutes | number | screen minutes on approval (`time`/`both`); multiples of 5, max 120; forced to 0 for `bucks`. Same on `chore_templates` |
@@ -65,6 +66,7 @@ declare them in their own creation migration. Omitting them previously caused
 | created_by | relation → users | parent |
 | active | bool | default true |
 | due_at | date | optional deadline; cron escalates reminders 24h → 2h → overdue |
+| due_time / due_day | text / number | recurring deadline: HH:MM server-local; weekly day 0 Sunday–6 Saturday, monthly day 1–31 clamped to month end; also on templates |
 | race | bool | first approval wins; other assignments auto-close |
 | reminder_time | text | "HH:MM" server-local; cron reminds assigned kids daily |
 | max_per_period | number | normal repeat limit per kid per cadence window (daily 1d, weekly 7d, monthly 30d, one-off 7d); 0/unset = none. Advisory: assigning past it warns and the parent can override (`assignLimitWarnings`, `packages/shared/src/choreLimit.ts`); nothing server-side. Also on `chore_templates` |
@@ -80,7 +82,9 @@ One per (chore, child). Status: `assigned` → `completed` → `approved`/`rejec
 | child | relation → users | required |
 | status | select(`assigned`,`completed`,`approved`,`rejected`,`closed`) | default `assigned` |
 | completed_at | date | set when child marks done |
+| due_at | date | server-computed recurring deadline, fixed at assignment creation; new rule applies to future assignments |
 | approved_at | date | set on parent approval |
+| credit_percent | number | parent-only integer 1–100 on approval; legacy 0/unset = full credit; immutable while settled. Partial approval closes the assignment |
 | photo | file (single) | optional proof |
 | rejection_message | text | optional |
 | kid_response | text | kid's reply to a rejection; parents notified |

@@ -35,6 +35,13 @@ function publish(app, record) {
     if (exists(dir + "/" + part + "/" + name)) return;
   }
   const child = app.findRecordById("users", record.getString("child"));
+  const household = app.findRecordById("households", child.getString("household"));
+  const state = require(__hooks + "/lib/grantWindows.js").windowState(household, new Date());
+  if (record.getString("grant_error") !== state.message) {
+    record.set("grant_error", state.message);
+    app.save(record);
+  }
+  if (!state.open) return;
   const job = {
     id: record.id,
     childId: child.getString("fl_child_id"),
@@ -57,7 +64,8 @@ function notifyManual(app, record) {
 function reconcile(app) {
   const rows = app.findRecordsByFilter("spend_requests",
     "status = 'approved' && grant_status = 'queued'", "created", 0, 0)
-    .concat(app.findRecordsByFilter("time_grants", "grant_status = 'queued'", "created", 0, 0));
+    .concat(app.findRecordsByFilter("time_grants", "grant_status = 'queued'", "created", 0, 0))
+    .sort((a, b) => a.getString("created").localeCompare(b.getString("created")));
   for (const record of rows) {
     try {
       const file = queueDir() + "/results/" + record.id + ".json";
@@ -79,6 +87,10 @@ function reconcile(app) {
       record.set("grant_status", result.status);
       record.set("grant_error", result.status === "manual" ? errors[result.error] || errors.failed : "");
       app.save(record);
+      if (result.status === "granted") {
+        require(__hooks + "/lib/ntfy.js").notifyUser(app, record.getString("child"),
+          "Screen time delivered 📱", minutesOf(record) + " minutes have landed.", "time_granted");
+      }
       // Keep the receipt on disk: a repeated publish can never replay it.
       if (result.status === "manual") notifyManual(app, record);
     } catch (_) {
