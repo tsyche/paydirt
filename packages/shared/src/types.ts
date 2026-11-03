@@ -44,6 +44,8 @@ export interface Household extends BaseRecord {
   kids_see_balances?: boolean;
   /** parentBucks per minute of screen time. 0/unset = DEFAULT_SCREEN_RATE. */
   screen_rate?: number;
+  /** Suggested amount for a parent "Great work" kudos award. */
+  kudos_default_bucks?: number;
 }
 
 // ─── Users ───────────────────────────────────────────────────────────────────
@@ -217,7 +219,7 @@ export interface ChoreProposal extends BaseRecord {
 
 // ─── Currency ────────────────────────────────────────────────────────────────
 
-export type TransactionType = "earn" | "spend" | "manual_adjustment";
+export type TransactionType = "earn" | "spend" | "manual_adjustment" | "kudos";
 
 /**
  * Append-only ledger. Positive amount = earn, negative = spend.
@@ -231,6 +233,20 @@ export interface CurrencyTransaction extends BaseRecord {
   reason?: string;
   related_assignment?: string; // -> assignments.id
   related_spend_request?: string; // -> spend_requests.id
+  related_kudos?: string; // -> kudos.id
+}
+
+// ─── Kudos ───────────────────────────────────────────────────────────────────
+
+/** A parent-only "Great work" bonus. The linked ledger row credits the grit. */
+export interface KudosAward extends BaseRecord {
+  household: string; // -> households.id
+  child: string; // -> users.id
+  given_by: string; // -> users.id (parent)
+  reason?: string;
+  bucks: number;
+  /** Server-written when the kid has seen the celebration. */
+  seen_at?: string;
 }
 
 // ─── Broadcasts ──────────────────────────────────────────────────────────────

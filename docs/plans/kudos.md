@@ -1,6 +1,6 @@
 # Kudos (parent "you did good" bonus)
 
-**Status:** Draft
+**Status:** Building
 **Fold into:** [FEATURES.md](../../FEATURES.md), [DATA_MODEL.md](../DATA_MODEL.md)
 
 **TL;DR:** A parent gives a kid a subjective bonus (default 100 grit, adjustable) with an optional reason. The kid gets a push, a celebration the next time they open the app, a "Great work" badge with a running count, and a private history list. No minutes, no per-grade pay.

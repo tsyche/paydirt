@@ -7,6 +7,8 @@ export const FEATURE_TIPS: Record<string, string> = {
     "One-click themed currency names. Pick one or type your own above.",
   bank_threshold:
     "When a kid's balance reaches this amount, it auto-banks into savings. 0 = off.",
+  kudos_default_bucks:
+    "Starting amount for a parent Great work award. Each award can still use a different amount.",
   expiry_days:
     "Days before unspent earnings expire. 0 = never expire (recommended for young kids).",
   goods_rate:

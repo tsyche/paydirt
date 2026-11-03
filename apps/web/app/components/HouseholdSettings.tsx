@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { createPortal } from "react-dom";
 import type { Household } from "@paydirt/shared";
-import { CURRENCY_PRESETS, DEFAULT_CURRENCY_NAME, currencyDisplayName, featureTip, screenRate } from "@paydirt/shared";
+import { CURRENCY_PRESETS, DEFAULT_CURRENCY_NAME, currencyDisplayName, featureTip, kudosDefaultBucks, screenRate } from "@paydirt/shared";
 import { client } from "../lib/client";
 
 function Tip({ k }: { k: string }) {
@@ -58,6 +58,7 @@ export function HouseholdSettings({
   const [form, setForm] = useState({
     currency_name: household.currency_name ?? "",
     bank_threshold: household.bank_threshold ?? 0,
+    kudos_default_bucks: kudosDefaultBucks(household),
     expiry_days: household.expiry_days ?? 0,
     goods_rate: household.goods_rate ?? 0,
     screen_rate: screenRate(household),
@@ -149,6 +150,17 @@ export function HouseholdSettings({
             min={0}
             value={form.bank_threshold}
             onChange={(e) => setForm({ ...form, bank_threshold: num(e.target.value) })}
+            style={{ width: 90 }}
+          />
+        </div>
+        <div className="settings-row">
+          <label>⭐ Kudos default amount <Tip k="kudos_default_bucks" /></label>
+          <input
+            type="number"
+            min={1}
+            step="any"
+            value={form.kudos_default_bucks}
+            onChange={(e) => setForm({ ...form, kudos_default_bucks: Math.max(1, num(e.target.value)) })}
             style={{ width: 90 }}
           />
         </div>

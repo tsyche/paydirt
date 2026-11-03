@@ -177,6 +177,8 @@ export function periodRange(kind: PeriodKind, now: Date, offset = 0): { start: s
 export interface PeriodSummary {
   /** Positive `earn` rows: chores, streak bonuses. */
   earned: number;
+  /** Parent "Great work" bonuses, tracked separately from chore earnings. */
+  kudos: number;
   /** Parent bonuses (+) and deductions (-) net. */
   adjustments: number;
   /** Absolute value of `spend` rows: screen time, goods, anything redeemed. */
@@ -191,10 +193,12 @@ type PeriodAssignment = Pick<Assignment, "approved_at"> & { expand?: { chore?: P
 
 export function summarizePeriod(txns: PeriodTxn[], assignments: PeriodAssignment[]): PeriodSummary {
   let earned = 0;
+  let kudos = 0;
   let adjustments = 0;
   let spent = 0;
   for (const t of txns) {
     if (t.type === "earn" && t.amount > 0) earned += t.amount;
+    else if (t.type === "kudos" && t.amount > 0) kudos += t.amount;
     else if (t.type === "spend") spent += Math.abs(t.amount);
     else if (t.type === "manual_adjustment") adjustments += t.amount;
   }
@@ -203,19 +207,20 @@ export function summarizePeriod(txns: PeriodTxn[], assignments: PeriodAssignment
     const c = a.expand?.chore;
     if (c) bonusMinutes += normalizePay(c).minutes;
   }
-  return { earned, adjustments, spent, bonusMinutes, chores: assignments.length };
+  return { earned, kudos, adjustments, spent, bonusMinutes, chores: assignments.length };
 }
 
 export function addSummaries(list: PeriodSummary[]): PeriodSummary {
   return list.reduce<PeriodSummary>(
     (a, s) => ({
       earned: a.earned + s.earned,
+      kudos: a.kudos + s.kudos,
       adjustments: a.adjustments + s.adjustments,
       spent: a.spent + s.spent,
       bonusMinutes: a.bonusMinutes + s.bonusMinutes,
       chores: a.chores + s.chores,
     }),
-    { earned: 0, adjustments: 0, spent: 0, bonusMinutes: 0, chores: 0 },
+    { earned: 0, kudos: 0, adjustments: 0, spent: 0, bonusMinutes: 0, chores: 0 },
   );
 }
 

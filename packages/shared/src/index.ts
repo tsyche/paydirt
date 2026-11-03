@@ -18,6 +18,7 @@ export * from "./chorePay";
 export * from "./activity";
 export * from "./pendingCounts";
 export * from "./overview";
+export * from "./kudos";
 // updates.ts is NOT exported here — it uses node:crypto/Buffer and is only
 // consumed by scripts/publish-update.mjs (via --experimental-strip-types) and
 // its own unit tests. Exporting it would make mobile/web typechecks pull in

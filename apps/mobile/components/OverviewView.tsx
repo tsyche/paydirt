@@ -115,6 +115,8 @@ export function OverviewView({
             <Tile label="Real money redeemed" value={usd(toDollars(split?.goodsBucks ?? 0, goodsRate))} sub={`${split?.goodsBucks ?? 0} ${currency} on goods`} />
             <Tile label="Earned by kids" value={`${total.earned} ${currency}`}
               sub={`${usd(toDollars(total.earned, goodsRate))}${delta !== null ? ` · ${delta >= 0 ? "+" : ""}${delta}% vs last ${kind}` : ""}`} />
+            <Tile label="Great work kudos" value={`+${total.kudos} ${currency}`}
+              sub={usd(toDollars(total.kudos, goodsRate))} />
             <Tile label="Redeemed" value={`${total.spent} ${currency}`} sub={usd(toDollars(total.spent, goodsRate))} />
             <Tile label="Bonus time from chores" value={`${total.bonusMinutes} min`} sub={`${total.chores} chores done`} />
             <Tile label="Parent adjustments" value={`${total.adjustments >= 0 ? "+" : ""}${total.adjustments} ${currency}`} />

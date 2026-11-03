@@ -7,11 +7,14 @@ import type { Badge } from "@paydirt/shared";
  * with its progress so there's always something to reach for. Pure display;
  * computation lives in @paydirt/shared computeBadges.
  */
-export function BadgeShelf({ badges }: { badges: Badge[] }) {
+export function BadgeShelf({ badges, kudosCount = 0 }: { badges: Badge[]; kudosCount?: number }) {
   const theme = useTheme();
   const earned = badges.filter((b) => b.earned);
   const next = badges.find((b) => !b.earned);
-  const shown = next ? [...earned, next] : earned;
+  const kudos: Badge[] = kudosCount > 0
+    ? [{ id: "great_work", icon: "⭐", label: `Great work ×${kudosCount}`, earned: true, progress: null }]
+    : [];
+  const shown = [...(next ? [...earned, next] : earned), ...kudos];
   if (shown.length === 0) return null;
 
   return (

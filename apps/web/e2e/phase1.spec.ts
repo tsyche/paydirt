@@ -218,6 +218,56 @@ test("co-parents panel lists the other parent on the web", async ({ page }) => {
   await expect(page.getByText(/Parent 2/)).toBeVisible();
 });
 
+test("parent gives a kid a kudos bonus from the web", async ({ page }) => {
+  const reason = `E2E kudos ${Date.now()}`;
+  const parent = new PaydirtClient(PB_URL);
+  await parent.login("parent1@test.local", PW);
+  const kid = (await parent.listChildren(parent.currentUser!.household)).find(
+    (user) => user.display_name === "Kid 1",
+  )!;
+  const startingBalance = kid.balance;
+  let awardId: string | undefined;
+
+  try {
+    await signIn(page);
+    await goTab(page, /Kids/);
+    const card = page
+      .locator(".card")
+      .filter({ hasText: kid.display_name })
+      .filter({ has: page.getByRole("button", { name: /Give kudos/ }) });
+    await card.getByRole("button", { name: /Give kudos/ }).click();
+    await card.getByLabel(`Kudos amount for ${kid.display_name}`).fill("17");
+    await card.getByPlaceholder("Why? (optional)").fill(reason);
+    await card.getByRole("button", { name: "Give", exact: true }).click();
+    await expect(card.getByRole("button", { name: /Give kudos/ })).toBeVisible();
+
+    await expect.poll(async () =>
+      (await parent.listKudosForChild(kid.id)).some((award) => award.reason === reason),
+    ).toBe(true);
+    awardId = (await parent.listKudosForChild(kid.id)).find(
+      (award) => award.reason === reason,
+    )!.id;
+  } finally {
+    if (awardId) {
+      const admin = new PaydirtClient(PB_URL);
+      await admin.pb
+        .collection("_superusers")
+        .authWithPassword(
+          process.env.PB_ADMIN_EMAIL ?? "admin@paydirt.local",
+          process.env.PB_ADMIN_PASSWORD ?? "password123",
+        );
+      const txs = await admin.pb.collection("currency_transactions").getFullList({
+        filter: admin.pb.filter("related_kudos = {:k}", { k: awardId }),
+      });
+      for (const transaction of txs) {
+        await admin.pb.collection("currency_transactions").delete(transaction.id);
+      }
+      await admin.pb.collection("kudos").delete(awardId);
+      await admin.pb.collection("users").update(kid.id, { balance: startingBalance });
+    }
+  }
+});
+
 test("approvals tab shows a count badge for waiting actions", async ({ page }) => {
   await signIn(page);
   const badge = page.getByRole("tab", { name: /Approvals/ }).locator(".tab-badge");

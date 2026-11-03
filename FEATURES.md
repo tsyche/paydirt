@@ -6,13 +6,14 @@
 
 - **Data model** — MVP collections ([docs/DATA_MODEL.md](./docs/DATA_MODEL.md)) as a verified PocketBase migration; TypeScript mirror in `packages/shared`.
 - **Access rules** — household-scoped API rules for all collections; guard hook blocks kids from self-approving chores.
-- **Currency hooks** — chore approval earns parentBucks, spend approval deducts, ledger maintains cached balance, over-spending blocked, re-approval idempotent.
-- **Notification hooks** — ntfy fires for chore assigned/completed/approved/rejected and spend submitted/resolved. Topics set per user; end-to-end delivery confirmed.
-- **Shared client** (`packages/shared`) — typed PocketBase wrapper (auth, chores, assignments, currency, spend). Integration-tested against live server.
-- **Web dashboard** (`apps/web`, Next.js) — parent login, kids' balances, pending approvals (approve/reject), spend requests (approve/deny), create/assign chores, per-kid bonus/deduction.
+- **Currency hooks** — chore approval earns parentBucks, spend approval deducts, Kudos credits, ledger maintains cached balance, over-spending blocked, re-approval idempotent.
+- **Notification hooks** — ntfy fires for chore assigned/completed/approved/rejected, Kudos awards, and spend submitted/resolved. Topics set per user; end-to-end delivery confirmed.
+- **Shared client** (`packages/shared`) — typed PocketBase wrapper (auth, chores, assignments, currency, Kudos, spend). Integration-tested against live server.
+- **Web dashboard** (`apps/web`, Next.js) — parent login, kids' balances, pending approvals (approve/reject), spend requests (approve/deny), create/assign chores, per-kid adjustment and Kudos action.
 - **Mobile app** (`apps/mobile`, Expo + react-native-paper) — role-gated; kid screen (balance, chores, mark done, spend request); simplified mode for young kids; runs on emulator.
 - **Simplified mode** — `SimpleKidHome` screen with giant text/buttons for early readers; branches on `simplified_mode` user field.
 - **Bonus/deduction UI** — `AdjustControl` per kid in the parent dashboard; calls `adjustBalance()`.
+- **Kudos** — a parent gives a child a configurable positive "Great work" bonus with optional reason. The immutable award writes a distinct non-expiring ledger type, sends a push, plays one cross-device celebration, and appears as private kid history + count badge. Parent controls ship on web and mobile; Overview shows a separate total.
 - **Ledger view** — web "📒 Ledger" tab (per-kid + month filter, net total) and a mobile ledger tab show the full transaction history.
 - **photo_required enforcement** — server guard (`guards.pb.js`) rejects completion without a photo; `KidHome` shows camera button for photo-required chores (`expo-image-picker`).
 - **Chore repeat limits** — optional `max_per_period` per chore (and every starter chore); assigning a kid past it prompts "assign anyway?" in web and mobile. Advisory only.
@@ -42,7 +43,7 @@
 - **Streak bonuses** — consecutive earn-days tracked per kid (🔥 shown in both apps); milestone bonuses at 3/7/14/30 days.
 - **Weekly digest** — Sunday-evening ntfy summary to parents (per-kid chores, earned/spent, balances, pending approvals).
 - **Vacation mode** — household pause switch suspends cron reminders, nudges, digest, and expiry.
-- **Household settings panel** — currency name, bank threshold, expiry days, goods rate, screen rate, nudge hours, quiet hours, allowance, streak bonuses, vacation mode — all in the dashboard, with instant ⓘ tips.
+- **Household settings panel** — currency name, bank threshold, expiry days, goods rate, screen rate, nudge hours, quiet hours, allowance, Kudos default, streak bonuses, vacation mode — all in the dashboard, with instant ⓘ tips.
 - **Dev tooling** — `just fresh` starts PB + web + Expo in one command with emulator check, health polling, and cache clear; `just stop` kills everything including the emulator app; `just fresh nuke=1` wipes node_modules and reseeds. `just seed`, `just reset-db`, `just lint`, `just typecheck`.
 - **CI pipeline** — GitHub Actions runs lint + typecheck + unit tests on every push/PR; integration + e2e (against a self-contained ephemeral PocketBase) run on `workflow_dispatch`.
 - **Ledger integrity verifier** — `just verify-ledger` recomputes every user's balance from `currency_transactions` and diffs it against the cached value; non-zero exit on mismatch. Runs as part of `just test-all` / CI.

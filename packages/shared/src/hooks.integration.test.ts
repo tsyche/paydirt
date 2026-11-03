@@ -5,7 +5,7 @@ import { Collections } from "./collections";
 import { adminPb, cleanupChores, cleanupSpendRequests, cleanupUsers } from "./integration.cleanup";
 import { TINY_JPEG, completionFormWithPhoto } from "./integration.fixtures";
 import { avatarUrl } from "./avatar";
-import type { SpendRequest, User } from "./types";
+import type { KudosAward, SpendRequest, User } from "./types";
 
 // The PocketBase SDK's realtime service needs a global EventSource; Node
 // doesn't provide one, so polyfill it for the realtime test.
@@ -75,6 +75,52 @@ describe("PocketBase hooks & guards (live)", () => {
     expect(await parent.getBalance(kidUser.id)).toBe(start + 5);
     await parent.adjustBalance(kidUser.id, -5, "hook test cleanup");
     expect(await parent.getBalance(kidUser.id)).toBe(start);
+  });
+
+  it("kudos create a private, immutable ledger credit and one-time celebration", async () => {
+    const email = `kudos-kid-${Date.now()}@test.local`;
+    const su = await adminPb();
+    const fresh = await su.collection("users").create<User>({
+      email,
+      password: PW,
+      passwordConfirm: PW,
+      verified: true,
+      role: "child",
+      display_name: "Kudos Kid",
+      household: householdId,
+    });
+    createdUsers.push(fresh.id);
+
+    const recipient = new PaydirtClient(PB_URL);
+    await recipient.login(email, PW);
+    const start = await parent.getBalance(fresh.id);
+    const award = await parent.giveKudos(fresh.id, 17, "Big effort");
+
+    expect(award.child).toBe(fresh.id);
+    expect(award.given_by).toBe(parent.currentUser!.id);
+    expect(award.seen_at).toBeFalsy();
+    expect(await parent.getBalance(fresh.id)).toBe(start + 17);
+
+    const tx = (await parent.listTransactions(fresh.id)).find((row) => row.related_kudos === award.id);
+    expect(tx).toMatchObject({
+      amount: 17,
+      type: "kudos",
+      reason: "Kudos: Big effort",
+      related_kudos: award.id,
+    });
+    expect(await recipient.listKudosForChild(fresh.id)).toHaveLength(1);
+    expect(await kid.listKudosForChild(fresh.id)).toEqual([]);
+    await expect(kid.giveKudos(fresh.id, 99, "forged")).rejects.toThrow();
+
+    const inbox = await recipient.listInbox(fresh.id);
+    expect(inbox.some((item) => item.type === "kudos" && item.body?.includes("Big effort"))).toBe(true);
+
+    const seen = await recipient.markKudosSeen(award.id);
+    expect(seen.seen_at).toBeTruthy();
+    await expect(recipient.markKudosSeen(award.id)).rejects.toThrow();
+    await expect(
+      recipient.pb.collection(Collections.Kudos).update<KudosAward>(award.id, { reason: "edited" }),
+    ).rejects.toThrow();
   });
 
   it("approval undo reverses the reward exactly once", async () => {

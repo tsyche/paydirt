@@ -95,8 +95,8 @@ function notifyUserRecord(app, user, title, message, type) {
   }
 }
 
-function notifyUser(app, userId, title, message) {
-  notifyUserRecord(app, app.findRecordById("users", userId), title, message);
+function notifyUser(app, userId, title, message, type) {
+  notifyUserRecord(app, app.findRecordById("users", userId), title, message, type);
 }
 
 function notifyRole(app, householdId, role, title, message, type) {

@@ -16,7 +16,7 @@ import type {
   SpendRequest,
   User,
 } from "@paydirt/shared";
-import { kidsAtLimit, knownChoreNames, GOAL_NAME_MAX, GOAL_DETAILS_MAX, parseAssignDraft, serializeAssignDraft, AVATAR_COLORS, REACTIONS, undoApprovalPrompt, avatarUrl, currencyDisplayName, effectiveGoodsRate, kidAccent, parseGoodsRateOverride, featureTip, screenGrantLabel, errorMessage, limitLabel, limitUnit, payLabel, approveTimePrompt, summarizeMonthActivity, waitingActionCount, payMode, validatePay, MINUTES_STEP, MAX_REWARD_MINUTES } from "@paydirt/shared";
+import { kidsAtLimit, knownChoreNames, GOAL_NAME_MAX, GOAL_DETAILS_MAX, parseAssignDraft, serializeAssignDraft, AVATAR_COLORS, REACTIONS, undoApprovalPrompt, avatarUrl, currencyDisplayName, effectiveGoodsRate, kidAccent, kudosDefaultBucks, KUDOS_REASON_MAX, parseGoodsRateOverride, featureTip, screenGrantLabel, errorMessage, limitLabel, limitUnit, payLabel, approveTimePrompt, summarizeMonthActivity, waitingActionCount, payMode, validatePay, MINUTES_STEP, MAX_REWARD_MINUTES } from "@paydirt/shared";
 import { client } from "../lib/client";
 import { HouseholdSettings } from "./HouseholdSettings";
 import { AppearanceControls } from "./AppearanceControls";
@@ -44,6 +44,7 @@ const TX_LABEL: Record<string, string> = {
   earn: "Chore reward",
   spend: "Spent",
   manual_adjustment: "Adjustment",
+  kudos: "Great work",
 };
 
 
@@ -283,6 +284,12 @@ export function Dashboard({
             </div>
             <div className="inline kid-toolbar">
               <AdjustControl kid={kid} onAdjusted={reload} />
+              <KudosControl
+                kid={kid}
+                household={household}
+                currencyName={currencyName}
+                onGiven={reload}
+              />
               <GoalControl kid={kid} onChanged={reload} />
             </div>
             <KidChores assignments={activeByKid[kid.id] ?? []} currencyName={currencyName} />
@@ -1140,6 +1147,92 @@ function AdjustControl({ kid, onAdjusted }: { kid: User; onAdjusted: () => void 
       </div>
       <p style={{ fontSize: 12, color: "var(--md-on-surface-variant)", margin: 0 }}>
         Positive = bonus · Negative = deduction
+      </p>
+      {error && <p className="error">{error}</p>}
+    </div>
+  );
+}
+
+function KudosControl({
+  kid,
+  household,
+  currencyName,
+  onGiven,
+}: {
+  kid: User;
+  household: Household | null;
+  currencyName: string;
+  onGiven: () => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [amount, setAmount] = useState(kudosDefaultBucks(household));
+  const [reason, setReason] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+
+  function close() {
+    setOpen(false);
+    setReason("");
+    setError("");
+  }
+
+  async function submit() {
+    if (!(amount > 0)) return;
+    setBusy(true);
+    setError("");
+    try {
+      await client.giveKudos(kid.id, amount, reason);
+      close();
+      onGiven();
+    } catch (e) {
+      setError(errorMessage(e));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  if (!open) {
+    return (
+      <button
+        className="sm"
+        onClick={() => {
+          setAmount(kudosDefaultBucks(household));
+          setOpen(true);
+        }}
+      >
+        ⭐ Give kudos
+      </button>
+    );
+  }
+
+  return (
+    <div className="stack panel-full">
+      <div className="inline">
+        <input
+          type="number"
+          min={1}
+          step="any"
+          aria-label={`Kudos amount for ${kid.display_name}`}
+          value={amount}
+          onChange={(e) => setAmount(Number(e.target.value))}
+          style={{ width: 100 }}
+        />
+        <input
+          placeholder="Why? (optional)"
+          maxLength={KUDOS_REASON_MAX}
+          value={reason}
+          onChange={(e) => setReason(e.target.value)}
+          style={{ flex: 1 }}
+        />
+        <button className="primary sm" onClick={submit} disabled={busy || !(amount > 0)}>
+          Give
+        </button>
+        <button className="sm" onClick={close}>
+          Cancel
+        </button>
+      </div>
+      <p style={{ fontSize: 12, color: "var(--md-on-surface-variant)", margin: 0 }}>
+        {amount || 0} {currencyName} for a rare great-work moment.
       </p>
       {error && <p className="error">{error}</p>}
     </div>

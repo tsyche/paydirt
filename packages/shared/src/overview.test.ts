@@ -69,6 +69,7 @@ describe("summarizePeriod", () => {
       [
         { amount: 10, type: "earn" },
         { amount: 5, type: "earn" },
+        { amount: 7, type: "kudos" },
         { amount: -6, type: "spend" },
         { amount: 4, type: "manual_adjustment" },
         { amount: -1, type: "manual_adjustment" },
@@ -79,11 +80,11 @@ describe("summarizePeriod", () => {
         { approved_at: "2026-11-03" },
       ],
     );
-    expect(s).toEqual({ earned: 15, adjustments: 3, spent: 6, bonusMinutes: 10, chores: 3 });
+    expect(s).toEqual({ earned: 15, kudos: 7, adjustments: 3, spent: 6, bonusMinutes: 10, chores: 3 });
   });
   it("adds per-kid summaries and reports percent change", () => {
-    const a = { earned: 1, adjustments: 0, spent: 2, bonusMinutes: 5, chores: 1 };
-    expect(addSummaries([a, a])).toEqual({ earned: 2, adjustments: 0, spent: 4, bonusMinutes: 10, chores: 2 });
+    const a = { earned: 1, kudos: 3, adjustments: 0, spent: 2, bonusMinutes: 5, chores: 1 };
+    expect(addSummaries([a, a])).toEqual({ earned: 2, kudos: 6, adjustments: 0, spent: 4, bonusMinutes: 10, chores: 2 });
     expect(pctChange(150, 100)).toBe(50);
     expect(pctChange(5, 0)).toBeNull();
   });

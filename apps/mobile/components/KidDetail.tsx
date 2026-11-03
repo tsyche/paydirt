@@ -17,7 +17,7 @@ import {
 } from "react-native-paper";
 import { SafeAreaView } from "react-native-safe-area-context";
 import type { Assignment, Chore, Household, SavingsGoal, User } from "@paydirt/shared";
-import { GOAL_NAME_MAX, GOAL_DETAILS_MAX, avatarUrl, currencyDisplayName, featureTip, errorMessage, kidAccent, payLabel, effectiveGoodsRate } from "@paydirt/shared";
+import { GOAL_NAME_MAX, GOAL_DETAILS_MAX, KUDOS_REASON_MAX, avatarUrl, currencyDisplayName, featureTip, errorMessage, kidAccent, kudosDefaultBucks, payLabel, effectiveGoodsRate } from "@paydirt/shared";
 import { client } from "../lib/client";
 import { isNetworkError } from "../lib/reachability";
 import { useReachability } from "../lib/useReachability";
@@ -66,6 +66,9 @@ export function KidDetail({
   const [amount, setAmount] = useState("");
   const [reason, setReason] = useState("");
   const [saving, setSaving] = useState(false);
+  const [kudosOpen, setKudosOpen] = useState(false);
+  const [kudosAmount, setKudosAmount] = useState("");
+  const [kudosReason, setKudosReason] = useState("");
   const [goalOpen, setGoalOpen] = useState(false);
   const [goalName, setGoalName] = useState("");
   const [openGoal, setOpenGoal] = useState<string | null>(null);
@@ -127,6 +130,28 @@ export function KidDetail({
       await client.adjustBalance(kidId, adjustSign * n, reason.trim() || "Manual adjustment");
       setAdjustOpen(false);
       setSnack(adjustSign > 0 ? "Bonus added 🎉" : "Deducted.");
+      await reload();
+    } catch (e) {
+      setSnack(errorMessage(e));
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  function openKudos() {
+    setKudosAmount(String(kudosDefaultBucks(household)));
+    setKudosReason("");
+    setKudosOpen(true);
+  }
+
+  async function saveKudos() {
+    const bucks = Number(kudosAmount);
+    if (!(bucks > 0)) return;
+    setSaving(true);
+    try {
+      await client.giveKudos(kidId, bucks, kudosReason);
+      setKudosOpen(false);
+      setSnack("Kudos sent ⭐");
       await reload();
     } catch (e) {
       setSnack(errorMessage(e));
@@ -204,6 +229,7 @@ export function KidDetail({
         <View style={styles.adjustRow}>
           <ChunkyButton label="Bonus" icon="plus" onPress={() => openAdjust(1)} style={styles.adjustBtn} />
           <ChunkyButton label="Deduct" icon="minus" tone="danger" onPress={() => openAdjust(-1)} style={styles.adjustBtn} />
+          <ChunkyButton label="Kudos" icon="star" onPress={openKudos} style={styles.adjustBtn} />
         </View>
 
         <Text variant="labelLarge" style={[styles.section, { color: theme.colors.onSurfaceVariant }]}>
@@ -414,6 +440,37 @@ export function KidDetail({
             <Button onPress={() => setAdjustOpen(false)}>Cancel</Button>
             <Button onPress={saveAdjust} disabled={saving || !(Number(amount) > 0)}>
               {adjustSign > 0 ? "Add" : "Deduct"}
+            </Button>
+          </Dialog.Actions>
+        </Dialog>
+      </Portal>
+
+      <Portal>
+        <Dialog visible={kudosOpen} onDismiss={() => setKudosOpen(false)}>
+          <Dialog.Title>Give kudos to {kid?.display_name ?? "this kid"}</Dialog.Title>
+          <Dialog.Content>
+            <TextInput
+              mode="outlined"
+              label={`Amount (${currencyName})`}
+              value={kudosAmount}
+              onChangeText={setKudosAmount}
+              keyboardType="number-pad"
+              autoFocus
+            />
+            <TextInput
+              mode="outlined"
+              label="Why? (optional)"
+              value={kudosReason}
+              onChangeText={setKudosReason}
+              maxLength={KUDOS_REASON_MAX}
+              multiline
+              style={styles.reasonInput}
+            />
+          </Dialog.Content>
+          <Dialog.Actions>
+            <Button onPress={() => setKudosOpen(false)}>Cancel</Button>
+            <Button onPress={saveKudos} disabled={saving || !(Number(kudosAmount) > 0)}>
+              Give
             </Button>
           </Dialog.Actions>
         </Dialog>

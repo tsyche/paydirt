@@ -2,7 +2,7 @@
 
 ## TL;DR
 
-MVP, Phase 1, and Phase 1.5 are shipped, and PayDirt is live on bb. Family Link automatic grants and the per-kid daily summary push are live and verified. Other priorities: kudos, tablet APK updates, off-LAN access, and keeping parent web and mobile at parity.
+MVP, Phase 1, and Phase 1.5 are shipped, and PayDirt is live on bb. Family Link automatic grants, per-kid daily summary push, and Tier 2 tablet self-updates are verified. Current feature order: Kudos, chore notes, recurring due days, partial credit, Kid "My Bank", time-grant windows, then timed chores.
 
 Scope checklist: [FEATURES.md](./FEATURES.md). **This file is the authoritative
 status tracker.**
@@ -20,7 +20,7 @@ MVP, Phase 1, and Phase 1.5 all shipped by 2026-06-10 — full entries preserved
 
 ## Recently Completed
 
-Completed work is indexed in [docs/ledger/ROADMAP_SHIPPED.md](./docs/ledger/ROADMAP_SHIPPED.md) (most recent: 2026-11-02 — Family Link automatic grants verified in production, expiry takes the right grit, mobile header menu and grit dialog, Overview dashboards; 2026-10-31 — per-chore pay mode, advisory chore limits and economy tuning, `just ship`; 2026-10-23 — live on bb).
+Completed work is indexed in [docs/ledger/ROADMAP_SHIPPED.md](./docs/ledger/ROADMAP_SHIPPED.md) (most recent: 2026-11-02 — Family Link automatic grants and Tier 2 updates confirmed on tablets, expiry takes the right grit, mobile header menu and grit dialog, Overview dashboards; 2026-10-31 — per-chore pay mode, advisory chore limits and economy tuning, `just ship`; 2026-10-23 — live on bb).
 
 Last audit 2026-11-02: closed the Family Link checks (moved to the shipped ledger), refreshed Recommended Next 3 and the agent-doable list, logged the `test-all` seed flake, and added 4 gated items. Previous audits 2026-11-01 and 2026-10-21.
 
@@ -33,17 +33,16 @@ Last audit 2026-11-02: closed the Family Link checks (moved to the shipped ledge
 
 ## Recommended Next 3
 
-**Two of three need a human** (tablets, accounts). Kudos is agent-doable.
+1. **Kudos: parent "you did good" bonus** — **Building.** A parent chooses the kid, amount, and optional reason; the server creates an immutable award plus a non-expiring ledger credit, and the kid gets a push, one-time celebration, private history, and count badge. Web + mobile parent action ships together. [Plan](docs/plans/kudos.md). ~4-6 hrs.
+2. **Chore notes / extra details** — schema already has the field; add forms, template pre-fill, kid display, and approval display. See [Backlog](#backlog-unscheduled). ~2-3 hrs.
+3. **Recurring due days** — recurring deadline rule plus cycle-specific assignment deadline, existing escalation, and web/mobile display. See [Backlog](#backlog-unscheduled). ~3-5 hrs.
 
-1. **Kudos: parent "you did good" bonus** — the plan is decided; see [docs/plans/kudos.md](docs/plans/kudos.md) and the backlog entry. Ships on web and mobile together. ~4-6 hrs.
-2. **Tier 2 app auto-updates on the other tablets** — validated end to end on one phone 2026-10-31; the other tablets need one adb install of the 2026-10-31+ build (older builds lack the native method), then confirm each self-updates. The 2026-11-02 `just ship` may already have covered this; confirm per tablet. 🧑 needs-human.
-3. **Off-LAN access (Tailscale)** — `EXPO_PUBLIC_POCKETBASE_URL` is a LAN IP; devices can't reach PocketBase on 5G or outside the home, and app auto-updates can't either. Tailscale is the lowest-friction fix: private mesh VPN, no public exposure, point the URL at the Tailscale hostname. ~2-4 hrs. 🧑 needs-human: Tailscale account + per-device enrollment (the env-var change itself is trivial).
+### Then, in order
 
-### Best agent-doable next
-
-1. **Backup restore drill** — prove the nightly backups restore; see [Quality & Infrastructure](#quality--infrastructure).
-2. **Chore notes / extra details** — mostly UI, schema field already exists; see [Backlog](#backlog-unscheduled). ~2-3 hrs.
-3. **Expiry dry-run preview** and **expiry warnings** — de-risk turning expiry on; see the backlog.
+1. **Partial credit**
+2. **Kid "My Bank" dashboard**
+3. **Time-grant windows (after-hours delivery)**
+4. **Timed chores**
 
 ## Phase 2 — Family Link Automation
 
@@ -71,7 +70,7 @@ Last audit 2026-11-02: closed the Family Link checks (moved to the shipped ledge
 
 ## Quality & Infrastructure
 
-Added 2026-08-10. Items 1-4 (CI pipeline, ledger integrity verifier, cron/scheduled-job tests, offline/unreachable-backend UX), 6-7 (Android tests in CI, backups) and the Tier 1 and agent-doable Tier 2 parts of auto-updates shipped; entries live in [docs/ledger/ROADMAP_SHIPPED.md](./docs/ledger/ROADMAP_SHIPPED.md). Remaining Tier 2 work is device validation: see [Recommended Next 3](#recommended-next-3) #2. Native changes (new native deps, SDK bumps) still need a cable or the in-app prompt; Android forces a user tap on install.
+Added 2026-08-10. Items 1-4 (CI pipeline, ledger integrity verifier, cron/scheduled-job tests, offline/unreachable-backend UX), 6-7 (Android tests in CI, backups), and both tiers of auto-updates shipped; entries live in [docs/ledger/ROADMAP_SHIPPED.md](./docs/ledger/ROADMAP_SHIPPED.md). Tier 2 self-update is confirmed on every tablet as of 2026-11-02. Native changes (new native deps, SDK bumps) still need a cable or the in-app prompt; Android forces a user tap on install.
 
 8. **Backup restore drill** (2026-11-01) — nightly PocketBase zips and `backup-pull` exist, but no one has restored one. Add `just restore-drill`: unzip the newest pulled backup into an ephemeral PocketBase on a free port, boot it, run `just verify-ledger` against it, and report pass/fail; document the manual restore steps in [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md). Never touches bb. ~1-2 hrs. **Gotchas:** use the port block (3110-3119), not bb's port; pulled backups contain real household data, so keep the unzip dir under `$TMPDIR` and delete it after; the PocketBase binary version must match the one that wrote the backup.
 
@@ -90,7 +89,9 @@ Known gaps: none from the 2026-11-01 keyword-level pass (closed the same day; se
 
 Ordered by impact-to-effort (2026-11-01 audit). Shipped items live in the ledger, not here.
 
-- **Overview reassessment (2026-11-02)** — the parent Overview modal shipped (cost strip, screen-vs-goods split, streaks). Skipped for now; reassess after a few weeks of real use: (a) dollar figure in the app header; (b) kid-facing lifetime totals ("grand total accomplished"); (c) My Bank extras: pending bucks, goal progress, streak; (d) actual-vs-potential trend across weeks; (e) heatmap (parked): kids see only their own, parents get a household grid. Open: reprice pending spend requests on approval (default no; prices lock at request time).
+- **Overview reassessment (2026-11-02)** — the parent Overview modal shipped (cost strip, screen-vs-goods split, streaks). Skipped for now; reassess after a few weeks of real use: (a) dollar figure in the app header; (b) kid-facing lifetime totals ("grand total accomplished"); (c) actual-vs-potential trend across weeks; (d) heatmap (parked): kids see only their own, parents get a household grid. Open: reprice pending spend requests on approval (default no; prices lock at request time).
+
+- **Kid "My Bank" dashboard** — expand the existing kid balance view with the deferred My Bank extras: pending bucks, goal progress, and streak. Kid-only mobile surface; no sibling data. The base money/minutes display is already shipped. ~2-4 hrs.
 
 - **Parent alerts for economy thresholds (2026-11-02)** — informational ntfy to parents, never blocking, when something drifts past a limit they set: (a) a kid's weekly potential (dollars) above a ceiling, e.g. $40, which fires when chores are assigned or repriced, not daily; (b) actual weekly earnings or screen minutes bought or earned above a ceiling, checked in the weekly digest or after the day's approvals. Household settings: per-kid or household "alert above $/week" and "alert above screen min/week", both off by default. One alert per kid per threshold per week (dedupe marker) so it can't nag; suppressed in vacation mode. Reuses `weeklyPotential`/`householdWeeklyBucks`, `bankView` and the period sums in `overview.ts`, so the numbers match the Overview. Parity: the settings go on web and mobile together. **Gotcha:** the potential figure is a perfect-compliance ceiling and reads high, so tie the threshold to it knowingly, or alert on actuals as the primary signal.
 
@@ -99,7 +100,7 @@ Ordered by impact-to-effort (2026-11-01 audit). Shipped items live in the ledger
 
 - **Expiry dry-run preview (2026-11-02)** — before a parent turns `expiry_days` on (or changes it), settings shows 'N grit would lapse today' per kid, computed with the shared `expiryLapse` against the live ledger, so the first cron run is never a surprise. Read-only; web and mobile together. ~1-2 hrs.
 
-- **Kudos: parent "you did good" bonus** (2026-11-02) — subjective bonus (default 100 grit, adjustable) with an optional reason, a push, a celebration on next open, a "Great work ×N" badge and a private history list. Own ledger type so Overview shows it separately. No minutes, no per-grade pay. Draft: [docs/plans/kudos.md](docs/plans/kudos.md). Parent action ships on web and mobile together.
+- **Kudos: parent "you did good" bonus** (2026-11-02) — **Building.** Subjective bonus (default 100 grit, adjustable) with an optional reason, a push, a celebration on next open, a "Great work ×N" badge and a private history list. Own ledger type so Overview shows it separately. No minutes, no per-grade pay. [Plan](docs/plans/kudos.md). Parent action ships on web and mobile together.
 
 - **Tappable badges with details (2026-11-02)** — badges on the kid shelf aren't tappable today. Tap for what the badge is, how it was earned (or progress toward it) and when. Mobile kid surface only; small and independent of kudos, though the kudos badge would use it.
 
@@ -135,4 +136,4 @@ Ordered by impact-to-effort (2026-11-01 audit). Shipped items live in the ledger
   - 🧑 needs-human: VPS provisioning + on-device re-registration
 - **iOS build** — Expo project is cross-platform; main blocker is Apple developer account + TestFlight distribution. No code changes needed.
   - 🧑 needs-human: paid Apple developer account
-- **Off-LAN access (Tailscale)** — see [Recommended Next 3](#recommended-next-3). 🧑 needs-human: Tailscale account + per-device enrollment
+- **Off-LAN access (Tailscale)** — `EXPO_PUBLIC_POCKETBASE_URL` is a LAN IP; devices cannot reach PocketBase or APK updates on 5G/outside home. Tailscale is the lowest-friction private-mesh fix; point the URL at the Tailscale hostname. ~2-4 hrs. 🧑 needs-human: Tailscale account + per-device enrollment.

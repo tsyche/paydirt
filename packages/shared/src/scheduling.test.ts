@@ -220,8 +220,12 @@ describe("expiryLapse", () => {
     expect(expiryLapse(rows, now, 30, 30)).toEqual({ lapse: 30, staleIds: ["a", "b"] });
   });
 
-  it("never lapses non-earn credits, and caps at balance", () => {
-    const rows = [row("a", "earn", 100, "2026-07-01"), row("k", "manual_adjustment", 100, "2026-07-02")];
+  it("never lapses non-earn credits, including kudos, and caps at balance", () => {
+    const rows = [
+      row("a", "earn", 100, "2026-07-01"),
+      row("k", "manual_adjustment", 100, "2026-07-02"),
+      row("great-work", "kudos", 100, "2026-07-03"),
+    ];
     expect(expiryLapse(rows, now, 30, 100)).toEqual({ lapse: 100, staleIds: ["a"] });
     expect(expiryLapse(rows, now, 30, 60).lapse).toBe(60);
   });

@@ -19,7 +19,7 @@ import {
 } from "react-native-paper";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { GOAL_NAME_MAX } from "@paydirt/shared";
-import type { Assignment, Broadcast, Chore, Household, SavingsGoal, ScreenPreset, User } from "@paydirt/shared";
+import type { Assignment, Broadcast, Chore, Household, KudosAward, SavingsGoal, ScreenPreset, User } from "@paydirt/shared";
 import {
   bankView,
   SCREEN_PRESETS,
@@ -41,6 +41,7 @@ import { useRealtimeResume } from "../lib/useRealtimeResume";
 import { takePhotoAndComplete } from "../lib/completeWithPhoto";
 import { Avatar } from "../components/Avatar";
 import { BadgeShelf } from "../components/BadgeShelf";
+import { KudosHistory } from "../components/KudosHistory";
 import { ChunkyButton } from "../components/ChunkyButton";
 import { ClaimHero } from "../components/ClaimHero";
 import { Celebration } from "../components/Celebration";
@@ -89,6 +90,7 @@ export function KidHome({
   const [assignments, setAssignments] = useState<Expanded[]>([]);
   const [history, setHistory] = useState<Expanded[]>([]);
   const [goals, setGoals] = useState<SavingsGoal[]>([]);
+  const [kudos, setKudos] = useState<KudosAward[]>([]);
   const [swapsIn, setSwapsIn] = useState<Expanded[]>([]);
   const [siblings, setSiblings] = useState<User[]>([]);
   const [household, setHousehold] = useState<Household | null>(null);
@@ -108,6 +110,7 @@ export function KidHome({
   const [tab, setTab] = useTabHistory("home");
   const [celebrate, setCelebrate] = useState(0);
   const prevBalance = useRef<number | null>(null);
+  const acknowledgedKudos = useRef(new Set<string>());
 
   const currencyName = currencyDisplayName(household);
   const accentColor = kidAccent(me.color, theme.colors.primary);
@@ -118,11 +121,12 @@ export function KidHome({
   const reload = useCallback(async () => {
     setRefreshing(true);
     try {
-      const [freshMe, list, hist, gs, swaps, kids, hh, bcs, reps] = await Promise.all([
+      const [freshMe, list, hist, gs, awards, swaps, kids, hh, bcs, reps] = await Promise.all([
         client.pb.collection("users").getOne<User>(user.id),
         client.listActiveAssignmentsForChild(user.id),
         client.listApprovedHistory(user.id, 50),
         client.listGoals(user.id),
+        client.listKudosForChild(user.id),
         client.listIncomingSwaps(user.id),
         client.listChildren(user.household),
         client.getHousehold(user.household),
@@ -133,15 +137,27 @@ export function KidHome({
       setAssignments(list as Expanded[]);
       setHistory(hist as Expanded[]);
       setGoals(gs);
+      setKudos(awards);
       setSwapsIn((swaps as Expanded[]).filter((s) => s.child !== user.id));
       setSiblings(kids.filter((k) => k.id !== user.id));
       setHousehold(hh);
       setBroadcasts(bcs);
       setReplies(Object.fromEntries(reps.map((r) => [r.broadcast, r.code])));
-      if (shouldCelebrate(prevBalance.current, freshMe.balance, !!freshMe.calm_mode)) {
+      const unseen = awards.filter((award) => !award.seen_at && !acknowledgedKudos.current.has(award.id));
+      if (
+        unseen.length === 0 &&
+        shouldCelebrate(prevBalance.current, freshMe.balance, !!freshMe.calm_mode)
+      ) {
         setCelebrate((n) => n + 1);
       }
       prevBalance.current = freshMe.balance;
+      if (unseen.length > 0) {
+        unseen.forEach((award) => acknowledgedKudos.current.add(award.id));
+        if (!freshMe.calm_mode) setCelebrate((n) => n + 1);
+        void Promise.all(unseen.map((award) => client.markKudosSeen(award.id))).catch(() => {
+          unseen.forEach((award) => acknowledgedKudos.current.delete(award.id));
+        });
+      }
     } catch (e) {
       // Network failures already surface via the offline banner — an extra
       // toast on top would just be noise. Anything else still gets one.
@@ -302,7 +318,8 @@ export function KidHome({
               onAvatarPress={() => void changeAvatar(me.id, setSnack).then((ok) => { if (ok) void reload(); })}
               animated={!calm}
             />
-            {!calm && <BadgeShelf badges={badges} />}
+            {!calm && <BadgeShelf badges={badges} kudosCount={kudos.length} />}
+            <KudosHistory awards={kudos} currencyName={currencyName} />
 
         {swapsIn.length > 0 && (
           <>

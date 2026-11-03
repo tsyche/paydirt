@@ -10,7 +10,7 @@ import {
   TextInput,
 } from "react-native-paper";
 import type { Household } from "@paydirt/shared";
-import { CURRENCY_PRESETS, DEFAULT_CURRENCY_NAME, currencyDisplayName, screenRate, errorMessage, featureTip } from "@paydirt/shared";
+import { CURRENCY_PRESETS, DEFAULT_CURRENCY_NAME, currencyDisplayName, screenRate, errorMessage, featureTip, kudosDefaultBucks } from "@paydirt/shared";
 import { client } from "../lib/client";
 
 /** Setting label with an info icon that reveals the shared feature tip inline (no hover on touch). */
@@ -56,6 +56,7 @@ export function HouseholdSettings({
   const [form, setForm] = useState({
     currency_name: household.currency_name ?? "",
     bank_threshold: String(household.bank_threshold ?? 0),
+    kudos_default_bucks: String(kudosDefaultBucks(household)),
     expiry_days: String(household.expiry_days ?? 0),
     goods_rate: String(household.goods_rate ?? 0),
     screen_rate: String(screenRate(household)),
@@ -83,6 +84,7 @@ export function HouseholdSettings({
       await client.updateHousehold(household.id, {
         currency_name: form.currency_name.trim(),
         bank_threshold: num(form.bank_threshold),
+        kudos_default_bucks: Math.max(1, num(form.kudos_default_bucks)),
         expiry_days: num(form.expiry_days),
         goods_rate: num(form.goods_rate),
         screen_rate: num(form.screen_rate),
@@ -140,6 +142,13 @@ export function HouseholdSettings({
               keyboardType="numeric"
               value={form.bank_threshold}
               onChangeText={(v) => setForm({ ...form, bank_threshold: v })}
+              style={{ marginBottom: 8 }}
+            />
+            <SettingLabel label="Kudos default amount" tip="kudos_default_bucks" />
+            <TextInput
+              keyboardType="numeric"
+              value={form.kudos_default_bucks}
+              onChangeText={(v) => setForm({ ...form, kudos_default_bucks: v })}
               style={{ marginBottom: 8 }}
             />
             <SettingLabel label="Rewards expire after days (0 = off)" tip="expiry_days" />

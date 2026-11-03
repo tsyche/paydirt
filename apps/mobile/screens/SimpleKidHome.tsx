@@ -11,7 +11,7 @@ import {
   useTheme,
 } from "react-native-paper";
 import { SafeAreaView } from "react-native-safe-area-context";
-import type { Assignment, Broadcast, Chore, ScreenPreset, User } from "@paydirt/shared";
+import type { Assignment, Broadcast, Chore, KudosAward, ScreenPreset, User } from "@paydirt/shared";
 import {
   currencyDisplayName,
   DEFAULT_CURRENCY_NAME,
@@ -31,6 +31,7 @@ import { BroadcastReplies } from "../components/BroadcastReplies";
 import { Celebration } from "../components/Celebration";
 import { GritButton } from "../components/GritButton";
 import { HeaderMenu } from "../components/HeaderMenu";
+import { KudosHistory } from "../components/KudosHistory";
 
 type Expanded = Assignment & { expand?: { chore?: Chore } };
 
@@ -43,12 +44,14 @@ export function SimpleKidHome({ user, onLogout }: { user: User; onLogout: () => 
   const [householdRate, setHouseholdRate] = useState(0);
   const [rate, setRate] = useState(DEFAULT_SCREEN_RATE);
   const [broadcasts, setBroadcasts] = useState<Broadcast[]>([]);
+  const [kudos, setKudos] = useState<KudosAward[]>([]);
   const [replies, setReplies] = useState<Record<string, string>>({});
   const [refreshing, setRefreshing] = useState(false);
   const [snack, setSnack] = useState("");
   const [askError, setAskError] = useState<string | null>(null);
   const [celebrate, setCelebrate] = useState(0);
   const prevBalance = useRef<number | null>(null);
+  const acknowledgedKudos = useRef(new Set<string>());
 
   const goodsRate = effectiveGoodsRate(me.goods_rate, householdRate);
   const calm = !!me.calm_mode;
@@ -58,13 +61,14 @@ export function SimpleKidHome({ user, onLogout }: { user: User; onLogout: () => 
   const reload = useCallback(async () => {
     setRefreshing(true);
     try {
-      const [freshMe, bal, list, household, bcs, reps] = await Promise.all([
+      const [freshMe, bal, list, household, bcs, reps, awards] = await Promise.all([
         client.pb.collection("users").getOne<User>(user.id),
         client.getBalance(user.id),
         client.listActiveAssignmentsForChild(user.id),
         client.getHousehold(user.household),
         client.getRecentBroadcasts(user.household, 3),
         client.listBroadcastReplies(user.id),
+        client.listKudosForChild(user.id),
       ]);
       setMe(freshMe);
       setBalance(bal);
@@ -74,10 +78,22 @@ export function SimpleKidHome({ user, onLogout }: { user: User; onLogout: () => 
       setRate(screenRate(household));
       setBroadcasts(bcs);
       setReplies(Object.fromEntries(reps.map((r) => [r.broadcast, r.code])));
-      if (shouldCelebrate(prevBalance.current, bal, !!freshMe.calm_mode)) {
+      setKudos(awards);
+      const unseen = awards.filter((award) => !award.seen_at && !acknowledgedKudos.current.has(award.id));
+      if (
+        unseen.length === 0 &&
+        shouldCelebrate(prevBalance.current, bal, !!freshMe.calm_mode)
+      ) {
         setCelebrate((n) => n + 1);
       }
       prevBalance.current = bal;
+      if (unseen.length > 0) {
+        unseen.forEach((award) => acknowledgedKudos.current.add(award.id));
+        if (!freshMe.calm_mode) setCelebrate((n) => n + 1);
+        void Promise.all(unseen.map((award) => client.markKudosSeen(award.id))).catch(() => {
+          unseen.forEach((award) => acknowledgedKudos.current.delete(award.id));
+        });
+      }
     } catch (e) {
       setSnack(errorMessage(e));
     } finally {
@@ -217,6 +233,8 @@ export function SimpleKidHome({ user, onLogout }: { user: User; onLogout: () => 
             </Text>
           </View>
         </Surface>
+
+        <KudosHistory awards={kudos} currencyName={currencyName} simple />
 
         <Surface style={styles.choreCard} elevation={2}>
           <Text style={styles.choreEmoji}>📱</Text>

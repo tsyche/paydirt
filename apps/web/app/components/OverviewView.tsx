@@ -143,6 +143,11 @@ export function OverviewView({
               </span>
             </div>
             <div className="stat">
+              <span className="muted">Great work kudos</span>
+              <strong>+{total.kudos} {currency}</strong>
+              <span className="muted">{usd(toDollars(total.kudos, goodsRate))}</span>
+            </div>
+            <div className="stat">
               <span className="muted">Redeemed</span>
               <strong>{total.spent} {currency}</strong>
               <span className="muted">{usd(toDollars(total.spent, goodsRate))}</span>

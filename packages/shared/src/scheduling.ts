@@ -99,7 +99,7 @@ export function isCurrencyExpired(
 
 export interface LedgerRow {
   id: string;
-  type: "earn" | "spend" | "manual_adjustment";
+  type: "earn" | "spend" | "manual_adjustment" | "kudos";
   amount: number;
   created: Date;
   reason?: string;

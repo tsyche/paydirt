@@ -13,6 +13,7 @@ import type {
   CurrencyTransaction,
   Household,
   InboxItem,
+  KudosAward,
   SavingsGoal,
   SpendRequest,
   TimeGrant,
@@ -411,6 +412,34 @@ export class PaydirtClient {
     return lists.flat();
   }
 
+  /** Parent-only subjective "Great work" award. The server creates its ledger row. */
+  giveKudos(childId: string, bucks: number, reason = ""): Promise<KudosAward> {
+    const parent = this.currentUser;
+    if (!parent) throw new Error("Not logged in");
+    return this.pb.collection(Collections.Kudos).create<KudosAward>({
+      household: parent.household,
+      child: childId,
+      given_by: parent.id,
+      bucks,
+      reason: reason.trim(),
+    });
+  }
+
+  /** A kid's private kudos history, newest first. */
+  listKudosForChild(childId: string): Promise<KudosAward[]> {
+    return this.pb.collection(Collections.Kudos).getFullList<KudosAward>({
+      filter: this.pb.filter("child = {:c}", { c: childId }),
+      sort: "-created",
+    });
+  }
+
+  /** Acknowledges a celebration once; the server stamps the actual time. */
+  markKudosSeen(id: string): Promise<KudosAward> {
+    return this.pb.collection(Collections.Kudos).update<KudosAward>(id, {
+      seen_at: new Date().toISOString(),
+    });
+  }
+
   /** Parent grants or docks parentBucks outside of chores. */
   adjustBalance(userId: string, amount: number, reason: string): Promise<CurrencyTransaction> {
     return this.pb.collection(Collections.CurrencyTransactions).create<CurrencyTransaction>({
@@ -746,7 +775,7 @@ export class PaydirtClient {
 
   /**
    * Subscribe to everything a kid's home screen shows: their assignments
-   * (including swap offers aimed at them), their goals, and their own user
+   * (including swap offers aimed at them), goals, kudos, and their own user
    * record (balance/streak). Fires `onChange` on any event; callers are
    * expected to re-fetch. Returns an unsubscribe function.
    */
@@ -758,6 +787,9 @@ export class PaydirtClient {
       this.pb.collection(Collections.SavingsGoals).subscribe("*", onChange, {
         filter: this.pb.filter("child = {:c}", { c: childId }),
       }),
+      this.pb.collection(Collections.Kudos).subscribe("*", onChange, {
+        filter: this.pb.filter("child = {:c}", { c: childId }),
+      }),
       this.pb.collection(Collections.Users).subscribe(childId, onChange),
     ]);
     return () => {
@@ -767,7 +799,7 @@ export class PaydirtClient {
 
   /**
    * Subscribe to everything the parent dashboard shows: assignments, spend
-   * requests, proposals, chores, kids' balances, and the household record.
+   * requests, proposals, kudos, chores, kids' balances, and the household record.
    * Fires `onChange` on any event; caller re-fetches. Returns an unsubscribe
    * function.
    */
@@ -784,6 +816,9 @@ export class PaydirtClient {
         filter: hhFilter,
       }),
       this.pb.collection(Collections.ChoreProposals).subscribe("*", onChange, {
+        filter: hhFilter,
+      }),
+      this.pb.collection(Collections.Kudos).subscribe("*", onChange, {
         filter: hhFilter,
       }),
       this.pb.collection(Collections.Chores).subscribe("*", onChange, {

@@ -4,6 +4,7 @@
 
 ## Shipped index
 
+- [x] 2026-11-02 — Tier 2 APK self-update confirmed on the remaining tablets
 - [x] 2026-11-02 — Family Link automatic grants verified in production (real purchase and chore time grants land on the tablets)
 - [x] 2026-11-02 — Expiry takes the right grit: daily cron replays each kid's ledger oldest-first (`expiryLapse`), so spends consume expiring grit first (deployed to bb 2026-11-02)
 - [x] 2026-11-02 — Mobile header menu (Theme / Alerts / Sign out, unread dot), grit dialog with dollars and screen minutes per kid and combined (web + mobile), `kids_see_balances` household setting
@@ -46,6 +47,10 @@
 - [x] 2026-06-10 — MVP, Phase 1, and Phase 1.5 (migrated 2026-10-21)
 
 ## Archived entries
+
+### 2026-11-02 — Tier 2 APK self-update confirmed on the remaining tablets
+
+Owner confirmed the remaining tablets self-updated after the 2026-11-02 ship. This closes the device-validation follow-up for Tier 2 (version check, APK download, and Android installer prompt); native changes still require the normal one-tap Android install confirmation.
 
 ### 2026-11-02 — Family Link automatic grants verified in production
 
