@@ -22,6 +22,7 @@ import { client } from "../lib/client";
 import { isNetworkError } from "../lib/reachability";
 import { useReachability } from "../lib/useReachability";
 import { ClaimHero } from "./ClaimHero";
+import { DeliveryOverrides } from "./DeliveryOverrides";
 import { ChunkyButton } from "./ChunkyButton";
 import { KidAppearanceCard } from "./KidAppearanceCard";
 import { changeAvatar } from "../lib/uploadAvatar";
@@ -231,6 +232,7 @@ export function KidDetail({
           <ChunkyButton label="Deduct" icon="minus" tone="danger" onPress={() => openAdjust(-1)} style={styles.adjustBtn} />
           <ChunkyButton label="Kudos" icon="star" onPress={openKudos} style={styles.adjustBtn} />
         </View>
+        {kid && <DeliveryOverrides kid={kid} onSaved={reload} />}
 
         <Text variant="labelLarge" style={[styles.section, { color: theme.colors.onSurfaceVariant }]}>
           ACTIVE CHORES {assignments.length > 0 ? `(${assignments.length})` : ""}

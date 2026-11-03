@@ -6,4 +6,8 @@ onRecordCreateRequest((e) => {
 onRecordUpdateRequest((e) => {
   require(__hooks + "/lib/grantWindows.js").validate(e.record);
   e.next();
+}, "users");
+onRecordUpdateRequest((e) => {
+  require(__hooks + "/lib/grantWindows.js").validate(e.record);
+  e.next();
 }, "households");

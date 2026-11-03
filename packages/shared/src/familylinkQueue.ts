@@ -8,6 +8,8 @@ export interface FamilyLinkJob {
   childId: string;
   deviceId: string;
   seconds: number;
+  validUntil?: string;
+  expiresAt?: string;
 }
 
 async function exists(file: string) {
@@ -33,6 +35,8 @@ function validJob(value: unknown, id: string): value is FamilyLinkJob {
   const job = value as FamilyLinkJob;
   return job.id === id && /^\d{10,30}$/.test(job.childId) &&
     /^[a-z0-9]{20,80}$/.test(job.deviceId) &&
+    (!job.validUntil || Number.isFinite(Date.parse(job.validUntil))) &&
+    (!job.expiresAt || Number.isFinite(Date.parse(job.expiresAt))) &&
     isGrantSeconds(job.seconds);
 }
 
@@ -48,7 +52,7 @@ export async function processFamilyLinkQueue(
   await syncPath(directory);
   await syncPath(dirname(directory));
 
-  async function receipt(id: string, status: "granted" | "manual", error = "") {
+  async function receipt(id: string, status: "granted" | "manual" | "deferred", error = "") {
     const file = join(results, `${id}.json`);
     await writeFile(`${file}.tmp`, JSON.stringify({ id, status, error }), { mode: 0o600, flush: true });
     await rename(`${file}.tmp`, file);
@@ -89,6 +93,10 @@ export async function processFamilyLinkQueue(
         await receipt(id, "manual", "invalid_request");
       } else if (!enabled) {
         await receipt(id, "manual", "disabled");
+      } else if (job.expiresAt && Date.now() >= Date.parse(job.expiresAt)) {
+        await receipt(id, "manual", "expired");
+      } else if (job.validUntil && Date.now() >= Date.parse(job.validUntil)) {
+        await receipt(id, "deferred");
       } else {
         let exitCode = 1;
         try { exitCode = await grant(job); } catch { /* Uncertain outcome. */ }

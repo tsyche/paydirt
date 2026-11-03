@@ -61,6 +61,8 @@ export function HouseholdSettings({
     kudos_default_bucks: kudosDefaultBucks(household),
     grant_weekday_window: household.grant_weekday_window ?? "",
     grant_weekend_window: household.grant_weekend_window ?? "",
+    grant_timezone: household.grant_timezone ?? "",
+    grant_expiry_days: household.grant_expiry_days ?? 0,
     expiry_days: household.expiry_days ?? 0,
     goods_rate: household.goods_rate ?? 0,
     screen_rate: screenRate(household),
@@ -167,12 +169,22 @@ export function HouseholdSettings({
           />
         </div>
         <div className="settings-row">
-          <label>Weekday time delivery (server-local; blank = all day)
+          <label>Delivery timezone (blank = server-local)
+            <input placeholder="America/Los_Angeles" value={form.grant_timezone} onChange={(e) => setForm({ ...form, grant_timezone: e.target.value.trim() })} />
+          </label>
+        </div>
+        <div className="settings-row">
+          <label>Queued grant expires after days (0 = never)
+            <input type="number" min={0} max={365} value={form.grant_expiry_days} onChange={(e) => setForm({ ...form, grant_expiry_days: Number(e.target.value) })} />
+          </label>
+        </div>
+        <div className="settings-row">
+          <label>Weekday time delivery (blank = all day)
             <input placeholder="15:30-20:00" maxLength={11} value={form.grant_weekday_window} onChange={(e) => setForm({ ...form, grant_weekday_window: e.target.value.trim() })} />
           </label>
         </div>
         <div className="settings-row">
-          <label>Weekend time delivery (server-local; blank = all day)
+          <label>Weekend time delivery (blank = all day)
             <input placeholder="08:00-20:00" maxLength={11} value={form.grant_weekend_window} onChange={(e) => setForm({ ...form, grant_weekend_window: e.target.value.trim() })} />
           </label>
         </div>

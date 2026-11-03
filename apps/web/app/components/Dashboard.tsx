@@ -21,6 +21,7 @@ import { client } from "../lib/client";
 import { HouseholdSettings } from "./HouseholdSettings";
 import { RecurringDueFields } from "./RecurringDueFields";
 import { PartialCredit } from "./PartialCredit";
+import { DeliveryOverrides } from "./DeliveryOverrides";
 import { AppearanceControls } from "./AppearanceControls";
 import { GritChip } from "./GritChip";
 import { OverviewModalButton } from "./OverviewView";
@@ -286,6 +287,7 @@ export function Dashboard({
             </div>
             <div className="inline kid-toolbar">
               <AdjustControl kid={kid} onAdjusted={reload} />
+              <DeliveryOverrides kid={kid} onSaved={reload} />
               <KudosControl
                 kid={kid}
                 household={household}
@@ -413,6 +415,7 @@ export function Dashboard({
                     <details><summary>Instructions</summary><p style={{ whiteSpace: "pre-wrap", overflowWrap: "anywhere" }}>{(a.expand?.chore as Chore).description}</p></details>
                   )}
                   {a.due_at && <div className="muted">Due {new Date(a.due_at).toLocaleString()}</div>}
+                  {!!a.timer_minutes && <div className="muted">⏱ {a.timer_minutes} min · {a.timer_started_at ? `started ${new Date(a.timer_started_at).toLocaleString()}` : "not started"}</div>}
                   <div className="muted">
                     {(a.expand?.child as User | undefined)?.display_name ?? "child"}
                     {a.expand?.chore && (
@@ -1274,6 +1277,7 @@ function ChoreRow({
   const [editing, setEditing] = useState(false);
   const [name, setName] = useState(chore.name);
   const [notes, setNotes] = useState(chore.description ?? "");
+  const [timerMinutes, setTimerMinutes] = useState(chore.timer_minutes ?? 0);
   const [dueTime, setDueTime] = useState(chore.due_time ?? "");
   const [dueDay, setDueDay] = useState(chore.due_day ?? 1);
   const [reward, setReward] = useState(chore.reward);
@@ -1295,6 +1299,7 @@ function ChoreRow({
   function cancelEdit() {
     setName(chore.name);
     setNotes(chore.description ?? "");
+    setTimerMinutes(chore.timer_minutes ?? 0);
     setDueTime(chore.due_time ?? "");
     setDueDay(chore.due_day ?? 1);
     setReward(chore.reward);
@@ -1320,6 +1325,7 @@ function ChoreRow({
     try {
       await client.updateChore(chore.id, {
         description: notes.trim(),
+        timer_minutes: timerMinutes,
         due_time: type === "recurring" ? dueTime : "",
         due_day: dueDay,
         name: name.trim(),
@@ -1393,6 +1399,7 @@ function ChoreRow({
           style={{ flex: 1 }}
         />
         <textarea aria-label="Chore instructions" placeholder="Instructions (optional, visible to kids)" value={notes} maxLength={1000} onChange={(e) => setNotes(e.target.value)} />
+        <label>Timer minutes (0 = off)<input type="number" min={0} max={480} value={timerMinutes} onChange={(e) => setTimerMinutes(Number(e.target.value))} /></label>
         {type === "recurring" && <RecurringDueFields cadence={cadence} time={dueTime} day={dueDay} onTime={setDueTime} onDay={setDueDay} />}
         <PayControls mode={mode} reward={reward} minutes={minutes} onMode={setMode} onReward={setReward} onMinutes={setMinutes} />
         <select value={type} onChange={(e) => setType(e.target.value as "oneoff" | "recurring")}>
@@ -1519,6 +1526,7 @@ function CreateChore({
   const [name, setName] = useState("");
   const [reward, setReward] = useState(10);
   const [notes, setNotes] = useState("");
+  const [timerMinutes, setTimerMinutes] = useState(0);
   const [dueTime, setDueTime] = useState("");
   const [dueDay, setDueDay] = useState(1);
   const [mode, setMode] = useState<PayMode>("bucks");
@@ -1539,6 +1547,7 @@ function CreateChore({
     if (template.reminder_time || template.max_per_period) setAdvanced(true);
     setName(template.name);
     setNotes(template.description ?? "");
+    setTimerMinutes(template.timer_minutes ?? 0);
     setDueTime(template.due_time ?? "");
     setDueDay(template.due_day ?? 1);
     setReward(template.reward);
@@ -1557,6 +1566,7 @@ function CreateChore({
   function reset() {
     setName("");
     setNotes("");
+    setTimerMinutes(0);
     setDueTime("");
     setDueDay(1);
     setReward(10);
@@ -1580,6 +1590,7 @@ function CreateChore({
     setError("");
     try {
       await client.createChore({
+        timer_minutes: timerMinutes,
         description: notes.trim(),
         due_time: type === "recurring" ? dueTime : "",
         due_day: dueDay,
@@ -1615,6 +1626,7 @@ function CreateChore({
     setError("");
     try {
       await client.createTemplate({
+        timer_minutes: timerMinutes,
         description: notes.trim(),
         due_time: type === "recurring" ? dueTime : "",
         due_day: dueDay,
@@ -1654,6 +1666,7 @@ function CreateChore({
           style={{ flex: 1 }}
         />
         <textarea aria-label="Chore instructions" placeholder="Instructions (optional, visible to kids)" value={notes} maxLength={1000} onChange={(e) => setNotes(e.target.value)} />
+        <label>Timer minutes (0 = off)<input type="number" min={0} max={480} value={timerMinutes} onChange={(e) => setTimerMinutes(Number(e.target.value))} /></label>
         {type === "recurring" && <RecurringDueFields cadence={cadence} time={dueTime} day={dueDay} onTime={setDueTime} onDay={setDueDay} />}
         <PayControls mode={mode} reward={reward} minutes={minutes} onMode={setMode} onReward={setReward} onMinutes={setMinutes} />
         <select

@@ -44,6 +44,7 @@ import { BadgeShelf } from "../components/BadgeShelf";
 import { KudosHistory } from "../components/KudosHistory";
 import { ChoreNotes } from "../components/ChoreNotes";
 import { MyBank } from "../components/MyBank";
+import { ChoreTimer } from "../components/ChoreTimer";
 import type { SpendRequest } from "@paydirt/shared";
 import type { TimeGrant } from "@paydirt/shared";
 import { ChunkyButton } from "../components/ChunkyButton";
@@ -417,7 +418,10 @@ export function KidHome({
                 ) : null}
                 {a.status === "assigned" ? (
                   <>
-                    {chore?.photo_required ? (
+                    {a.timer_minutes ? <ChoreTimer assignment={a} onStarted={reload} onComplete={() => {
+                      if (chore?.photo_required) void markDoneWithPhoto(a.id);
+                      else void markDone(a.id);
+                    }} /> : chore?.photo_required ? (
                       <ChunkyButton
                         label="Take photo & mark done"
                         onPress={() => markDoneWithPhoto(a.id)}

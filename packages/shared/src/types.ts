@@ -49,6 +49,8 @@ export interface Household extends BaseRecord {
   /** Server-local HH:MM-HH:MM delivery windows; blank means all day. */
   grant_weekday_window?: string;
   grant_weekend_window?: string;
+  grant_timezone?: string;
+  grant_expiry_days?: number;
 }
 
 // ─── Users ───────────────────────────────────────────────────────────────────
@@ -57,6 +59,9 @@ export type UserRole = "parent" | "child";
 
 /** Extends PocketBase's built-in auth collection. */
 export interface User extends BaseRecord {
+  /** Blank inherits household windows; 'all' explicitly allows all day. */
+  grant_weekday_window?: string;
+  grant_weekend_window?: string;
   email: string;
   role: UserRole;
   display_name: string;
@@ -103,6 +108,8 @@ export type ChoreType = "oneoff" | "recurring";
 export type PayMode = "bucks" | "time" | "both";
 
 export interface Chore extends BaseRecord {
+  /** Continuous duration required before submitting; 0 disables the timer. */
+  timer_minutes?: number;
   household: string; // -> households.id
   name: string;
   description?: string;
@@ -138,6 +145,7 @@ export interface Chore extends BaseRecord {
 
 /** Household-level reusable chore definition. Apply to create a new Chore. */
 export interface ChoreTemplate extends BaseRecord {
+  timer_minutes?: number;
   household: string;
   name: string;
   description?: string;
@@ -166,6 +174,9 @@ export type AssignmentStatus = "assigned" | "completed" | "approved" | "rejected
  * One chore can have multiple assignments (one per child).
  */
 export interface Assignment extends BaseRecord {
+  /** Duration snapshotted when assigned; server clock owns the start. */
+  timer_minutes?: number;
+  timer_started_at?: string;
   chore: string; // -> chores.id
   child: string; // -> users.id
   status: AssignmentStatus;

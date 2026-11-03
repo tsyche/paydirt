@@ -59,6 +59,8 @@ export function HouseholdSettings({
     kudos_default_bucks: String(kudosDefaultBucks(household)),
     grant_weekday_window: household.grant_weekday_window ?? "",
     grant_weekend_window: household.grant_weekend_window ?? "",
+    grant_timezone: household.grant_timezone ?? "",
+    grant_expiry_days: String(household.grant_expiry_days ?? 0),
     expiry_days: String(household.expiry_days ?? 0),
     goods_rate: String(household.goods_rate ?? 0),
     screen_rate: String(screenRate(household)),
@@ -89,6 +91,8 @@ export function HouseholdSettings({
         kudos_default_bucks: Math.max(1, num(form.kudos_default_bucks)),
         grant_weekday_window: form.grant_weekday_window.trim(),
         grant_weekend_window: form.grant_weekend_window.trim(),
+        grant_timezone: form.grant_timezone.trim(),
+        grant_expiry_days: num(form.grant_expiry_days),
         expiry_days: num(form.expiry_days),
         goods_rate: num(form.goods_rate),
         screen_rate: num(form.screen_rate),
@@ -142,7 +146,9 @@ export function HouseholdSettings({
             </ScrollView>
 
             <SettingLabel label="Bank threshold (0 = off)" tip="bank_threshold" />
-            <Text>Screen-time delivery windows (server-local time). Blank = all day.</Text>
+            <Text>Screen-time delivery windows. Blank window = all day; blank timezone = server-local.</Text>
+            <TextInput label="Delivery timezone" placeholder="America/Los_Angeles" value={form.grant_timezone} onChangeText={(v) => setForm({ ...form, grant_timezone: v })} />
+            <TextInput label="Queued grant expires after days (0 = never)" keyboardType="number-pad" value={form.grant_expiry_days} onChangeText={(v) => setForm({ ...form, grant_expiry_days: v })} />
             <TextInput label="Weekdays (HH:MM-HH:MM)" placeholder="15:30-20:00" value={form.grant_weekday_window} onChangeText={(v) => setForm({ ...form, grant_weekday_window: v })} maxLength={11} />
             <TextInput label="Weekends (HH:MM-HH:MM)" placeholder="08:00-20:00" value={form.grant_weekend_window} onChangeText={(v) => setForm({ ...form, grant_weekend_window: v })} maxLength={11} />
             <TextInput

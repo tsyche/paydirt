@@ -31,6 +31,7 @@ declare them in their own creation migration. Omitting them previously caused
 | allowance_amount / allowance_cadence / allowance_last_paid | number / select(`daily`,`weekly`) / date | scheduled allowance; paid by the daily cron, `allowance_last_paid` is the dedupe marker |
 | kudos_default_bucks | number | default amount for a parent "Great work" bonus; unset = 100 |
 | grant_weekday_window / grant_weekend_window | text | optional HH:MM-HH:MM server-local delivery windows; blank = all day, overnight allowed; checked before publishing a queued grant |
+| grant_timezone / grant_expiry_days | text / number | optional IANA delivery timezone (blank = server-local); queued expiry after N days (0 = never), routed to manual review |
 
 ### `users` (extends PocketBase auth)
 | Field | Type | Notes |
@@ -50,6 +51,7 @@ declare them in their own creation migration. Omitting them previously caused
 | avatar_emoji / color | text | kid's avatar emoji and accent color (not `avatar`, which is PocketBase's built-in file field) |
 | avatar | file | optional uploaded avatar image |
 | goods_rate | number | per-kid override of the household `goods_rate`; 0/unset = use the household rate |
+| grant_weekday_window / grant_weekend_window | text | parent-set delivery overrides; blank inherits household; `all` allows all day |
 
 ### `chores`
 | Field | Type | Notes |
@@ -66,6 +68,7 @@ declare them in their own creation migration. Omitting them previously caused
 | created_by | relation → users | parent |
 | active | bool | default true |
 | due_at | date | optional deadline; cron escalates reminders 24h → 2h → overdue |
+| timer_minutes | number | 0 disables; integer 1–480 requires a continuous timer; also on templates |
 | due_time / due_day | text / number | recurring deadline: HH:MM server-local; weekly day 0 Sunday–6 Saturday, monthly day 1–31 clamped to month end; also on templates |
 | race | bool | first approval wins; other assignments auto-close |
 | reminder_time | text | "HH:MM" server-local; cron reminds assigned kids daily |
@@ -85,6 +88,7 @@ One per (chore, child). Status: `assigned` → `completed` → `approved`/`rejec
 | due_at | date | server-computed recurring deadline, fixed at assignment creation; new rule applies to future assignments |
 | approved_at | date | set on parent approval |
 | credit_percent | number | parent-only integer 1–100 on approval; legacy 0/unset = full credit; immutable while settled. Partial approval closes the assignment |
+| timer_minutes / timer_started_at | number / date | duration fixed at creation; owner may start once using server clock; swaps clear start; completion before elapsed duration is blocked |
 | photo | file (single) | optional proof |
 | rejection_message | text | optional |
 | kid_response | text | kid's reply to a rejection; parents notified |

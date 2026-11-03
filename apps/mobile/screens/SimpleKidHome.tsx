@@ -34,6 +34,7 @@ import { HeaderMenu } from "../components/HeaderMenu";
 import { KudosHistory } from "../components/KudosHistory";
 import { ChoreNotes } from "../components/ChoreNotes";
 import { MyBank } from "../components/MyBank";
+import { ChoreTimer } from "../components/ChoreTimer";
 import type { SavingsGoal, SpendRequest } from "@paydirt/shared";
 import type { TimeGrant } from "@paydirt/shared";
 
@@ -297,7 +298,10 @@ export function SimpleKidHome({ user, onLogout }: { user: User; onLogout: () => 
                 +{payLabel(a.expand.chore, user.avatar_emoji || "💰")}
               </Text>
             ) : null}
-            <Button
+            {a.timer_minutes ? <ChoreTimer assignment={a} onStarted={reload} onComplete={() => {
+              if (a.expand?.chore?.photo_required) void markDoneWithPhoto(a.id);
+              else void markDone(a.id);
+            }} /> : <Button
               mode="contained"
               style={styles.doneButton}
               contentStyle={styles.doneButtonContent}
@@ -308,7 +312,7 @@ export function SimpleKidHome({ user, onLogout }: { user: User; onLogout: () => 
               }
             >
               {a.expand?.chore?.photo_required ? "Take photo! 📷" : "I did it! ✓"}
-            </Button>
+            </Button>}
             <Button mode="text" compact onPress={() => void requestHelp(a.id)} style={{ marginTop: 2 }}>
               🆘 I need help
             </Button>

@@ -250,6 +250,12 @@ export class PaydirtClient {
     return this.pb.collection(Collections.Assignments).update<Assignment>(assignmentId, data);
   }
 
+  startChoreTimer(assignmentId: string): Promise<Assignment> {
+    return this.pb.collection(Collections.Assignments).update<Assignment>(assignmentId, {
+      timer_started_at: new Date().toISOString(),
+    });
+  }
+
   /** Parent approval — the hook creates the earn transaction and bumps balance. */
   approveAssignment(assignmentId: string, creditPercent = 100): Promise<Assignment> {
     return this.pb.collection(Collections.Assignments).update<Assignment>(assignmentId, {

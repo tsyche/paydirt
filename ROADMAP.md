@@ -41,8 +41,8 @@ Last audit 2026-11-02: closed the Family Link checks (moved to the shipped ledge
 
 1. **Partial credit** — implemented locally; validation deferred at owner's request. Parent-only percentage approval on web/mobile; closes the chore, scales grit, rounds minutes down to five-minute steps, and rejects a zero payout.
 2. **Kid "My Bank" dashboard** — implemented locally; validation deferred at owner's request. Both kid homes show available balance after pending spending, conversions, estimated pending earnings, savings goals, and streak.
-3. **Time-grant windows (after-hours delivery)** — first slice implemented locally; validation deferred. Household weekday/weekend windows gate publication of purchase and chore grants, with queued unlock messages in parent views and kid My Bank. Uses server-local time. Remaining: stored household timezone, per-kid overrides, expiry/caps, and a worker-side delivery-time check (already-published jobs can finish after a window closes).
-4. **Timed chores**
+3. **Time-grant windows (after-hours delivery)** — implemented locally; validation deferred. Household timezone, weekday/weekend windows, per-kid overrides, optional queue expiry to manual review, and worker checks before contacting Google. Published jobs retain their window/expiry snapshot; settings changes apply when a job is next published. A grant already in flight may finish after closing time. Optional per-window caps remain deferred.
+4. **Timed chores** — implemented locally; validation deferred. Continuous server-stamped timer, duration fixed when assigned, restart-safe countdown, local completion notification, and completion guard on both kid homes. Parent web/mobile forms and template fields are included. No pauses; partial rewards remain a parent approval decision.
 
 ## Phase 2 — Family Link Automation
 

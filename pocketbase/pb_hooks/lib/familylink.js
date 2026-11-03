@@ -36,7 +36,15 @@ function publish(app, record) {
   }
   const child = app.findRecordById("users", record.getString("child"));
   const household = app.findRecordById("households", child.getString("household"));
-  const state = require(__hooks + "/lib/grantWindows.js").windowState(household, new Date());
+  const now = new Date();
+  const expiryDays = household.getInt("grant_expiry_days");
+  const expiresAt = expiryDays ? new Date(new Date(record.getString("created").replace(" ", "T")).getTime() + expiryDays * 86400000).toISOString() : "";
+  if (expiresAt && now >= new Date(expiresAt)) {
+    record.set("grant_status", "manual");
+    record.set("grant_error", "Queued time expired without delivery. Review the purchase or chore reward manually.");
+    app.save(record); notifyManual(app, record); return;
+  }
+  const state = require(__hooks + "/lib/grantWindows.js").windowState(household, now, child);
   if (record.getString("grant_error") !== state.message) {
     record.set("grant_error", state.message);
     app.save(record);
@@ -47,6 +55,8 @@ function publish(app, record) {
     childId: child.getString("fl_child_id"),
     deviceId: child.getString("fl_device_id"),
     seconds: minutesOf(record) * 60,
+    validUntil: state.validUntil || "",
+    expiresAt,
   };
   const temporary = dir + "/" + name + ".tmp";
   $os.writeFile(temporary, JSON.stringify(job), 0o600);
@@ -74,8 +84,14 @@ function reconcile(app) {
         continue;
       }
       const result = JSON.parse(toString($os.readFile(file)));
-      if (result.id !== record.id || ["granted", "manual"].indexOf(result.status) === -1) {
+      if (result.id !== record.id || ["granted", "manual", "deferred"].indexOf(result.status) === -1) {
         throw new Error("Invalid grant result");
+      }
+      if (result.status === "deferred") {
+        // Worker never contacted Google. Safe to retry in the next window.
+        $os.remove(file);
+        publish(app, record);
+        continue;
       }
       const errors = {
         session_expired: "Family Link session expired. Run fl-login and fl-host-setup on the Mac, then grant manually.",
@@ -83,6 +99,7 @@ function reconcile(app) {
         failed: "The grant failed and may have succeeded. Check Family Link before granting manually.",
         disabled: "Automatic grants are disabled. Grant the time manually.",
         invalid_request: "The grant target or duration is invalid. Check the child's settings and grant manually.",
+        expired: "Queued time expired without delivery. Review the purchase or chore reward manually.",
       };
       record.set("grant_status", result.status);
       record.set("grant_error", result.status === "manual" ? errors[result.error] || errors.failed : "");
