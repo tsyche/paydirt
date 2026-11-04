@@ -1,37 +1,26 @@
 # Shipped Roadmap Items
 
-**TL;DR:** Compact index of completed roadmap work followed by the original entries.
+**TL;DR:** Completed work with recorded implementation/verification evidence, followed by historical entries. Unfinished acceptance work is tracked in [ROADMAP.md](../../ROADMAP.md) and the [acceptance plan](../plans/feature-acceptance.md); old caveats are resolved only where later evidence is recorded.
 
 ## Shipped index
 
-- [x] 2026-11-04 — Mobile suggested-chore approval opens an independent review modal from Approvals (local; deployment pending)
+- [x] 2026-11-04 — Rapid-approval queue preservation and pending/approved/rejected limit counting verified against live PocketBase
 
 - [x] 2026-11-04 — Family Link early-bonus allowance-loss report ruled out on device: normal daily time resumes after the bonus expires
 
-- [x] 2026-11-04 — Mobile chore bonus-time validation: visible minimum/step guidance, inline field errors, and persistent create-submit errors (local; deployment pending)
-
-- [x] 2026-11-04 — Daily midnight recurrence and household timezone sweep; sandbox test-all guidance (local implementation; deployment pending)
-
-- [x] 2026-11-04 — Multiple delivery windows and day-specific schedules, household defaults and kid overrides (implemented locally; deployment and device verification pending)
-
 - [x] 2026-11-02 — Tier 2 APK self-update confirmed on the remaining tablets
 - [x] 2026-11-02 — Family Link automatic grants verified in production (real purchase and chore time grants land on the tablets)
-- [x] 2026-11-02 — Expiry takes the right grit: daily cron replays each kid's ledger oldest-first (`expiryLapse`), so spends consume expiring grit first (deployed to bb 2026-11-02)
 - [x] 2026-11-02 — Mobile header menu (Theme / Alerts / Sign out, unread dot), grit dialog with dollars and screen minutes per kid and combined (web + mobile), `kids_see_balances` household setting
-- [x] 2026-11-02 — Overview dashboards: parent cost overview + per-kid weekly potential (web + mobile, Ledger tab), kid "My Bank" minutes on both kid homes
 - [x] 2026-11-01 — Per-kid daily chore summary push; silent 3 AM recurring assignments
-- [x] 2026-11-01 — Mobile parent Activity report (parent parity)
-- [x] 2026-11-01 — Web kid-goal form and co-parent panel (parent parity)
 - [x] 2026-10-31 — Per-chore pay mode (bucks, screen time, or both)
 - [x] 2026-10-31 — Advisory chore limits, streak bonuses, economy tuning
 - [x] 2026-10-31 — One-command deploy (`just ship`) and in-app update fixes
 - [x] 2026-10-23 — Go live on bb
-- [x] 2026-10-29 — Age-grouped starter chores (`packages/shared/src/starterChores.ts`; web picker, `go-live` step). Mobile parent picker not built; setup happens on web
+- [x] 2026-10-29 — Age-grouped starter chores: shared catalogue, web picker, and CLI seeding (mobile acceptance tracked separately)
 - [x] 2026-10-29 — Alert inbox (bell on mobile, Alerts tab on web), `needs_help` parent notification fix
 - [x] 2026-10-29 — Host backups (nightly PocketBase zips + `backup-pull`), `push-updates`, `host-reset`/`go-live` onboarding
 - [x] 2026-10-21 — Android unit tests wired into `just test` + CI (`test-android`, setup-java; confirmed 2026-10-29)
 - [x] 2026-10-25 — Phase 2 spike: Family Link API grant
-- [x] 2026-10-21 — App auto-updates (Tier 1 — expo-updates OTA)
 - [x] 2026-10-22 — App auto-updates (Tier 2 — version check + APK prompt)
 - [x] 2026-10-22 — Feature explanation tooltips
 - [x] 2026-10-22 — Approval queue photo grid
@@ -41,11 +30,9 @@
 - [x] 2026-10-22 — Scheduled allowance (payday)
 - [x] 2026-10-22 — Auto-save to savings goals
 - [x] 2026-10-22 — Parent mobile parity (settings + ledger)
-- [x] 2026-10-21 — Deeper gamification ("playful" mode)
-- [x] 2026-10-21 — Suppress foreground notifications
-- [x] 2026-10-21 — Realtime resubscribe on resume
+- [x] 2026-10-21 — Badge shelf, balance count-up, coin-pop celebrations, and calm-mode toggle (delivered subset)
 - [x] 2026-10-21 — On-theme currency presets
-- [x] 2026-10-21 — Real-device smoke test (Pixel 8 / GrapheneOS)
+- [x] 2026-10-21 — Verified Pixel 8 kid/photo/spend/push/connectivity checks (remaining journeys stay active)
 - [x] 2026-10-21 — Phase 2 spend-approved notification trigger
 - [x] 2026-08-17 — Notification deep links
 - [x] 2026-08-17 — Offline / unreachable-backend UX
@@ -65,16 +52,6 @@ Owner confirmed the remaining tablets self-updated after the 2026-11-02 ship. Th
 ### 2026-11-02 — Family Link automatic grants verified in production
 
 Owner confirmed the remaining checks on 2026-11-02: grants work end to end on the tablets. Built and proven earlier: pricing and per-kid IDs, host tooling, session moves between machines, additive grants (59 + 60 = 119 s), approval queue and worker with `FL_AUTOMATION_ENABLED=1`, session verified 2026-10-31, per-chore pay mode, and the daily chore summary push. Still open and tracked in the backlog: how long the copied Google session lives with occasional use (*Family Link session keep-alive*).
-### 2026-11-02 — Expiry takes the right grit
-
-Bug: `runDaily` summed stale `earn` rows and lapsed `min(sum, balance)`, so earn 100 (d1), spend 100 (d5), earn 50 (d20) lapsed the fresh 50 at d31. Fix: `expiryLapse` (`packages/shared/src/scheduling.ts`, hand-mirrored in `pb_hooks/lib/scheduler.js`) replays the kid's ledger oldest-first; each earn is a lot, debits consume the oldest lots, non-earn credits never expire. Seven unit tests cover it, including the spend-between-earns case. Not deployed yet; existing wrongly lapsed rows are not repaired. Known approximation: a reversal (parent un-approve) is a negative adjustment, so it consumes the oldest lot rather than the specific earn it undoes.
-### 2026-11-02 — Overview dashboards (parent cost, weekly potential, kid My Bank)
-
-- **Shared math** (`packages/shared/src/overview.ts`, unit-tested): `bankView`, `weeklyPotential`/`occurrencesPerWeek`, `periodRange`, `summarizePeriod`/`addSummaries`/`pctChange`. Client gained `listTransactionsInRange` and `listApprovedInRange`.
-- **Parent** (web `OverviewView.tsx`, mobile `components/OverviewView.tsx`, atop the Ledger tab): week/month/year totals with previous-period navigation: earned, redeemed, parent adjustments, bonus minutes from time chores, chores done, per-kid split, `% vs last period`. Weekly potential per kid (recurring chores only, one-offs counted separately) with dollar and screen-minute equivalents. Parent-only; no sibling comparison on kid screens.
-- **Kid**: `ClaimHero` and `SimpleKidHome` show 'could buy N min' (potential, floored to 5 min) beside the dollar value, recomputed from live rates.
-- **Caveats:** dollars use today's `goods_rate`, so past periods shift if it changes (the page says so); potential is a ceiling since limits are advisory. Heatmap remains in the backlog.
-
 ### 2026-10-25 — Phase 2 spike: Family Link API grant
 
 - `just fl-login` / `just fl-grant <seconds>` → `scripts/familylink-grant.mjs`; pure helpers + unit tests in `packages/shared/src/familylink.ts`. A 300 s grant was confirmed on child2's tablet.
@@ -82,13 +59,9 @@ Bug: `runDaily` summed stale `earn` rows and lapsed `min(sum, balance)`, so earn
 - Sign-in: Google rejects every automated browser ("not secure"), including Playwright Firefox, Playwright-launched Chrome, and real Chrome with a CDP port open. What works: plain Chrome on a dedicated profile with nothing attached, signed in by hand, then reopened headless to export `storageState` (chmod 600, `~/.config/paydirt/`).
 - Account: shared co-parent account in Family Link's second (and last) parent slot; both parents use it for manual grants.
 
-### 2026-10-21 — App auto-updates (Tier 1 — expo-updates OTA)
-
-- **App auto-updates (no Play Store)** — kids' devices currently only update by plugging in a cable. No Play Services means no Play Store auto-update, no Play Core in-app update API, no Firebase App Distribution. **Tier 1 — `expo-updates` OTA.** Covers JS/TS, components, business logic, styling. Does *not* require EAS; point `updates.url` at a self-hosted manifest (PocketBase can serve it). Silent, no user interaction. **Configure rollback as part of tier 1, not after.** A bad JS bundle remotely bricks the app on every kid's device simultaneously. **Tier 2 — version check + APK prompt** (native changes OTA structurally cannot deliver) remains unshipped. ~3-4 hrs per tier.
-
-Shipped: `apps/mobile/app.config.js` layers `updates.url` (from `EXPO_PUBLIC_POCKETBASE_URL` + `/api/updates/manifest`) and `runtimeVersion.policy: "appVersion"` on top of `app.json`. `pocketbase/pb_hooks/updates.pb.js` implements the Expo Updates protocol: plain-JSON manifests for protocol 0/1, multipart `rollBackToEmbedded`/`noUpdateAvailable` directives on protocol v1, md5-keyed immutable asset serving, superuser-only `/api/updates/config` debug endpoint. Publish via `just update-publish` (`scripts/publish-update.mjs`: expo export → `pb_data/updates/<ver>/<epoch>/` with `manifest.json`, `metadata.json`, `expoConfig.json`, `assets/`); roll back via `just update-rollback` (`scripts/rollback-update.mjs` drops a `rollback` marker; protocol v1 clients fall back to the embedded bundle on next check; `clear=1` removes the marker). Pure helpers (`buildServerManifest`, `decideManifestResponse`, asset hashing, `sha256HexToUuid`) live in `packages/shared/src/updates.ts` — deliberately *not* re-exported from the shared index because they use `node:crypto`/`Buffer` and would break mobile/web typechecks; consumed by the publish script via `node --experimental-strip-types`. Regression tests: `updates.test.ts` (15 cases across hashing, manifest building, and the decision table). Tier 2 (version check + APK prompt) and final on-device validation (does an update actually land on GrapheneOS?) remain open — the latter is 🧑 needs-human.
-
 ### 2026-10-22 — App auto-updates (Tier 2 — version check + APK prompt)
+
+**Later evidence:** the owner confirmed self-update on the remaining tablets on 2026-11-02 (record above). The original on-device gate below is closed, not an outstanding task.
 
 - **Tier 2 (native APK)** — agent-doable pieces shipped: `GET /api/updates/version` + `GET /api/updates/apk` (PocketBase, `lib/updates.js`), mobile polling (`apps/mobile/lib/appUpdate.ts`), DownloadManager install intent (`PayDirtNative.downloadAndInstallApk` + `REQUEST_INSTALL_PACKAGES`), `just publish-apk`. Tier 1 hook refactored into `lib/updates.js` (top-level bindings invisible inside routerAdd handlers in this Goja runtime) and root corrected to `$app.dataDir()/updates`. On-device validation (install prompt lands + APK installs on GrapheneOS) remains human-gated.
 
@@ -117,18 +90,6 @@ Chore CRUD, assignment, complete/approve flow, parentBucks earn + spend, ntfy no
 - **Deeper gamification (full "playful" mode)** — the design refresh landed a playful-but-grown-up baseline (tactile buttons, claim hero, coin-pop on approval). Architecture (`Celebration`, `ChunkyButton`, palette packs) is built to dial *up* toward a fuller Duolingo-style experience. Candidate additions: a household mascot, richer celebration sequences (XP-style count-up on the claim hero), badge/achievement shelf, streak-freeze mechanic, sound effects (opt-in), and an optional per-kid "max playful" intensity. Keep parent surfaces calm (the Slate pack); scope playful escalation to the kid views. Gate behind a setting so parents control the dial. ~1-2 days.
 
 Shipped: badge shelf (pure `computeBadges` in `packages/shared/src/badges.ts` — first chore, 10/50 chores, 3/7/30-day streaks, first/3 goals, 100/500 bank; `BadgeShelf.tsx` shows earned + next-locked with progress), XP-style count-up on ClaimHero and the SimpleKidHome balance (`useCountUp`, reduce-motion aware), and coin-pop celebration when a kid's balance ticks up (`shouldCelebrate` gates increase-only). All three silenced by a new per-kid `users.calm_mode` bool (migration `1717000015`), toggled from mobile KidDetail and the web avatar editor. Parent surfaces unchanged. Regression tests: `badges.test.ts` (7 cases across computeBadges/earnedBadges/shouldCelebrate); not-yet-shipped candidates (mascot, sounds, streak-freeze) stay out of scope.
-
-### 2026-10-21 — Suppress foreground notifications
-
-- **Suppress foreground notifications** — smoke-test finding (2026-10-21): approving while the kid app is foregrounded still posts a system notification; the checklist expects a silent in-app update when the app is open. Fix: `UnifiedPushReceiver.kt` checks foreground/process state (or an in-memory flag set by the JS side) before calling `notify()`. Native Kotlin — no repo test harness for it, so verification is a manual on-device check (or a later Robolectric investment). ~1 hr.
-
-Shipped: pure-Kotlin `ForegroundCounter` (no Android imports) fed by `ActivityLifecycleCallbacks` on `MainApplication`; `UnifiedPushReceiver` skips `notify()` while any activity is started — live realtime updates already cover the screen. Phase 2's `spend_approved` broadcast still fires regardless. Regression tests: `ForegroundTrackerTest.kt` (4 JUnit cases incl. config-change activity overlap and negative-counter guard), run via `./gradlew :app:testDebugUnitTest` (not wired into `just test`/CI — gradle-only; on-device heads-up suppression still deserves a manual check next device session).
-
-### 2026-10-21 — Realtime resubscribe on resume
-
-- **Realtime resubscribe on resume** — smoke-test finding (2026-10-21): after a network interruption the realtime socket recovers eventually, but the UI can sit silently stale for tens of minutes. Fix: resubscribe on AppState `active` / reachability-restore (same trigger the offline banner already has), so `Users.subscribe` is re-established promptly. Acceptance: unit tests on the reconnect/resubscribe wrapper (clock-injectable, same style as the scheduling tests); integration or e2e check that a dropped-then-restored connection re-receives updates. ~2-3 hrs.
-
-Shipped: `packages/shared/src/realtime.ts` (`resumeRealtime` forces an SDK socket rebuild that preserves subscription listeners; `createResumeScheduler` coalesces AppState-foreground and offline→online triggers). Mobile `useRealtimeResume` hook wired into KidHome, SimpleKidHome, ParentHome — rebuild + catch-up reload on every resume. Regression tests: `realtime.test.ts` (10 unit tests, fake timers) + integration test proving events re-flow after a silently-dropped socket (`hooks.integration.test.ts`).
 
 ### 2026-10-21 — On-theme currency presets
 
@@ -231,6 +192,8 @@ Native tap-through later confirmed on the Pixel 8, 2026-10-21 (warm: lands KidHo
 
 ### 2026-10-31 — Per-chore pay mode (bucks, screen time, or both)
 
+**Later evidence:** production time-pay grants were owner-confirmed on 2026-11-02; the owner also verified a five-minute time-pay chore on 2026-11-04. The earlier first-time-chore gate below is closed.
+
 - `chores.pay_mode` per chore, paid via `time_grants` and the Family Link queue; pay math in `pocketbase/pb_hooks/lib/chorePay.js` and `packages/shared/src/chorePay.ts` (d621c20). Deployed to bb 2026-10-31. Tablet APK check and the first real time chore are still open (see Recommended Next 3). The kid "ask for more time" button and other follow-ups remain in the active backlog.
 
 ### 2026-10-31 — Advisory chore limits, streak bonuses, economy tuning
@@ -239,44 +202,25 @@ Native tap-through later confirmed on the Pixel 8, 2026-10-21 (warm: lands KidHo
 
 ### 2026-10-31 — One-command deploy (`just ship`) and in-app update fixes
 
+**Later evidence:** all remaining tablets self-updated on 2026-11-02 (record above), closing the earlier tablet-install follow-up.
+
 - `just ship` deploys the backend, builds and publishes the APK, and adb-installs where reachable (793886d); native download method and install permission fixed (570559a). Self-update validated end to end on one phone; other tablets still need one adb install of the new build.
 
 ### 2026-10-23 — Go live on bb
 
 - PayDirt production runs on bb:3111 since 2026-10-23 (`update-service`, nightly backups, `go-live`, `push-updates`; see [deployment](../DEPLOYMENT.md#going-live-with-a-real-household)). Date taken from project memory, not a commit.
 
-### 2026-11-01 — Web kid-goal form and co-parent panel (parent parity)
-
-- `GoalControl` (set/delete goal, confirm on delete) and `CoParentsPanel` (list/add) in `apps/web/app/components/Dashboard.tsx`, matching mobile. Two Playwright tests in `phase1.spec.ts`; `just test-all` passes. Not deployed.
-
-### 2026-11-01 — Mobile parent Activity report (parent parity)
-
-- `ActivityReport` on the mobile Kids tab mirrors the web report. `streakPeak` and `summarizeMonthActivity` moved to `packages/shared/src/activity.ts` (unit-tested) and are used by both. Closes the last gap from the parity pass. Not deployed; not viewed on emulator.
-
 ### 2026-11-01 — Per-kid daily chore summary push; silent 3 AM recurring assignments
 
 - `users.digest_weekday` / `digest_weekend` (HH:MM, server-local) with a `digest_sent` marker, sent by the 10-minute scheduler tick (`pocketbase/pb_hooks/lib/scheduler.js`); migration `1717000026` adds `assignments.auto_created` so the 3 AM auto-assignment no longer pushes 'New chore!'. Deployed to bb 2026-11-01 (`e33fdfc`); times set in the app, summary push confirmed arriving. A grit + time chore approved the same day paid out through the Family Link queue (time grant lagged the grit).
 
-## Day-specific delivery schedules — 2026-11-04
+### 2026-11-04 — Approval queue and repeat-limit regressions verified
 
-Multiple comma-separated delivery ranges retain existing weekday/weekend settings. Optional `grant_day_windows` stores individual weekday exceptions on households and kids. Each day supports all day, specific hours, or no delivery. Kid day overrides take precedence over kid weekday/weekend defaults, then household day overrides and household defaults. Overnight ranges are supported; overlaps and incomplete lists are rejected. Web and mobile provide default-hour editors and day summaries, with collapsible household settings groups.
+Real PocketBase integration tests verify the application-owned queue and limit states; this does not claim an unperformed native UI test. Original resolved reports:
 
-Migration `1717000039_delivery_days.js` adds the optional fields without rewriting existing settings. Removing it drops day exceptions; weekday/weekend defaults remain. Family Link schedule import and individual queued-grant holds remain separate follow-ups.
+  - ~~**Rapid approvals may lose queued screen time (verify)**~~ — **verified 2026-11-04** (no bug): new integration test queues/approves three back-to-back time-pay chore approvals and asserts each gets its own grant, none dropped.
+  - ~~**Chore count limits not honored after submit**~~ — **verified 2026-11-04** (no bug): new integration test covers pending/approved/rejected counting; cron does not re-create within the window and advisory warnings count all three states.
 
-## Household calendar and daily recurrence — 2026-11-04
+### 2026-11-04 — Ordinary Family Link time resumes after bonus expiry
 
-Daily repeat limits reset at household midnight rather than after 24 hours. Recurrence is transactional, retries every minute, and allows yesterday's pending approval alongside today's fresh occurrence. Timers start fresh on the new assignment. Weekly/monthly rolling windows remain unchanged.
-
-The existing `grant_timezone` is now the household-wide IANA setting, defaulting to `America/Los_Angeles`. Cron schedules, recurring deadlines, quiet hours, reminders, digest days, streaks, report boundaries, date inputs, and history/ledger labels honor it. Stored timestamps and elapsed timers/expiry remain UTC instants. History distinguishes completion from approval dates. Changing the household setting updates the cron clock without a restart; stored assignment deadlines and published grant snapshots retain their original instant.
-
-The sandbox `test-all` follow-up is documented in [AGENTS.md](../../AGENTS.md#development), including the optional webpack/polling fallback. The isolated runner supplies `PB_TEST_DB` for backdated fixtures; these tests never write the live database.
-
-## Mobile chore reward feedback — 2026-11-04
-
-The bonus-minutes input now states the five-minute minimum, five-minute steps, and 120-minute maximum. Invalid amounts flag the field and show a persistent inline explanation. Create-chore validation and API errors also appear beside the submit button rather than only in a four-second snackbar. Shared/server validation names the minimum explicitly. Rendered component tests cover two-minute rejection, seven-minute step feedback, guidance before entry, and a valid five-minute reward; these failed before the fix.
-
-## Mobile suggested-chore review — 2026-11-04
-
-The earlier prefill fix set the create-form flag without leaving Approvals, but the form lived inside the Chores tab and therefore remained hidden. The shared mobile create form now opens in a tab-independent modal, with editable suggestion details, persistent error feedback, and pinned Cancel / Create and approve controls. Old timer/deadline/reminder form state is reset before prefilling a suggestion. Cancelling leaves it pending; saving creates and assigns the chore before resolving the suggestion.
-
-Rendered dialog tests cover visible fields, pinned actions, errors, and cancellation visibility. A JSX ancestry regression test rejects mounting the composer inside any tab condition; it fails when the original tab gate is restored. Native tap-through remains unverified.
+Owner approved a five-minute time-pay chore with two hours of ordinary daily time remaining. After the bonus expired, ordinary daily depletion resumed. The reported allowance-loss bug was ruled out on the device; no grant-calculation change was required.
