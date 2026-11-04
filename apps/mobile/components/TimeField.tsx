@@ -59,7 +59,7 @@ export function TimeField({
 }
 
 /** Start/end time pickers that read and write "HH:MM-HH:MM"; blank until both ends are set. */
-export function TimeRangeField({
+function SingleTimeRangeField({
   label,
   value,
   onChange,
@@ -106,6 +106,21 @@ export function TimeRangeField({
       {!!error && <Text style={styles.error}>{error}</Text>}
     </View>
   );
+}
+
+export function TimeRangeField({ value, onChange, ...props }: { label: string; value: string; onChange: (value: string) => void; allowAll?: boolean }) {
+  const [rows, setRows] = useState(value.split(","));
+  useEffect(() => { setRows(value.split(",")); }, [value]);
+  function update(next: string[]) {
+    setRows(next);
+    onChange(next.join(","));
+  }
+  return <View>{rows.map((row, index) => <View key={index}>
+    <SingleTimeRangeField {...props} label={`${props.label} ${index + 1}`} value={row} onChange={(next) => update(rows.map((old, i) => i === index ? next : old))} />
+    {rows.length > 1 && <Pressable accessibilityRole="button" onPress={() => update(rows.filter((_, i) => i !== index))}><Text>Remove window</Text></Pressable>}
+  </View>)}
+    {value !== "all" && <Pressable accessibilityRole="button" onPress={() => update([...rows, ""])}><Text>Add window</Text></Pressable>}
+  </View>;
 }
 
 const styles = StyleSheet.create({

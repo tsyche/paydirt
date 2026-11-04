@@ -5,7 +5,7 @@ import { formatTimeRange, parseTimeRange, timeRangeError } from "@paydirt/shared
  * Start/end time pickers (native clock UI) that read and write "HH:MM-HH:MM".
  * Blank until both ends are picked; `allowAll` adds an 'all' (all day) value for per-kid overrides.
  */
-export function TimeRangeField({
+function SingleTimeRangeField({
   label,
   value,
   onChange,
@@ -56,4 +56,19 @@ export function TimeRangeField({
       {(error || half) && <span className="error time-range-error">{error || half}</span>}
     </div>
   );
+}
+
+export function TimeRangeField({ value, onChange, ...props }: { label: string; value: string; onChange: (value: string) => void; allowAll?: boolean }) {
+  const [rows, setRows] = useState(value.split(","));
+  useEffect(() => { setRows(value.split(",")); }, [value]);
+  function update(next: string[]) {
+    setRows(next);
+    onChange(next.join(","));
+  }
+  return <div>{rows.map((row, index) => <div key={index}>
+    <SingleTimeRangeField {...props} label={`${props.label} ${index + 1}`} value={row} onChange={(next) => update(rows.map((old, i) => i === index ? next : old))} />
+    {rows.length > 1 && <button type="button" onClick={() => update(rows.filter((_, i) => i !== index))}>Remove window</button>}
+  </div>)}
+    {value !== "all" && <button type="button" onClick={() => update([...rows, ""])}>Add window</button>}
+  </div>;
 }

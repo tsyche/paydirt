@@ -15,11 +15,13 @@ function windowState(household, now, child) {
     const override = child ? child.getString(field) : "";
     const window = override === "all" ? "" : override || household.getString(field);
     if (!window) return true;
-    const parts = window.split("-");
     const minute = local ? Number(local.format("15")) * 60 + Number(local.format("04")) : at.getHours() * 60 + at.getMinutes();
     const minutes = (value) => Number(value.slice(0, 2)) * 60 + Number(value.slice(3));
+    return window.split(",").some((range) => {
+    const parts = range.trim().split("-");
     const start = minutes(parts[0]), end = minutes(parts[1]);
     return start < end ? minute >= start && minute < end : minute >= start || minute < end;
+    });
   }
   if (allowed(now)) {
     const close = new Date(now);
@@ -43,9 +45,17 @@ function validate(record) {
   for (const field of ["grant_weekday_window", "grant_weekend_window"]) {
     const value = record.getString(field);
     if (record.collection().name === "users" && value === "all") continue;
-    if (value && (!/^([01]\d|2[0-3]):[0-5]\d-([01]\d|2[0-3]):[0-5]\d$/.test(value) ||
-        value.slice(0, 5) === value.slice(6))) {
-      throw new BadRequestError("Use a delivery window like 15:30-20:00, or leave it blank for all day.");
+    const occupied = new Set();
+    for (const range of value ? value.split(",").map((part) => part.trim()) : []) {
+      if (!/^([01]\d|2[0-3]):[0-5]\d-([01]\d|2[0-3]):[0-5]\d$/.test(range) || range.slice(0, 5) === range.slice(6)) {
+        throw new BadRequestError("Choose a start and end for every delivery window.");
+      }
+      const minute = (time) => Number(time.slice(0, 2)) * 60 + Number(time.slice(3));
+      const start = minute(range.slice(0, 5)), end = minute(range.slice(6));
+      for (let at = start; at !== end; at = (at + 1) % 1440) {
+        if (occupied.has(at)) throw new BadRequestError("Delivery windows cannot overlap.");
+        occupied.add(at);
+      }
     }
   }
   const zone = record.getString("grant_timezone");
