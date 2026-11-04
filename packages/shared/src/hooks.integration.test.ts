@@ -121,6 +121,13 @@ describe("PocketBase hooks & guards (live)", () => {
     await expect(
       recipient.pb.collection(Collections.Kudos).update<KudosAward>(award.id, { reason: "edited" }),
     ).rejects.toThrow();
+    // E2E cleanup must compensate via the ledger; a direct cache reset is
+    // rejected by the user guard, even when authenticated as a superuser.
+    await parent.adjustBalance(fresh.id, -17, "E2E kudos cleanup");
+    await su.collection("currency_transactions").update(tx!.id, { related_kudos: null });
+    await su.collection("kudos").delete(award.id);
+    expect(await parent.getBalance(fresh.id)).toBe(start);
+    expect((await parent.listTransactions(fresh.id)).reduce((sum, row) => sum + row.amount, 0)).toBe(start);
   });
 
   it("approval undo reverses the reward exactly once", async () => {

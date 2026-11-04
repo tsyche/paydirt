@@ -255,6 +255,7 @@ export function Dashboard({
           <div
             className="card"
             key={kid.id}
+            data-testid={`kid-card-${kid.id}`}
             style={{ borderLeft: `4px solid ${kidAccent(kid.color, "#2f7d4f")}` }}
           >
             <div className="row">

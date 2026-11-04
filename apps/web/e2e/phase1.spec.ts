@@ -231,10 +231,7 @@ test("parent gives a kid a kudos bonus from the web", async ({ page }) => {
   try {
     await signIn(page);
     await goTab(page, /Kids/);
-    const card = page
-      .locator(".card")
-      .filter({ hasText: kid.display_name })
-      .filter({ has: page.getByRole("button", { name: /Give kudos/ }) });
+    const card = page.getByTestId(`kid-card-${kid.id}`);
     await card.getByRole("button", { name: /Give kudos/ }).click();
     await card.getByLabel(`Kudos amount for ${kid.display_name}`).fill("17");
     await card.getByPlaceholder("Why? (optional)").fill(reason);
@@ -247,6 +244,7 @@ test("parent gives a kid a kudos bonus from the web", async ({ page }) => {
     awardId = (await parent.listKudosForChild(kid.id)).find(
       (award) => award.reason === reason,
     )!.id;
+    expect(await parent.getBalance(kid.id)).toBe(startingBalance + 17);
   } finally {
     if (awardId) {
       const admin = new PaydirtClient(PB_URL);
@@ -259,11 +257,15 @@ test("parent gives a kid a kudos bonus from the web", async ({ page }) => {
       const txs = await admin.pb.collection("currency_transactions").getFullList({
         filter: admin.pb.filter("related_kudos = {:k}", { k: awardId }),
       });
+      // Preserve the ledger invariant: reverse through the normal parent
+      // adjustment, then unlink history before deleting the test award.
+      const credited = txs.reduce((sum, transaction) => sum + Number(transaction.amount), 0);
+      if (credited) await parent.adjustBalance(kid.id, -credited, "E2E kudos cleanup");
       for (const transaction of txs) {
-        await admin.pb.collection("currency_transactions").delete(transaction.id);
+        await admin.pb.collection("currency_transactions").update(transaction.id, { related_kudos: null });
       }
       await admin.pb.collection("kudos").delete(awardId);
-      await admin.pb.collection("users").update(kid.id, { balance: startingBalance });
+      expect(await parent.getBalance(kid.id)).toBe(startingBalance);
     }
   }
 });
