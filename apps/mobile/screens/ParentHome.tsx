@@ -942,29 +942,31 @@ export function ParentHome({
                       </View>
                     </View>
                     <View style={styles.approvalActions}>
-                      <ChunkyButton
-                        label="Approve"
-                        icon="check"
-                        onPress={() => {
-                          party();
-                          void act(() => client.approveAssignment(a.id), "Approved! 🎉");
-                        }}
-                        style={styles.approveBtn}
-                      />
+                      <View style={styles.approvalPrimaryActions}>
+                        <ChunkyButton
+                          label="Approve"
+                          icon="check"
+                          onPress={() => {
+                            party();
+                            void act(() => client.approveAssignment(a.id), "Approved! 🎉");
+                          }}
+                          style={styles.approveBtn}
+                        />
+                        <Button
+                          mode="outlined"
+                          icon="close"
+                          onPress={() => confirmReject(a.id)}
+                          style={styles.rejectBtn}
+                          contentStyle={styles.actionBtnContent}
+                          textColor={theme.colors.error}
+                        >
+                          Reject
+                        </Button>
+                      </View>
                       {chore && <PartialCredit chore={chore} currency={currencyName} onApprove={async (percent) => {
                         await client.approveAssignment(a.id, percent);
                         await reload();
                       }} />}
-                      <Button
-                        mode="outlined"
-                        icon="close"
-                        onPress={() => confirmReject(a.id)}
-                        style={styles.rejectBtn}
-                        contentStyle={styles.actionBtnContent}
-                        textColor={theme.colors.error}
-                      >
-                        Reject
-                      </Button>
                     </View>
                   </Card.Content>
                 </Card>
@@ -1481,7 +1483,8 @@ const styles = StyleSheet.create({
   rewardChip: {},
   resubNote: { marginTop: 4, fontStyle: "italic" },
   photoThumb: { width: 100, height: 100, borderRadius: 8, marginTop: 8 },
-  approvalActions: { flexDirection: "row", gap: 8, marginTop: 10 },
+  approvalActions: { gap: 8, marginTop: 10 },
+  approvalPrimaryActions: { flexDirection: "row", gap: 8 },
   approveBtn: { flex: 1, borderRadius: 12 },
   rejectBtn: { flex: 1, borderRadius: 12 },
   actionBtnContent: { paddingVertical: 4 },

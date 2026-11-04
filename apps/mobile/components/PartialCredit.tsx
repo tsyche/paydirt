@@ -13,7 +13,9 @@ export function PartialCredit({ chore, currency, onApprove }: {
   const pay = partialPay(chore, value);
   const valid = Number.isInteger(value) && value > 0 && value < 100 && (pay.bucks > 0 || pay.minutes > 0);
   return <>
-    <Button onPress={() => setOpen(true)}>Partial credit</Button>
+    <Button mode="outlined" icon="percent" onPress={() => setOpen(true)} style={styles.trigger} contentStyle={styles.triggerContent}>
+      Give partial credit
+    </Button>
     <Portal><Dialog visible={open} onDismiss={() => { if (!busy) setOpen(false); }}>
       <Dialog.Title>Partial credit</Dialog.Title>
       <Dialog.Content>
@@ -33,3 +35,8 @@ export function PartialCredit({ chore, currency, onApprove }: {
     </Dialog></Portal>
   </>;
 }
+
+const styles = {
+  trigger: { borderRadius: 12 },
+  triggerContent: { paddingVertical: 4 },
+};

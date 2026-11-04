@@ -13,4 +13,19 @@ describe("mobile approval layout", () => {
     expect(grants).toBeGreaterThan(spend);
     expect(recent).toBeGreaterThan(grants);
   });
+
+  it("keeps approve and reject together, with partial credit on its own row", () => {
+    const source = readFileSync(new URL("../screens/ParentHome.tsx", import.meta.url), "utf8");
+    const actions = source.indexOf("<View style={styles.approvalActions}>");
+    const primary = source.indexOf("<View style={styles.approvalPrimaryActions}>", actions);
+    const partial = source.indexOf("<PartialCredit", actions);
+    expect(primary).toBeGreaterThan(actions);
+    expect(partial).toBeGreaterThan(primary);
+  });
+
+  it("hides chore instructions until More details is pressed", () => {
+    const source = readFileSync(new URL("../components/ChoreNotes.tsx", import.meta.url), "utf8");
+    expect(source).toContain('{expanded && <Text variant="bodySmall"');
+    expect(source).toContain('{expanded ? "Less details" : "More details"}');
+  });
 });
