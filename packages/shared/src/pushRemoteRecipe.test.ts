@@ -55,6 +55,11 @@ describe("push-remote recipe", () => {
 });
 
 describe("ship recipe", () => {
+  it("routes just push through the full shipping flow", () => {
+    const source = readFileSync(new URL("../../../justfile", import.meta.url), "utf8");
+    expect(source).toMatch(/^push: ship$/m);
+  });
+
   it("updates the server and publishes the APK even when no devices connect", () => {
     const result = runRecipe("List of devices attached", 1, 0, "ship");
     expect(result.status).toBe(0);

@@ -26,7 +26,7 @@ The unit runs as the unprivileged `paydirt` user with `ProtectSystem=strict`; on
    - imports local `pocketbase/pb_data` **only if** the host has no `data.db` yet;
    - then does everything `update-service` does.
 4. Point the apps at the host:
-   - Mobile: set `EXPO_PUBLIC_POCKETBASE_URL=http://<host-ip>:3111` in `apps/mobile/.env`, then `just push` (the URL is baked into the APK).
+   - Mobile: set `EXPO_PUBLIC_POCKETBASE_URL=http://<host-ip>:3111` in `apps/mobile/.env`, then `just push-remote` for direct APK installation (the URL is baked into the APK). For a full release after committing, `just push` aliases `just ship`: update the server, publish the APK for in-app updates, then install on reachable devices. No reachable devices skips only direct installation.
    - Dashboard: `http://<host-ip>:3111/` (admin UI at `/_/`).
 5. Kids' VLAN (br1) needs a router LAN Access rule allowing `192.168.20.0/24` → `<host-ip>:3111`.
 

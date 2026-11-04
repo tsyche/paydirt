@@ -24,7 +24,7 @@ default:
     printf '  just deploy-start          step-by-step pairing + install instructions\n'
     printf '  just ship                  EVERYTHING: backend + build + publish for in-app update + adb install where reachable (commit first)\n'
     printf '  just push-remote           connect tablets from deploy-devices + push release APK (Wi-Fi, no cable)\n'
-    printf '  just push                  alias of push-remote; just push-debug pushes the DEBUG APK (logcat logs)\n'
+    printf '  just push                  alias of ship: server + published APK + reachable devices (commit first)\n'
     printf '  just install-apk-release-all   build a signed release APK, install on every connected device\n'
     printf '\n\033[1mAlways-on server on bb\033[0m (docs/DEPLOYMENT.md)\n'
     printf '  just install-service       first install (imports local pb_data once)\n'
@@ -58,7 +58,7 @@ deploy-start:
     @printf '       192.168.20.152:46057\n'
     @printf '  3. Verify: adb devices             (should list each device)\n'
     @printf '  4. Pin a fixed port (survives sleep, until reboot): adb -s <serial> tcpip 5555\n'
-    @printf '  5. Install: just push          (connects both tablets + builds + installs)\n'
+    @printf '  5. Install: just push-remote   (connects tablets + builds + installs; APK only)\n'
     @printf '     or: just conn               (connect only, no build)\n'
     @printf '     or: just install-apk-release-all (every already-connected device)\n\n'
 
@@ -367,9 +367,9 @@ conn:
     @bash scripts/tablet-connect.sh
     @adb devices | awk '$2=="device" && $1 !~ /^emulator/ {printf "  ready: %s\n", $1}'
 
-# Connect to all tablets + build + install the latest release APK
+# Full release: update server, publish APK, install on reachable tablets (alias of ship).
 [group('android')]
-push: push-remote
+push: ship
 
 # Connect to all tablets + build + install the DEBUG APK (console → logcat)
 [group('android')]
