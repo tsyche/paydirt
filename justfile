@@ -405,16 +405,14 @@ push-remote:
     APK="apps/mobile/android/app/build/outputs/apk/release/app-release.apk"
     if ! bash scripts/tablet-connect.sh; then
         if ! adb devices 2>/dev/null | awk '$2=="device" && $1 !~ /^emulator/' | grep -q .; then
-            printf '\033[0;33mNo devices configured or connected.\033[0m\n'
-            printf 'Create deploy-devices (repo root), one "ip:port" or bare IP per line —\n'
-            printf 'pair first per just deploy-start, then adb -s <serial> tcpip 5555.\n'
-            exit 1
+            printf '\033[0;33mNo physical devices reachable — skipping direct APK install.\033[0m\n'
+            exit 0
         fi
         printf '\033[0;33mConnect script found no configured devices — using already-connected ones.\033[0m\n'
     fi
     if ! adb devices 2>/dev/null | awk '$2=="device" && $1 !~ /^emulator/' | grep -q .; then
-        printf '\033[0;31mNo physical devices connected — nothing to install.\033[0m\n'
-        exit 1
+        printf '\033[0;33mNo physical devices connected — skipping direct APK install.\033[0m\n'
+        exit 0
     fi
     just build-apk-release
     adb devices | awk '$2=="device" && $1 !~ /^emulator/ {print $1}' | while read -r d; do
@@ -767,7 +765,7 @@ ship:
     bash scripts/tablet-connect.sh || true
     devices=$(adb devices | awk '$2=="device" && $1 !~ /^emulator/ {print $1}')
     if [ -z "${devices}" ]; then
-        printf '\033[0;33mNo adb devices reachable: tablets will offer the update in-app within ~15 min.\033[0m\n'
+        printf '\033[0;33mServer updated and APK published. No APKs installed directly: no devices reachable. Tablets can update in-app.\033[0m\n'
         exit 0
     fi
     for d in ${devices}; do

@@ -50,7 +50,7 @@ export function LedgerView({ household, initialKidId }: { household: Household |
 
   return (
     <div className="stack" style={{ gap: 12 }}>
-      <div className="row" style={{ gap: 8, flexWrap: "wrap", alignItems: "center" }}>
+      <div className="ledger-controls">
         <select value={kidId} onChange={(e) => setKidId(e.target.value)}>
           <option value={ALL_KIDS}>All kids</option>
           {kids.map((k) => (
@@ -59,17 +59,26 @@ export function LedgerView({ household, initialKidId }: { household: Household |
             </option>
           ))}
         </select>
-        <button className="sm" onClick={() => shiftMonth(-1)}>◀</button>
+        <div className="ledger-month-switcher">
+        <button className="sm" aria-label="Previous month" onClick={() => shiftMonth(-1)}>◀</button>
         <span style={{ fontWeight: 600 }}>
           {new Date(year, month - 1, 1).toLocaleString(undefined, { month: "long", year: "numeric" })}
         </span>
-        <button className="sm" onClick={() => shiftMonth(1)}>▶</button>
+        <button className="sm" aria-label="Next month" onClick={() => shiftMonth(1)}>▶</button>
+        </div>
       </div>
 
       {error && <p className="error">{error}</p>}
       {busy && <p className="muted">Loading…</p>}
 
       <table className="data-table ledger-table">
+        <colgroup>
+          <col style={{ width: "16%" }} />
+          {kidId === ALL_KIDS && <col style={{ width: "16%" }} />}
+          <col style={{ width: "22%" }} />
+          <col style={{ width: "20%" }} />
+          <col style={{ width: kidId === ALL_KIDS ? "26%" : "42%" }} />
+        </colgroup>
         <thead>
           <tr>
             <th>Date</th>

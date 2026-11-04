@@ -547,8 +547,8 @@ input[type="checkbox"]:focus-visible {
 .section-priority {
   background: var(--md-primary-container-dim);
   border-radius: var(--md-shape-xl);
-  padding: 4px 16px 16px;
-  margin: 20px -16px 8px;
+  padding: 4px 0 16px;
+  margin: 20px 0 8px;
 }
 
 .section-priority h2 {
@@ -1042,12 +1042,29 @@ button.danger-filled:disabled { box-shadow: none; }
 .ico-warn { color: #f9a825; font-weight: 700; }
 .assign-key { display: flex; flex-direction: column; gap: 2px; font-size: 13px; margin-bottom: 8px; }
 /* Chore list row: table-like grid on wide screens, stacks on narrow ones. */
-.chore-row { display: grid; grid-template-columns: minmax(150px, 1.2fr) minmax(150px, 1fr) auto auto; gap: 8px 16px; align-items: center; }
+.chore-row, .chore-grid-header { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr) minmax(0, 1.4fr) 36px; gap: 12px 24px; align-items: start; }
+.chore-grid-header { padding: 8px 16px; font-size: 12px; font-weight: 700; color: var(--md-on-surface-variant); }
+.chore-title, .chore-meta, .chore-assignments { min-width: 0; overflow-wrap: anywhere; }
 .chore-row .chore-meta { font-size: 13px; }
+.chore-schedule { margin-top: 5px; line-height: 1.5; }
+.chore-assignments { display: flex; flex-direction: column; align-items: flex-start; gap: 10px; }
+.chore-assignments label { flex-wrap: wrap; }
+.chore-form { display: flex; flex-direction: column; gap: 16px; }
+.chore-form h3 { margin: 0; }
+.chore-form-details { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.chore-form-details > label, .chore-form-fields > label { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; min-width: 0; font-size: 13px; }
+.chore-form-details input, .chore-form-details textarea { width: 100%; box-sizing: border-box; }
+.chore-form-details textarea { min-height: 76px; resize: vertical; }
+.chore-form-section { display: flex; flex-wrap: wrap; gap: 12px; margin: 0; padding: 12px; min-width: 0; border: 1px solid var(--md-outline-variant); border-radius: 10px; }
+.chore-form-section legend { padding: 0 6px; font-size: 13px; font-weight: 600; }
+.chore-form-fields { display: flex; flex-wrap: wrap; gap: 16px; width: 100%; }
+.chore-form-actions { display: flex; flex-wrap: wrap; gap: 10px; padding-top: 12px; border-top: 1px solid var(--md-outline-variant); }
 @media (max-width: 900px) {
+  .chore-grid-header { display: none; }
   .chore-row { grid-template-columns: 1fr auto; }
   .chore-row .chore-meta, .chore-row > :nth-child(3) { grid-column: 1 / -1; }
   .chore-row .chore-edit { grid-column: 2; grid-row: 1; }
+  .chore-form-details { grid-template-columns: 1fr; }
 }
 
 /* Shared data table: stacks into labelled rows on narrow screens. */
@@ -1092,11 +1109,18 @@ button.danger-filled:disabled { box-shadow: none; }
 .stat strong { font-size: 20px; }
 
 .overview-modal { width: min(860px, calc(100vw - 32px)); }
+.overview-period-controls { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; }
+.overview-period-kinds, .overview-period-switcher { display: inline-flex; align-items: center; gap: 4px; }
+.overview-period-switcher { margin-left: auto; }
+.overview-period-switcher span { text-align: center; font-weight: 600; }
 
 /* Ledger: fixed, aligned columns; numbers line up; zebra rows; type chips. */
 .ledger-table { table-layout: fixed; font-variant-numeric: tabular-nums; }
-.ledger-table th:nth-child(1), .ledger-table td:nth-child(1) { width: 100px; }
-.ledger-table .num { width: 120px; text-align: right; white-space: nowrap; }
+.ledger-table th, .ledger-table td { padding: 10px 14px; vertical-align: top; }
+.ledger-table .num { text-align: right; white-space: nowrap; }
+.ledger-controls { display: flex; align-items: center; flex-wrap: wrap; gap: 20px; }
+.ledger-month-switcher { display: inline-flex; align-items: center; gap: 6px; }
+.ledger-month-switcher span { min-width: 140px; text-align: center; font-weight: 600; }
 .ledger-table td:last-child { overflow-wrap: anywhere; }
 .ledger-table tbody tr:nth-child(even) { background: var(--md-surface-container-low); }
 .ledger-table .pos { color: #2e7d32; }
@@ -1107,6 +1131,8 @@ button.danger-filled:disabled { box-shadow: none; }
 .type-manual_adjustment { background: #fff3d6; color: #6d4c00; }
 @media (max-width: 700px) {
   .ledger-table { table-layout: auto; }
+  .ledger-table colgroup { display: none; }
+  .ledger-table td { padding: 4px 0; }
   .ledger-table th:nth-child(1), .ledger-table td:nth-child(1), .ledger-table .num { width: auto; }
 }
 

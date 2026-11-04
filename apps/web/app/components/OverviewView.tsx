@@ -95,7 +95,8 @@ export function OverviewView({
 
   return (
     <div className="stack" style={{ gap: 12 }}>
-      <div className="row" style={{ gap: 8, flexWrap: "wrap", alignItems: "center" }}>
+      <div className="overview-period-controls">
+        <div className="overview-period-kinds">
         {KINDS.map((k) => (
           <button
             key={k.key}
@@ -106,9 +107,12 @@ export function OverviewView({
             {k.label}
           </button>
         ))}
+        </div>
+        <div className="overview-period-switcher">
         <button className="sm" aria-label="Previous period" onClick={() => setOffset((o) => o - 1)}>◀</button>
         <span style={{ fontWeight: 600 }}>{range.label}</span>
         <button className="sm" aria-label="Next period" onClick={() => setOffset((o) => o + 1)} disabled={offset >= 0}>▶</button>
+        </div>
       </div>
       {error && <p className="error">{error}</p>}
 

@@ -96,10 +96,17 @@ export function Dashboard({
   // Tabs are browser history entries so Back/Forward move between them instead of leaving the app.
   const setTab = (next: TabKey) => {
     setTabState(next);
-    try { window.history.pushState({ tab: next }, ""); } catch {}
+    try {
+      const url = new URL(window.location.href);
+      url.searchParams.set("tab", next);
+      window.history.pushState({ ...window.history.state, tab: next }, "", url);
+    } catch {}
   };
   useEffect(() => {
-    try { window.history.replaceState({ tab: "approvals" }, ""); } catch {}
+    const saved = new URL(window.location.href).searchParams.get("tab") ?? window.history.state?.tab;
+    const initial = TABS.some((x) => x.key === saved) ? saved as TabKey : "approvals";
+    setTabState(initial);
+    try { window.history.replaceState({ ...window.history.state, tab: initial }, ""); } catch {}
     const onPop = (e: PopStateEvent) => {
       const t = (e.state as { tab?: TabKey } | null)?.tab;
       setTabState(TABS.some((x) => x.key === t) ? (t as TabKey) : "approvals");
@@ -629,6 +636,9 @@ export function Dashboard({
           template={templateFill}
           onTemplateClear={() => setTemplateFill(null)}
         />
+        {chores.length > 0 && <div className="chore-grid-header" aria-hidden="true">
+          <span>Chore</span><span>Reward / schedule</span><span>Assign to kids</span><span />
+        </div>}
         {chores.map((c) => (
           <ChoreRow
             key={c.id}
@@ -1390,12 +1400,13 @@ function ChoreRow({
         </div>
         <div className="muted chore-meta">
           <span className="balance" style={{ fontSize: 13 }}>{payLabel(chore, currencyName)}</span>
-          {" "}· {chore.type}
+          <div className="chore-schedule">{chore.type}
           {chore.cadence ? ` (${chore.cadence})` : ""}
           {chore.due_at
             ? ` · due ${new Date(chore.due_at.replace(" ", "T")).toLocaleString()}`
             : ""}
           {limitLabel(chore) ? ` · max ${limitLabel(chore)}` : ""}
+          </div>
         </div>
         <AssignControl chore={chore} kids={kids} assignedKidIds={assignedKidIds} atLimit={atLimit} onAssigned={onChanged} />
         <button className="sm chore-edit" onClick={() => setEditing(true)} title="Edit chore" aria-label="Edit chore">✏️</button>
@@ -1665,14 +1676,16 @@ function CreateChore({
   }
 
   return (
-    <div className="card-filled" style={{ marginBottom: 12 }}>
+    <div className="card-filled chore-form" style={{ marginBottom: 12 }}>
+      <h3>Add a chore</h3>
       {template && (
         <div className="inline" style={{ marginBottom: 8, fontSize: 13 }}>
           <span style={{ color: "var(--md-primary)", fontWeight: 600 }}>📋 From template</span>
           <button className="sm" onClick={reset} style={{ fontSize: 12 }}>✕ Clear</button>
         </div>
       )}
-      <div className="inline" style={{ marginBottom: 8 }}>
+      <div className="chore-form-details">
+        <label>Chore name
         <input
           placeholder="New chore name"
           value={name}
@@ -1680,10 +1693,17 @@ function CreateChore({
           onKeyDown={(e) => { if (e.key === "Enter") void create(); }}
           style={{ flex: 1 }}
         />
+        </label>
+        <label>Instructions <span className="muted">(optional, visible to kids)</span>
         <textarea aria-label="Chore instructions" placeholder="Instructions (optional, visible to kids)" value={notes} maxLength={1000} onChange={(e) => setNotes(e.target.value)} />
-        <label>Timer minutes (0 = off)<input type="number" min={0} max={480} value={timerMinutes} onChange={(e) => setTimerMinutes(Number(e.target.value))} /></label>
-        {type === "recurring" && <RecurringDueFields cadence={cadence} time={dueTime} day={dueDay} onTime={setDueTime} onDay={setDueDay} />}
+        </label>
+      </div>
+      <fieldset className="chore-form-section"><legend>Reward</legend>
         <PayControls mode={mode} reward={reward} minutes={minutes} onMode={setMode} onReward={setReward} onMinutes={setMinutes} />
+      </fieldset>
+      <fieldset className="chore-form-section"><legend>Schedule</legend>
+        <div className="chore-form-fields">
+        <label>Type
         <select
           value={type}
           onChange={(e) => setType(e.target.value as "oneoff" | "recurring")}
@@ -1691,7 +1711,9 @@ function CreateChore({
           <option value="oneoff">one-off</option>
           <option value="recurring">recurring</option>
         </select>
+        </label>
         {type === "recurring" && (
+          <label>Repeat
           <select
             value={cadence}
             onChange={(e) => setCadence(e.target.value as "daily" | "weekly" | "monthly")}
@@ -1700,23 +1722,12 @@ function CreateChore({
             <option value="weekly">weekly</option>
             <option value="monthly">monthly</option>
           </select>
+          </label>
         )}
-        <button
-          className="primary sm"
-          onClick={create}
-          disabled={busy || !name.trim()}
-        >
-          Add chore
-        </button>
-        <button
-          className="outlined sm"
-          onClick={saveTemplate}
-          disabled={busy || !name.trim()}
-          title="Save current fields as a reusable template"
-        >
-          💾 Save template
-        </button>
-      </div>
+        <label>Timer minutes <span className="muted">(0 = off)</span><input type="number" min={0} max={480} value={timerMinutes} onChange={(e) => setTimerMinutes(Number(e.target.value))} /></label>
+        </div>
+        {type === "recurring" && <RecurringDueFields cadence={cadence} time={dueTime} day={dueDay} onTime={setDueTime} onDay={setDueDay} />}
+      </fieldset>
       <div className="inline" style={{ fontSize: 13, gap: 12 }}>
         <label className="inline" style={{ gap: 6, cursor: "pointer" }}>
           <input
@@ -1772,6 +1783,10 @@ function CreateChore({
         </div>
       )}
       {error && <p className="error" style={{ marginTop: 8 }}>{error}</p>}
+      <div className="chore-form-actions">
+        <button className="primary" onClick={create} disabled={busy || !name.trim()}>Add chore</button>
+        <button className="outlined" onClick={saveTemplate} disabled={busy || !name.trim()} title="Save current fields as a reusable template">💾 Save template</button>
+      </div>
     </div>
   );
 }
@@ -2128,7 +2143,7 @@ function AssignControl({
   }
 
   return (
-    <div className="inline" style={{ flexShrink: 0 }}>
+    <div className="chore-assignments">
       {kids.map((k) => (
         <label
           key={k.id}
@@ -2188,7 +2203,7 @@ function KidEarnings({ kid, currencyName, onMore }: { kid: User; currencyName: s
 }
 
 function KidChores({ assignments, currencyName }: { assignments: Expanded<Assignment>[]; currencyName: string }) {
-  const [open, setOpen] = useState(true);
+  const [open, setOpen] = useState(false);
   const STATUS: Record<string, string> = { assigned: "To do", completed: "Waiting", rejected: "Try again" };
   return (
     <div className="goal-list">

@@ -318,6 +318,7 @@ test("assigning shows feedback, locks assigned kids, and lists the chore under t
     await expect(row.getByRole("button", { name: "Assign", exact: true })).toBeDisabled();
     // And it shows in the Kids tab.
     await goTab(page, /Kids/);
+    await page.getByRole("button", { name: /Chores \(\d+\)/ }).first().click();
     await expect(page.getByText(choreName).first()).toBeVisible();
   } finally {
     for (const a of await api.pb.collection("assignments").getFullList({ filter: api.pb.filter("chore = {:c}", { c: chore.id }) })) {
@@ -343,9 +344,9 @@ test("kid card order: chores, goals, earnings, then settings; twisty works; ledg
 
   // Clicking the tiny chevron itself toggles the section.
   const chores = card.locator(".goal-section-toggle", { hasText: /Chores/ });
-  await expect(chores).toHaveAttribute("aria-expanded", "true");
-  await chores.locator(".twisty").click();
   await expect(chores).toHaveAttribute("aria-expanded", "false");
+  await chores.locator(".twisty").click();
+  await expect(chores).toHaveAttribute("aria-expanded", "true");
 
   // Settings: modes sit together; Family Link is collapsed behind a twisty.
   await card.getByRole("button", { name: /Edit avatar & settings/ }).click();
@@ -455,6 +456,8 @@ test("browser Back/Forward move between tabs; the logo is a link home", async ({
   await signIn(page);
   await goTab(page, /Chores/);
   await goTab(page, /Ledger/);
+  await page.reload();
+  await expect(page.getByRole("tab", { name: /Ledger/ })).toHaveAttribute("aria-selected", "true");
   await page.goBack();
   await expect(page.getByRole("tab", { name: /Chores/ })).toHaveAttribute("aria-selected", "true");
   await page.goBack();
