@@ -1,3 +1,4 @@
+import { TimeField } from "../components/TimeField";
 import { useCallback, useEffect, useRef, useState } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { View, ScrollView, StyleSheet, RefreshControl, Alert, Image, Modal, TouchableOpacity } from "react-native";
@@ -62,6 +63,24 @@ type ExpandedAssignment = Assignment & { expand?: { chore?: Chore; child?: User 
 type ExpandedSpend = SpendRequest & { expand?: { child?: User } };
 type ExpandedGrant = TimeGrant & { expand?: { child?: User } };
 type ExpandedProposal = ChoreProposal & { expand?: { child?: User } };
+
+
+// Wrapping chip-style metadata (stacks on narrow screens) instead of one dot-separated line.
+function MetaWrap({ items, color }: { items: string[]; color: string }) {
+  return (
+    <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 6, marginTop: 4 }}>
+      {items.filter(Boolean).map((item, i) => (
+        <Text
+          key={`${i}-${item}`}
+          variant="bodySmall"
+          style={{ color, borderWidth: StyleSheet.hairlineWidth, borderColor: color, borderRadius: 8, paddingHorizontal: 8, paddingVertical: 2 }}
+        >
+          {item}
+        </Text>
+      ))}
+    </View>
+  );
+}
 
 export function ParentHome({
   user,
@@ -1044,7 +1063,7 @@ export function ParentHome({
             <Text variant="labelLarge" style={styles.sectionLabel}>
               {group === "manual" ? "TIME GRANTS NEEDING ACTION" : group === "queued" ? "TIME GRANTS WAITING FOR DELIVERY" : "PAST SCREEN-TIME GRANTS"}
             </Text>
-            {grants.map((grant) => <Card key={grant.id} style={styles.approvalCard}>
+            {grants.map((grant) => <Card key={grant.id} style={[styles.approvalCard, styles.grantCard]}>
               <Card.Content>
                 <Text variant="titleMedium">{grant.expand?.child?.display_name ?? "Child"} — {grant.description}</Text>
                 <Text>{screenGrantLabel(grant.grant_status)}</Text>
@@ -1126,9 +1145,10 @@ export function ParentHome({
                     <View key={t.id} style={styles.templateRow}>
                       <View style={{ flex: 1 }}>
                         <Text variant="bodyMedium" style={{ fontWeight: "600" }}>{t.name}</Text>
-                        <Text variant="bodySmall" style={{ color: "gray" }}>
-                          {payLabel(t, "")} · {t.type}{t.cadence ? ` · ${t.cadence}` : ""}{t.photo_required ? " · 📷" : ""}{t.race ? " · 🏁" : ""}
-                        </Text>
+                        <MetaWrap
+                          color="gray"
+                          items={[payLabel(t, ""), t.type, t.cadence ?? "", t.photo_required ? "📷" : "", t.race ? "🏁" : ""]}
+                        />
                       </View>
                       <Button
                         mode="text"
@@ -1213,16 +1233,7 @@ export function ParentHome({
               </Button>
               {showAdvancedChore && (
                 <>
-              <TextInput
-                mode="outlined"
-                label="Reminder time (HH:MM, optional)"
-                value={choreReminder}
-                onChangeText={setChoreReminder}
-                keyboardType="numbers-and-punctuation"
-                placeholder="e.g. 15:30"
-                dense
-                style={{ marginTop: 4 }}
-              />
+              <TimeField label="Reminder time (optional)" value={choreReminder} onChange={setChoreReminder} />
               <TextInput
                 mode="outlined"
                 label={`Max per ${limitUnit({ type: choreType, cadence: choreCadence })} (optional)`}
@@ -1330,7 +1341,7 @@ export function ParentHome({
                     </Button>
                     {editAdvanced && (
                       <>
-                      <TextInput mode="outlined" label="Reminder time (HH:MM, optional)" value={editReminder} onChangeText={setEditReminder} keyboardType="numbers-and-punctuation" placeholder="e.g. 15:30" dense style={{ marginTop: 4 }} />
+                      <TimeField label="Reminder time (optional)" value={editReminder} onChange={setEditReminder} />
                       <TextInput mode="outlined" label={`Max per ${limitUnit({ type: editType, cadence: editCadence })} (optional)`} value={editLimit} onChangeText={setEditLimit} keyboardType="number-pad" placeholder="no limit" dense style={{ marginTop: 4 }} />
                       <TextInput mode="outlined" label="Due date (optional)" value={editDueAt} onChangeText={setEditDueAt} keyboardType="numbers-and-punctuation" placeholder="YYYY-MM-DD" dense style={{ marginTop: 4 }} />
                       </>
@@ -1356,12 +1367,15 @@ export function ParentHome({
                             </Text>
                           )}
                         </View>
-                        <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant }}>
-                          {payLabel(chore, currencyName)} · {chore.type}
-                          {chore.cadence ? ` (${chore.cadence})` : ""}
-                          {limitLabel(chore) ? ` · max ${limitLabel(chore)}` : ""}
-                          {chore.due_at ? ` · 📅 ${chore.due_at.slice(0, 10)}` : ""}
-                        </Text>
+                        <MetaWrap
+                          color={theme.colors.onSurfaceVariant}
+                          items={[
+                            payLabel(chore, currencyName),
+                            chore.cadence ? `${chore.type} (${chore.cadence})` : chore.type,
+                            limitLabel(chore) ? `max ${limitLabel(chore)}` : "",
+                            chore.due_at ? `📅 ${chore.due_at.slice(0, 10)}` : "",
+                          ]}
+                        />
                       </View>
                       <Button mode="text" compact onPress={() => startEditChore(chore)} icon="pencil" style={{ minWidth: 0 }}>{""}</Button>
                     </View>
@@ -1496,6 +1510,7 @@ const styles = StyleSheet.create({
   approveAllBtn: { borderRadius: 12, marginBottom: 4 },
 
   approvalCard: { borderRadius: 16 },
+  grantCard: { marginBottom: 8 },
   approvalRow: { flexDirection: "row", justifyContent: "space-between" },
   approvalInfo: { flex: 1 },
   choreName: { fontWeight: "700", marginBottom: 6 },

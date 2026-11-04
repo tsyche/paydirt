@@ -1,3 +1,4 @@
+import { TimeField } from "./TimeField";
 import { Text, TextInput } from "react-native-paper";
 
 export function RecurringDueFields({ cadence, time, day, onTime, onDay }: {
@@ -6,7 +7,7 @@ export function RecurringDueFields({ cadence, time, day, onTime, onDay }: {
 }) {
   return <>
     <Text variant="bodySmall">Recurring deadline · server-local time. Blank time disables it.</Text>
-    <TextInput label="Due time (HH:MM)" value={time} onChangeText={onTime} placeholder="20:00" maxLength={5} />
+    <TimeField label="Due time" value={time} onChange={onTime} />
     {cadence !== "daily" && <TextInput
       label={cadence === "weekly" ? "Due weekday (0 Sun–6 Sat)" : "Due day of month (1–31)"}
       value={day} onChangeText={onDay} keyboardType="number-pad" maxLength={2}

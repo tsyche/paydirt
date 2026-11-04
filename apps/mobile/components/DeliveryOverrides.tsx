@@ -1,5 +1,6 @@
+import { TimeRangeField } from "./TimeField";
 import { useState } from "react";
-import { Button, Text, TextInput } from "react-native-paper";
+import { Button, Text } from "react-native-paper";
 import type { User } from "@paydirt/shared";
 import { client } from "../lib/client";
 export function DeliveryOverrides({ kid, onSaved }: { kid: User; onSaved: () => Promise<void> }) {
@@ -9,14 +10,14 @@ export function DeliveryOverrides({ kid, onSaved }: { kid: User; onSaved: () => 
   const [message, setMessage] = useState("");
   return <>
     <Text>Time delivery overrides: blank inherits household; 'all' allows all day.</Text>
-    <TextInput label="Weekday delivery (HH:MM-HH:MM)" value={weekday} onChangeText={setWeekday} maxLength={11} />
-    <TextInput label="Weekend delivery (HH:MM-HH:MM)" value={weekend} onChangeText={setWeekend} maxLength={11} />
+    <TimeRangeField label="Weekday delivery" value={weekday} onChange={setWeekday} allowAll />
+    <TimeRangeField label="Weekend delivery" value={weekend} onChange={setWeekend} allowAll />
     <Button disabled={busy} onPress={async () => {
       setBusy(true);
       try {
         await client.pb.collection("users").update(kid.id, { grant_weekday_window: weekday.trim(), grant_weekend_window: weekend.trim() });
         await onSaved(); setMessage("Delivery windows saved.");
-      } catch { setMessage("Could not save delivery windows. Use HH:MM-HH:MM, 'all', or blank."); }
+      } catch { setMessage("Could not save delivery windows. Pick both a start and end time, or clear it."); }
       finally { setBusy(false); }
     }}>Save delivery windows</Button>
     {!!message && <Text>{message}</Text>}

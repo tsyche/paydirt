@@ -84,6 +84,7 @@ test("create → assign → kid completes → approve → undo", async ({ page }
 
   // Create the chore (Chores tab). The create form is a `.card-filled` block.
   await goTab(page, /Chores/);
+  await page.getByRole("button", { name: "Add a chore" }).click();
   await page.getByPlaceholder("New chore name").fill(choreName);
   const createCard = page
     .locator(".card-filled")
@@ -156,6 +157,7 @@ test("a chore that pays time grants minutes on approval and can't be undone", as
 
   // Create a chore that pays 10 minutes instead of bucks.
   await goTab(page, /Chores/);
+  await page.getByRole("button", { name: "Add a chore" }).click();
   await page.getByPlaceholder("New chore name").fill(choreName);
   const createCard = page
     .locator(".card-filled")

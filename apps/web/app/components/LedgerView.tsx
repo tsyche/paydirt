@@ -72,19 +72,12 @@ export function LedgerView({ household, initialKidId }: { household: Household |
       {busy && <p className="muted">Loading…</p>}
 
       <table className="data-table ledger-table">
-        <colgroup>
-          <col style={{ width: "16%" }} />
-          {kidId === ALL_KIDS && <col style={{ width: "16%" }} />}
-          <col style={{ width: "22%" }} />
-          <col style={{ width: "20%" }} />
-          <col style={{ width: kidId === ALL_KIDS ? "26%" : "42%" }} />
-        </colgroup>
         <thead>
           <tr>
             <th>Date</th>
             {kidId === ALL_KIDS && <th>Kid</th>}
             <th>Type</th>
-            <th className="num">Amount</th>
+            <th>Amount</th>
             <th>Reason</th>
           </tr>
         </thead>

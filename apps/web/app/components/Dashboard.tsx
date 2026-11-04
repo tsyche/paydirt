@@ -295,7 +295,6 @@ export function Dashboard({
             </div>
             <div className="inline kid-toolbar">
               <AdjustControl kid={kid} onAdjusted={reload} />
-              <DeliveryOverrides kid={kid} onSaved={reload} />
               <KudosControl
                 kid={kid}
                 household={household}
@@ -1565,11 +1564,13 @@ function CreateChore({
   const [remindAt, setRemindAt] = useState("");
   const [limit, setLimit] = useState(0);
   const [advanced, setAdvanced] = useState(false);
+  const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
 
   useEffect(() => {
     if (!template) return;
+    setOpen(true);
     if (template.reminder_time || template.max_per_period) setAdvanced(true);
     setName(template.name);
     setNotes(template.description ?? "");
@@ -1636,6 +1637,7 @@ function CreateChore({
         active: true,
       });
       reset();
+      setOpen(false);
       onCreated();
     } catch (e) {
       setError(errorMessage(e));
@@ -1677,7 +1679,15 @@ function CreateChore({
 
   return (
     <div className="card-filled chore-form" style={{ marginBottom: 12 }}>
-      <h3>Add a chore</h3>
+      <button
+        type="button"
+        className="chore-form-toggle"
+        aria-expanded={open}
+        onClick={() => setOpen((v) => !v)}
+      >
+        <span aria-hidden="true">{open ? "▾" : "▸"}</span> Add a chore
+      </button>
+      {open && <>
       {template && (
         <div className="inline" style={{ marginBottom: 8, fontSize: 13 }}>
           <span style={{ color: "var(--md-primary)", fontWeight: 600 }}>📋 From template</span>
@@ -1787,6 +1797,7 @@ function CreateChore({
         <button className="primary" onClick={create} disabled={busy || !name.trim()}>Add chore</button>
         <button className="outlined" onClick={saveTemplate} disabled={busy || !name.trim()} title="Save current fields as a reusable template">💾 Save template</button>
       </div>
+      </>}
     </div>
   );
 }
@@ -1908,6 +1919,37 @@ function AvatarPicker({ kid, onSaved }: { kid: User; onSaved: () => void }) {
   );
 }
 
+/**
+ * Shared header for inline edit panels: says what is being edited and keeps
+ * Save/Cancel pinned at the top, so the panel never shifts them as it grows.
+ */
+function EditHeader({
+  title,
+  busy,
+  error,
+  onSave,
+  onCancel,
+}: {
+  title: string;
+  busy?: boolean;
+  error?: string;
+  onSave: () => void;
+  onCancel: () => void;
+}) {
+  return (
+    <div className="edit-header">
+      <div className="edit-header-bar">
+        <strong>{title}</strong>
+        <span className="edit-header-actions">
+          <button className="primary sm" disabled={busy} onClick={onSave}>{busy ? "Saving…" : "Save"}</button>
+          <button className="sm" disabled={busy} onClick={onCancel}>Cancel</button>
+        </span>
+      </div>
+      {error && <p className="error" style={{ margin: "6px 0 0" }}>{error}</p>}
+    </div>
+  );
+}
+
 function AvatarControl({ kid, onSaved }: { kid: User; onSaved: () => void }) {
   const [open, setOpen] = useState(false);
   const [avatar, setAvatar] = useState(kid.avatar_emoji ?? "");
@@ -1923,6 +1965,30 @@ function AvatarControl({ kid, onSaved }: { kid: User; onSaved: () => void }) {
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
 
+  async function save() {
+    setBusy(true);
+    setError("");
+    try {
+      await client.pb.collection("users").update(kid.id, {
+        avatar_emoji: avatar.trim(),
+        color,
+        goods_rate: parseGoodsRateOverride(goodsRateOverride),
+        calm_mode: calmMode,
+        simplified_mode: simplified,
+        fl_child_id: flChildId.trim(),
+        fl_device_id: flDeviceId.trim(),
+        digest_weekday: digestWeekday,
+        digest_weekend: digestWeekend,
+      });
+      setOpen(false);
+      onSaved();
+    } catch (e) {
+      setError(errorMessage(e));
+    } finally {
+      setBusy(false);
+    }
+  }
+
   if (!open) {
     return (
       <button className="sm" style={{ fontSize: 13 }} onClick={() => setOpen(true)}>
@@ -1933,6 +1999,13 @@ function AvatarControl({ kid, onSaved }: { kid: User; onSaved: () => void }) {
 
   return (
     <div className="panel-full kid-settings">
+      <EditHeader
+        title={`Editing ${kid.display_name}'s settings`}
+        busy={busy}
+        error={error}
+        onSave={() => void save()}
+        onCancel={() => setOpen(false)}
+      />
       <div className="kid-settings-title">Avatar & rates</div>
       <div className="kid-settings-row">
       <input
@@ -1970,6 +2043,8 @@ function AvatarControl({ kid, onSaved }: { kid: User; onSaved: () => void }) {
         min={0}
       />
       </div>
+      <div className="kid-settings-title">Time delivery</div>
+      <DeliveryOverrides kid={kid} onSaved={onSaved} />
       <div className="kid-settings-title">Chore summary push</div>
       <div className="kid-settings-row">
       <label className="muted" style={{ fontSize: 13 }} title={featureTip("chore_digest")}>
@@ -2035,36 +2110,6 @@ function AvatarControl({ kid, onSaved }: { kid: User; onSaved: () => void }) {
       />
         </div>
       )}
-      <button
-        className="primary sm"
-        disabled={busy}
-        onClick={async () => {
-          setBusy(true);
-          try {
-            await client.pb.collection("users").update(kid.id, {
-              avatar_emoji: avatar.trim(),
-              color,
-              goods_rate: parseGoodsRateOverride(goodsRateOverride),
-              calm_mode: calmMode,
-              simplified_mode: simplified,
-              fl_child_id: flChildId.trim(),
-              fl_device_id: flDeviceId.trim(),
-              digest_weekday: digestWeekday,
-              digest_weekend: digestWeekend,
-            });
-            setOpen(false);
-            onSaved();
-          } catch (e) {
-            setError(errorMessage(e));
-          } finally {
-            setBusy(false);
-          }
-        }}
-      >
-        Save
-      </button>
-      <button className="sm" onClick={() => setOpen(false)}>Cancel</button>
-      {error && <p className="error" style={{ width: "100%", margin: 0 }}>{error}</p>}
     </div>
   );
 }

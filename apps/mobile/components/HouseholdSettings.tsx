@@ -1,3 +1,4 @@
+import { TimeRangeField } from "./TimeField";
 import { useState } from "react";
 import { ScrollView, View } from "react-native";
 import {
@@ -149,8 +150,8 @@ export function HouseholdSettings({
             <Text>Screen-time delivery windows. Blank window = all day; blank timezone = server-local.</Text>
             <TextInput label="Delivery timezone" placeholder="America/Los_Angeles" value={form.grant_timezone} onChangeText={(v) => setForm({ ...form, grant_timezone: v })} />
             <TextInput label="Queued grant expires after days (0 = never)" keyboardType="number-pad" value={form.grant_expiry_days} onChangeText={(v) => setForm({ ...form, grant_expiry_days: v })} />
-            <TextInput label="Weekdays (HH:MM-HH:MM)" placeholder="15:30-20:00" value={form.grant_weekday_window} onChangeText={(v) => setForm({ ...form, grant_weekday_window: v })} maxLength={11} />
-            <TextInput label="Weekends (HH:MM-HH:MM)" placeholder="08:00-20:00" value={form.grant_weekend_window} onChangeText={(v) => setForm({ ...form, grant_weekend_window: v })} maxLength={11} />
+            <TimeRangeField label="Weekdays" value={form.grant_weekday_window} onChange={(v) => setForm({ ...form, grant_weekday_window: v })} />
+            <TimeRangeField label="Weekends" value={form.grant_weekend_window} onChange={(v) => setForm({ ...form, grant_weekend_window: v })} />
             <TextInput
               keyboardType="numeric"
               value={form.bank_threshold}

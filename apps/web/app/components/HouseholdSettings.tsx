@@ -1,5 +1,6 @@
 "use client";
 
+import { TimeRangeField } from "./TimeRangeField";
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import type { Household } from "@paydirt/shared";
@@ -199,14 +200,12 @@ export function HouseholdSettings({
           </label>
         </div>
         <div className="settings-row">
-          <label>Weekday time delivery (blank = all day)
-            <input placeholder="15:30-20:00" maxLength={11} value={form.grant_weekday_window} onChange={(e) => setForm({ ...form, grant_weekday_window: e.target.value.trim() })} />
-          </label>
+          <label>Weekday time delivery <span className="muted">(blank = all day)</span></label>
+          <TimeRangeField label="Weekday time delivery" value={form.grant_weekday_window} onChange={(v) => setForm({ ...form, grant_weekday_window: v })} />
         </div>
         <div className="settings-row">
-          <label>Weekend time delivery (blank = all day)
-            <input placeholder="08:00-20:00" maxLength={11} value={form.grant_weekend_window} onChange={(e) => setForm({ ...form, grant_weekend_window: e.target.value.trim() })} />
-          </label>
+          <label>Weekend time delivery <span className="muted">(blank = all day)</span></label>
+          <TimeRangeField label="Weekend time delivery" value={form.grant_weekend_window} onChange={(v) => setForm({ ...form, grant_weekend_window: v })} />
         </div>
         <div className="settings-row">
           <label>Rewards expire after days <Tip k="expiry_days" /> <span className="muted">(0 = off)</span></label>

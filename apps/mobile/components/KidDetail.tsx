@@ -1,3 +1,4 @@
+import { TimeField } from "./TimeField";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Alert, View, ScrollView, StyleSheet, RefreshControl } from "react-native";
 import {
@@ -39,7 +40,7 @@ const STATUS_LABEL: Record<string, string> = {
 
 /**
  * Parent's per-kid drill-in: one child at a time. The claim hero up top, a quick
- * bonus/deduct, then their active chores, goals, and recent earnings — so a
+ * bonus/deduct, then goals, recent earnings, and (collapsed) active chores — so a
  * parent can see exactly where a kid stands without scanning the whole family.
  */
 export function KidDetail({
@@ -77,7 +78,10 @@ export function KidDetail({
   const [openGoal, setOpenGoal] = useState<string | null>(null);
   const [goalTarget, setGoalTarget] = useState("");
   const [goalDetails, setGoalDetails] = useState("");
-  const [goalsOpen, setGoalsOpen] = useState(true);
+  const [goalsOpen, setGoalsOpen] = useState(false);
+  const [recentOpen, setRecentOpen] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [activeOpen, setActiveOpen] = useState(false);
 
   const currencyName = currencyDisplayName(household);
   const goodsRate = effectiveGoodsRate(kid?.goods_rate, household?.goods_rate);
@@ -237,25 +241,6 @@ export function KidDetail({
           <ChunkyButton label="Deduct" icon="minus" tone="danger" onPress={() => openAdjust(-1)} style={styles.adjustBtn} />
           <ChunkyButton label="Kudos" icon="star" onPress={openKudos} style={styles.adjustBtn} />
         </View>
-        {kid && <DeliveryOverrides kid={kid} onSaved={reload} />}
-
-        <Text variant="labelLarge" style={[styles.section, { color: theme.colors.onSurfaceVariant }]}>
-          ACTIVE CHORES {assignments.length > 0 ? `(${assignments.length})` : ""}
-        </Text>
-        {assignments.length === 0 ? (
-          <Text style={[styles.empty, { color: theme.colors.onSurfaceVariant }]}>Nothing assigned right now.</Text>
-        ) : (
-          assignments.map((a) => (
-            <Card key={a.id} style={styles.card}>
-              <Card.Content style={styles.rowBetween}>
-                <Text variant="titleSmall" style={styles.flex}>
-                  {a.expand?.chore?.race ? "🏁 " : ""}{a.expand?.chore?.name ?? "Chore"}
-                </Text>
-                <Chip compact>{STATUS_LABEL[a.status] ?? a.status}</Chip>
-              </Card.Content>
-            </Card>
-          ))
-        )}
 
         <Text
           variant="labelLarge"
@@ -266,9 +251,9 @@ export function KidDetail({
         >
           {goalsOpen ? "▾" : "▸"} GOALS {goals.length > 0 ? `(${goals.length})` : ""}
         </Text>
-        <Button mode="outlined" icon="flag-plus" onPress={() => setGoalOpen(true)} style={{ alignSelf: "flex-start" }}>
+        {goalsOpen && (<Button mode="outlined" icon="flag-plus" onPress={() => setGoalOpen(true)} style={{ alignSelf: "flex-start" }}>
           Set a goal
-        </Button>
+        </Button>)}
         {!goalsOpen ? null : goals.length === 0 ? (
           <Text style={[styles.empty, { color: theme.colors.onSurfaceVariant }]}>No savings goals yet.</Text>
         ) : (
@@ -309,10 +294,16 @@ export function KidDetail({
           })
         )}
 
-        <Text variant="labelLarge" style={[styles.section, { color: theme.colors.onSurfaceVariant }]}>
-          RECENT EARNINGS
+        <Text
+          variant="labelLarge"
+          accessibilityRole="button"
+          accessibilityState={{ expanded: recentOpen }}
+          onPress={() => setRecentOpen((v) => !v)}
+          style={[styles.section, { color: theme.colors.onSurfaceVariant }]}
+        >
+          {recentOpen ? "▾" : "▸"} RECENT EARNINGS
         </Text>
-        {history.length === 0 ? (
+        {!recentOpen ? null : history.length === 0 ? (
           <Text style={[styles.empty, { color: theme.colors.onSurfaceVariant }]}>No approved chores yet.</Text>
         ) : (
           <>
@@ -337,9 +328,40 @@ export function KidDetail({
           </>
         )}
 
-        <Text variant="labelLarge" style={[styles.section, { color: theme.colors.onSurfaceVariant }]}>
-          SETTINGS
+        <Text
+          variant="labelLarge"
+          accessibilityRole="button"
+          accessibilityState={{ expanded: activeOpen }}
+          onPress={() => setActiveOpen((v) => !v)}
+          style={[styles.section, { color: theme.colors.onSurfaceVariant }]}
+        >
+          {activeOpen ? "▾" : "▸"} ACTIVE CHORES {assignments.length > 0 ? `(${assignments.length})` : ""}
         </Text>
+        {!activeOpen ? null : assignments.length === 0 ? (
+          <Text style={[styles.empty, { color: theme.colors.onSurfaceVariant }]}>Nothing assigned right now.</Text>
+        ) : (
+          assignments.map((a) => (
+            <Card key={a.id} style={styles.card}>
+              <Card.Content style={styles.rowBetween}>
+                <Text variant="titleSmall" style={styles.flex}>
+                  {a.expand?.chore?.race ? "🏁 " : ""}{a.expand?.chore?.name ?? "Chore"}
+                </Text>
+                <Chip compact>{STATUS_LABEL[a.status] ?? a.status}</Chip>
+              </Card.Content>
+            </Card>
+          ))
+        )}
+
+        <Text
+          variant="labelLarge"
+          accessibilityRole="button"
+          accessibilityState={{ expanded: settingsOpen }}
+          onPress={() => setSettingsOpen((v) => !v)}
+          style={[styles.section, { color: theme.colors.onSurfaceVariant }]}
+        >
+          {settingsOpen ? "▾" : "▸"} SETTINGS
+        </Text>
+        {settingsOpen && <>
 
         {kid && (
           <KidAppearanceCard key={`${kid.id}-${kid.avatar ?? ""}`} kid={kid} onSaved={() => void reload()} onMessage={setSnack} />
@@ -411,6 +433,14 @@ export function KidDetail({
         )}
 
         {kid && (
+          <Card style={styles.card}>
+            <Card.Content style={{ gap: 8 }}>
+              <DeliveryOverrides key={`delivery-${kid.id}`} kid={kid} onSaved={reload} />
+            </Card.Content>
+          </Card>
+        )}
+
+        {kid && (
           <FamilyLinkCard
             key={kid.id}
             kid={kid}
@@ -422,6 +452,7 @@ export function KidDetail({
             onError={(e) => setSnack(e)}
           />
         )}
+        </>}
       </ScrollView>
 
       <Portal>
@@ -586,15 +617,10 @@ function DigestCard({
           <Text variant="titleSmall">Chore summary push</Text>
           <IconButton icon="information-outline" size={16} onPress={onTip} style={{ margin: 0 }} />
         </View>
-        <TextInput dense label="Weekdays (HH:MM)" placeholder="14:45" value={weekday} onChangeText={setWeekday} />
-        <TextInput
-          dense
-          label="Weekends (HH:MM)"
-          placeholder="10:00"
-          value={weekend}
-          onChangeText={setWeekend}
-          style={{ marginTop: 8 }}
-        />
+        <View style={{ gap: 8, marginTop: 4 }}>
+          <TimeField label="Weekdays" value={weekday} onChange={setWeekday} />
+          <TimeField label="Weekends" value={weekend} onChange={setWeekend} />
+        </View>
         <Button mode="contained-tonal" onPress={() => void save()} disabled={busy} style={{ marginTop: 8 }}>
           Save
         </Button>
