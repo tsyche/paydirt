@@ -527,6 +527,10 @@ test-all:
     set -euo pipefail
     TEST_PORT=3112
     TEST_URL="http://127.0.0.1:${TEST_PORT}"
+    # Ephemeral fixtures must not inherit production/dev credentials.
+    export PB_ADMIN_EMAIL=admin@paydirt.local
+    export PB_ADMIN_PASSWORD=password123
+    export SEED_PASSWORD=password123
     EDIR=$(mktemp -d)
 
     cleanup() {
@@ -554,7 +558,7 @@ test-all:
 
     printf '\033[0;34mBootstrapping ephemeral PocketBase on :%s...\033[0m\n' "${TEST_PORT}"
     {{pb}} migrate up --dir "${EDIR}/pb_data" --migrationsDir pocketbase/pb_migrations 2>&1 | grep -v '^$' || true
-    {{pb}} superuser upsert admin@paydirt.local password123 --dir "${EDIR}/pb_data" 2>&1 | grep -v '^$' || true
+    {{pb}} superuser upsert "${PB_ADMIN_EMAIL}" "${PB_ADMIN_PASSWORD}" --dir "${EDIR}/pb_data"
 
     # Dummy APK so the in-app-update download endpoint can be exercised (3 MB).
     mkdir -p "${EDIR}/pb_data/updates"
