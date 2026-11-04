@@ -23,7 +23,7 @@ function validatePay(record) {
   const p = normalizePay(record);
   if (p.mode !== "time" && !(p.bucks > 0)) return "Set a reward above 0.";
   if (p.mode !== "bucks") {
-    if (!(p.minutes > 0)) return "Set the bonus minutes above 0.";
+    if (p.minutes < MINUTES_STEP) return "Bonus time must be at least " + MINUTES_STEP + " minutes.";
     if (Math.floor(p.minutes) !== p.minutes || p.minutes % MINUTES_STEP !== 0) {
       return "Minutes come in steps of " + MINUTES_STEP + ".";
     }

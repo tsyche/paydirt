@@ -39,6 +39,7 @@ import { KidDetail } from "../components/KidDetail";
 import { RecentlyApproved } from "../components/RecentlyApproved";
 import { StarterChores } from "../components/StarterChores";
 import { PayModeFields } from "../components/PayModeFields";
+import { ChoreCreateDialog } from "../components/ChoreCreateDialog";
 import { OfflineBanner } from "../components/OfflineBanner";
 import { HouseholdSettings } from "../components/HouseholdSettings";
 import { GritButton } from "../components/GritButton";
@@ -140,6 +141,8 @@ export function ParentHome({
   const [choreRace, setChoreRace] = useState(false);
   const [choreReminder, setChoreReminder] = useState("");
   const [creatingChore, setCreatingChore] = useState(false);
+  const [choreCreateError, setChoreCreateError] = useState("");
+  useEffect(() => { setChoreCreateError(""); }, [choreName, chorePayMode, choreReward, choreMinutes]);
 
   // Due date for new chore
   const [choreDueAt, setChoreDueAt] = useState("");
@@ -309,10 +312,17 @@ export function ParentHome({
     setProposalFill(proposal);
     setChoreName(proposal.name);
     setChoreNotes(proposal.description ?? "");
-    setChoreReward(String(proposal.reward_requested));
+    setChoreReward(String(proposal.reward_requested ?? 10));
     setChorePayMode("bucks");
     setChoreMinutes("");
     setChoreType("oneoff");
+    setTimerMinutes("0");
+    setChoreDueTime("");
+    setChoreDueDay("1");
+    setChoreCadence("weekly");
+    setChoreReminder("");
+    setChoreCreateError("");
+    setShowTemplates(false);
     setChorePhoto(false);
     setChoreRace(false);
     setChoreDueAt("");
@@ -376,7 +386,8 @@ export function ParentHome({
   async function createChore() {
     if (!choreName.trim()) return;
     const payError = validatePay({ pay_mode: chorePayMode, reward: Number(choreReward) || 0, reward_minutes: Number(choreMinutes) || 0 });
-    if (payError) { setSnack(payError); return; }
+    if (payError) { setChoreCreateError(payError); setSnack(payError); return; }
+    setChoreCreateError("");
     setCreatingChore(true);
     try {
       const chore = await client.createChore({
@@ -422,9 +433,9 @@ export function ParentHome({
       setChoreDueAt("");
       setChoreLimit("");
       setShowCreateChore(false);
-      setSnack("Chore created ✅");
       await reload();
     } catch (e) {
+      setChoreCreateError(errorMessage(e));
       setSnack(errorMessage(e));
     } finally {
       setCreatingChore(false);
@@ -1148,9 +1159,20 @@ export function ParentHome({
           onMessage={setSnack}
         />
 
-        {showCreateChore && (
-          <Card style={styles.createChoreCard}>
-            <Card.Content style={styles.createChoreContent}>
+          </>
+        )}
+
+        <ChoreCreateDialog
+          visible={showCreateChore}
+          title={proposalFill ? "Review chore idea" : "New chore"}
+          actionLabel={proposalFill ? "Create and approve" : "Create chore"}
+          busy={creatingChore}
+          canCreate={!!choreName.trim()}
+          error={choreCreateError}
+          onCancel={() => { setShowCreateChore(false); setProposalFill(null); }}
+          onCreate={() => void createChore()}
+        >
+          <View style={styles.createChoreContent}>
               {templates.length > 0 && (
                 <>
                   <Button
@@ -1283,15 +1305,6 @@ export function ParentHome({
                 </>
               )}
               <Button
-                mode="contained"
-                onPress={createChore}
-                disabled={creatingChore || !choreName.trim()}
-                style={{ marginTop: 8, borderRadius: 12 }}
-                icon="check"
-              >
-                {creatingChore ? "Creating…" : "Create chore"}
-              </Button>
-              <Button
                 mode="outlined"
                 onPress={saveAsTemplate}
                 disabled={savingTemplate || !choreName.trim()}
@@ -1300,10 +1313,11 @@ export function ParentHome({
               >
                 {savingTemplate ? "Saving…" : "Save as template"}
               </Button>
-            </Card.Content>
-          </Card>
-        )}
+          </View>
+        </ChoreCreateDialog>
 
+        {tab === "chores" && (
+          <>
         {chores.length === 0 && !showCreateChore && (
           <Text style={[styles.emptyNote, { color: theme.colors.onSurfaceVariant }]}>
             No active chores. Tap Add to create one.
@@ -1575,7 +1589,6 @@ const styles = StyleSheet.create({
   divider: { marginVertical: 8 },
 
   sectionHeader: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
-  createChoreCard: { borderRadius: 16, marginTop: 8 },
   createChoreContent: { gap: 6 },
   rewardInput: { width: 120 },
   segmented: { marginTop: 2 },

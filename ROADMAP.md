@@ -26,9 +26,9 @@ Last audit 2026-11-02: closed the Family Link checks (moved to the shipped ledge
 
 ## Known Issues
 
+
 - **Edit-panel UX is inconsistent (reported 2026-11-04)** — Save/Cancel sit at the bottom and panels shift as they open, so it is hard to tell what is being edited. Done: web kid settings uses the new `EditHeader` (title + Save/Cancel pinned at the top). Remaining web panels to convert: chore edit (`Dashboard.tsx` ~`cancelEdit`), the other Save/Cancel pairs in `Dashboard.tsx`, and `HouseholdSettings.tsx`; then the mobile edit forms (`ParentHome.tsx` chore edit, kid settings). Rule recorded in AGENTS.md.
 - **Open bugs reported 2026-11-04** — each needs a repro and a regression test with its fix:
-  - ~~**Mobile: approving a kid-submitted chore idea does nothing**~~ — **fixed 2026-11-04**. Both web and mobile now open the create-chore form prefilled from the idea (reward/requirements from the proposal); the idea flips to approved only once the chore is saved, and closing the form leaves it pending. Mobile no longer uses the iOS-only `Alert.prompt`.
   - ~~**Rapid approvals may lose queued screen time (verify)**~~ — **verified 2026-11-04** (no bug): new integration test queues/approves three back-to-back time-pay chore approvals and asserts each gets its own grant, none dropped.
   - ~~**Every decline needs a free-text reason sent back to the kid**~~ — **fixed 2026-11-04**. Added `decline_reason` to `chore_proposals` + `spend_requests` (migration `1717000038_decline_reasons`); proposal decline + spend deny now take (and forward) a reason on web + mobile, alongside the existing chore-reject reason.
   - ~~**Web: inner approval box is the same size as the outer box**~~ — **fixed 2026-11-04**: `.section-priority > .card` now has `margin-inline: 12px` so the tinted outer box is inset from the inner approval cards.

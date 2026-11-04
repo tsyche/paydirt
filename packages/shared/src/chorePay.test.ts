@@ -20,6 +20,7 @@ describe("chore pay mode", () => {
     expect(validatePay({ reward: 0 })).toMatch(/reward/);
     expect(validatePay({ pay_mode: "time", reward_minutes: 10 })).toBeNull();
     expect(validatePay({ pay_mode: "time", reward_minutes: 0 })).toMatch(/minutes/);
+    expect(validatePay({ pay_mode: "time", reward_minutes: 2 })).toMatch(/at least 5 minutes/);
     expect(validatePay({ pay_mode: "time", reward_minutes: 7 })).toMatch(/steps of 5/);
     expect(validatePay({ pay_mode: "time", reward_minutes: 600 })).toMatch(/capped/);
     expect(validatePay({ pay_mode: "both", reward: 0, reward_minutes: 10 })).toMatch(/reward/);

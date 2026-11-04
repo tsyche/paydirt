@@ -4,6 +4,12 @@
 
 ## Shipped index
 
+- [x] 2026-11-04 — Mobile suggested-chore approval opens an independent review modal from Approvals (local; deployment pending)
+
+- [x] 2026-11-04 — Family Link early-bonus allowance-loss report ruled out on device: normal daily time resumes after the bonus expires
+
+- [x] 2026-11-04 — Mobile chore bonus-time validation: visible minimum/step guidance, inline field errors, and persistent create-submit errors (local; deployment pending)
+
 - [x] 2026-11-04 — Daily midnight recurrence and household timezone sweep; sandbox test-all guidance (local implementation; deployment pending)
 
 - [x] 2026-11-04 — Multiple delivery windows and day-specific schedules, household defaults and kid overrides (implemented locally; deployment and device verification pending)
@@ -264,3 +270,13 @@ Daily repeat limits reset at household midnight rather than after 24 hours. Recu
 The existing `grant_timezone` is now the household-wide IANA setting, defaulting to `America/Los_Angeles`. Cron schedules, recurring deadlines, quiet hours, reminders, digest days, streaks, report boundaries, date inputs, and history/ledger labels honor it. Stored timestamps and elapsed timers/expiry remain UTC instants. History distinguishes completion from approval dates. Changing the household setting updates the cron clock without a restart; stored assignment deadlines and published grant snapshots retain their original instant.
 
 The sandbox `test-all` follow-up is documented in [AGENTS.md](../../AGENTS.md#development), including the optional webpack/polling fallback. The isolated runner supplies `PB_TEST_DB` for backdated fixtures; these tests never write the live database.
+
+## Mobile chore reward feedback — 2026-11-04
+
+The bonus-minutes input now states the five-minute minimum, five-minute steps, and 120-minute maximum. Invalid amounts flag the field and show a persistent inline explanation. Create-chore validation and API errors also appear beside the submit button rather than only in a four-second snackbar. Shared/server validation names the minimum explicitly. Rendered component tests cover two-minute rejection, seven-minute step feedback, guidance before entry, and a valid five-minute reward; these failed before the fix.
+
+## Mobile suggested-chore review — 2026-11-04
+
+The earlier prefill fix set the create-form flag without leaving Approvals, but the form lived inside the Chores tab and therefore remained hidden. The shared mobile create form now opens in a tab-independent modal, with editable suggestion details, persistent error feedback, and pinned Cancel / Create and approve controls. Old timer/deadline/reminder form state is reset before prefilling a suggestion. Cancelling leaves it pending; saving creates and assigns the chore before resolving the suggestion.
+
+Rendered dialog tests cover visible fields, pinned actions, errors, and cancellation visibility. A JSX ancestry regression test rejects mounting the composer inside any tab condition; it fails when the original tab gate is restored. Native tap-through remains unverified.

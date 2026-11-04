@@ -44,7 +44,7 @@ export function validatePay(chore: ChorePayFields): string | null {
   const { mode, bucks, minutes } = normalizePay(chore);
   if (mode !== "time" && !(bucks > 0)) return "Set a reward above 0.";
   if (mode !== "bucks") {
-    if (!(minutes > 0)) return "Set the bonus minutes above 0.";
+    if (minutes < MINUTES_STEP) return `Bonus time must be at least ${MINUTES_STEP} minutes.`;
     if (!Number.isInteger(minutes) || minutes % MINUTES_STEP !== 0) {
       return `Minutes come in steps of ${MINUTES_STEP}.`;
     }

@@ -1,7 +1,7 @@
 import { View, StyleSheet } from "react-native";
-import { SegmentedButtons, Text, TextInput, useTheme } from "react-native-paper";
+import { HelperText, SegmentedButtons, Text, TextInput, useTheme } from "react-native-paper";
 import type { PayMode } from "@paydirt/shared";
-import { MINUTES_STEP } from "@paydirt/shared";
+import { MINUTES_STEP, MAX_REWARD_MINUTES, validatePay } from "@paydirt/shared";
 
 // Pay mode + amounts for a chore form: bucks, screen minutes, or both.
 export function PayModeFields({
@@ -16,6 +16,9 @@ export function PayModeFields({
   currencyName: string;
 }) {
   const theme = useTheme();
+  const minuteError = mode !== "bucks" && minutes.trim()
+    ? validatePay({ pay_mode: "time", reward_minutes: Number(minutes) })
+    : null;
   return (
     <View style={styles.wrap}>
       <Text variant="labelMedium" style={{ color: theme.colors.onSurfaceVariant }}>Pays</Text>
@@ -34,9 +37,15 @@ export function PayModeFields({
           keyboardType="numeric" dense style={styles.input} />
       )}
       {mode !== "bucks" && (
+        <View>
         <TextInput mode="outlined" label="Bonus minutes" value={minutes}
           onChangeText={onMinutes} keyboardType="numeric" dense style={styles.input}
+          error={!!minuteError}
           placeholder={`multiples of ${MINUTES_STEP}`} />
+        <HelperText type={minuteError ? "error" : "info"} visible accessibilityLiveRegion="polite">
+          {minuteError || `Minimum ${MINUTES_STEP} minutes; use ${MINUTES_STEP}-minute steps, up to ${MAX_REWARD_MINUTES}.`}
+        </HelperText>
+        </View>
       )}
     </View>
   );

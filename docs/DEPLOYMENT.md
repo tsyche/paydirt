@@ -58,6 +58,12 @@ Migrations run automatically on restart. No commit or push is needed to deploy l
 
 ## Family Link grants
 
+Device verification (2026-11-04): a five-minute chore bonus granted while two
+hours of ordinary daily time remained temporarily showed the bonus countdown.
+After it expired, ordinary daily-time depletion resumed. The daily allowance
+was not erased. Preserve existing bonus time when extending a bonus; do not add
+the ordinary daily allowance into the bonus calculation.
+
 Bonus screen time is granted through the Family Link web API ([`scripts/familylink-grant.mjs`](../scripts/familylink-grant.mjs)). Google rejects sign-in from automated browsers, so you sign in on the Mac and copy the session to the host.
 
 Each grant reads the target device's active bonus and sets the bonus to remaining + purchased seconds. The calculation uses Google's server time and rounds remaining seconds up. Failed reads, missing devices, malformed responses, or unsupported active overrides stop the grant without writing. Purchases are 15-60 minutes; chore and direct parent bonuses (`time_grants`) are 5-120 minutes, and the worker accepts any whole 5-minute step in that range. Direct bonuses use the same delivery windows and manual fallback without changing grit. The worker and `fl-host-grant` share a host lock; do not run Mac grants concurrently with host grants.
