@@ -28,4 +28,16 @@ describe("mobile approval layout", () => {
     expect(source).toContain('{expanded && <Text variant="bodySmall"');
     expect(source).toContain('{expanded ? "Less details" : "More details"}');
   });
+
+  it("uses a cross-platform reason dialog when sending a chore back", () => {
+    const source = readFileSync(new URL("../screens/ParentHome.tsx", import.meta.url), "utf8");
+    const rejection = source.slice(
+      source.indexOf("function confirmReject"),
+      source.indexOf("function confirmApproveProposal"),
+    );
+    expect(rejection).not.toContain("Alert.prompt(");
+    expect(source).toContain('label="What needs redone?"');
+    expect(source).toContain("client.rejectAssignment(assignmentId, rejectionReason.trim())");
+    expect(source).toContain("They will see this message.");
+  });
 });

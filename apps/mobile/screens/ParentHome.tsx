@@ -10,6 +10,8 @@ import {
   TextInput,
   Chip,
   Icon,
+  Dialog,
+  Portal,
   Snackbar,
   Divider,
   Switch,
@@ -84,6 +86,8 @@ export function ParentHome({
   const [kids, setKids] = useState<User[]>([]);
   const [approvals, setApprovals] = useState<ExpandedAssignment[]>([]);
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
+  const [rejectingAssignmentId, setRejectingAssignmentId] = useState<string | null>(null);
+  const [rejectionReason, setRejectionReason] = useState("");
   const [spend, setSpend] = useState<ExpandedSpend[]>([]);
   const [screenGrants, setScreenGrants] = useState<ExpandedSpend[]>([]);
   const [bonusGrants, setBonusGrants] = useState<ExpandedGrant[]>([]);
@@ -260,22 +264,17 @@ export function ParentHome({
   };
 
   function confirmReject(assignmentId: string) {
-    Alert.prompt(
-      "Reject chore",
-      "Reason (optional):",
-      [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "Reject",
-          style: "destructive",
-          onPress: (msg: string | undefined) =>
-            void act(
-              () => client.rejectAssignment(assignmentId, msg ?? ""),
-              "Rejected."
-            ),
-        },
-      ],
-      "plain-text",
+    setRejectionReason("");
+    setRejectingAssignmentId(assignmentId);
+  }
+
+  function rejectWithReason() {
+    if (!rejectingAssignmentId) return;
+    const assignmentId = rejectingAssignmentId;
+    setRejectingAssignmentId(null);
+    void act(
+      () => client.rejectAssignment(assignmentId, rejectionReason.trim()),
+      "Rejected."
     );
   }
 
@@ -1442,6 +1441,28 @@ export function ParentHome({
       </Snackbar>
 
       <Celebration trigger={celebrate} />
+      <Portal>
+        <Dialog visible={rejectingAssignmentId !== null} onDismiss={() => setRejectingAssignmentId(null)}>
+          <Dialog.Title>Send chore back</Dialog.Title>
+          <Dialog.Content>
+            <Text variant="bodyMedium">Tell them what to fix. They will see this message.</Text>
+            <TextInput
+              mode="outlined"
+              label="What needs redone?"
+              value={rejectionReason}
+              onChangeText={setRejectionReason}
+              multiline
+              maxLength={1000}
+              autoFocus
+              style={styles.rejectionInput}
+            />
+          </Dialog.Content>
+          <Dialog.Actions>
+            <Button onPress={() => setRejectingAssignmentId(null)}>Cancel</Button>
+            <Button mode="contained" onPress={rejectWithReason}>Send back</Button>
+          </Dialog.Actions>
+        </Dialog>
+      </Portal>
     </SafeAreaView>
   );
 }
@@ -1488,6 +1509,7 @@ const styles = StyleSheet.create({
   approveBtn: { flex: 1, borderRadius: 12 },
   rejectBtn: { flex: 1, borderRadius: 12 },
   actionBtnContent: { paddingVertical: 4 },
+  rejectionInput: { marginTop: 12 },
 
   divider: { marginVertical: 8 },
 

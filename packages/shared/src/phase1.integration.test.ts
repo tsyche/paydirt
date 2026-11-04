@@ -335,4 +335,21 @@ describe("Phase 1 features (live)", () => {
       expect(reassigned).toHaveLength(0);
     },
   );
+
+  it("recurring auto-assignment honors a limit added after the first assignment", async () => {
+    const admin = new PaydirtClient(PB_URL);
+    await admin.pb.collection("_superusers").authWithPassword(ADMIN_EMAIL, ADMIN_PASSWORD);
+
+    const chore = await newChore(`Daily limit ${Date.now()}`, { type: "recurring", cadence: "daily" });
+    const first = await parent.assignChore(chore.id, kid1User.id);
+    await kid1.markComplete(first.id);
+    await parent.approveAssignment(first.id);
+
+    // A chore edit applies to existing assignment history as well as new ones.
+    await parent.updateChore(chore.id, { max_per_period: 1 });
+    await admin.pb.send("/api/paydirt/cron/daily", { method: "POST" });
+
+    const active = await kid1.listActiveAssignmentsForChild(kid1User.id);
+    expect(active.filter((a) => a.chore === chore.id)).toHaveLength(0);
+  });
 });

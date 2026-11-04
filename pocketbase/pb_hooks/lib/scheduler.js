@@ -336,6 +336,9 @@ function runDaily(app) {
           const cid = a.getString("child");
           if (!lastByChild[cid]) lastByChild[cid] = a;
         }
+        const limit = chore.getInt("max_per_period");
+        const limitDays = cadence === "weekly" ? 7 : cadence === "monthly" ? 30 : 1;
+        const limitCutoff = new Date(now.getTime() - limitDays * 86400e3);
         for (const childId in lastByChild) {
           // Skip if the kid already has an open assignment for this chore.
           const open = app.findRecordsByFilter(
@@ -347,6 +350,13 @@ function runDaily(app) {
             { c: chore.id, kid: childId },
           );
           if (open.length > 0) continue;
+          // Automatic recurrence follows the chore's repeat limit. Parents can
+          // still deliberately override it through the assignment flow.
+          if (limit > 0 && history.filter((a) =>
+            a.getString("child") === childId &&
+            a.getString("status") !== "closed" &&
+            new Date(a.getString("created").replace(" ", "T")) >= limitCutoff,
+          ).length >= limit) continue;
           // Weekly/monthly cadence: only re-assign after that many days since
           // the last was created. Daily (or anything else) re-assigns as soon
           // as there's no open assignment.
