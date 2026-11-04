@@ -14,20 +14,20 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@babel/runtime": "^7.29.7",
+    "@babel/runtime": "^7.29.10",
     "@expo-google-fonts/fredoka": "^0.4.1",
-    "@expo/metro-runtime": "~57.0.16",
+    "@expo/metro-runtime": "~57.0.17",
     "@expo/vector-icons": "^15.1.1",
     "@paydirt/shared": "workspace:*",
     "@react-native-async-storage/async-storage": "~3.1.1",
-    "@react-native-community/datetimepicker": "9.1.0",
-    "eslint": "^10.11.0",
+    "@react-native-community/datetimepicker": "9.2.2",
+    "eslint": "^10.14.0",
     "eslint-config-expo": "~57.0.2",
-    "expo": "~57.0.25",
+    "expo": "~57.0.31",
     "expo-device": "~57.0.2",
     "expo-file-system": "~57.0.7",
     "expo-image-picker": "~57.0.20",
-    "expo-notifications": "~57.0.21",
+    "expo-notifications": "~57.0.24",
     "expo-status-bar": "~57.0.1",
     "expo-updates": "~57.0.26",
     "react": "19.2.3",
@@ -36,11 +36,11 @@
     "react-native-paper": "^5.15.3",
     "react-native-safe-area-context": "~5.8.1",
     "react-native-sse": "^1.2.1",
-    "react-native-web": "^0.21.3"
+    "react-native-web": "^0.21.4"
   },
   "devDependencies": {
     "@types/react": "~19.2.18",
     "typescript": "~6.0.3",
-    "typescript-eslint": "^8.71.0"
+    "typescript-eslint": "^8.72.1"
   }
 }
