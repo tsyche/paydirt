@@ -11,8 +11,12 @@
 
 // Milestone day-counts → bonus amount. Granted once per milestone per streak.
 const STREAK_MILESTONES = { 3: 5, 7: 15, 14: 40, 30: 100 };
+function localDay(value) {
+  const date = value instanceof Date ? value : new Date(value.replace(" ", "T"));
+  return date.getFullYear() + "-" + String(date.getMonth() + 1).padStart(2, "0") + "-" + String(date.getDate()).padStart(2, "0");
+}
 
-// Pure: counts consecutive days, ending `now` (UTC), present in `days` (a
+// Pure: counts consecutive server-local days, ending `now`, present in `days` (a
 // map of YYYY-MM-DD → true). See packages/shared/src/streaks.ts#computeStreak.
 //
 // Grace period: today isn't over yet, so a streak whose last earn was
@@ -20,20 +24,23 @@ const STREAK_MILESTONES = { 3: 5, 7: 15, 14: 40, 30: 100 };
 // every streak before the kids wake up.
 function computeStreakFromDays(now, days) {
   const cursor = new Date(now.getTime());
-  if (!days[cursor.toISOString().slice(0, 10)]) {
-    cursor.setUTCDate(cursor.getUTCDate() - 1);
+  if (!days[localDay(cursor)]) {
+    cursor.setDate(cursor.getDate() - 1);
   }
   let streak = 0;
-  while (days[cursor.toISOString().slice(0, 10)]) {
+  while (days[localDay(cursor)]) {
     streak++;
-    cursor.setUTCDate(cursor.getUTCDate() - 1);
+    cursor.setDate(cursor.getDate() - 1);
   }
   return streak;
 }
 
-// Count consecutive days, ending today (UTC), on which the child earned from
+// Count consecutive days, ending today (server-local), on which the child earned from
 // a chore (type = "earn" ledger entries or time_grants).
 function computeStreak(app, childId) {
+  const calendar = require(__hooks + "/lib/calendar.js");
+  const child = app.findRecordById("users", childId);
+  const household = app.findRecordById("households", child.getString("household"));
   const txs = app.findRecordsByFilter(
     "currency_transactions",
     "user = {:c} && type = 'earn'",
@@ -44,14 +51,14 @@ function computeStreak(app, childId) {
   );
   const days = {};
   for (const t of txs) {
-    days[t.getString("created").slice(0, 10)] = true;
+    days[calendar.day(household, new Date(t.getString("created").replace(" ", "T")))] = true;
   }
   // Chores paid only in screen time leave no earn row, so their grants count too.
   const grants = app.findRecordsByFilter("time_grants", "child = {:c}", "-created", 200, 0, { c: childId });
   for (const g of grants) {
-    days[g.getString("created").slice(0, 10)] = true;
+    days[calendar.day(household, new Date(g.getString("created").replace(" ", "T")))] = true;
   }
-  return computeStreakFromDays(new Date(), days);
+  return computeStreakFromDays(calendar.wall(household, new Date()), days);
 }
 
 // Pure: the bonus to grant when a streak refresh crosses a milestone, or

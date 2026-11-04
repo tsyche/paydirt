@@ -18,7 +18,7 @@ export default defineConfig({
     baseURL: "http://localhost:3110",
   },
   webServer: {
-    command: "pnpm dev",
+    command: process.env.PAYDIRT_E2E_WEBPACK === "1" ? "pnpm exec next dev --webpack -p 3110" : "pnpm dev",
     url: "http://localhost:3110",
     // Never reuse: a dev server on this port points at the dev PocketBase, not the test one.
     reuseExistingServer: false,

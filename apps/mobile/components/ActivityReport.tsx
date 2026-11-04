@@ -2,12 +2,12 @@ import { useEffect, useState } from "react";
 import { StyleSheet, View } from "react-native";
 import { Button, Card, Text } from "react-native-paper";
 import type { MonthActivity, User } from "@paydirt/shared";
-import { summarizeMonthActivity } from "@paydirt/shared";
+import { summarizeMonthActivity, householdWallDate } from "@paydirt/shared";
 import { client } from "../lib/client";
 
 /** Monthly per-kid activity summary (chores, earned, spent, streak peak). Mirrors the web report. */
 export function ActivityReport({ kids, currencyName }: { kids: User[]; currencyName: string }) {
-  const now = new Date();
+  const now = householdWallDate();
   const [open, setOpen] = useState(false);
   const [year, setYear] = useState(now.getFullYear());
   const [month, setMonth] = useState(now.getMonth() + 1);

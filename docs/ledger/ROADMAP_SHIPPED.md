@@ -4,6 +4,8 @@
 
 ## Shipped index
 
+- [x] 2026-11-04 — Daily midnight recurrence and household timezone sweep; sandbox test-all guidance (local implementation; deployment pending)
+
 - [x] 2026-11-04 — Multiple delivery windows and day-specific schedules, household defaults and kid overrides (implemented locally; deployment and device verification pending)
 
 - [x] 2026-11-02 — Tier 2 APK self-update confirmed on the remaining tablets
@@ -254,3 +256,11 @@ Native tap-through later confirmed on the Pixel 8, 2026-10-21 (warm: lands KidHo
 Multiple comma-separated delivery ranges retain existing weekday/weekend settings. Optional `grant_day_windows` stores individual weekday exceptions on households and kids. Each day supports all day, specific hours, or no delivery. Kid day overrides take precedence over kid weekday/weekend defaults, then household day overrides and household defaults. Overnight ranges are supported; overlaps and incomplete lists are rejected. Web and mobile provide default-hour editors and day summaries, with collapsible household settings groups.
 
 Migration `1717000039_delivery_days.js` adds the optional fields without rewriting existing settings. Removing it drops day exceptions; weekday/weekend defaults remain. Family Link schedule import and individual queued-grant holds remain separate follow-ups.
+
+## Household calendar and daily recurrence — 2026-11-04
+
+Daily repeat limits reset at household midnight rather than after 24 hours. Recurrence is transactional, retries every minute, and allows yesterday's pending approval alongside today's fresh occurrence. Timers start fresh on the new assignment. Weekly/monthly rolling windows remain unchanged.
+
+The existing `grant_timezone` is now the household-wide IANA setting, defaulting to `America/Los_Angeles`. Cron schedules, recurring deadlines, quiet hours, reminders, digest days, streaks, report boundaries, date inputs, and history/ledger labels honor it. Stored timestamps and elapsed timers/expiry remain UTC instants. History distinguishes completion from approval dates. Changing the household setting updates the cron clock without a restart; stored assignment deadlines and published grant snapshots retain their original instant.
+
+The sandbox `test-all` follow-up is documented in [AGENTS.md](../../AGENTS.md#development), including the optional webpack/polling fallback. The isolated runner supplies `PB_TEST_DB` for backdated fixtures; these tests never write the live database.

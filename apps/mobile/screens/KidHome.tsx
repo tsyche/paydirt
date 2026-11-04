@@ -45,6 +45,7 @@ import { KudosHistory } from "../components/KudosHistory";
 import { ChoreNotes } from "../components/ChoreNotes";
 import { MyBank } from "../components/MyBank";
 import { ChoreTimer } from "../components/ChoreTimer";
+import { localDateLabel, householdDateTime, nextHouseholdTime } from "@paydirt/shared";
 import type { SpendRequest } from "@paydirt/shared";
 import type { TimeGrant } from "@paydirt/shared";
 import { ChunkyButton } from "../components/ChunkyButton";
@@ -77,7 +78,7 @@ function dueInfo(chore?: Chore): { label: string; overdue: boolean } | null {
   if (!chore?.due_at) return null;
   const due = new Date(chore.due_at.replace(" ", "T"));
   const overdue = due.getTime() < Date.now();
-  const label = `${overdue ? "Was due" : "Due"} ${due.toLocaleDateString()} ${due.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}`;
+  const label = `${overdue ? "Was due" : "Due"} ${householdDateTime(chore.due_at!)}`;
   return { label, overdue };
 }
 
@@ -487,7 +488,7 @@ export function KidHome({
                 <Card.Content>
                   <Text variant="bodyMedium">{b.message}</Text>
                   <Text variant="bodySmall" style={styles.date}>
-                    {b.created.slice(0, 10)}
+                    {localDateLabel(b.created)}
                   </Text>
                   <BroadcastReplies sent={replies[b.id]} onReply={(c) => void sendReply(b.id, c)} />
                 </Card.Content>
@@ -533,7 +534,7 @@ export function KidHome({
                             <Text key={w.id} variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant }}>
                               ✅ {(w as Expanded).expand?.chore?.name ?? "Chore"}{" "}
                               <Text style={{ color: theme.colors.onSurfaceVariant, opacity: 0.7 }}>
-                                {w.approved_at?.slice(0, 10)}
+                                {w.approved_at ? localDateLabel(w.approved_at) : ""}
                               </Text>
                             </Text>
                           ))}
@@ -568,7 +569,7 @@ export function KidHome({
                   </View>
                   {a.approved_at ? (
                     <Text variant="bodySmall" style={styles.date}>
-                      {a.approved_at.slice(0, 10)}
+                      {a.completed_at ? `Done ${localDateLabel(a.completed_at)} · ` : ""}Approved {localDateLabel(a.approved_at)}
                     </Text>
                   ) : null}
                 </Card.Content>
@@ -1022,9 +1023,7 @@ function RemindDialog({
       setCustomError("Invalid time");
       return;
     }
-    const d = new Date();
-    d.setHours(h, m, 0, 0);
-    if (d.getTime() <= Date.now()) d.setDate(d.getDate() + 1);
+    const d = nextHouseholdTime(`${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`);
     reset();
     onPick(d);
   }
@@ -1036,10 +1035,7 @@ function RemindDialog({
     [
       "Tomorrow morning",
       () => {
-        const d = new Date();
-        d.setDate(d.getDate() + 1);
-        d.setHours(9, 0, 0, 0);
-        return d;
+        return nextHouseholdTime("09:00", true);
       },
     ],
   ];

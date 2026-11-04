@@ -83,7 +83,7 @@ export function HouseholdSettings({
     grant_weekday_window: household.grant_weekday_window ?? "",
     grant_day_windows: household.grant_day_windows ?? "",
     grant_weekend_window: household.grant_weekend_window ?? "",
-    grant_timezone: household.grant_timezone ?? "",
+    grant_timezone: household.grant_timezone || "America/Los_Angeles",
     grant_expiry_days: household.grant_expiry_days ?? 0,
     expiry_days: household.expiry_days ?? 0,
     goods_rate: household.goods_rate ?? 0,
@@ -194,11 +194,6 @@ export function HouseholdSettings({
         </details>
         <details className="settings-group"><summary>Screen-time delivery</summary>
         <div className="settings-row">
-          <label>Delivery timezone (blank = server-local)
-            <input placeholder="America/Los_Angeles" value={form.grant_timezone} onChange={(e) => setForm({ ...form, grant_timezone: e.target.value.trim() })} />
-          </label>
-        </div>
-        <div className="settings-row">
           <label>Queued grant expires after days (0 = never)
             <input type="number" min={0} max={365} value={form.grant_expiry_days} onChange={(e) => setForm({ ...form, grant_expiry_days: Number(e.target.value) })} />
           </label>
@@ -270,6 +265,11 @@ export function HouseholdSettings({
         </div>
         </details>
         <details className="settings-group"><summary>Household preferences</summary>
+        <div className="settings-row">
+          <label>Household timezone (dates, resets, reminders, and schedules)
+            <input placeholder="America/Los_Angeles" value={form.grant_timezone} onChange={(e) => setForm({ ...form, grant_timezone: e.target.value.trim() })} />
+          </label>
+        </div>
         <div className="settings-row">
           <label>🏖️ Vacation mode <Tip k="paused" /> <span className="muted">(pause reminders &amp; expiry)</span></label>
           <input

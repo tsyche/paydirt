@@ -46,11 +46,12 @@ export interface Household extends BaseRecord {
   screen_rate?: number;
   /** Suggested amount for a parent "Great work" kudos award. */
   kudos_default_bucks?: number;
-  /** Server-local HH:MM-HH:MM delivery windows; blank means all day. */
+  /** Household-time HH:MM-HH:MM delivery windows; blank means all day. */
   grant_weekday_window?: string;
   /** JSON sparse Sunday=0…Saturday=6 overrides; 'all', 'none', or time ranges. */
   grant_day_windows?: string;
   grant_weekend_window?: string;
+  /** Household calendar timezone; blank defaults to America/Los_Angeles. */
   grant_timezone?: string;
   grant_expiry_days?: number;
 }

@@ -1,7 +1,8 @@
 import PocketBase from "pocketbase";
 import { Collections } from "./collections";
 import { resumeRealtime as forceRealtimeResume, type RealtimeLike } from "./realtime";
-import { choreLimit, limitWindowDays, type LimitWarning, type RecentAssignmentRow } from "./choreLimit";
+import { choreLimit, limitWindowDays, limitWindowStart, type LimitWarning, type RecentAssignmentRow } from "./choreLimit";
+import { localDateInstant, householdMonthRange, setHouseholdTimeZone } from "./dates";
 import { screenCost, screenDescription, type ScreenPreset } from "./screenTime";
 import type {
   Assignment,
@@ -97,12 +98,16 @@ export class PaydirtClient {
 
   // ── Households ─────────────────────────────────────────────────────────────
 
-  getHousehold(id: string): Promise<Household> {
-    return this.pb.collection(Collections.Households).getOne<Household>(id);
+  async getHousehold(id: string): Promise<Household> {
+    const household = await this.pb.collection(Collections.Households).getOne<Household>(id);
+    setHouseholdTimeZone(household.grant_timezone);
+    return household;
   }
 
-  updateHousehold(id: string, data: Partial<Household>): Promise<Household> {
-    return this.pb.collection(Collections.Households).update<Household>(id, data);
+  async updateHousehold(id: string, data: Partial<Household>): Promise<Household> {
+    const household = await this.pb.collection(Collections.Households).update<Household>(id, data);
+    setHouseholdTimeZone(household.grant_timezone);
+    return household;
   }
 
   // ── Chores ──────────────────────────────────────────────────────────────────
@@ -182,7 +187,7 @@ export class PaydirtClient {
     const max = choreLimit(chore);
     if (!max) return [];
     const windowDays = limitWindowDays(chore);
-    const cutoff = new Date(Date.now() - windowDays * 86400e3);
+    const cutoff = limitWindowStart(chore);
     const out: LimitWarning[] = [];
     for (const childId of childIds) {
       const { totalItems } = await this.pb.collection(Collections.Assignments).getList(1, 1, {
@@ -373,8 +378,7 @@ export class PaydirtClient {
 
   /** Transactions for a given calendar month (year/month are 1-based). */
   listTransactionsForMonth(userId: string, year: number, month: number): Promise<CurrencyTransaction[]> {
-    const start = new Date(year, month - 1, 1).toISOString().slice(0, 10);
-    const end = new Date(year, month, 1).toISOString().slice(0, 10);
+    const { start, end } = householdMonthRange(year, month);
     return this.pb.collection(Collections.CurrencyTransactions).getFullList<CurrencyTransaction>({
       filter: this.pb.filter("user = {:u} && created >= {:s} && created < {:e}", { u: userId, s: start, e: end }),
       sort: "-created",
@@ -389,8 +393,7 @@ export class PaydirtClient {
 
   /** Approved assignments for a given calendar month (year/month are 1-based). */
   listApprovedAssignmentsForMonth(childId: string, year: number, month: number): Promise<Assignment[]> {
-    const start = new Date(year, month - 1, 1).toISOString().slice(0, 10);
-    const end = new Date(year, month, 1).toISOString().slice(0, 10);
+    const { start, end } = householdMonthRange(year, month);
     return this.pb.collection(Collections.Assignments).getFullList<Assignment>({
       filter: this.pb.filter(
         "child = {:c} && status = 'approved' && approved_at >= {:s} && approved_at < {:e}",
@@ -403,6 +406,8 @@ export class PaydirtClient {
 
   /** Ledger rows for several kids in [start, end) (YYYY-MM-DD local dates), for the overview. */
   async listTransactionsInRange(userIds: string[], start: string, end: string): Promise<CurrencyTransaction[]> {
+    start = localDateInstant(start);
+    end = localDateInstant(end);
     const lists = await Promise.all(
       userIds.map((id) =>
         this.pb.collection(Collections.CurrencyTransactions).getFullList<CurrencyTransaction>({
@@ -416,6 +421,8 @@ export class PaydirtClient {
 
   /** Approved assignments (chore expanded) for several kids in [start, end), for the overview. */
   async listApprovedInRange(childIds: string[], start: string, end: string): Promise<Assignment[]> {
+    start = localDateInstant(start);
+    end = localDateInstant(end);
     const lists = await Promise.all(
       childIds.map((id) =>
         this.pb.collection(Collections.Assignments).getFullList<Assignment>({
@@ -432,6 +439,8 @@ export class PaydirtClient {
 
   /** Approved spend requests resolved in [start, end) for several kids, for the overview's screen-vs-goods split. */
   async listSpendRequestsInRange(childIds: string[], start: string, end: string): Promise<SpendRequest[]> {
+    start = localDateInstant(start);
+    end = localDateInstant(end);
     const lists = await Promise.all(
       childIds.map((id) =>
         this.pb.collection(Collections.SpendRequests).getFullList<SpendRequest>({

@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import { householdDateTime } from "@paydirt/shared";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Alert, ScrollView, StyleSheet, View } from "react-native";
 import { Button, Dialog, IconButton, Portal, Text } from "react-native-paper";
@@ -79,7 +80,7 @@ export function InboxDialog({ userId, visible, onDismiss }: { userId: string; vi
                   <View style={styles.text}>
                     <Text variant="titleSmall">{i.title}</Text>
                     {i.body ? <Text variant="bodyMedium">{i.body}</Text> : null}
-                    <Text variant="labelSmall">{new Date(i.created.replace(" ", "T")).toLocaleString()}</Text>
+                    <Text variant="labelSmall">{householdDateTime(i.created)}</Text>
                   </View>
                   <IconButton
                     icon="close"

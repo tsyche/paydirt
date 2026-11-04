@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { householdDateTime } from "@paydirt/shared";
 import { View, ScrollView, StyleSheet, RefreshControl, TouchableOpacity } from "react-native";
 import {
   Appbar,
@@ -292,7 +293,7 @@ export function SimpleKidHome({ user, onLogout }: { user: User; onLogout: () => 
             {a.expand?.chore ? (
               <ChoreNotes text={a.expand.chore.description} />
             ) : null}
-            {!!a.due_at && <Text>Due {new Date(a.due_at).toLocaleString()}</Text>}
+            {!!a.due_at && <Text>Due {householdDateTime(a.due_at)}</Text>}
             {a.expand?.chore ? (
               <Text style={[styles.choreReward, { color: accentColor }]}>
                 +{payLabel(a.expand.chore, user.avatar_emoji || "💰")}

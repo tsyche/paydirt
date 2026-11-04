@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { ScrollView, StyleSheet, View } from "react-native";
 import { Button, Card, Chip, Text } from "react-native-paper";
 import type { CurrencyTransaction, Household, User } from "@paydirt/shared";
-import { currencyDisplayName } from "@paydirt/shared";
+import { currencyDisplayName, localDateLabel, householdWallDate } from "@paydirt/shared";
 import { client } from "../lib/client";
 
 export const ALL_KIDS = "all";
@@ -10,8 +10,8 @@ export const ALL_KIDS = "all";
 export function LedgerView({ household, initialKidId }: { household: Household | null; initialKidId?: string }) {
   const [kids, setKids] = useState<User[]>([]);
   const [kidId, setKidId] = useState<string>(initialKidId ?? ALL_KIDS);
-  const [year, setYear] = useState(new Date().getFullYear());
-  const [month, setMonth] = useState(new Date().getMonth() + 1);
+  const [year, setYear] = useState(householdWallDate().getFullYear());
+  const [month, setMonth] = useState(householdWallDate().getMonth() + 1);
   const [txns, setTxns] = useState<CurrencyTransaction[]>([]);
   const [busy, setBusy] = useState(false);
 
@@ -74,7 +74,7 @@ export function LedgerView({ household, initialKidId }: { household: Household |
           <Card.Content style={styles.txRow}>
             <View style={{ flex: 1 }}>
               <Text variant="bodySmall" style={{ color: "#888" }}>
-                {t.created.slice(0, 10)}{kidId === ALL_KIDS ? ` · ${kids.find((k) => k.id === t.user)?.display_name ?? ""}` : ""}
+                {localDateLabel(t.created)}{kidId === ALL_KIDS ? ` · ${kids.find((k) => k.id === t.user)?.display_name ?? ""}` : ""}
               </Text>
               <Text variant="bodyMedium">{t.reason}</Text>
             </View>

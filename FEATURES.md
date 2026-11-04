@@ -33,7 +33,7 @@
 - **Rejected-chore flow** — kids reply to rejections (`kid_response`, parents notified + shown in dashboard) or resubmit; resubmission requires a freshly uploaded photo, enforced server-side. Simplified mode gets a big "Try again 📷" button.
 - **Collapsible history** — kid history is an accordion, closed by default, capped at the 50 most recent approvals (paged query, not getFullList).
 - **Deadlines + escalating reminders** — optional `due_at` per chore; cron escalates 24h → 2h → overdue (parents pinged on overdue).
-- **Recurring due days** — daily due time, weekly weekday/time, or monthly day/time on chores and templates (server-local timezone). Each new assignment snapshots its next deadline; overdue chores stay open at full pay and reminders escalate once per stage. Monthly days clamp to month end. Validation is deferred.
+- **Recurring due days** — daily due time, weekly weekday/time, or monthly day/time on chores and templates (household timezone). Each new assignment snapshots its next deadline; overdue chores stay open at full pay and reminders escalate once per stage. Monthly days clamp to month end. Daily recurrence resets at household midnight, independently of a late completion or pending approval from yesterday.
 - **Race mechanic** — race chores assigned to everyone; first approval wins, the rest auto-close with a "who won" notification.
 - **Kid-proposed chores** — kids pitch a chore + asking price; parents approve at a negotiated reward (auto-creates chore + assignment) or decline.
 - **Savings goals** — kid-created targets with progress bars; hook marks achieved + notifies both sides when the balance crosses the target.

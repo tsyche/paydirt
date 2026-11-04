@@ -1,7 +1,7 @@
 // Same server-local wall clock as recurring deadlines and quiet hours.
 // Blank means unrestricted; windows may cross midnight.
 function windowState(household, now, child) {
-  const zone = household.getString("grant_timezone");
+  const zone = household.getString("grant_timezone") || "America/Los_Angeles";
   const fields = ["grant_weekday_window", "grant_weekend_window"];
   if (!household.getString("grant_day_windows") && !(child && child.getString("grant_day_windows")) && fields.every((field) => {
     const value = child ? child.getString(field) : "";

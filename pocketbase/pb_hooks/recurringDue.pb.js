@@ -2,7 +2,10 @@
 onRecordCreate((e) => {
   const chore = e.app.findRecordById("chores", e.record.getString("chore"));
   const { nextDue } = require(__hooks + "/lib/recurringDue.js");
-  e.record.set("due_at", nextDue(chore, new Date()));
+  const calendar = require(__hooks + "/lib/calendar.js");
+  const household = e.app.findRecordById("households", chore.getString("household"));
+  const due = nextDue(chore, calendar.wall(household, new Date()));
+  e.record.set("due_at", due ? calendar.instant(household, new Date(due)).toISOString() : "");
   e.next();
 }, "assignments");
 

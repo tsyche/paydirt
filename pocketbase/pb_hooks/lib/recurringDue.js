@@ -1,4 +1,5 @@
-// Household deadlines use the host's local timezone, like existing reminders.
+// The caller supplies a household wall-clock proxy and converts the result
+// back to an instant using lib/calendar.js.
 // Date setters preserve wall-clock time through daylight-saving transitions.
 function nextDue(chore, now) {
   const time = chore.getString("due_time");

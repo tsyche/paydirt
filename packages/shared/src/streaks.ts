@@ -10,11 +10,12 @@
 // which computeStreak below already resolves to a broken streak.
 
 /** Milestone day-counts → bonus amount, before per-household overrides. */
+import { localDateKey } from "./dates";
 export const DEFAULT_STREAK_MILESTONES: Record<number, number> = { 3: 5, 7: 15, 14: 40, 30: 100 };
 
 /**
- * Counts consecutive days, ending today (UTC), on which the child has an
- * `earn` date. `earnDates` is the set of calendar days (YYYY-MM-DD, UTC) on
+ * Counts consecutive days, ending today (local), on which the child has an
+ * `earn` date. `earnDates` is the set of local calendar days (YYYY-MM-DD) on
  * which at least one `earn` ledger entry landed — the caller does the DB
  * fetch and date slicing, this just walks the calendar.
  *
@@ -24,12 +25,11 @@ export const DEFAULT_STREAK_MILESTONES: Record<number, number> = { 3: 5, 7: 15, 
  */
 export function computeStreak(now: Date, earnDates: Iterable<string>): number {
   const days = new Set(earnDates);
-  const cursor = new Date(now.getTime());
-  if (!days.has(cursor.toISOString().slice(0, 10))) {
-    cursor.setUTCDate(cursor.getUTCDate() - 1);
-  }
+  const cursor = new Date(`${localDateKey(now)}T12:00:00Z`);
+  const key = () => cursor.toISOString().slice(0, 10);
+  if (!days.has(key())) cursor.setUTCDate(cursor.getUTCDate() - 1);
   let streak = 0;
-  while (days.has(cursor.toISOString().slice(0, 10))) {
+  while (days.has(key())) {
     streak++;
     cursor.setUTCDate(cursor.getUTCDate() - 1);
   }

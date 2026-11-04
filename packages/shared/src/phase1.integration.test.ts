@@ -4,6 +4,8 @@ import { Collections } from "./collections";
 import { cleanupChores } from "./integration.cleanup";
 import { completionFormWithPhoto } from "./integration.fixtures";
 import type { User } from "./types";
+import { DatabaseSync } from "node:sqlite";
+import { localDateKey, localDateInstant } from "./dates";
 
 // Live tests for the Phase 1 / 1.5 features: rejected-chore resubmission,
 // races, savings goals, streaks, proposals, swaps, and the cron trigger
@@ -49,6 +51,12 @@ describe("Phase 1 features (live)", () => {
     });
     createdChores.push(chore.id);
     return chore;
+  }
+
+  function yesterdayEvening(): Date {
+    const day = new Date(`${localDateKey(new Date())}T12:00:00Z`);
+    day.setUTCDate(day.getUTCDate() - 1);
+    return new Date(localDateInstant(`${day.toISOString().slice(0, 10)}T23:30`));
   }
 
   it("rejected chores: kid can reply; resubmission demands a fresh photo", async () => {
@@ -210,7 +218,7 @@ describe("Phase 1 features (live)", () => {
     ).rejects.toThrow();
   });
 
-  it("recurring chore auto-assignment: daily cron re-creates after approval", async () => {
+  it.skipIf(!process.env.PB_TEST_DB)("recurring chore auto-assignment: daily cron re-creates after approval", async () => {
     const admin = new PaydirtClient(PB_URL);
     await admin.pb.collection("_superusers").authWithPassword(ADMIN_EMAIL, ADMIN_PASSWORD);
 
@@ -221,6 +229,14 @@ describe("Phase 1 features (live)", () => {
       (i) => i.title === "New chore! ⭐" && i.body === chore.name,
     ).length;
 
+    // Backdate yesterday's occurrence; completion/approval may happen late.
+    const yesterday = yesterdayEvening();
+    // Autodate fields are API-owned. Only the isolated test-all DB is writable here.
+    const db = new DatabaseSync(process.env.PB_TEST_DB!);
+    try { db.prepare("UPDATE assignments SET created = ? WHERE id = ?").run(yesterday.toISOString().replace("T", " "), first.id); }
+    finally { db.close(); }
+    const dated = await admin.pb.collection("assignments").getOne(first.id);
+    expect(new Date(dated.created).getTime()).toBe(yesterday.getTime());
     // Complete and approve — no open assignment now
     await kid1.markComplete(first.id);
     await parent.approveAssignment(first.id);
@@ -245,6 +261,51 @@ describe("Phase 1 features (live)", () => {
     const activeAgain = await kid1.listActiveAssignmentsForChild(kid1User.id);
     const duplicates = activeAgain.filter((a) => a.chore === chore.id);
     expect(duplicates).toHaveLength(1);
+  });
+
+  it.skipIf(!process.env.PB_TEST_DB)("a late timed completion awaiting approval does not block the next day's occurrence", async () => {
+    const admin = new PaydirtClient(PB_URL);
+    await admin.pb.collection("_superusers").authWithPassword(ADMIN_EMAIL, ADMIN_PASSWORD);
+    const chore = await newChore(`Timed midnight reset ${Date.now()}`, { type: "recurring", cadence: "daily", max_per_period: 1, timer_minutes: 5 });
+    const first = await parent.assignChore(chore.id, kid1User.id);
+    const yesterday = yesterdayEvening();
+    const stamp = yesterday.toISOString().replace("T", " ");
+    const db = new DatabaseSync(process.env.PB_TEST_DB!);
+    try { db.prepare("UPDATE assignments SET created = ?, timer_started_at = ? WHERE id = ?").run(stamp, stamp, first.id); }
+    finally { db.close(); }
+    await kid1.markComplete(first.id);
+    await admin.pb.send("/api/paydirt/cron/tick", { method: "POST" });
+    const rows = await kid1.pb.collection("assignments").getFullList({ filter: `chore = "${chore.id}" && child = "${kid1User.id}"` });
+    expect(rows.filter((a) => a.status === "completed")).toHaveLength(1);
+    const today = rows.filter((a) => a.status === "assigned");
+    expect(today).toHaveLength(1);
+    expect(today[0]!.timer_started_at).toBe("");
+    expect(today[0]!.timer_minutes).toBe(5);
+    await parent.approveAssignment(first.id);
+    await admin.pb.send("/api/paydirt/cron/tick", { method: "POST" });
+    const again = await kid1.pb.collection("assignments").getFullList({ filter: `chore = "${chore.id}" && child = "${kid1User.id}" && status = "assigned"` });
+    expect(again.map((a) => a.id)).toEqual([today[0]!.id]);
+  });
+
+  it.skipIf(!process.env.PB_TEST_DB)("daily recurrence follows a changed household timezone rather than the host", async () => {
+    const original = await parent.getHousehold(householdId);
+    const admin = new PaydirtClient(PB_URL);
+    await admin.pb.collection("_superusers").authWithPassword(ADMIN_EMAIL, ADMIN_PASSWORD);
+    try {
+      await parent.updateHousehold(householdId, { grant_timezone: "Pacific/Kiritimati" });
+      const chore = await newChore(`Household midnight ${Date.now()}`, { type: "recurring", cadence: "daily", max_per_period: 1 });
+      const first = await parent.assignChore(chore.id, kid1User.id);
+      const db = new DatabaseSync(process.env.PB_TEST_DB!);
+      try { db.prepare("UPDATE assignments SET created = ? WHERE id = ?").run(yesterdayEvening().toISOString().replace("T", " "), first.id); }
+      finally { db.close(); }
+      await kid1.markComplete(first.id);
+      expect(await parent.assignLimitWarnings(chore.id, [kid1User.id])).toHaveLength(0);
+      await admin.pb.send("/api/paydirt/cron/tick", { method: "POST" });
+      const rows = await kid1.pb.collection("assignments").getFullList({ filter: `chore = "${chore.id}" && status = "assigned"` });
+      expect(rows).toHaveLength(1);
+    } finally {
+      await parent.updateHousehold(householdId, { grant_timezone: original.grant_timezone ?? "" });
+    }
   });
 
   it("kid chore summary: fires once per day at the kid's configured time, then stays quiet", async () => {

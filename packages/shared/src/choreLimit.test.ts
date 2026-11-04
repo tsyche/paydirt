@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { choreLimit, isOverLimit, kidsAtLimit, limitLabel, limitWindowDays } from "./choreLimit";
+import { localDateInstant } from "./dates";
 
 describe("chore limits", () => {
   it("derives the window from cadence, one-offs use a week", () => {
@@ -31,6 +32,14 @@ describe("chore limits", () => {
 });
 
 describe("kidsAtLimit", () => {
+  it("resets daily limits at midnight even if yesterday's chore was assigned late", () => {
+    const now = new Date(localDateInstant("2026-11-04T00:01")).getTime();
+    const chore = { id: "daily", type: "recurring", cadence: "daily", max_per_period: 1 };
+    const yesterday = localDateInstant("2026-11-03T23:30");
+    const midnight = localDateInstant("2026-11-04");
+    expect(kidsAtLimit(chore, [{ chore: "daily", child: "kid", created: yesterday }], now).size).toBe(0);
+    expect(kidsAtLimit(chore, [{ chore: "daily", child: "kid", created: midnight }], now).get("kid")).toBe(1);
+  });
   const now = Date.parse("2026-11-01T12:00:00Z");
   const daily = { id: "c1", type: "recurring", cadence: "daily", max_per_period: 1 };
   const row = (chore: string, child: string, created: string) => ({ chore, child, created });

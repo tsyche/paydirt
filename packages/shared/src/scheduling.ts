@@ -50,9 +50,9 @@ export function shouldFireReminder(
   const nowHM = `${pad(now.getHours())}:${pad(now.getMinutes())}`;
   if (nowHM < reminderTime) return false;
   if (lastRemindedAt) {
-    const today = now.toISOString().slice(0, 10);
-    const lastRemindedDay = lastRemindedAt.toISOString().slice(0, 10);
-    if (lastRemindedDay === today) return false;
+    if (now.getFullYear() === lastRemindedAt.getFullYear() &&
+        now.getMonth() === lastRemindedAt.getMonth() &&
+        now.getDate() === lastRemindedAt.getDate()) return false;
   }
   return true;
 }

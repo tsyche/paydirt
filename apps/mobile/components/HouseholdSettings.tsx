@@ -69,7 +69,7 @@ export function HouseholdSettings({
     grant_weekday_window: household.grant_weekday_window ?? "",
     grant_day_windows: household.grant_day_windows ?? "",
     grant_weekend_window: household.grant_weekend_window ?? "",
-    grant_timezone: household.grant_timezone ?? "",
+    grant_timezone: household.grant_timezone || "America/Los_Angeles",
     grant_expiry_days: String(household.grant_expiry_days ?? 0),
     expiry_days: String(household.expiry_days ?? 0),
     goods_rate: String(household.goods_rate ?? 0),
@@ -159,8 +159,6 @@ export function HouseholdSettings({
 
             </SettingsGroup>
             <SettingsGroup title="Screen-time delivery">
-            <Text style={{ marginBottom: 12 }}>Time waits until an allowed window. No windows means all day.</Text>
-            <TextInput style={{ marginBottom: 12 }} label="Delivery timezone" placeholder="America/Los_Angeles" value={form.grant_timezone} onChangeText={(v) => setForm({ ...form, grant_timezone: v })} />
             <TextInput style={{ marginBottom: 12 }} label="Queued grant expires after days (0 = never)" keyboardType="number-pad" value={form.grant_expiry_days} onChangeText={(v) => setForm({ ...form, grant_expiry_days: v })} />
             <DeliverySchedule value={form} onChange={(schedule) => setForm((old) => ({ ...old, ...schedule }))} />
             </SettingsGroup>
@@ -225,6 +223,8 @@ export function HouseholdSettings({
             />
             </SettingsGroup>
             <SettingsGroup title="Household preferences">
+            <Text style={{ marginBottom: 12 }}>The household timezone applies to chore resets, schedules, reminders, reports, and dates.</Text>
+            <TextInput style={{ marginBottom: 12 }} label="Household timezone" placeholder="America/Los_Angeles" value={form.grant_timezone} onChangeText={(v) => setForm({ ...form, grant_timezone: v })} />
             <SettingLabel label="Vacation mode" tip="paused" />
             <Switch
               value={form.paused}

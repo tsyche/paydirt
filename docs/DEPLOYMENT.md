@@ -2,6 +2,11 @@
 
 **TL;DR:** PocketBase serves PayDirt's API and parent dashboard on bb:3111. Run `just install-service` once, then `just update-service`; data and saved browser auth survive updates. Family Link uses a separate queue worker, enabled explicitly after host/session setup.
 
+Set the household's timezone under **Household preferences** on web or mobile.
+It governs calendar dates, chore resets, and schedules independently of the
+host/device timezone; blank defaults to `America/Los_Angeles`. See
+[calendar behavior](DATA_MODEL.md) for details.
+
 ## Layout on the host
 
 | Path | Owner | Contents |

@@ -44,7 +44,7 @@ function sendViaEndpoint(app, endpoint, title, message, type) {
   }
 }
 
-// Returns true when the current server time falls within the household's
+// Returns true when the current household time falls within the household's
 // quiet window (quiet_start/quiet_end, both "HH:MM"). Handles wrap-around
 // midnight (e.g. 22:00–07:00). Returns false when no window is configured.
 function isQuietHours(app, householdId) {
@@ -54,7 +54,7 @@ function isQuietHours(app, householdId) {
     const qs = hh.getString("quiet_start");
     const qe = hh.getString("quiet_end");
     if (!qs || !qe) return false;
-    const now = new Date();
+    const now = require(__hooks + "/lib/calendar.js").wall(hh, new Date());
     const cur = now.getHours() * 60 + now.getMinutes();
     const [sh, sm] = qs.split(":").map(Number);
     const [eh, em] = qe.split(":").map(Number);

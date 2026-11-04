@@ -582,7 +582,7 @@ test-all:
     PB_URL="${TEST_URL}" node pocketbase/seed.mjs
 
     printf '\033[0;34mRunning integration tests...\033[0m\n'
-    PB_URL="${TEST_URL}" pnpm --filter @paydirt/shared test:integration
+    PB_URL="${TEST_URL}" PB_TEST_DB="${EDIR}/pb_data/data.db" pnpm --filter @paydirt/shared test:integration
 
     printf '\033[0;34mVerifying ledger integrity...\033[0m\n'
     PB_URL="${TEST_URL}" node pocketbase/verify-ledger.mjs

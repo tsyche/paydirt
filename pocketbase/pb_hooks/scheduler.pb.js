@@ -1,7 +1,7 @@
 /// <reference path="../pb_data/types.d.ts" />
 
 // Cron registration + manual triggers. Job bodies live in lib/scheduler.js.
-// Schedules use the server's local time.
+// calendar.pb.js aligns the cron clock to the household timezone.
 
 cronAdd("paydirt_tick", "*/10 * * * *", () => {
   const { runTick } = require(`${__hooks}/lib/scheduler.js`);
@@ -11,6 +11,11 @@ cronAdd("paydirt_tick", "*/10 * * * *", () => {
 cronAdd("paydirt_daily", "0 3 * * *", () => {
   const { runDaily } = require(`${__hooks}/lib/scheduler.js`);
   runDaily($app);
+});
+
+cronAdd("paydirt_recurring", "* * * * *", () => {
+  const { runRecurring } = require(`${__hooks}/lib/scheduler.js`);
+  runRecurring($app, new Date());
 });
 
 cronAdd("paydirt_digest", "0 18 * * 0", () => {

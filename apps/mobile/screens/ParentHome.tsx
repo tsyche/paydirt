@@ -1,4 +1,5 @@
 import { TimeField } from "../components/TimeField";
+import { localDateKey, localDateInstant, householdDateTime } from "@paydirt/shared";
 import { useCallback, useEffect, useRef, useState } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { View, ScrollView, StyleSheet, RefreshControl, Alert, Image, Modal, TouchableOpacity } from "react-native";
@@ -393,7 +394,7 @@ export function ParentHome({
         photo_required: chorePhoto,
         race: choreRace,
         reminder_time: choreReminder.trim() || undefined,
-        due_at: choreDueAt.trim() || undefined,
+        due_at: choreDueAt.trim() ? localDateInstant(choreDueAt.trim()) : undefined,
         max_per_period: parseLimit(choreLimit),
         created_by: user.id,
         active: true,
@@ -513,7 +514,7 @@ export function ParentHome({
     setEditPhoto(chore.photo_required ?? false);
     setEditRace(chore.race ?? false);
     setEditReminder(chore.reminder_time ?? "");
-    setEditDueAt(chore.due_at ? chore.due_at.slice(0, 10) : "");
+    setEditDueAt(chore.due_at ? localDateKey(chore.due_at) : "");
     setEditLimit(chore.max_per_period ? String(chore.max_per_period) : "");
     setEditAdvanced(Boolean(chore.reminder_time || chore.due_at || chore.max_per_period));
   }
@@ -538,7 +539,7 @@ export function ParentHome({
         photo_required: editPhoto,
         race: editRace,
         reminder_time: editReminder.trim() || undefined,
-        due_at: editDueAt.trim() || undefined,
+        due_at: editDueAt.trim() ? localDateInstant(editDueAt.trim()) : "",
         max_per_period: parseLimit(editLimit),
       });
       setEditingChoreId(null);
@@ -939,8 +940,8 @@ export function ParentHome({
                           {chore?.name ?? "Chore"}
                         </Text>
                         <ChoreNotes text={chore?.description} />
-                        {!!a.timer_minutes && <Text variant="bodySmall">⏱ {a.timer_minutes} min · {a.timer_started_at ? `started ${new Date(a.timer_started_at).toLocaleString()}` : "not started"}</Text>}
-                        {!!a.due_at && <Text variant="bodySmall">Due {new Date(a.due_at).toLocaleString()}</Text>}
+                        {!!a.timer_minutes && <Text variant="bodySmall">⏱ {a.timer_minutes} min · {a.timer_started_at ? `started ${householdDateTime(a.timer_started_at)}` : "not started"}</Text>}
+                        {!!a.due_at && <Text variant="bodySmall">Due {householdDateTime(a.due_at)}</Text>}
                         <View style={styles.approvalMeta}>
                           {child && (
                             <Chip compact style={styles.kidChip}>
@@ -1398,7 +1399,7 @@ export function ParentHome({
                             payLabel(chore, currencyName),
                             chore.cadence ? `${chore.type} (${chore.cadence})` : chore.type,
                             limitLabel(chore) ? `max ${limitLabel(chore)}` : "",
-                            chore.due_at ? `📅 ${chore.due_at.slice(0, 10)}` : "",
+                            chore.due_at ? `📅 ${localDateKey(chore.due_at)}` : "",
                           ]}
                         />
                       </View>

@@ -1,6 +1,6 @@
 // Cron job bodies. NOT auto-loaded; require()'d by scheduler.pb.js handlers.
-// All times are server-local for the HH:MM comparisons and UTC for date
-// arithmetic; dedupe markers are stored on the records themselves so a
+// Wall-clock comparisons use the household calendar; elapsed durations use UTC
+// instants. Dedupe markers are stored on the records themselves so a
 // 10-minute tick can't double-send.
 //
 // The fire/no-fire decision helpers below mirror
@@ -37,9 +37,9 @@ function shouldFireReminder(now, reminderTime, lastRemindedAt, vacationMode) {
   const nowHM = pad(now.getHours()) + ":" + pad(now.getMinutes());
   if (nowHM < reminderTime) return false;
   if (lastRemindedAt) {
-    const today = now.toISOString().slice(0, 10);
-    const lastRemindedDay = lastRemindedAt.toISOString().slice(0, 10);
-    if (lastRemindedDay === today) return false;
+    if (now.getFullYear() === lastRemindedAt.getFullYear() &&
+        now.getMonth() === lastRemindedAt.getMonth() &&
+        now.getDate() === lastRemindedAt.getDate()) return false;
   }
   return true;
 }
@@ -131,12 +131,15 @@ function buildDigestMessage(names) {
 
 // ── tick (every 10 min): nudges, scheduled reminders, deadlines, kid alarms ──
 function runTick(app) {
+  const calendar = require(__hooks + "/lib/calendar.js");
   const { notifyUser, notifyParents } = require(`${__hooks}/lib/ntfy.js`);
   const now = new Date();
   const nowStr = pbDate(now);
+  runRecurring(app, now);
 
   for (const hh of listHouseholds(app)) {
     if (hh.getBool("paused")) continue;
+    const wallNow = calendar.wall(hh, now);
 
     // Approval nudges: a completed chore has sat unapproved for > nudge_hours.
     // One nudge per completion (nudged_at < completed_at handles resubmits).
@@ -171,12 +174,12 @@ function runTick(app) {
       }
     }
 
-    // Parent-scheduled chore reminders ("HH:MM", server-local): once per day
+    // Parent-scheduled chore reminders ("HH:MM", household time): once per day
     // per assignment, fired on the first tick at/after the set time. The
     // chore-level nowHM check is a query-avoidance guard; shouldFireReminder
     // is the authoritative decision (also re-checks nowHM).
     const pad = (n) => String(n).padStart(2, "0");
-    const nowHM = pad(now.getHours()) + ":" + pad(now.getMinutes());
+    const nowHM = pad(wallNow.getHours()) + ":" + pad(wallNow.getMinutes());
     const remindChores = app.findRecordsByFilter(
       "chores",
       "household = {:hh} && active = true && reminder_time != ''",
@@ -199,7 +202,7 @@ function runTick(app) {
       for (const a of open) {
         const lastRemindedStr = a.getString("last_reminded");
         const lastRemindedAt = lastRemindedStr ? new Date(lastRemindedStr.replace(" ", "T")) : null;
-        if (!shouldFireReminder(now, reminderTime, lastRemindedAt, false)) continue;
+        if (!shouldFireReminder(wallNow, reminderTime, lastRemindedAt ? calendar.wall(hh, lastRemindedAt) : null, false)) continue;
         notifyUser(app, a.getString("child"), "Chore time! 🧹", chore.getString("name"));
         a.set("last_reminded", nowStr);
         app.save(a);
@@ -259,8 +262,8 @@ function runTick(app) {
       { hh: hh.id },
     );
     for (const kid of kidsForDigest) {
-      const time = digestTimeFor(now, kid.getString("digest_weekday"), kid.getString("digest_weekend"));
-      if (!shouldFireDigest(now, time, kid.getString("digest_sent"), false)) continue;
+      const time = digestTimeFor(wallNow, kid.getString("digest_weekday"), kid.getString("digest_weekend"));
+      if (!shouldFireDigest(wallNow, time, kid.getString("digest_sent"), false)) continue;
       const open = app.findRecordsByFilter(
         "assignments",
         "child = {:kid} && (status = 'assigned' || status = 'rejected')",
@@ -273,7 +276,7 @@ function runTick(app) {
         const names = open.map((a) => app.findRecordById("chores", a.getString("chore")).getString("name"));
         notifyUser(app, kid.id, "Chores today 🧹", buildDigestMessage(names));
       }
-      kid.set("digest_sent", localDay(now));
+      kid.set("digest_sent", localDay(wallNow));
       app.save(kid);
     }
 
@@ -296,21 +299,17 @@ function runTick(app) {
 }
 
 // ── daily (3am): recurring assignment, currency expiry, streak refresh ───────
-function runDaily(app) {
-  const { computeStreak } = require(`${__hooks}/lib/streaks.js`);
-  const now = new Date();
+function runRecurring(app, now) {
+  app.runInTransaction((tx) => assignRecurring(tx, now));
+}
 
-  // Inbox items are only a convenience history; keep 30 days.
-  const cutoff = new Date(now.getTime() - 30 * 24 * 3600 * 1000).toISOString().replace("T", " ");
-  for (const old of app.findRecordsByFilter("inbox", "created < {:cutoff}", "", 0, 0, { cutoff: cutoff })) {
-    app.delete(old);
-  }
-
+function assignRecurring(app, now) {
+  const calendar = require(__hooks + "/lib/calendar.js");
   for (const hh of listHouseholds(app)) {
     if (!hh.getBool("paused")) {
       // Recurring chore auto-assignment: re-create an assignment when a
       // recurring chore has no open assignment for a kid who's done it before.
-      // "daily" cadence: re-assign any time there's no active assignment.
+      // "daily" cadence: one automatic occurrence per local calendar day.
       // "weekly" cadence: re-assign only after 7 days since the last was created.
       const recurringChores = app.findRecordsByFilter(
         "chores",
@@ -339,17 +338,24 @@ function runDaily(app) {
         const limit = chore.getInt("max_per_period");
         const limitDays = cadence === "weekly" ? 7 : cadence === "monthly" ? 30 : 1;
         const limitCutoff = new Date(now.getTime() - limitDays * 86400e3);
+        const today = calendar.midnight(hh, now);
+        const daily = cadence === "daily";
+        if (daily) limitCutoff.setTime(today.getTime());
         for (const childId in lastByChild) {
           // Skip if the kid already has an open assignment for this chore.
           const open = app.findRecordsByFilter(
             "assignments",
-            "chore = {:c} && child = {:kid} && status != 'approved' && status != 'closed'",
+            "chore = {:c} && child = {:kid} && status != 'approved' && status != 'closed'" +
+              (daily ? " && (status != 'completed' || created >= {:today})" : ""),
             "",
             1,
             0,
-            { c: chore.id, kid: childId },
+            { c: chore.id, kid: childId, today: pbDate(today) },
           );
           if (open.length > 0) continue;
+          // Daily chores get one automatic occurrence per calendar day, even
+          // without a configured advisory limit. Old pending approvals remain.
+          if (daily && new Date(lastByChild[childId].getString("created").replace(" ", "T")) >= today) continue;
           // Automatic recurrence follows the chore's repeat limit. Parents can
           // still deliberately override it through the assignment flow.
           if (limit > 0 && history.filter((a) =>
@@ -358,11 +364,10 @@ function runDaily(app) {
             new Date(a.getString("created").replace(" ", "T")) >= limitCutoff,
           ).length >= limit) continue;
           // Weekly/monthly cadence: only re-assign after that many days since
-          // the last was created. Daily (or anything else) re-assigns as soon
-          // as there's no open assignment.
+          // the last was created. Daily recurrence uses the calendar day above.
           const cadenceDays = cadence === "weekly" ? 7 : cadence === "monthly" ? 30 : 0;
           const lastDeadline = lastByChild[childId].getString("due_at");
-          if (chore.getString("due_time") && lastDeadline &&
+          if (!daily && chore.getString("due_time") && lastDeadline &&
               now < new Date(lastDeadline.replace(" ", "T"))) continue;
           if (cadenceDays > 0 && !chore.getString("due_time")) {
             const lastCreated = new Date(lastByChild[childId].getString("created").replace(" ", "T"));
@@ -379,6 +384,19 @@ function runDaily(app) {
         }
       }
     }
+  }
+}
+
+function runDaily(app) {
+  const { computeStreak } = require(`${__hooks}/lib/streaks.js`);
+  const now = new Date();
+  runRecurring(app, now);
+  // Inbox items are only a convenience history; keep 30 days.
+  const cutoff = pbDate(new Date(now.getTime() - 30 * DAY_MS));
+  for (const old of app.findRecordsByFilter("inbox", "created < {:cutoff}", "", 0, 0, { cutoff: cutoff })) {
+    app.delete(old);
+  }
+  for (const hh of listHouseholds(app)) {
 
     // Expiry: earn lots older than expiry_days lapse via one compensating
     // negative adjustment per kid. Spends consume the oldest lots first
@@ -563,6 +581,7 @@ function runKidWeeklyRecap(app) {
 }
 
 function runScheduledAllowance(app) {
+  const calendar = require(__hooks + "/lib/calendar.js");
   const { notifyUser } = require(`${__hooks}/lib/ntfy.js`);
   const now = new Date();
   for (const hh of listHouseholds(app)) {
@@ -570,8 +589,10 @@ function runScheduledAllowance(app) {
     if (amount <= 0) continue;
     const cadence = hh.getString("allowance_cadence") || "weekly";
     const lastPaid = hh.getString("allowance_last_paid");
+    // Calendar days avoid skipping payday after a 23-hour DST day.
+    const dayNumber = (date) => Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()) / DAY_MS;
     const daysSince = lastPaid
-      ? (now.getTime() - new Date(lastPaid).getTime()) / 86400e3
+      ? dayNumber(calendar.wall(hh, now)) - dayNumber(calendar.wall(hh, new Date(lastPaid.replace(" ", "T"))))
       : Infinity;
     const due = cadence === "daily" ? daysSince >= 1 : daysSince >= 7;
     if (!due) continue;
@@ -599,4 +620,4 @@ function runScheduledAllowance(app) {
   }
 }
 
-module.exports = { runTick, runDaily, runWeeklyDigest, runKidWeeklyRecap, runScheduledAllowance };
+module.exports = { runTick, runDaily, runRecurring, runWeeklyDigest, runKidWeeklyRecap, runScheduledAllowance };

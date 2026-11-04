@@ -55,6 +55,13 @@ For the live test targets, start the backend with notifications muted so test
 runs don't blast the real ntfy.sh topics: `NTFY_DISABLED=1 just dev-pb`, then
 `just seed`.
 
+Run `just test-all` in a normal terminal when a sandbox blocks browser launch,
+ports, or file responses. For macOS watcher failures, use
+`WATCHPACK_POLLING=true PAYDIRT_E2E_WEBPACK=1 just test-all`. Its
+`PB_TEST_DB` fixture path is supplied only for the disposable database; never
+point it at production. Household calendar behavior uses the timezone in
+Household preferences (default `America/Los_Angeles`), not the host clock.
+
 CI (GitHub Actions, `.github/workflows/ci.yml`) runs `just lint`, `just
 typecheck`, and `just test` on every push and PR. Integration + e2e run via
 `just test-all` (self-contained — boots its own ephemeral PocketBase) gated

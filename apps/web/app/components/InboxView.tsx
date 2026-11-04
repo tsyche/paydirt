@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { errorMessage, type InboxItem } from "@paydirt/shared";
+import { errorMessage, householdDateTime, type InboxItem } from "@paydirt/shared";
 import { client } from "../lib/client";
 
 /** The parent's alert history. Items are only copies of pushes, so any can be removed. */
@@ -67,7 +67,7 @@ export function InboxView({ userId }: { userId: string }) {
             <div style={{ fontWeight: 600 }}>{i.title}</div>
             {i.body && <div>{i.body}</div>}
             <div className="muted" style={{ fontSize: 12 }}>
-              {new Date(i.created.replace(" ", "T")).toLocaleString()}
+              {householdDateTime(i.created)}
             </div>
           </div>
           <button className="sm" aria-label={`Dismiss ${i.title}`} onClick={() => void remove(i.id)}>

@@ -1,4 +1,5 @@
 import type { Assignment, CurrencyTransaction } from "./types";
+import { localDateKey } from "./dates";
 
 export interface MonthActivity {
   chores: number;
@@ -11,7 +12,7 @@ export interface MonthActivity {
 export function streakPeak(assignments: Pick<Assignment, "approved_at">[]): number {
   const days = [
     ...new Set(
-      assignments.map((a) => a.approved_at?.slice(0, 10)).filter((d): d is string => !!d),
+      assignments.map((a) => a.approved_at ? localDateKey(a.approved_at) : "").filter(Boolean),
     ),
   ].sort();
   let peak = 0;

@@ -31,7 +31,7 @@ declare them in their own creation migration. Omitting them previously caused
 | allowance_amount / allowance_cadence / allowance_last_paid | number / select(`daily`,`weekly`) / date | scheduled allowance; paid by the daily cron, `allowance_last_paid` is the dedupe marker |
 | kudos_default_bucks | number | default amount for a parent "Great work" bonus; unset = 100 |
 | grant_weekday_window / grant_weekend_window | text | comma-separated HH:MM-HH:MM ranges in delivery timezone; blank or `all` = all day, `none` = no delivery; overnight allowed; checked before publishing |
-| grant_timezone / grant_expiry_days | text / number | optional IANA delivery timezone (blank = server-local); queued expiry after N days (0 = never), routed to manual review |
+| grant_timezone / grant_expiry_days | text / number | household IANA timezone for dates, daily limits, schedules, reminders, streaks, and reports (blank = `America/Los_Angeles`); queued expiry after N elapsed days (0 = never), routed to manual review |
 | grant_day_windows | text | sparse JSON day overrides (`0` Sunday through `6` Saturday): `all`, `none`, or comma-separated `HH:MM-HH:MM` ranges; missing days use weekday/weekend defaults |
 
 ### `users` (extends PocketBase auth)
@@ -44,7 +44,7 @@ declare them in their own creation migration. Omitting them previously caused
 | balance | number | cached parentBucks; maintained by hook (children) |
 | simplified_mode | bool | default false; on for youngest child |
 | calm_mode | bool | default false; parent dial-back silences playful extras (badges, confetti, count-up) |
-| digest_weekday / digest_weekend | text | "HH:MM" server-local time for the kid's once-a-day "Chores today" summary push on weekdays / Sat-Sun; blank = off. Parent-only (guards allowlist) |
+| digest_weekday / digest_weekend | text | "HH:MM" household time for the kid's once-a-day "Chores today" summary push on weekdays / Sat-Sun; blank = off. Parent-only (guards allowlist) |
 | digest_sent | text | local YYYY-MM-DD of the last summary (dedupe marker; set by the tick) |
 | streak_count | number | consecutive earn-days; maintained by hook + daily cron |
 | fl_child_id / fl_device_id | text | Family Link grant target for this kid's tablet; parent-set, pattern-validated |
@@ -71,9 +71,9 @@ declare them in their own creation migration. Omitting them previously caused
 | active | bool | default true |
 | due_at | date | optional deadline; cron escalates reminders 24h → 2h → overdue |
 | timer_minutes | number | 0 disables; integer 1–480 requires a continuous timer; also on templates |
-| due_time / due_day | text / number | recurring deadline: HH:MM server-local; weekly day 0 Sunday–6 Saturday, monthly day 1–31 clamped to month end; also on templates |
+| due_time / due_day | text / number | recurring deadline: HH:MM household time; weekly day 0 Sunday–6 Saturday, monthly day 1–31 clamped to month end; also on templates |
 | race | bool | first approval wins; other assignments auto-close |
-| reminder_time | text | "HH:MM" server-local; cron reminds assigned kids daily |
+| reminder_time | text | "HH:MM" household time; cron reminds assigned kids daily |
 | max_per_period | number | normal repeat limit per kid per cadence window (daily 1d, weekly 7d, monthly 30d, one-off 7d); 0/unset = none. Advisory: assigning past it warns and the parent can override (`assignLimitWarnings`, `packages/shared/src/choreLimit.ts`); nothing server-side. Also on `chore_templates` |
 
 ### `assignments`
@@ -250,12 +250,17 @@ Live in `pocketbase/pb_hooks/`. PocketBase runs each handler in an isolated VM, 
 
 ## Cron jobs (`scheduler.pb.js` → `lib/scheduler.js`)
 
-Server-local time. Manual triggers for tests/debugging: `POST /api/paydirt/cron/{tick|daily|digest|kid-recap|allowance}` (superuser only). All sends respect `NTFY_DISABLED` and skip `paused` households.
+The single household's timezone (`grant_timezone`, default `America/Los_Angeles`) governs cron wall-clock schedules and calendar days, independently of the host/device timezone. Changes apply without restarting. Timestamps remain UTC; timers and expiry use elapsed time. Reports and date labels use household time.
+
+Daily recurring limits reset at household midnight. A pending approval from yesterday does not block today's occurrence; existing unfinished/rejected work remains open. Assignment creation is transactional and retried each minute, including after downtime. Each daily chore gets at most one automatic occurrence per kid per day; parents can still override manually. Weekly/monthly rolling repeat windows are unchanged.
+
+Manual triggers for tests/debugging: `POST /api/paydirt/cron/{tick|daily|digest|kid-recap|allowance}` (superuser only). All sends respect `NTFY_DISABLED` and skip `paused` households.
 The separate Family Link reconciliation job lives in `familylink.pb.js`; it processes explicitly approved purchases regardless of household scheduling pauses.
 
 | Job | Schedule | Does |
 |-----|----------|------|
 | paydirt_tick | every 10 min | approval nudges (`nudge_hours`), daily chore reminders (`reminder_time`), deadline escalation (`due_at`: 24h → 2h → overdue, parents pinged on overdue), kid one-shot reminders, per-kid chore summary (`digest_*`) |
+| paydirt_recurring | every minute | create due recurring assignments, including the new daily occurrence after household midnight; preserve previous pending approvals |
 | paydirt_daily | 03:00 | currency expiry (`expiry_days`, per-kid ledger replay oldest-first via `expiryLapse`, one compensating negative adjustment capped at balance), streak refresh (zeroes broken streaks), recurring chore auto-assignment (silent: `assignments.auto_created`, no per-chore push; re-creates assignments for recurring chores when no open one exists per kid) |
 | paydirt_digest | Sun 18:00 | weekly per-kid summary (chores, earned/spent, balances, pending count) to parents |
 | paydirt_kid_recap | Sun 10:00 | per-kid weekly ntfy recap (earnings, chores, nearest goal); skips `paused` households |

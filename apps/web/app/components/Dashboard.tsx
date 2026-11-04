@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { localDateKey, localDateLabel, householdDateTime, householdDateTimeInput, localDateInstant, householdWallDate } from "@paydirt/shared";
 import type {
   TimeGrant,
   PayMode,
@@ -59,7 +60,7 @@ export function buildLedgerCsv(
   const rows = [
     ["Date", "Type", "Amount", "Reason"],
     ...txns.map((t) => [
-      t.created.slice(0, 10),
+      localDateKey(t.created),
       labels[t.type] ?? t.type,
       String(t.amount),
       t.reason ?? "",
@@ -426,8 +427,8 @@ export function Dashboard({
                   {(a.expand?.chore as Chore | undefined)?.description && (
                     <details><summary>Instructions</summary><p style={{ whiteSpace: "pre-wrap", overflowWrap: "anywhere" }}>{(a.expand?.chore as Chore).description}</p></details>
                   )}
-                  {a.due_at && <div className="muted">Due {new Date(a.due_at).toLocaleString()}</div>}
-                  {!!a.timer_minutes && <div className="muted">⏱ {a.timer_minutes} min · {a.timer_started_at ? `started ${new Date(a.timer_started_at).toLocaleString()}` : "not started"}</div>}
+                  {a.due_at && <div className="muted">Due {householdDateTime(a.due_at)}</div>}
+                  {!!a.timer_minutes && <div className="muted">⏱ {a.timer_minutes} min · {a.timer_started_at ? `started ${householdDateTime(a.timer_started_at)}` : "not started"}</div>}
                   <div className="muted">
                     {(a.expand?.child as User | undefined)?.display_name ?? "child"}
                     {a.expand?.chore && (
@@ -850,7 +851,7 @@ function LedgerToggle({ kidId, kidName }: { kidId: string; kidName: string }) {
           {txns.length === 0 && <p className="muted">No transactions yet.</p>}
           {txns.map((t) => (
             <div key={t.id} className="ledger-row">
-              <span className="muted">{t.created.slice(0, 10)}</span>
+              <span className="muted">{localDateLabel(t.created)}</span>
               <span>{TX_LABEL[t.type] ?? t.type}</span>
               <span className={t.amount >= 0 ? "amount-positive" : "amount-negative"}>
                 {t.amount >= 0 ? "+" : ""}{t.amount}
@@ -1283,10 +1284,7 @@ function KudosControl({
 /** PocketBase UTC timestamp -> value for <input type="datetime-local"> (local time). */
 function toLocalInput(due?: string): string {
   if (!due) return "";
-  const d = new Date(due.replace(" ", "T"));
-  if (Number.isNaN(d.getTime())) return "";
-  const pad = (n: number) => String(n).padStart(2, "0");
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  return householdDateTimeInput(due);
 }
 
 function ChoreRow({
@@ -1368,7 +1366,7 @@ function ChoreRow({
         race,
         reminder_time: remindAt,
         max_per_period: limit,
-        due_at: dueAt ? new Date(dueAt).toISOString() : "",
+        due_at: dueAt ? localDateInstant(dueAt) : "",
       });
       setEditing(false);
       onChanged();
@@ -1408,7 +1406,7 @@ function ChoreRow({
           <div className="chore-schedule">{chore.type}
           {chore.cadence ? ` (${chore.cadence})` : ""}
           {chore.due_at
-            ? ` · due ${new Date(chore.due_at.replace(" ", "T")).toLocaleString()}`
+            ? ` · due ${householdDateTime(chore.due_at)}`
             : ""}
           {limitLabel(chore) ? ` · max ${limitLabel(chore)}` : ""}
           </div>
@@ -1652,7 +1650,7 @@ function CreateChore({
         cadence: type === "recurring" ? cadence : undefined,
         photo_required: photoRequired,
         race,
-        due_at: dueAt ? new Date(dueAt).toISOString() : "",
+        due_at: dueAt ? localDateInstant(dueAt) : "",
         reminder_time: remindAt,
         max_per_period: limit,
         created_by: parentId,
@@ -2339,7 +2337,7 @@ function ActivityReport({
   kids: User[];
   currencyName: string;
 }) {
-  const now = new Date();
+  const now = householdWallDate();
   const [year, setYear] = useState(now.getFullYear());
   const [month, setMonth] = useState(now.getMonth() + 1);
   const [open, setOpen] = useState(false);

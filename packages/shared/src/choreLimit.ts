@@ -5,6 +5,7 @@
 // pb_hooks/lib/scheduler.js. One-offs have no cadence, so they use a week.
 // No runtime imports on purpose: scripts load this file's siblings directly.
 
+import { localDateKey, localDateInstant } from "./dates";
 export interface ChoreLimitFields {
   type?: string;
   cadence?: string;
@@ -19,6 +20,14 @@ export function limitWindowDays(chore: ChoreLimitFields): number {
     return 1;
   }
   return 7;
+}
+
+/** Daily recurrence resets at local midnight; other windows retain rolling days. */
+export function limitWindowStart(chore: ChoreLimitFields, now = Date.now()): Date {
+  const start = new Date(now);
+  if (chore.type === "recurring" && limitWindowDays(chore) === 1) return new Date(localDateInstant(localDateKey(start)));
+  else start.setTime(now - limitWindowDays(chore) * 86400e3);
+  return start;
 }
 
 /** The limit, or 0 when unset/invalid (no limit). */
@@ -73,7 +82,7 @@ export function kidsAtLimit(
   const max = choreLimit(chore);
   const out = new Map<string, number>();
   if (!max) return out;
-  const cutoff = now - limitWindowDays(chore) * 86400e3;
+  const cutoff = limitWindowStart(chore, now).getTime();
   const counts = new Map<string, number>();
   for (const r of rows) {
     if (r.chore !== chore.id) continue;

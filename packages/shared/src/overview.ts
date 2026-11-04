@@ -4,6 +4,7 @@
 // `goods_rate` changes; the UI says which rate it used.
 
 import { choreLimit, limitWindowDays } from "./choreLimit";
+import { householdWallDate } from "./dates";
 import { MINUTES_STEP, normalizePay, partialPay } from "./chorePay";
 import type { Assignment, Chore, CurrencyTransaction, SpendRequest } from "./types";
 
@@ -165,6 +166,7 @@ const ymd = (d: Date) =>
 
 /** Local-date range [start, end) for the period `offset` periods from the one containing `now` (weeks start Monday). */
 export function periodRange(kind: PeriodKind, now: Date, offset = 0): { start: string; end: string; label: string } {
+  now = householdWallDate(now);
   let s: Date;
   let e: Date;
   let label: string;
