@@ -1096,17 +1096,21 @@ function CoParentsPanel({ householdId, selfId }: { householdId: string; selfId: 
 
 function AdjustControl({ kid, onAdjusted }: { kid: User; onAdjusted: () => void }) {
   const [open, setOpen] = useState(false);
+  const [timeBonus, setTimeBonus] = useState(false);
+  const [requestKey, setRequestKey] = useState("");
   const [amount, setAmount] = useState(0);
   const [reason, setReason] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
 
   async function submit() {
-    if (amount === 0 || !reason.trim()) return;
+    if (timeBonus ? !(amount >= 5 && amount <= 120 && amount % 5 === 0) : amount === 0 || !reason.trim()) return;
+    if (timeBonus && !window.confirm(`Give ${amount} bonus minutes to ${kid.display_name}? Delivery follows their time window. This cannot be undone.`)) return;
     setBusy(true);
     setError("");
     try {
-      await client.adjustBalance(kid.id, amount, reason.trim());
+      if (timeBonus) await client.giveBonusMinutes(kid.id, amount, reason, requestKey);
+      else await client.adjustBalance(kid.id, amount, reason.trim());
       setAmount(0);
       setReason("");
       setOpen(false);
@@ -1120,7 +1124,11 @@ function AdjustControl({ kid, onAdjusted }: { kid: User; onAdjusted: () => void 
 
   if (!open) {
     return (
-      <button className="sm" onClick={() => setOpen(true)}>
+      <button className="sm" onClick={() => {
+        setRequestKey(`${Date.now()}-${Math.random().toString(36).slice(2)}`);
+        setTimeBonus(false);
+        setOpen(true);
+      }}>
         Bonus / deduct
       </button>
     );
@@ -1129,15 +1137,20 @@ function AdjustControl({ kid, onAdjusted }: { kid: User; onAdjusted: () => void 
   return (
     <div className="stack panel-full">
       <div className="inline">
+        <select aria-label="Bonus type" value={timeBonus ? "time" : "grit"} disabled={busy} onChange={(e) => { setTimeBonus(e.target.value === "time"); setAmount(0); }}>
+          <option value="grit">Grit bonus / deduction</option>
+          <option value="time">Bonus screen minutes</option>
+        </select>
         <input
           type="number"
           value={amount}
           onChange={(e) => setAmount(Number(e.target.value))}
           style={{ width: 100 }}
-          placeholder="Amount (±)"
+          placeholder={timeBonus ? "Minutes (5–120)" : "Amount (±)"}
         />
         <input
-          placeholder="Reason"
+          placeholder={timeBonus ? "Reason (optional)" : "Reason"}
+          maxLength={500}
           value={reason}
           onChange={(e) => setReason(e.target.value)}
           style={{ flex: 1 }}
@@ -1145,12 +1158,13 @@ function AdjustControl({ kid, onAdjusted }: { kid: User; onAdjusted: () => void 
         <button
           className="primary sm"
           onClick={submit}
-          disabled={busy || amount === 0 || !reason.trim()}
+          disabled={busy || (timeBonus ? !(amount >= 5 && amount <= 120 && amount % 5 === 0) : amount === 0 || !reason.trim())}
         >
           Apply
         </button>
         <button
           className="sm"
+          disabled={busy}
           onClick={() => { setOpen(false); setError(""); }}
         >
           Cancel

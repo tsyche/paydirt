@@ -63,6 +63,8 @@ export function KidDetail({
   const [tipKey, setTipKey] = useState<string | null>(null);
 
   const [adjustOpen, setAdjustOpen] = useState(false);
+  const [timeBonus, setTimeBonus] = useState(false);
+  const [bonusRequestKey, setBonusRequestKey] = useState("");
   const [adjustSign, setAdjustSign] = useState<1 | -1>(1);
   const [amount, setAmount] = useState("");
   const [reason, setReason] = useState("");
@@ -117,6 +119,8 @@ export function KidDetail({
   }, [reachable, reload]);
 
   function openAdjust(sign: 1 | -1) {
+    setTimeBonus(false);
+    setBonusRequestKey(`${Date.now()}-${Math.random().toString(36).slice(2)}`);
     setAdjustSign(sign);
     setAmount("");
     setReason("");
@@ -128,7 +132,8 @@ export function KidDetail({
     if (!(n > 0)) return;
     setSaving(true);
     try {
-      await client.adjustBalance(kidId, adjustSign * n, reason.trim() || "Manual adjustment");
+      if (timeBonus) await client.giveBonusMinutes(kidId, n, reason, bonusRequestKey);
+      else await client.adjustBalance(kidId, adjustSign * n, reason.trim() || "Manual adjustment");
       setAdjustOpen(false);
       setSnack(adjustSign > 0 ? "Bonus added 🎉" : "Deducted.");
       await reload();
@@ -420,12 +425,16 @@ export function KidDetail({
       </ScrollView>
 
       <Portal>
-        <Dialog visible={adjustOpen} onDismiss={() => setAdjustOpen(false)}>
+        <Dialog visible={adjustOpen} onDismiss={() => { if (!saving) setAdjustOpen(false); }}>
           <Dialog.Title>{adjustSign > 0 ? "Add bonus" : "Deduct"}</Dialog.Title>
           <Dialog.Content>
+            {adjustSign > 0 && <Button disabled={saving} onPress={() => { setTimeBonus(!timeBonus); setAmount(""); }}>
+              {timeBonus ? "Switch to grit bonus" : "Switch to bonus screen minutes"}
+            </Button>}
+            {timeBonus && <Text>5–120 minutes in five-minute steps. Delivery follows the time window; cannot be undone.</Text>}
             <TextInput
               mode="outlined"
-              label={`Amount (${currencyName})`}
+              label={timeBonus ? "Bonus minutes" : `Amount (${currencyName})`}
               value={amount}
               onChangeText={setAmount}
               keyboardType="number-pad"
@@ -434,14 +443,20 @@ export function KidDetail({
             <TextInput
               mode="outlined"
               label="Reason (optional)"
+              maxLength={500}
               value={reason}
               onChangeText={setReason}
               style={styles.reasonInput}
             />
           </Dialog.Content>
           <Dialog.Actions>
-            <Button onPress={() => setAdjustOpen(false)}>Cancel</Button>
-            <Button onPress={saveAdjust} disabled={saving || !(Number(amount) > 0)}>
+            <Button disabled={saving} onPress={() => setAdjustOpen(false)}>Cancel</Button>
+            <Button onPress={() => {
+              if (timeBonus) Alert.alert("Give bonus time?", `Give ${amount} minutes? This cannot be undone.`, [
+                { text: "Cancel", style: "cancel" }, { text: "Give time", onPress: () => void saveAdjust() },
+              ]);
+              else void saveAdjust();
+            }} disabled={saving || !(Number(amount) > 0) || (timeBonus && !(Number(amount) >= 5 && Number(amount) <= 120 && Number(amount) % 5 === 0))}>
               {adjustSign > 0 ? "Add" : "Deduct"}
             </Button>
           </Dialog.Actions>

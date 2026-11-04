@@ -305,6 +305,8 @@ export interface InboxItem extends BaseRecord {
 
 /** Bonus screen minutes earned by an approved chore; created only by the approval hook. */
 export interface TimeGrant extends BaseRecord {
+  given_by?: string;
+  request_key?: string;
   child: string; // -> users.id
   assignment?: string; // -> assignments.id
   minutes: number;

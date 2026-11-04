@@ -55,9 +55,9 @@ function publish(app, record) {
     childId: child.getString("fl_child_id"),
     deviceId: child.getString("fl_device_id"),
     seconds: minutesOf(record) * 60,
-    validUntil: state.validUntil || "",
-    expiresAt,
   };
+  if (state.validUntil) job.validUntil = state.validUntil;
+  if (expiresAt) job.expiresAt = expiresAt;
   const temporary = dir + "/" + name + ".tmp";
   $os.writeFile(temporary, JSON.stringify(job), 0o600);
   $os.rename(temporary, dir + "/pending/" + name);

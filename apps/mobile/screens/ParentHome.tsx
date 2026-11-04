@@ -973,47 +973,6 @@ export function ParentHome({
           </>
         )}
 
-        {(screenGrants.length > 0 || bonusGrants.length > 0) && <>
-          <Divider style={styles.divider} />
-          <Text variant="labelLarge" style={styles.sectionLabel}>SCREEN-TIME GRANTS</Text>
-          {bonusGrants.map((g) => (
-            <Card key={g.id} style={styles.approvalCard}>
-              <Card.Content>
-                <Text variant="titleMedium">{g.expand?.child?.display_name ?? "Child"} — {g.description}</Text>
-                <Text>{screenGrantLabel(g.grant_status)}</Text>
-                {!!g.grant_error && <Text>{g.grant_error}</Text>}
-                {g.grant_status === "manual" && <Button onPress={() =>
-                  Alert.alert("Confirm manual grant",
-                    "Check Family Link first. Has this bonus time been granted manually?",
-                    [
-                      { text: "Cancel", style: "cancel" },
-                      { text: "Confirm", onPress: () => void act(() => client.confirmBonusGrant(g.id), "Manual grant recorded.") },
-                    ],
-                  )
-                }>Mark granted manually</Button>}
-              </Card.Content>
-            </Card>
-          ))}
-          {screenGrants.map((s) => (
-            <Card key={s.id} style={styles.approvalCard}>
-              <Card.Content>
-                <Text variant="titleMedium">{s.expand?.child?.display_name ?? "Child"} — {s.description}</Text>
-                <Text>{screenGrantLabel(s.grant_status)}</Text>
-                {!!s.grant_error && <Text>{s.grant_error}</Text>}
-                {s.grant_status === "manual" && <Button onPress={() =>
-                  Alert.alert("Confirm manual grant",
-                    "Check Family Link first. Has this purchased time been granted manually?",
-                    [
-                      { text: "Cancel", style: "cancel" },
-                      { text: "Confirm", onPress: () => void act(() => client.confirmManualGrant(s.id), "Manual grant recorded.") },
-                    ],
-                  )
-                }>Mark granted manually</Button>}
-              </Card.Content>
-            </Card>
-          ))}
-        </>}
-
         {/* Spend requests */}
         {spend.length > 0 && (
           <>
@@ -1070,6 +1029,38 @@ export function ParentHome({
             })}
           </>
         )}
+        {(["manual", "queued", "history"] as const).map((group) => {
+          const matches = (status?: string) => group === "history"
+            ? status !== "manual" && status !== "queued"
+            : status === group;
+          const grants = [
+            ...bonusGrants.filter((g) => matches(g.grant_status)).map((g) => ({ ...g, bonus: true })),
+            ...screenGrants.filter((g) => matches(g.grant_status)).map((g) => ({ ...g, bonus: false })),
+          ];
+          if (!grants.length) return null;
+          return <View key={group}>
+            <Divider style={styles.divider} />
+            <Text variant="labelLarge" style={styles.sectionLabel}>
+              {group === "manual" ? "TIME GRANTS NEEDING ACTION" : group === "queued" ? "TIME GRANTS WAITING FOR DELIVERY" : "PAST SCREEN-TIME GRANTS"}
+            </Text>
+            {grants.map((grant) => <Card key={grant.id} style={styles.approvalCard}>
+              <Card.Content>
+                <Text variant="titleMedium">{grant.expand?.child?.display_name ?? "Child"} — {grant.description}</Text>
+                <Text>{screenGrantLabel(grant.grant_status)}</Text>
+                {!!grant.grant_error && <Text>{grant.grant_error}</Text>}
+                {group === "manual" && <Button onPress={() =>
+                  Alert.alert("Confirm manual grant", "Check Family Link first. Has this time been granted manually?", [
+                    { text: "Cancel", style: "cancel" },
+                    { text: "Confirm", onPress: () => void act(
+                      () => grant.bonus ? client.confirmBonusGrant(grant.id) : client.confirmManualGrant(grant.id),
+                      "Manual grant recorded.",
+                    ) },
+                  ])
+                }>Mark granted manually</Button>}
+              </Card.Content>
+            </Card>)}
+          </View>;
+        })}
         {household && (
           <RecentlyApproved
             householdId={household.id}

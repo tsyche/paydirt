@@ -150,13 +150,14 @@ The separate worker writes receipts, and a minute cron imports results; see
 nor browser responses are stored in these records.
 
 ### `time_grants`
-Bonus screen minutes earned by an approved chore (`pay_mode` `time`/`both`). Created only by the approval hook, one per assignment (unique index). Clients can list/view and parents can confirm `manual` → `manual_done`; everything else is server-owned and rows can't be deleted by clients.
+Screen minutes earned by an approved chore (`pay_mode` `time`/`both`) or given directly by a parent. Chore grants are server-created, one per assignment (unique index). Parents may create standalone grants for their own kids; the hook validates 5–120 minutes in five-minute steps and owns giver/queue state. Clients can list/view and parents can confirm `manual` → `manual_done`; rows cannot be deleted by clients.
 
 | Field | Type | Notes |
 |-------|------|-------|
 | child | relation → users | required |
 | assignment | relation → assignments | unique when set |
-| minutes | number | required; snapshot of the chore's `reward_minutes` at approval |
+| given_by / request_key | relation → users / text | direct bonus giver (server-owned) and retry key; unique together when key is set |
+| minutes | number | required; chore reward snapshot or direct parent bonus; 5–120 in steps of 5 |
 | description | text | e.g. `Chore: Dishes (10 min bonus)` |
 | grant_status | select(`queued`,`granted`,`manual`,`manual_done`) | same states and queue as purchases |
 | grant_error | text | optional, max 300 |

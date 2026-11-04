@@ -568,6 +568,30 @@ export class PaydirtClient {
     return this.pb.collection(Collections.TimeGrants).update<TimeGrant>(id, { grant_status: "manual_done" });
   }
 
+  /** Stable requestKey lets a failed network response be retried without paying twice. */
+  async giveBonusMinutes(childId: string, minutes: number, reason: string, requestKey: string): Promise<TimeGrant> {
+    const parent = this.currentUser;
+    if (!parent || parent.role !== "parent") throw new Error("Only parents can give bonus time");
+    try {
+      return await this.pb.collection(Collections.TimeGrants).create<TimeGrant>({
+        child: childId, minutes, description: reason.trim(), request_key: requestKey,
+      });
+    } catch (error) {
+      const existing = await this.pb.collection(Collections.TimeGrants).getList<TimeGrant>(1, 1, {
+        filter: this.pb.filter("given_by = {:p} && request_key = {:k}", { p: parent.id, k: requestKey }),
+      });
+      if (existing.items[0]) {
+        const previous = existing.items[0];
+        if (previous.child !== childId || previous.minutes !== minutes ||
+            previous.description !== (reason.trim() || "Parent bonus time")) {
+          throw new Error("This bonus was already submitted with different details. Refresh before giving another bonus.");
+        }
+        return previous;
+      }
+      throw error;
+    }
+  }
+
   listQueuedGrantsForChild(childId: string): Promise<TimeGrant[]> {
     return this.pb.collection(Collections.TimeGrants).getFullList<TimeGrant>({
       filter: this.pb.filter("child = {:child} && grant_status = 'queued'", { child: childId }),
@@ -837,6 +861,9 @@ export class PaydirtClient {
       }),
       this.pb.collection(Collections.ChoreProposals).subscribe("*", onChange, {
         filter: hhFilter,
+      }),
+      this.pb.collection(Collections.TimeGrants).subscribe("*", onChange, {
+        filter: this.pb.filter("child.household = {:hh}", { hh: householdId }),
       }),
       this.pb.collection(Collections.Kudos).subscribe("*", onChange, {
         filter: hhFilter,

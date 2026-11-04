@@ -153,6 +153,32 @@ describe("Family Link approval queue (isolated PocketBase)", () => {
     expect(calls).toBe(1);
   });
 
+  it("parents give direct bonus minutes once without charging grit; kids cannot forge them", async () => {
+    await admin.collection("users").update(kid.currentUser!.id, {
+      fl_child_id: "123456789012", fl_device_id: "a".repeat(30),
+    });
+    const balance = await parent.getBalance(kid.currentUser!.id);
+    const key = `bonus-${Date.now()}`;
+    const grant = await parent.giveBonusMinutes(kid.currentUser!.id, 15, "Extra effort", key);
+    expect(grant).toMatchObject({
+      minutes: 15, description: "Extra effort", given_by: parent.currentUser!.id,
+      grant_status: "queued", assignment: "",
+    });
+    const retry = await parent.giveBonusMinutes(kid.currentUser!.id, 15, "Extra effort", key);
+    expect(retry.id).toBe(grant.id);
+    expect(await parent.getBalance(kid.currentUser!.id)).toBe(balance);
+    await expect(kid.pb.collection("time_grants").create({
+      child: kid.currentUser!.id, minutes: 15, request_key: `${key}-forged`,
+    })).rejects.toThrow();
+    await expect(parent.giveBonusMinutes(kid.currentUser!.id, 7, "", `${key}-bad`)).rejects.toThrow();
+    await expect(parent.pb.collection("time_grants").update(grant.id, { minutes: 120 })).rejects.toThrow();
+    const job = JSON.parse(readFileSync(join(queue, "pending", `${grant.id}.json`), "utf8"));
+    expect(job.seconds).toBe(900);
+    await processFamilyLinkQueue(queue, async () => 0, true);
+    await fetch(`${url}/test/reconcile`, { method: "POST" });
+    expect((await parent.pb.collection("time_grants").getOne(grant.id)).grant_status).toBe("granted");
+  });
+
   it("queues a chore's bonus minutes, publishes once, and the worker result lands on the grant", async () => {
     await parent.pb.collection("users").update(kid.currentUser!.id, {
       fl_child_id: "123456789012", fl_device_id: "a".repeat(30),
