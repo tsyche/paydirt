@@ -12,7 +12,7 @@ export const FEATURE_TIPS: Record<string, string> = {
   expiry_days:
     "Days before unspent earnings expire. 0 = never expire (recommended for young kids).",
   goods_rate:
-    "How many parentBucks equal $1 of real-world goods. Used to show dollar equivalents. 0 = hide dollars.",
+    "Grit required per $1 of real-world goods. A higher rate means the same grit buys less. Example: 176 grit buys $2 at 88 grit/$1, or $1 at 176 grit/$1. 0 = hide dollars.",
   nudge_hours:
     "Hours after a chore is completed before parents get a nudge to approve. 0 = never nudge.",
   quiet_start:
@@ -37,9 +37,9 @@ export const FEATURE_TIPS: Record<string, string> = {
   allowance_cadence:
     "How often the allowance is paid: daily or weekly.",
   goods_rate_kid:
-    "Per-kid override of the household bucks-per-dollar rate. 0 = use the household default.",
+    "Per-kid override of the household grit-per-dollar rate. A higher rate means the same grit buys less money. 0 = use the household default.",
   screen_rate:
-    "parentBucks per minute of screen time. Kids ask in 15-minute steps, up to an hour per request.",
+    "Grit required per minute of screen time. A higher rate means the same grit buys less time. Example: 30 grit buys 10 minutes at 3 grit/min, or 5 minutes at 6 grit/min. Kids ask in 15-minute steps, up to an hour per request.",
   chore_digest:
     "One push a day listing the kid's open chores, sent at this time (weekday / weekend). Blank = no summary. New recurring chores no longer push at 3 AM.",
   fl_ids:

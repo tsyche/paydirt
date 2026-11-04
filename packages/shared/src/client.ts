@@ -27,6 +27,7 @@ import type {
  */
 export class PaydirtClient {
   readonly pb: PocketBase;
+  private sessionRefresh: Promise<void> | null = null;
 
   constructor(urlOrClient: string | PocketBase) {
     this.pb =
@@ -59,6 +60,31 @@ export class PaydirtClient {
 
   logout(): void {
     this.pb.authStore.clear();
+  }
+
+  // Refresh the persisted account as well as the token. Network/server failures
+  // must not sign the family out; only an authentication rejection does that.
+  refreshSession(): Promise<void> {
+    if (this.sessionRefresh) return this.sessionRefresh;
+    if (!this.pb.authStore.token || !this.currentUser) return Promise.resolve();
+    const token = this.pb.authStore.token;
+    // Refresh in an isolated store so a late response cannot undo logout or
+    // overwrite a different account that signed in while the request ran.
+    const refreshClient = new PocketBase(this.pb.baseURL);
+    refreshClient.authStore.save(token, this.pb.authStore.record);
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 10_000);
+    this.sessionRefresh = refreshClient.collection(Collections.Users).authRefresh({ signal: controller.signal })
+      .then((auth) => {
+        if (this.pb.authStore.token === token) this.pb.authStore.save(auth.token, auth.record);
+      })
+      .catch((error: { status?: number }) => {
+        if ((error.status === 401 || error.status === 403) && this.pb.authStore.token === token) {
+          this.logout();
+        }
+      })
+      .finally(() => { clearTimeout(timeout); this.sessionRefresh = null; });
+    return this.sessionRefresh;
   }
 
   get currentUser(): User | null {

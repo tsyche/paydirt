@@ -9,6 +9,7 @@
 - **Currency hooks** — chore approval earns parentBucks, spend approval deducts, Kudos credits, ledger maintains cached balance, over-spending blocked, re-approval idempotent.
 - **Notification hooks** — ntfy fires for chore assigned/completed/approved/rejected, Kudos awards, and spend submitted/resolved. Topics set per user; end-to-end delivery confirmed.
 - **Shared client** (`packages/shared`) — typed PocketBase wrapper (auth, chores, assignments, currency, Kudos, spend). Integration-tested against live server.
+- **Mobile sessions** — refresh saved account details and tokens at launch and on return to the app. Network/server failures preserve the saved login; authentication rejection returns to login.
 - **Web dashboard** (`apps/web`, Next.js) — parent login, kids' balances, pending approvals (approve/reject), spend requests (approve/deny), create/assign chores, per-kid adjustment and Kudos action.
 - **Mobile app** (`apps/mobile`, Expo + react-native-paper) — role-gated; kid screen (balance, chores, mark done, spend request); simplified mode for young kids; runs on emulator.
 - **Simplified mode** — `SimpleKidHome` screen with giant text/buttons for early readers; branches on `simplified_mode` user field.

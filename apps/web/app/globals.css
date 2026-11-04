@@ -544,6 +544,23 @@ input[type="checkbox"]:focus-visible {
 }
 
 /* ─── Priority Section ───────────────────────────────────────────────────── */
+.settings-tip { position: relative; display: inline-block; }
+.settings-tip-content {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  z-index: 20;
+  width: min(320px, 75vw);
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: var(--md-surface-container-lowest);
+  color: var(--md-on-surface);
+  box-shadow: var(--md-elevation-2);
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 1.5;
+}
+
 .section-priority {
   background: var(--md-primary-container-dim);
   border-radius: var(--md-shape-xl);
@@ -554,6 +571,11 @@ input[type="checkbox"]:focus-visible {
 .section-priority h2 {
   color: var(--md-on-primary-container);
   border-bottom-color: color-mix(in srgb, var(--md-primary) 25%, transparent);
+}
+
+.section-priority > .row,
+.section-priority > p {
+  padding-inline: 16px;
 }
 
 .section-priority .card {

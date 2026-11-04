@@ -1,28 +1,48 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import type { Household } from "@paydirt/shared";
 import { CURRENCY_PRESETS, DEFAULT_CURRENCY_NAME, currencyDisplayName, featureTip, kudosDefaultBucks, screenRate } from "@paydirt/shared";
 import { client } from "../lib/client";
 
 function Tip({ k }: { k: string }) {
-  // Shown on hover or keyboard/tap focus, instantly. A native title="" tooltip
-  // has a ~1s browser delay and never appears on touch.
+  const root = useRef<HTMLSpanElement>(null);
   const [hover, setHover] = useState(false);
   const [focus, setFocus] = useState(false);
+  const [tapped, setTapped] = useState(false);
+  const open = hover || focus || tapped;
+  useEffect(() => {
+    if (!open) return;
+    const close = () => { setHover(false); setFocus(false); setTapped(false); };
+    const outside = (event: PointerEvent) => {
+      if (!root.current?.contains(event.target as Node)) close();
+    };
+    const escape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") close();
+    };
+    document.addEventListener("pointerdown", outside);
+    document.addEventListener("keydown", escape);
+    return () => {
+      document.removeEventListener("pointerdown", outside);
+      document.removeEventListener("keydown", escape);
+    };
+  }, [open]);
   const t = featureTip(k);
   if (!t) return null;
   return (
-    <>
+    <span
+      ref={root}
+      className="settings-tip"
+      onMouseEnter={() => setHover(true)}
+      onMouseLeave={() => { setHover(false); setTapped(false); }}
+    >
       <button
         type="button"
         aria-label="More info"
         // Inside a <label>: stop the click from focusing the field.
-        onClick={(e) => e.preventDefault()}
-        onMouseEnter={() => setHover(true)}
-        onMouseLeave={() => setHover(false)}
-        onFocus={() => setFocus(true)}
+        onClick={(e) => { e.preventDefault(); setTapped((value) => !value); }}
+        onFocus={(e) => setFocus(e.currentTarget.matches(":focus-visible"))}
         onBlur={() => setFocus(false)}
         style={{
           cursor: "help",
@@ -36,12 +56,12 @@ function Tip({ k }: { k: string }) {
       >
         ⓘ
       </button>
-      {(hover || focus) && (
-        <span role="note" className="muted" style={{ display: "block", fontSize: 12, fontWeight: 400 }}>
+      {open && (
+        <span role="note" className="settings-tip-content">
           {t}
         </span>
       )}
-    </>
+    </span>
   );
 }
 

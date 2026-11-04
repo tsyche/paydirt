@@ -92,12 +92,29 @@ function AppContent() {
 
     // The AsyncAuthStore loads from AsyncStorage asynchronously; listen for
     // the onChange event so we pick up the restored session after it loads.
-    setUser(client.currentUser);
-    const unsub = client.pb.authStore.onChange(() => {
-      setUser(client.currentUser);
+    let active = true;
+    let restoredId: string | undefined;
+    const restore = () => {
+      const saved = client.currentUser;
+      if (saved && saved.id !== restoredId) {
+        restoredId = saved.id;
+        setReady(false);
+        void client.refreshSession().then(() => {
+          if (!active) return;
+          setUser(client.currentUser);
+          setReady(true);
+        });
+      } else {
+        setUser(saved);
+        setReady(true);
+      }
+    };
+    const unsub = client.pb.authStore.onChange(restore);
+    restore();
+    const foreground = AppState.addEventListener("change", (state) => {
+      if (state === "active") void client.refreshSession();
     });
-    setReady(true);
-    return () => unsub();
+    return () => { active = false; unsub(); foreground.remove(); };
   }, []);
 
   useEffect(() => {
