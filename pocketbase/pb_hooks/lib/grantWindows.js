@@ -3,7 +3,7 @@
 function windowState(household, now, child) {
   const zone = household.getString("grant_timezone");
   const fields = ["grant_weekday_window", "grant_weekend_window"];
-  if (fields.every((field) => {
+  if (!household.getString("grant_day_windows") && !(child && child.getString("grant_day_windows")) && fields.every((field) => {
     const value = child ? child.getString(field) : "";
     return value === "all" || !(value || household.getString(field));
   })) return { open: true, message: "", validUntil: "" };
@@ -12,15 +12,18 @@ function windowState(household, now, child) {
     const day = local ? Number(local.weekday()) : at.getDay();
     const weekend = day === 0 || day === 6;
     const field = weekend ? "grant_weekend_window" : "grant_weekday_window";
-    const override = child ? child.getString(field) : "";
-    const window = override === "all" ? "" : override || household.getString(field);
-    if (!window) return true;
+    const householdDays = JSON.parse(household.getString("grant_day_windows") || "{}");
+    const childDays = JSON.parse(child ? child.getString("grant_day_windows") || "{}" : "{}");
+    const override = childDays[day] || (child ? child.getString(field) : "");
+    const window = override || householdDays[day] || household.getString(field);
+    if (!window || window === "all") return true;
+    if (window === "none") return false;
     const minute = local ? Number(local.format("15")) * 60 + Number(local.format("04")) : at.getHours() * 60 + at.getMinutes();
     const minutes = (value) => Number(value.slice(0, 2)) * 60 + Number(value.slice(3));
     return window.split(",").some((range) => {
-    const parts = range.trim().split("-");
-    const start = minutes(parts[0]), end = minutes(parts[1]);
-    return start < end ? minute >= start && minute < end : minute >= start || minute < end;
+      const parts = range.trim().split("-");
+      const start = minutes(parts[0]), end = minutes(parts[1]);
+      return start < end ? minute >= start && minute < end : minute >= start || minute < end;
     });
   }
   if (allowed(now)) {
@@ -42,9 +45,15 @@ function windowState(household, now, child) {
   return { open: false, message: "Queued — waiting for an allowed delivery window." };
 }
 function validate(record) {
-  for (const field of ["grant_weekday_window", "grant_weekend_window"]) {
-    const value = record.getString(field);
-    if (record.collection().name === "users" && value === "all") continue;
+  let days;
+  try {
+    days = JSON.parse(record.getString("grant_day_windows") || "{}");
+    if (!days || Array.isArray(days) || typeof days !== "object" ||
+        Object.keys(days).some((key) => !/^[0-6]$/.test(key) || typeof days[key] !== "string" || !days[key])) throw new Error();
+  } catch (_) { throw new BadRequestError("Choose valid delivery days."); }
+  const values = ["grant_weekday_window", "grant_weekend_window"].map((field) => record.getString(field)).concat(Object.values(days));
+  for (const value of values) {
+    if (value === "all" || value === "none") continue;
     const occupied = new Set();
     for (const range of value ? value.split(",").map((part) => part.trim()) : []) {
       if (!/^([01]\d|2[0-3]):[0-5]\d-([01]\d|2[0-3]):[0-5]\d$/.test(range) || range.slice(0, 5) === range.slice(6)) {

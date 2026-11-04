@@ -59,16 +59,20 @@ function SingleTimeRangeField({
 }
 
 export function TimeRangeField({ value, onChange, ...props }: { label: string; value: string; onChange: (value: string) => void; allowAll?: boolean }) {
-  const [rows, setRows] = useState(value.split(","));
-  useEffect(() => { setRows(value.split(",")); }, [value]);
+  const [rows, setRows] = useState(value ? value.split(",") : []);
+  useEffect(() => { setRows(value ? value.split(",") : []); }, [value]);
   function update(next: string[]) {
     setRows(next);
     onChange(next.join(","));
   }
-  return <div>{rows.map((row, index) => <div key={index}>
-    <SingleTimeRangeField {...props} label={`${props.label} ${index + 1}`} value={row} onChange={(next) => update(rows.map((old, i) => i === index ? next : old))} />
-    {rows.length > 1 && <button type="button" onClick={() => update(rows.filter((_, i) => i !== index))}>Remove window</button>}
+  return <div className="delivery-windows" role="group" aria-label={props.label}>
+    {!rows.length && <span>{props.allowAll ? "Use household windows" : "All day"}</span>}
+    {value === "all" ? <span>All day</span> : rows.map((row, index) => <div className="delivery-window" key={index}>
+    <strong>Window {index + 1}</strong>
+    <SingleTimeRangeField {...props} allowAll={false} label={`${props.label} ${index + 1}`} value={row} onChange={(next) => update(rows.map((old, i) => i === index ? next : old))} />
+    {index === rows.length - 1 && <button type="button" onClick={() => update(rows.slice(0, -1))}>Remove last window</button>}
   </div>)}
-    {value !== "all" && <button type="button" onClick={() => update([...rows, ""])}>Add window</button>}
+    {value !== "all" && <button type="button" disabled={rows.some((row) => !parseTimeRange(row))} onClick={() => setRows([...rows, ""])}>+ Add window</button>}
+    {props.allowAll && <button type="button" onClick={() => update(value === "all" ? [] : ["all"])}>{value === "all" ? "Use household windows" : "Allow all day"}</button>}
   </div>;
 }

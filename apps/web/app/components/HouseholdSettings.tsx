@@ -1,6 +1,6 @@
 "use client";
 
-import { TimeRangeField } from "./TimeRangeField";
+import { DeliverySchedule } from "./DeliverySchedule";
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import type { Household } from "@paydirt/shared";
@@ -81,6 +81,7 @@ export function HouseholdSettings({
     bank_threshold: household.bank_threshold ?? 0,
     kudos_default_bucks: kudosDefaultBucks(household),
     grant_weekday_window: household.grant_weekday_window ?? "",
+    grant_day_windows: household.grant_day_windows ?? "",
     grant_weekend_window: household.grant_weekend_window ?? "",
     grant_timezone: household.grant_timezone ?? "",
     grant_expiry_days: household.grant_expiry_days ?? 0,
@@ -139,6 +140,7 @@ export function HouseholdSettings({
       </div>
 
       <div className="stack" style={{ gap: 6 }}>
+        <details className="settings-group"><summary>Currency and reward defaults</summary>
         <div className="settings-row">
           <label>Currency name <Tip k="currency_name" /></label>
           <input
@@ -189,6 +191,8 @@ export function HouseholdSettings({
             style={{ width: 90 }}
           />
         </div>
+        </details>
+        <details className="settings-group"><summary>Screen-time delivery</summary>
         <div className="settings-row">
           <label>Delivery timezone (blank = server-local)
             <input placeholder="America/Los_Angeles" value={form.grant_timezone} onChange={(e) => setForm({ ...form, grant_timezone: e.target.value.trim() })} />
@@ -199,14 +203,9 @@ export function HouseholdSettings({
             <input type="number" min={0} max={365} value={form.grant_expiry_days} onChange={(e) => setForm({ ...form, grant_expiry_days: Number(e.target.value) })} />
           </label>
         </div>
-        <div className="settings-row">
-          <label>Weekday time delivery <span className="muted">(blank = all day)</span></label>
-          <TimeRangeField label="Weekday time delivery" value={form.grant_weekday_window} onChange={(v) => setForm({ ...form, grant_weekday_window: v })} />
-        </div>
-        <div className="settings-row">
-          <label>Weekend time delivery <span className="muted">(blank = all day)</span></label>
-          <TimeRangeField label="Weekend time delivery" value={form.grant_weekend_window} onChange={(v) => setForm({ ...form, grant_weekend_window: v })} />
-        </div>
+        <DeliverySchedule value={form} onChange={(schedule) => setForm((old) => ({ ...old, ...schedule }))} />
+        </details>
+        <details className="settings-group"><summary>Reward expiry and conversion</summary>
         <div className="settings-row">
           <label>Rewards expire after days <Tip k="expiry_days" /> <span className="muted">(0 = off)</span></label>
           <input
@@ -239,6 +238,8 @@ export function HouseholdSettings({
             style={{ width: 90 }}
           />
         </div>
+        </details>
+        <details className="settings-group"><summary>Notifications</summary>
         <div className="settings-row">
           <label>Nudge after hours unapproved <Tip k="nudge_hours" /> <span className="muted">(0 = off)</span></label>
           <input
@@ -267,6 +268,8 @@ export function HouseholdSettings({
             style={{ width: 110 }}
           />
         </div>
+        </details>
+        <details className="settings-group"><summary>Household preferences</summary>
         <div className="settings-row">
           <label>🏖️ Vacation mode <Tip k="paused" /> <span className="muted">(pause reminders &amp; expiry)</span></label>
           <input
@@ -283,6 +286,8 @@ export function HouseholdSettings({
             onChange={(e) => setForm({ ...form, kids_see_balances: e.target.checked })}
           />
         </div>
+        </details>
+        <details className="settings-group"><summary>Allowance and streak bonuses</summary>
         <div className="settings-row">
           <label>💵 Allowance amount <Tip k="allowance_amount" /> <span className="muted">(0 = off)</span></label>
           <input
@@ -327,6 +332,7 @@ export function HouseholdSettings({
             />
           </div>
         ))}
+        </details>
       </div>
 
       <div className="divider" />

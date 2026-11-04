@@ -1175,6 +1175,14 @@ button.danger-filled:disabled { box-shadow: none; }
 .time-range-row > span:first-child { min-width: 64px; font-size: 13px; }
 .time-range-all { font-weight: 600; }
 .time-range-error { flex-basis: 100%; font-size: 12px; }
+.delivery-windows { display: flex; flex-direction: column; gap: 12px; margin: 8px 0 16px; align-items: flex-start; }
+.delivery-window { display: flex; flex-direction: column; gap: 12px; padding: 12px; border: 1px solid var(--md-outline, #888); border-radius: 12px; }
+.settings-section-title { margin: 24px 0 12px; padding-top: 16px; border-top: 1px solid var(--md-outline, #888); }
+.settings-group { border: 1px solid var(--md-outline, #888); border-radius: 12px; padding: 12px; margin-bottom: 8px; }
+.settings-group > summary { cursor: pointer; font-weight: 600; padding: 4px; }
+.settings-group[open] > summary { margin-bottom: 16px; }
+.settings-group .settings-row { margin: 12px 0; gap: 12px; align-items: flex-start; }
+.settings-group .settings-row > label { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
 
 /* Partial credit: the panel overlays the card so Approve/Reject never shift. */
 .partial-credit { position: relative; display: inline-block; }

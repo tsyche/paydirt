@@ -4,6 +4,8 @@
 
 ## Shipped index
 
+- [x] 2026-11-04 — Multiple delivery windows and day-specific schedules, household defaults and kid overrides (implemented locally; deployment and device verification pending)
+
 - [x] 2026-11-02 — Tier 2 APK self-update confirmed on the remaining tablets
 - [x] 2026-11-02 — Family Link automatic grants verified in production (real purchase and chore time grants land on the tablets)
 - [x] 2026-11-02 — Expiry takes the right grit: daily cron replays each kid's ledger oldest-first (`expiryLapse`), so spends consume expiring grit first (deployed to bb 2026-11-02)
@@ -246,3 +248,9 @@ Native tap-through later confirmed on the Pixel 8, 2026-10-21 (warm: lands KidHo
 ### 2026-11-01 — Per-kid daily chore summary push; silent 3 AM recurring assignments
 
 - `users.digest_weekday` / `digest_weekend` (HH:MM, server-local) with a `digest_sent` marker, sent by the 10-minute scheduler tick (`pocketbase/pb_hooks/lib/scheduler.js`); migration `1717000026` adds `assignments.auto_created` so the 3 AM auto-assignment no longer pushes 'New chore!'. Deployed to bb 2026-11-01 (`e33fdfc`); times set in the app, summary push confirmed arriving. A grit + time chore approved the same day paid out through the Family Link queue (time grant lagged the grit).
+
+## Day-specific delivery schedules — 2026-11-04
+
+Multiple comma-separated delivery ranges retain existing weekday/weekend settings. Optional `grant_day_windows` stores individual weekday exceptions on households and kids. Each day supports all day, specific hours, or no delivery. Kid day overrides take precedence over kid weekday/weekend defaults, then household day overrides and household defaults. Overnight ranges are supported; overlaps and incomplete lists are rejected. Web and mobile provide default-hour editors and day summaries, with collapsible household settings groups.
+
+Migration `1717000039_delivery_days.js` adds the optional fields without rewriting existing settings. Removing it drops day exceptions; weekday/weekend defaults remain. Family Link schedule import and individual queued-grant holds remain separate follow-ups.

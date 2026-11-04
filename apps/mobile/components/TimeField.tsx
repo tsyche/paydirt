@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Pressable, StyleSheet, View } from "react-native";
 import { DateTimePickerAndroid } from "@react-native-community/datetimepicker";
-import { Text, TextInput } from "react-native-paper";
+import { Button, Text, TextInput } from "react-native-paper";
 import { formatTime12, formatTimeRange, isTime, parseTimeRange, timeRangeError } from "@paydirt/shared";
 
 function toDate(value: string): Date {
@@ -97,8 +97,8 @@ function SingleTimeRangeField({
   return (
     <View>
       <View style={styles.row}>
-        <TimeField label={`${label} from`} value={start} onChange={(v) => update(v, end)} />
-        <TimeField label={`${label} to`} value={end} onChange={(v) => update(start, v)} />
+        <TimeField label="From" value={start} onChange={(v) => update(v, end)} />
+        <TimeField label="Until" value={end} onChange={(v) => update(start, v)} />
       </View>
       {allowAll && (
         <Pressable onPress={() => onChange("all")} accessibilityRole="button" style={styles.allDay}><Text>All day</Text></Pressable>
@@ -109,17 +109,22 @@ function SingleTimeRangeField({
 }
 
 export function TimeRangeField({ value, onChange, ...props }: { label: string; value: string; onChange: (value: string) => void; allowAll?: boolean }) {
-  const [rows, setRows] = useState(value.split(","));
-  useEffect(() => { setRows(value.split(",")); }, [value]);
+  const [rows, setRows] = useState(value ? value.split(",") : []);
+  useEffect(() => { setRows(value ? value.split(",") : []); }, [value]);
   function update(next: string[]) {
     setRows(next);
     onChange(next.join(","));
   }
-  return <View>{rows.map((row, index) => <View key={index}>
-    <SingleTimeRangeField {...props} label={`${props.label} ${index + 1}`} value={row} onChange={(next) => update(rows.map((old, i) => i === index ? next : old))} />
-    {rows.length > 1 && <Pressable accessibilityRole="button" onPress={() => update(rows.filter((_, i) => i !== index))}><Text>Remove window</Text></Pressable>}
+  return <View style={{ gap: 12, marginVertical: 16 }}>
+    <Text variant="titleSmall">{props.label}</Text>
+    {!rows.length && <Text>{props.allowAll ? "Use household windows" : "All day"}</Text>}
+    {value === "all" ? <Text>All day</Text> : rows.map((row, index) => <View key={index} style={{ gap: 8, padding: 12, borderWidth: 1, borderColor: "#888", borderRadius: 12 }}>
+    <Text variant="labelLarge">Window {index + 1}</Text>
+    <SingleTimeRangeField {...props} allowAll={false} label={`${props.label} ${index + 1}`} value={row} onChange={(next) => update(rows.map((old, i) => i === index ? next : old))} />
+    {index === rows.length - 1 && <Button mode="outlined" icon="minus" onPress={() => update(rows.slice(0, -1))}>Remove last window</Button>}
   </View>)}
-    {value !== "all" && <Pressable accessibilityRole="button" onPress={() => update([...rows, ""])}><Text>Add window</Text></Pressable>}
+    {value !== "all" && <Button mode="outlined" icon="plus" disabled={rows.some((row) => !parseTimeRange(row))} onPress={() => { setRows([...rows, ""]); }}>Add window</Button>}
+    {props.allowAll && <Button mode="text" onPress={() => update(value === "all" ? [] : ["all"])}>{value === "all" ? "Use household windows" : "Allow all day"}</Button>}
   </View>;
 }
 

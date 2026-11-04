@@ -1467,7 +1467,7 @@ export function ParentHome({
           ) : null}
         </TouchableOpacity>
       </Modal>
-{household && (
+{household && hhSettingsOpen && (
         <HouseholdSettings
           household={household}
           visible={hhSettingsOpen}

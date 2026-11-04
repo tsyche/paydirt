@@ -30,8 +30,9 @@ declare them in their own creation migration. Omitting them previously caused
 | streak_bonus_3 / _7 / _14 / _30 | number | bonus granted at each streak milestone; 0 = default |
 | allowance_amount / allowance_cadence / allowance_last_paid | number / select(`daily`,`weekly`) / date | scheduled allowance; paid by the daily cron, `allowance_last_paid` is the dedupe marker |
 | kudos_default_bucks | number | default amount for a parent "Great work" bonus; unset = 100 |
-| grant_weekday_window / grant_weekend_window | text | optional HH:MM-HH:MM server-local delivery windows; blank = all day, overnight allowed; checked before publishing a queued grant |
+| grant_weekday_window / grant_weekend_window | text | comma-separated HH:MM-HH:MM ranges in delivery timezone; blank or `all` = all day, `none` = no delivery; overnight allowed; checked before publishing |
 | grant_timezone / grant_expiry_days | text / number | optional IANA delivery timezone (blank = server-local); queued expiry after N days (0 = never), routed to manual review |
+| grant_day_windows | text | sparse JSON day overrides (`0` Sunday through `6` Saturday): `all`, `none`, or comma-separated `HH:MM-HH:MM` ranges; missing days use weekday/weekend defaults |
 
 ### `users` (extends PocketBase auth)
 | Field | Type | Notes |
@@ -52,6 +53,7 @@ declare them in their own creation migration. Omitting them previously caused
 | avatar | file | optional uploaded avatar image |
 | goods_rate | number | per-kid override of the household `goods_rate`; 0/unset = use the household rate |
 | grant_weekday_window / grant_weekend_window | text | parent-set delivery overrides; blank inherits household; `all` allows all day |
+| grant_day_windows | text | parent-set sparse day overrides, same format as household; missing days use kid defaults, then household day/default settings |
 
 ### `chores`
 | Field | Type | Notes |

@@ -4,6 +4,21 @@ import { describe, expect, it } from "vitest";
 // The native renderer has no component test harness. Guard section placement
 // directly so grant history cannot bury actionable spend requests again.
 describe("mobile approval layout", () => {
+  it("opens settings with a fresh household snapshot and keeps bank labels adjacent", () => {
+    const parent = readFileSync(new URL("../screens/ParentHome.tsx", import.meta.url), "utf8");
+    expect(parent).toContain("household && hhSettingsOpen && (");
+    const settings = readFileSync(new URL("../components/HouseholdSettings.tsx", import.meta.url), "utf8");
+    const bank = settings.slice(settings.indexOf('<SettingLabel label="Bank threshold'));
+    expect(bank).toMatch(/^<SettingLabel[^>]+\/>\s*<TextInput\s+keyboardType="numeric"\s+value=\{form.bank_threshold\}/);
+  });
+
+  it("shows an explicit add button and only removes the last window", () => {
+    const source = readFileSync(new URL("../components/TimeField.tsx", import.meta.url), "utf8");
+    expect(source).toContain('mode="outlined" icon="plus"');
+    expect(source).toContain("index === rows.length - 1");
+    expect(source).toContain("rows.slice(0, -1)");
+    expect(source).toContain('value ? value.split(",") : []');
+  });
   it("places spend requests before manual, queued, and historical grants", () => {
     const source = readFileSync(new URL("../screens/ParentHome.tsx", import.meta.url), "utf8");
     const spend = source.indexOf("{/* Spend requests */}");

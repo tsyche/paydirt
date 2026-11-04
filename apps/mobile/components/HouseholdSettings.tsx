@@ -1,5 +1,5 @@
-import { TimeRangeField } from "./TimeField";
-import { useState } from "react";
+import { DeliverySchedule } from "./DeliverySchedule";
+import { useState, type ReactNode } from "react";
 import { ScrollView, View } from "react-native";
 import {
   Button,
@@ -14,12 +14,20 @@ import type { Household } from "@paydirt/shared";
 import { CURRENCY_PRESETS, DEFAULT_CURRENCY_NAME, currencyDisplayName, screenRate, errorMessage, featureTip, kudosDefaultBucks } from "@paydirt/shared";
 import { client } from "../lib/client";
 
+function SettingsGroup({ title, children }: { title: string; children: ReactNode }) {
+  const [open, setOpen] = useState(false);
+  return <View style={{ marginVertical: 8, borderWidth: 1, borderColor: "#888", borderRadius: 12 }}>
+    <Button mode="text" icon={open ? "chevron-down" : "chevron-right"} accessibilityState={{ expanded: open }} onPress={() => setOpen(!open)} contentStyle={{ justifyContent: "flex-start", minHeight: 48 }}>{title}</Button>
+    <View style={{ display: open ? "flex" : "none", padding: 12 }}>{children}</View>
+  </View>;
+}
+
 /** Setting label with an info icon that reveals the shared feature tip inline (no hover on touch). */
 function SettingLabel({ label, tip }: { label: string; tip?: string }) {
   const [shown, setShown] = useState(false);
   const text = tip ? featureTip(tip) : undefined;
   return (
-    <View>
+    <View style={{ marginTop: 8, marginBottom: 4 }}>
       <View style={{ flexDirection: "row", alignItems: "center" }}>
         <Text variant="labelLarge">{label}</Text>
         {text ? (
@@ -59,6 +67,7 @@ export function HouseholdSettings({
     bank_threshold: String(household.bank_threshold ?? 0),
     kudos_default_bucks: String(kudosDefaultBucks(household)),
     grant_weekday_window: household.grant_weekday_window ?? "",
+    grant_day_windows: household.grant_day_windows ?? "",
     grant_weekend_window: household.grant_weekend_window ?? "",
     grant_timezone: household.grant_timezone ?? "",
     grant_expiry_days: String(household.grant_expiry_days ?? 0),
@@ -91,6 +100,7 @@ export function HouseholdSettings({
         bank_threshold: num(form.bank_threshold),
         kudos_default_bucks: Math.max(1, num(form.kudos_default_bucks)),
         grant_weekday_window: form.grant_weekday_window.trim(),
+        grant_day_windows: form.grant_day_windows,
         grant_weekend_window: form.grant_weekend_window.trim(),
         grant_timezone: form.grant_timezone.trim(),
         grant_expiry_days: num(form.grant_expiry_days),
@@ -124,6 +134,7 @@ export function HouseholdSettings({
         <Dialog.Title>Household settings</Dialog.Title>
         <Dialog.ScrollArea>
           <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ paddingHorizontal: 8 }}>
+            <SettingsGroup title="Currency">
             <SettingLabel label="Currency name" tip="currency_name" />
             <TextInput
               value={form.currency_name}
@@ -146,12 +157,15 @@ export function HouseholdSettings({
               ))}
             </ScrollView>
 
+            </SettingsGroup>
+            <SettingsGroup title="Screen-time delivery">
+            <Text style={{ marginBottom: 12 }}>Time waits until an allowed window. No windows means all day.</Text>
+            <TextInput style={{ marginBottom: 12 }} label="Delivery timezone" placeholder="America/Los_Angeles" value={form.grant_timezone} onChangeText={(v) => setForm({ ...form, grant_timezone: v })} />
+            <TextInput style={{ marginBottom: 12 }} label="Queued grant expires after days (0 = never)" keyboardType="number-pad" value={form.grant_expiry_days} onChangeText={(v) => setForm({ ...form, grant_expiry_days: v })} />
+            <DeliverySchedule value={form} onChange={(schedule) => setForm((old) => ({ ...old, ...schedule }))} />
+            </SettingsGroup>
+            <SettingsGroup title="Rewards and conversion">
             <SettingLabel label="Bank threshold (0 = off)" tip="bank_threshold" />
-            <Text>Screen-time delivery windows. Blank window = all day; blank timezone = server-local.</Text>
-            <TextInput label="Delivery timezone" placeholder="America/Los_Angeles" value={form.grant_timezone} onChangeText={(v) => setForm({ ...form, grant_timezone: v })} />
-            <TextInput label="Queued grant expires after days (0 = never)" keyboardType="number-pad" value={form.grant_expiry_days} onChangeText={(v) => setForm({ ...form, grant_expiry_days: v })} />
-            <TimeRangeField label="Weekdays" value={form.grant_weekday_window} onChange={(v) => setForm({ ...form, grant_weekday_window: v })} />
-            <TimeRangeField label="Weekends" value={form.grant_weekend_window} onChange={(v) => setForm({ ...form, grant_weekend_window: v })} />
             <TextInput
               keyboardType="numeric"
               value={form.bank_threshold}
@@ -186,6 +200,8 @@ export function HouseholdSettings({
               onChangeText={(v) => setForm({ ...form, screen_rate: v })}
               style={{ marginBottom: 8 }}
             />
+            </SettingsGroup>
+            <SettingsGroup title="Notifications">
             <SettingLabel label="Nudge after hours unapproved (0 = off)" tip="nudge_hours" />
             <TextInput
               keyboardType="numeric"
@@ -207,6 +223,8 @@ export function HouseholdSettings({
               placeholder="07:00"
               style={{ marginBottom: 8 }}
             />
+            </SettingsGroup>
+            <SettingsGroup title="Household preferences">
             <SettingLabel label="Vacation mode" tip="paused" />
             <Switch
               value={form.paused}
@@ -219,6 +237,8 @@ export function HouseholdSettings({
               onValueChange={(v) => setForm({ ...form, kids_see_balances: v })}
               style={{ marginBottom: 8 }}
             />
+            </SettingsGroup>
+            <SettingsGroup title="Allowance">
             <SettingLabel label="Allowance amount (0 = off)" tip="allowance_amount" />
             <TextInput
               keyboardType="numeric"
@@ -232,7 +252,8 @@ export function HouseholdSettings({
               onChangeText={(v) => setForm({ ...form, allowance_cadence: v === "daily" ? "daily" : "weekly" })}
               style={{ marginBottom: 8 }}
             />
-            <SettingLabel label="Streak bonuses (3/7/14/30)" tip="streak_bonus_3" />
+            </SettingsGroup>
+            <SettingsGroup title="Streak bonuses">
             <SettingLabel label="3-day bonus" tip="streak_bonus_3" />
             <TextInput
               keyboardType="numeric"
@@ -261,6 +282,7 @@ export function HouseholdSettings({
               onChangeText={(v) => setForm({ ...form, streak_bonus_30: v })}
               style={{ marginBottom: 8 }}
             />
+            </SettingsGroup>
             {error ? <Text style={{ color: "red", marginBottom: 8 }}>{error}</Text> : null}
           </ScrollView>
         </Dialog.ScrollArea>
