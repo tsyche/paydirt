@@ -352,4 +352,29 @@ describe("Phase 1 features (live)", () => {
     const active = await kid1.listActiveAssignmentsForChild(kid1User.id);
     expect(active.filter((a) => a.chore === chore.id)).toHaveLength(0);
   });
+
+  it("daily limits count pending, approved, and rejected submissions within the window", async () => {
+    const admin = new PaydirtClient(PB_URL);
+    await admin.pb.collection("_superusers").authWithPassword(ADMIN_EMAIL, ADMIN_PASSWORD);
+
+    const chore = await newChore(`Limit states ${Date.now()}`, { type: "recurring", cadence: "daily", max_per_period: 1 });
+    const first = await parent.assignChore(chore.id, kid1User.id);
+    await kid1.markComplete(first.id); // pending approval still holds the slot
+    expect(await parent.assignLimitWarnings(chore.id, [kid1User.id])).toHaveLength(1);
+    await admin.pb.send("/api/paydirt/cron/daily", { method: "POST" });
+    let active = await kid1.listActiveAssignmentsForChild(kid1User.id);
+    expect(active.filter((a) => a.chore === chore.id)).toHaveLength(1);
+    await parent.approveAssignment(first.id); // approved still holds the slot
+    await admin.pb.send("/api/paydirt/cron/daily", { method: "POST" });
+    active = await kid1.listActiveAssignmentsForChild(kid1User.id);
+    expect(active.filter((a) => a.chore === chore.id)).toHaveLength(0);
+
+    const second = await parent.assignChore(chore.id, kid1User.id); // advisory override still allowed
+    await kid1.markComplete(second.id);
+    await parent.rejectAssignment(second.id, "Try again tomorrow");
+    await admin.pb.send("/api/paydirt/cron/daily", { method: "POST" });
+    active = await kid1.listActiveAssignmentsForChild(kid1User.id);
+    expect(active.filter((a) => a.chore === chore.id)).toHaveLength(1);
+    expect(active.filter((a) => a.chore === chore.id).map((a) => a.id)).toEqual([second.id]);
+  });
 });

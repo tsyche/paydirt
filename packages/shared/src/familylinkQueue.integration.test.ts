@@ -245,4 +245,36 @@ describe("Family Link approval queue (isolated PocketBase)", () => {
     expect(done.grant_status).toBe("manual_done");
     expect(done.grant_error).toBe("");
   });
+
+  it("rapidly approving several time-pay chores queues each grant without dropping any", async () => {
+    await parent.pb.collection("users").update(kid.currentUser!.id, {
+      fl_child_id: "123456789012", fl_device_id: "a".repeat(30),
+    });
+    const grantIds: string[] = [];
+    for (let i = 0; i < 3; i++) {
+      const chore = await parent.createChore({
+        household: parent.currentUser!.household, name: `Rapid queue chore ${i}`, reward: 0, type: "oneoff",
+        created_by: parent.currentUser!.id, active: true, pay_mode: "time", reward_minutes: 5,
+      });
+      const assignment = await parent.assignChore(chore.id, kid.currentUser!.id);
+      await kid.markComplete(assignment.id);
+      await parent.approveAssignment(assignment.id);
+      const grant = (await parent.listBonusGrants(parent.currentUser!.household)).find((g) => g.assignment === assignment.id)!;
+      expect(grant.grant_status).toBe("queued");
+      grantIds.push(grant.id);
+    }
+    expect(grantIds).toHaveLength(3);
+    for (const g of grantIds) {
+      expect(readdirSync(join(queue, "pending"))).toContain(`${g}.json`);
+    }
+    let calls = 0;
+    await processFamilyLinkQueue(queue, async () => { calls++; return 0; }, true);
+    await fetch(`${url}/test/reconcile`, { method: "POST" });
+    for (const g of grantIds) {
+      expect((await parent.pb.collection("time_grants").getOne(g)).grant_status).toBe("granted");
+    }
+    await fetch(`${url}/test/reconcile`, { method: "POST" });
+    await processFamilyLinkQueue(queue, async () => { calls++; return 0; }, true);
+    expect(calls).toBe(3);
+  });
 });

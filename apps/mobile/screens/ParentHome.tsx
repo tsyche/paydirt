@@ -145,6 +145,11 @@ export function ParentHome({
   const [choreLimit, setChoreLimit] = useState("");
   const [showAdvancedChore, setShowAdvancedChore] = useState(false);
 
+  // Proposal → create-chore prefill (approve sends the idea through the form)
+  const [proposalFill, setProposalFill] = useState<ExpandedProposal | null>(null);
+  const [reasonDialog, setReasonDialog] = useState<{ kind: "decline" | "deny"; id: string } | null>(null);
+  const [reasonDraft, setReasonDraft] = useState("");
+
   // Template state
   const [templates, setTemplates] = useState<ChoreTemplate[]>([]);
   const [showTemplates, setShowTemplates] = useState(false);
@@ -297,28 +302,35 @@ export function ParentHome({
     );
   }
 
-  function confirmApproveProposal(proposal: ExpandedProposal) {
-    Alert.prompt(
-      `Reward for "${proposal.name}"?`,
-      `${currencyName} to award on approval — assigns straight back to the kid who proposed it.`,
-      [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "Approve",
-          onPress: (value: string | undefined) => {
-            const reward = Number(value);
-            if (!(reward >= 0)) return;
-            void act(
-              () => client.approveProposal(proposal, user.id, reward),
-              "Approved — assigned! 🎉"
-            );
-          },
-        },
-      ],
-      "plain-text",
-      String(proposal.reward_requested),
-      "number-pad",
-    );
+  function startProposalApprove(proposal: ExpandedProposal) {
+    // Approving a kid idea opens the create-chore form prefilled from the idea;
+    // the proposal flips to approved only when the chore is saved (else cancel).
+    setProposalFill(proposal);
+    setChoreName(proposal.name);
+    setChoreNotes(proposal.description ?? "");
+    setChoreReward(String(proposal.reward_requested));
+    setChorePayMode("bucks");
+    setChoreMinutes("");
+    setChoreType("oneoff");
+    setChorePhoto(false);
+    setChoreRace(false);
+    setChoreDueAt("");
+    setChoreLimit("");
+    setShowAdvancedChore(false);
+    setShowCreateChore(true);
+  }
+
+  function submitReasonDialog() {
+    if (!reasonDialog) return;
+    const { kind, id } = reasonDialog;
+    const reason = reasonDraft.trim();
+    setReasonDialog(null);
+    setReasonDraft("");
+    if (kind === "decline") {
+      void act(() => client.declineProposal(id, user.id, reason), "Declined.");
+    } else {
+      void act(() => client.denySpendRequest(id, user.id, reason), "Spend denied.");
+    }
   }
 
   async function addCoParent() {
@@ -366,7 +378,7 @@ export function ParentHome({
     if (payError) { setSnack(payError); return; }
     setCreatingChore(true);
     try {
-      await client.createChore({
+      const chore = await client.createChore({
         household: user.household,
         name: choreName.trim(),
         description: choreNotes.trim(),
@@ -386,6 +398,13 @@ export function ParentHome({
         created_by: user.id,
         active: true,
       });
+      if (proposalFill) {
+        await client.approveProposal(proposalFill, user.id, Number(choreReward) || proposalFill.reward_requested, chore.id);
+        setProposalFill(null);
+        setSnack("Idea approved — chore created 🎉");
+      } else {
+        setSnack("Chore created ✅");
+      }
       setChoreName("");
       setChoreNotes("");
       setTimerMinutes("0");
@@ -857,7 +876,7 @@ export function ParentHome({
                       <Button
                         mode="contained"
                         icon="check"
-                        onPress={() => confirmApproveProposal(p)}
+                        onPress={() => startProposalApprove(p)}
                         style={styles.approveBtn}
                         contentStyle={styles.actionBtnContent}
                       >
@@ -866,7 +885,7 @@ export function ParentHome({
                       <Button
                         mode="outlined"
                         icon="close"
-                        onPress={() => act(() => client.declineProposal(p.id, user.id), "Declined.")}
+                        onPress={() => { setReasonDraft(""); setReasonDialog({ kind: "decline", id: p.id }); }}
                         style={styles.rejectBtn}
                         contentStyle={styles.actionBtnContent}
                         textColor={theme.colors.error}
@@ -1033,9 +1052,7 @@ export function ParentHome({
                       <Button
                         mode="outlined"
                         icon="close"
-                        onPress={() =>
-                          act(() => client.denySpendRequest(s.id, user.id), "Spend denied.")
-                        }
+                        onPress={() => { setReasonDraft(""); setReasonDialog({ kind: "deny", id: s.id }); }}
                         style={styles.rejectBtn}
                         contentStyle={styles.actionBtnContent}
                         textColor={theme.colors.error}
@@ -1103,7 +1120,10 @@ export function ParentHome({
           <Button
             mode="contained-tonal"
             icon={showCreateChore ? "chevron-up" : "plus"}
-            onPress={() => setShowCreateChore((v) => !v)}
+            onPress={() => {
+              if (showCreateChore) setProposalFill(null);
+              setShowCreateChore(!showCreateChore);
+            }}
           >
             {showCreateChore ? "Cancel" : "Add"}
           </Button>
@@ -1169,6 +1189,11 @@ export function ParentHome({
                     </View>
                   ))}
                 </>
+              )}
+              {proposalFill && (
+                <Text variant="bodySmall" style={{ color: theme.colors.primary }}>
+                  💡 From {proposalFill.expand?.child?.display_name ?? "a kid"}'s idea — save to approve it, or close to leave it pending.
+                </Text>
               )}
               <TextInput
                 mode="outlined"
@@ -1474,6 +1499,26 @@ export function ParentHome({
           <Dialog.Actions>
             <Button onPress={() => setRejectingAssignmentId(null)}>Cancel</Button>
             <Button mode="contained" onPress={rejectWithReason}>Send back</Button>
+          </Dialog.Actions>
+        </Dialog>
+        <Dialog visible={reasonDialog !== null} onDismiss={() => setReasonDialog(null)}>
+          <Dialog.Title>{reasonDialog?.kind === "decline" ? "Decline chore idea" : "Deny screen-time request"}</Dialog.Title>
+          <Dialog.Content>
+            <Text variant="bodyMedium">Tell them why. They will see this message.</Text>
+            <TextInput
+              mode="outlined"
+              label="Reason (optional)"
+              value={reasonDraft}
+              onChangeText={setReasonDraft}
+              multiline
+              maxLength={1000}
+              autoFocus
+              style={styles.rejectionInput}
+            />
+          </Dialog.Content>
+          <Dialog.Actions>
+            <Button onPress={() => setReasonDialog(null)}>Cancel</Button>
+            <Button mode="contained" onPress={submitReasonDialog}>{reasonDialog?.kind === "decline" ? "Decline" : "Deny"}</Button>
           </Dialog.Actions>
         </Dialog>
       </Portal>

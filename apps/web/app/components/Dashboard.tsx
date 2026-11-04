@@ -92,6 +92,7 @@ export function Dashboard({
   const [recentApproved, setRecentApproved] = useState<Expanded<Assignment>[]>([]);
   const [error, setError] = useState("");
   const [templateFill, setTemplateFill] = useState<ChoreTemplate | null>(null);
+  const [proposalFill, setProposalFill] = useState<Expanded<ChoreProposal> | null>(null);
   const [tab, setTabState] = useState<TabKey>("approvals");
   // Tabs are browser history entries so Back/Forward move between them instead of leaving the app.
   const setTab = (next: TabKey) => {
@@ -338,6 +339,10 @@ export function Dashboard({
                 parentId={user.id}
                 currencyName={currencyName}
                 onActed={reload}
+                onApproveToForm={(p2) => {
+                  setTemplateFill(null);
+                  setProposalFill(p2);
+                }}
               />
             ))}
           </>
@@ -514,7 +519,10 @@ export function Dashboard({
               </button>
               <button
                 className="danger sm"
-                onClick={() => act(() => client.denySpendRequest(s.id, user.id))}
+                onClick={() => {
+                  const reason = window.prompt("Reason (optional):") ?? "";
+                  void act(() => client.denySpendRequest(s.id, user.id, reason));
+                }}
               >
                 Deny
               </button>
@@ -634,6 +642,8 @@ export function Dashboard({
           onCreated={reload}
           template={templateFill}
           onTemplateClear={() => setTemplateFill(null)}
+          proposal={proposalFill}
+          onProposalClear={() => setProposalFill(null)}
         />
         {chores.length > 0 && <div className="chore-grid-header" aria-hidden="true">
           <span>Chore</span><span>Reward / schedule</span><span>Assign to kids</span><span />
@@ -688,11 +698,13 @@ function ProposalRow({
   parentId,
   currencyName,
   onActed,
+  onApproveToForm,
 }: {
   proposal: Expanded<ChoreProposal>;
   parentId: string;
   currencyName: string;
   onActed: () => void;
+  onApproveToForm: (proposal: Expanded<ChoreProposal>) => void;
 }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -731,23 +743,17 @@ function ProposalRow({
         <button
           className="primary sm"
           disabled={busy}
-          onClick={() => {
-            const answer = window.prompt(
-              `Reward for "${proposal.name}"?`,
-              String(proposal.reward_requested),
-            );
-            if (answer === null) return;
-            const reward = Number(answer);
-            if (!(reward >= 0)) return;
-            void run(() => client.approveProposal(proposal, parentId, reward));
-          }}
+          onClick={() => onApproveToForm(proposal)}
         >
           Approve
         </button>
         <button
           className="danger sm"
           disabled={busy}
-          onClick={() => run(() => client.declineProposal(proposal.id, parentId))}
+          onClick={() => {
+            const reason = window.prompt("Reason (optional):") ?? "";
+            void run(() => client.declineProposal(proposal.id, parentId, reason));
+          }}
         >
           Decline
         </button>
@@ -1541,12 +1547,16 @@ function CreateChore({
   onCreated,
   template,
   onTemplateClear,
+  proposal,
+  onProposalClear,
 }: {
   household: string;
   parentId: string;
   onCreated: () => void;
   template?: ChoreTemplate | null;
   onTemplateClear?: () => void;
+  proposal?: Expanded<ChoreProposal> | null;
+  onProposalClear?: () => void;
 }) {
   const [name, setName] = useState("");
   const [reward, setReward] = useState(10);
@@ -1590,6 +1600,17 @@ function CreateChore({
     setLimit(template.max_per_period ?? 0);
   }, [template]);
 
+  useEffect(() => {
+    if (!proposal) return;
+    setOpen(true);
+    setName(proposal.name);
+    setNotes(proposal.description ?? "");
+    setReward(proposal.reward_requested);
+    setType("oneoff");
+    setMode("bucks");
+    setMinutes(0);
+  }, [proposal]);
+
   function reset() {
     setName("");
     setNotes("");
@@ -1607,6 +1628,7 @@ function CreateChore({
     setRemindAt("");
     setLimit(0);
     onTemplateClear?.();
+    onProposalClear?.();
   }
 
   async function create() {
@@ -1616,7 +1638,7 @@ function CreateChore({
     setBusy(true);
     setError("");
     try {
-      await client.createChore({
+      const chore = await client.createChore({
         timer_minutes: timerMinutes,
         description: notes.trim(),
         due_time: type === "recurring" ? dueTime : "",
@@ -1636,6 +1658,11 @@ function CreateChore({
         created_by: parentId,
         active: true,
       });
+      if (proposal) {
+        // Mark the idea approved only once the chore is saved; assignees come
+        // from the form (the proposing kid is pre-checked upstream).
+        await client.approveProposal(proposal, parentId, proposal.reward_requested, chore.id);
+      }
       reset();
       setOpen(false);
       onCreated();
@@ -1691,6 +1718,13 @@ function CreateChore({
       {template && (
         <div className="inline" style={{ marginBottom: 8, fontSize: 13 }}>
           <span style={{ color: "var(--md-primary)", fontWeight: 600 }}>📋 From template</span>
+          <button className="sm" onClick={reset} style={{ fontSize: 12 }}>✕ Clear</button>
+        </div>
+      )}
+      {proposal && (
+        <div className="inline" style={{ marginBottom: 8, fontSize: 13 }}>
+          <span style={{ color: "var(--md-primary)", fontWeight: 600 }}>💡 From {((proposal.expand?.child as User | undefined)?.display_name) ?? "a kid"}'s idea</span>
+          <span className="muted">Save to approve it; closing leaves it pending.</span>
           <button className="sm" onClick={reset} style={{ fontSize: 12 }}>✕ Clear</button>
         </div>
       )}
@@ -2114,6 +2148,22 @@ function AvatarControl({ kid, onSaved }: { kid: User; onSaved: () => void }) {
   );
 }
 
+/**
+ * Hint beside a kid's assign checkbox. `held` = an active (unapproved) assignment.
+ * At-limit without held means every counted row in the window is approved, so the
+ * kid is done for this window — the box stays open (assigning again overrides,
+ * with the usual confirm) but no longer looks like the assignment vanished.
+ */
+export function assignHint(
+  held: boolean,
+  atLimit: boolean,
+  limit: string,
+): { text: string; ok: boolean } | null {
+  if (held) return { text: " assigned", ok: true };
+  if (atLimit && limit) return { text: ` done · at limit (${limit})`, ok: true };
+  return null;
+}
+
 function AssignControl({
   chore,
   kids,
@@ -2202,12 +2252,18 @@ function AssignControl({
             disabled={busy || held(k.id)}
           />
           {k.avatar_emoji ? `${k.avatar_emoji} ` : ""}{k.display_name}
-          {held(k.id) && <span className="muted"> <span className="ico-ok">✓</span> assigned</span>}
-          {!held(k.id) && atLimit?.has(k.id) && (
-            <span className="muted" title={`Already at the limit (${limitLabel(chore)}). You can still assign to override.`}>
-              {" "}<span className="ico-warn">⚠</span> at limit ({limitLabel(chore)})
-            </span>
-          )}
+          {(() => {
+            const hint = assignHint(held(k.id), atLimit?.has(k.id) ?? false, limitLabel(chore));
+            if (!hint) return null;
+            return (
+              <span
+                className="muted"
+                title={held(k.id) ? undefined : `Done and approved — already at the limit (${limitLabel(chore)}). Assigning again will ask to override.`}
+              >
+                {" "}<span className="ico-ok">✓</span>{hint.text}
+              </span>
+            );
+          })()}
         </label>
       ))}
       <button className="tonal sm" onClick={assign} disabled={busy || picks.length === 0}>

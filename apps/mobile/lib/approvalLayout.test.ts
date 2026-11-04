@@ -31,13 +31,23 @@ describe("mobile approval layout", () => {
 
   it("uses a cross-platform reason dialog when sending a chore back", () => {
     const source = readFileSync(new URL("../screens/ParentHome.tsx", import.meta.url), "utf8");
-    const rejection = source.slice(
-      source.indexOf("function confirmReject"),
-      source.indexOf("function confirmApproveProposal"),
-    );
-    expect(rejection).not.toContain("Alert.prompt(");
+    expect(source).not.toContain("Alert.prompt(");
     expect(source).toContain('label="What needs redone?"');
     expect(source).toContain("client.rejectAssignment(assignmentId, rejectionReason.trim())");
     expect(source).toContain("They will see this message.");
+  });
+
+  it("routes proposal approval through the create form prefill instead of an alert prompt", () => {
+    const source = readFileSync(new URL("../screens/ParentHome.tsx", import.meta.url), "utf8");
+    expect(source).toContain("function startProposalApprove");
+    expect(source).toContain("function submitReasonDialog");
+    expect(source).not.toContain("confirmApproveProposal");
+    expect(source).not.toContain("Alert.prompt(");
+  });
+
+  it("prompts for a reason on proposal decline and spend deny", () => {
+    const source = readFileSync(new URL("../screens/ParentHome.tsx", import.meta.url), "utf8");
+    expect(source).toContain("client.declineProposal(id, user.id, reason)");
+    expect(source).toContain("client.denySpendRequest(id, user.id, reason)");
   });
 });

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildLedgerCsv } from "./Dashboard";
+import { assignHint, buildLedgerCsv } from "./Dashboard";
 import type { CurrencyTransaction } from "@paydirt/shared";
 
 const LABELS: Record<string, string> = {
@@ -19,6 +19,24 @@ function makeTxn(overrides: Partial<CurrencyTransaction> = {}): CurrencyTransact
     ...overrides,
   };
 }
+
+describe("assignHint", () => {
+  it("shows the held hint when the kid has an active assignment", () => {
+    expect(assignHint(true, false, "1 per day")).toEqual({ text: " assigned", ok: true });
+  });
+
+  it("shows the done-and-at-limit hint when at limit without an active assignment", () => {
+    expect(assignHint(false, true, "1 per day")).toEqual({ text: " done · at limit (1 per day)", ok: true });
+  });
+
+  it("is null when the kid is not held and not at limit", () => {
+    expect(assignHint(false, false, "1 per day")).toBeNull();
+  });
+
+  it("is null at limit when the chore has no label", () => {
+    expect(assignHint(false, true, "")).toBeNull();
+  });
+});
 
 describe("buildLedgerCsv", () => {
   it("emits a header row followed by one data row", () => {

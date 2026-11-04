@@ -584,6 +584,8 @@ input[type="checkbox"]:focus-visible {
 }
 
 .section-priority .card:hover { box-shadow: var(--md-elevation-2); }
+/* Inner cards sit inset from the tinted outer box so the nesting reads. */
+.section-priority > .card { margin-inline: 12px; }
 
 /* ─── Chips ──────────────────────────────────────────────────────────────── */
 .chip {
@@ -1173,3 +1175,25 @@ button.danger-filled:disabled { box-shadow: none; }
 .time-range-row > span:first-child { min-width: 64px; font-size: 13px; }
 .time-range-all { font-weight: 600; }
 .time-range-error { flex-basis: 100%; font-size: 12px; }
+
+/* Partial credit: the panel overlays the card so Approve/Reject never shift. */
+.partial-credit { position: relative; display: inline-block; }
+.partial-credit > summary { cursor: pointer; font-size: 13px; }
+.partial-credit-panel {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 6px);
+  z-index: 30;
+  min-width: 250px;
+  max-width: min(320px, 80vw);
+  padding: 12px;
+  border-radius: 12px;
+  background: var(--md-surface-container-lowest, #fff);
+  color: var(--md-on-surface, inherit);
+  box-shadow: var(--md-elevation-3, 0 8px 24px rgba(0, 0, 0, 0.18));
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  align-items: flex-start;
+}
+.partial-credit-panel p { margin: 0; font-size: 13px; }

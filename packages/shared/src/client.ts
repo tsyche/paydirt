@@ -640,11 +640,12 @@ export class PaydirtClient {
     });
   }
 
-  denySpendRequest(id: string, resolvedBy: string): Promise<SpendRequest> {
+  denySpendRequest(id: string, resolvedBy: string, declineReason = ""): Promise<SpendRequest> {
     return this.pb.collection(Collections.SpendRequests).update<SpendRequest>(id, {
       status: "denied",
       resolved_at: new Date().toISOString(),
       resolved_by: resolvedBy,
+      decline_reason: declineReason,
     });
   }
 
@@ -713,16 +714,19 @@ export class PaydirtClient {
     proposal: ChoreProposal,
     parentId: string,
     reward = proposal.reward_requested,
+    choreId?: string,
   ): Promise<Chore> {
-    const chore = await this.createChore({
-      household: proposal.household,
-      name: proposal.name,
-      description: proposal.description,
-      reward,
-      type: "oneoff",
-      created_by: parentId,
-      active: true,
-    });
+    const chore = choreId
+      ? await this.pb.collection(Collections.Chores).getOne<Chore>(choreId)
+      : await this.createChore({
+        household: proposal.household,
+        name: proposal.name,
+        description: proposal.description,
+        reward,
+        type: "oneoff",
+        created_by: parentId,
+        active: true,
+      });
     await this.assignChore(chore.id, proposal.child);
     await this.pb.collection(Collections.ChoreProposals).update(proposal.id, {
       status: "approved",
@@ -731,10 +735,11 @@ export class PaydirtClient {
     return chore;
   }
 
-  declineProposal(proposalId: string, parentId: string): Promise<ChoreProposal> {
+  declineProposal(proposalId: string, parentId: string, declineReason = ""): Promise<ChoreProposal> {
     return this.pb.collection(Collections.ChoreProposals).update<ChoreProposal>(proposalId, {
       status: "declined",
       resolved_by: parentId,
+      decline_reason: declineReason,
     });
   }
 

@@ -106,10 +106,11 @@ onRecordAfterUpdateSuccess((e) => {
     return;
   }
   const name = e.record.getString("name");
+  const reason = e.record.getString("decline_reason");
   if (status === "approved") {
     notifyUser(e.app, e.record.getString("child"), "Chore idea approved! 🎉", name + " — it's on your list");
   } else {
-    notifyUser(e.app, e.record.getString("child"), "Chore idea declined", name);
+    notifyUser(e.app, e.record.getString("child"), "Chore idea declined", reason ? `${name} — ${reason}` : name);
   }
   e.next();
 }, "chore_proposals");
@@ -179,6 +180,7 @@ onRecordAfterUpdateSuccess((e) => {
     return;
   }
   const desc = e.record.getString("description");
+  const reason = e.record.getString("decline_reason");
   const child = e.app.findRecordById("users", e.record.getString("child"));
   if (status === "approved") {
     notifyUser(e.app, e.record.getString("child"), "Spend approved! 🎉", desc);
@@ -186,7 +188,7 @@ onRecordAfterUpdateSuccess((e) => {
     // shelved Android accessibility automation for these approvals.
     notifyParents(e.app, child.getString("household"), "Spend approved", desc);
   } else {
-    notifyUser(e.app, e.record.getString("child"), "Spend denied", desc);
+    notifyUser(e.app, e.record.getString("child"), "Spend denied", reason ? `${desc} — ${reason}` : desc);
   }
   e.next();
 }, "spend_requests");
