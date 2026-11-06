@@ -4,6 +4,7 @@ import { resumeRealtime as forceRealtimeResume, type RealtimeLike } from "./real
 import { choreLimit, limitWindowDays, limitWindowStart, type LimitWarning, type RecentAssignmentRow } from "./choreLimit";
 import { localDateInstant, householdMonthRange, setHouseholdTimeZone } from "./dates";
 import { screenCost, screenDescription, type ScreenPreset } from "./screenTime";
+import type { HistoryPage, ScreenGrantHistoryRow } from "./history";
 import type {
   Assignment,
   Broadcast,
@@ -288,12 +289,13 @@ export class PaydirtClient {
   }
 
   /** Parent approval — the hook creates the earn transaction and bumps balance. */
-  approveAssignment(assignmentId: string, creditPercent = 100): Promise<Assignment> {
+  approveAssignment(assignmentId: string, creditPercent = 100, comment?: string): Promise<Assignment> {
     return this.pb.collection(Collections.Assignments).update<Assignment>(assignmentId, {
       status: "approved",
       credit_percent: creditPercent,
       approved_at: new Date().toISOString(),
       needs_help: false,
+      ...(comment !== undefined ? { approval_comment: comment.trim() } : {}),
     });
   }
 
@@ -519,6 +521,45 @@ export class PaydirtClient {
     return result.items;
   }
 
+  /** Keyset paging: five initially, then ten per request, including timestamp ties. */
+  async listApprovedHistoryPage(
+    householdId: string, after?: Assignment, limit = 5,
+  ): Promise<HistoryPage<Assignment>> {
+    const result = await this.pb.collection(Collections.Assignments).getList<Assignment>(1, limit + 1, {
+      filter: this.pb.filter(
+        "status = 'approved' && chore.household = {:hh}" +
+        (after ? " && (approved_at < {:at} || (approved_at = {:at} && id < {:id}))" : ""),
+        { hh: householdId, at: after?.approved_at || "", id: after?.id || "" },
+      ),
+      sort: "-approved_at,-id", expand: "chore,child",
+    });
+    return { items: result.items.slice(0, limit), hasMore: result.items.length > limit };
+  }
+
+  /** One chronological feed across completed purchases and bonus grants. */
+  async listScreenGrantHistoryPage(
+    householdId: string, after?: ScreenGrantHistoryRow, limit = 5,
+  ): Promise<HistoryPage<ScreenGrantHistoryRow>> {
+    const batches = await Promise.all([false, true].map(async (bonus) => {
+      // Purchases sort ahead of bonuses if both timestamp and ID happen to tie.
+      const comparison = bonus && after && !after.bonus ? "<=" : "<";
+      const result = await this.pb.collection(bonus ? Collections.TimeGrants : Collections.SpendRequests)
+        .getList<SpendRequest | TimeGrant>(1, limit + 1, {
+          filter: this.pb.filter(
+            "child.household = {:hh} && (grant_status = 'granted' || grant_status = 'manual_done')" +
+            (bonus ? "" : " && status = 'approved' && screen_minutes > 0") +
+            (after ? ` && (updated < {:at} || (updated = {:at} && id ${comparison} {:id}))` : ""),
+            { hh: householdId, at: after?.updated || "", id: after?.id || "" },
+          ),
+          sort: "-updated,-id", expand: "child",
+        });
+      return result.items.map((row) => ({ ...row, bonus })) as ScreenGrantHistoryRow[];
+    }));
+    const rows = batches.flat().sort((a, b) =>
+      b.updated.localeCompare(a.updated) || b.id.localeCompare(a.id) || Number(a.bonus) - Number(b.bonus));
+    return { items: rows.slice(0, limit), hasMore: rows.length > limit };
+  }
+
   // ── Spend requests ───────────────────────────────────────────────────────────
 
   submitSpendRequest(
@@ -563,7 +604,7 @@ export class PaydirtClient {
   }
 
   /** Outstanding manual/queued grants plus the latest completed grants. */
-  async listScreenTimeGrants(householdId: string): Promise<SpendRequest[]> {
+  async listScreenTimeGrants(householdId: string, historyLimit = 10): Promise<SpendRequest[]> {
     const options = {
       sort: "-resolved_at",
       expand: "child",
@@ -574,16 +615,16 @@ export class PaydirtClient {
         ...options,
         filter: this.pb.filter(`${scope} && (grant_status = 'queued' || grant_status = 'manual')`, { hh: householdId }),
       }),
-      this.pb.collection(Collections.SpendRequests).getList<SpendRequest>(1, 10, {
+      historyLimit ? this.pb.collection(Collections.SpendRequests).getList<SpendRequest>(1, historyLimit, {
         ...options,
         filter: this.pb.filter(`${scope} && (grant_status = 'granted' || grant_status = 'manual_done')`, { hh: householdId }),
-      }),
+      }) : Promise.resolve({ items: [] }),
     ]);
     return [...outstanding, ...recent.items];
   }
 
   /** Bonus minutes from approved chores: outstanding first, then the latest completed. */
-  async listBonusGrants(householdId: string): Promise<TimeGrant[]> {
+  async listBonusGrants(householdId: string, historyLimit = 10): Promise<TimeGrant[]> {
     const options = { sort: "-created", expand: "child" };
     const scope = "child.household = {:hh}";
     const [outstanding, recent] = await Promise.all([
@@ -591,10 +632,10 @@ export class PaydirtClient {
         ...options,
         filter: this.pb.filter(`${scope} && (grant_status = 'queued' || grant_status = 'manual')`, { hh: householdId }),
       }),
-      this.pb.collection(Collections.TimeGrants).getList<TimeGrant>(1, 10, {
+      historyLimit ? this.pb.collection(Collections.TimeGrants).getList<TimeGrant>(1, historyLimit, {
         ...options,
         filter: this.pb.filter(`${scope} && (grant_status = 'granted' || grant_status = 'manual_done')`, { hh: householdId }),
-      }),
+      }) : Promise.resolve({ items: [] }),
     ]);
     return [...outstanding, ...recent.items];
   }

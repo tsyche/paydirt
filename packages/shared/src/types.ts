@@ -190,6 +190,8 @@ export interface Assignment extends BaseRecord {
   due_at?: string;
   completed_at?: string;
   approved_at?: string;
+  /** Optional parent feedback captured with this approval (up to 500 characters). */
+  approval_comment?: string;
   /** PocketBase file name; present when photo proof was attached. */
   photo?: string;
   rejection_message?: string;

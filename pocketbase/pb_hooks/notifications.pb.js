@@ -79,8 +79,10 @@ onRecordAfterUpdateSuccess((e) => {
     notifyParents(e.app, chore.getString("household"), "Chore needs approval", name, "chore_completed", source);
   } else if (status === "approved") {
     const percent = e.record.getFloat("credit_percent") || 100;
+    const feedback = e.record.getString("approval_comment");
     notifyUser(e.app, e.record.getString("child"), "Chore approved! ✅",
-      name + (percent < 100 ? " — " + percent + "% credit, nice effort!" : " — nice work!"));
+      name + (percent < 100 ? " — " + percent + "% credit, nice effort!" : " — nice work!") +
+      (feedback ? "\nParent feedback: " + feedback : ""));
   } else if (status === "rejected") {
     const msg = e.record.getString("rejection_message");
     notifyUser(

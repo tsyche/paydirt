@@ -22,6 +22,9 @@ import { client } from "../lib/client";
 import { HouseholdSettings } from "./HouseholdSettings";
 import { RecurringDueFields } from "./RecurringDueFields";
 import { PartialCredit } from "./PartialCredit";
+import { ApprovalFeedback } from "./ApprovalFeedback";
+import { PastScreenGrants } from "./PastScreenGrants";
+import { useHistoryFeed } from "../lib/useHistoryFeed";
 import { DeliveryOverrides } from "./DeliveryOverrides";
 import { AppearanceControls } from "./AppearanceControls";
 import { GritChip } from "./GritChip";
@@ -90,7 +93,11 @@ export function Dashboard({
   const [screenGrants, setScreenGrants] = useState<Expanded<SpendRequest>[]>([]);
   const [bonusGrants, setBonusGrants] = useState<Expanded<TimeGrant>[]>([]);
   const [proposals, setProposals] = useState<Expanded<ChoreProposal>[]>([]);
-  const [recentApproved, setRecentApproved] = useState<Expanded<Assignment>[]>([]);
+  const [historyReloadKey, setHistoryReloadKey] = useState(0);
+  const approvedPage = useCallback((after: Assignment | undefined, limit: number) =>
+    client.listApprovedHistoryPage(householdId, after, limit), [householdId]);
+  const approvedHistory = useHistoryFeed(approvedPage, historyReloadKey);
+  const recentApproved = approvedHistory.items as Expanded<Assignment>[];
   const [error, setError] = useState("");
   const [templateFill, setTemplateFill] = useState<ChoreTemplate | null>(null);
   const [proposalFill, setProposalFill] = useState<Expanded<ChoreProposal> | null>(null);
@@ -136,16 +143,15 @@ export function Dashboard({
 
   const reload = useCallback(async () => {
     try {
-      const [hh, k, c, a, s, p, ra, grants, bonus, active, recent] = await Promise.all([
+      const [hh, k, c, a, s, p, grants, bonus, active, recent] = await Promise.all([
         client.getHousehold(householdId),
         client.listChildren(householdId),
         client.listChores(householdId),
         client.listPendingApprovals(householdId),
         client.listPendingSpendRequests(householdId),
         client.listPendingProposals(householdId),
-        client.listRecentlyApproved(householdId, 8),
-        client.listScreenTimeGrants(householdId),
-        client.listBonusGrants(householdId),
+        client.listScreenTimeGrants(householdId, 0),
+        client.listBonusGrants(householdId, 0),
         client.listActiveAssignmentsForHousehold(householdId),
         client.listRecentAssignmentsForHousehold(householdId),
       ]);
@@ -162,7 +168,7 @@ export function Dashboard({
       setScreenGrants(grants as Expanded<SpendRequest>[]);
       setBonusGrants(bonus as Expanded<TimeGrant>[]);
       setProposals(p as Expanded<ChoreProposal>[]);
-      setRecentApproved(ra as Expanded<Assignment>[]);
+      setHistoryReloadKey((key) => key + 1);
     } catch (e) {
       setError(errorMessage(e));
     }
@@ -466,7 +472,7 @@ export function Dashboard({
                   )}
                 </div>
               </div>
-              <div className="inline" style={{ flexShrink: 0 }}>
+              <div className="inline" style={{ flexShrink: 0, flexWrap: "wrap", maxWidth: 440 }}>
                 <button
                   className="primary sm"
                   onClick={() => {
@@ -477,6 +483,14 @@ export function Dashboard({
                 >
                   Approve
                 </button>
+                <ApprovalFeedback choreName={(a.expand?.chore as Chore | undefined)?.name ?? "Chore"}
+                  rewardLabel={a.expand?.chore ? `${payLabel(a.expand.chore as Chore, currencyName)}.${payMode(a.expand.chore as Chore) !== "bucks" ? " Screen-time grants cannot be undone." : ""}` : "Full chore reward."}
+                  onApprove={async (comment) => {
+                    await client.approveAssignment(a.id, 100, comment);
+                    party();
+                    await reload();
+                  }}
+                />
                 {a.expand?.chore && <PartialCredit chore={a.expand.chore as Chore} currency={currencyName} onApprove={(percent) => act(() => client.approveAssignment(a.id, percent))} />}
                 <button
                   className="danger sm"
@@ -568,6 +582,8 @@ export function Dashboard({
           ))}
         </>}
 
+        <PastScreenGrants householdId={householdId} reloadKey={historyReloadKey} />
+
         {/* ── Recently approved ── */}
         <h2>🏆 Recently approved ({recentApproved.length})</h2>
         {recentApproved.length === 0 && <p className="muted">No approved chores yet.</p>}
@@ -585,6 +601,7 @@ export function Dashboard({
                     {a.credit_percent && a.credit_percent < 100 ? ` (${a.credit_percent}% credit)` : ""}
                   </span>
                 </div>
+                {a.approval_comment && <p style={{ marginBottom: 0 }}>Feedback: {a.approval_comment}</p>}
               </div>
               <div className="inline">
                 {a.reaction ? (
@@ -615,6 +632,11 @@ export function Dashboard({
             </div>
           );
         })}
+        {approvedHistory.error && <p className="error" role="alert">{approvedHistory.error}</p>}
+        {approvedHistory.error && <button disabled={approvedHistory.busy} onClick={() => void approvedHistory.reload()}>Retry history</button>}
+        {approvedHistory.hasMore && <button disabled={approvedHistory.busy} onClick={() => void approvedHistory.loadMore()}>
+          {approvedHistory.busy ? "Loading…" : "Show more"}
+        </button>}
         </>)}
 
         {tab === "chores" && (<>

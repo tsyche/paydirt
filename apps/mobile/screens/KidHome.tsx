@@ -567,6 +567,9 @@ export function KidHome({
                       {a.credit_percent && a.credit_percent < 100 ? ` (${a.credit_percent}% credit)` : ""}
                     </Text>
                   </View>
+                  {a.approval_comment ? (
+                    <Text variant="bodyMedium" style={{ marginTop: 10 }}>Parent feedback: {a.approval_comment}</Text>
+                  ) : null}
                   {a.approved_at ? (
                     <Text variant="bodySmall" style={styles.date}>
                       {a.completed_at ? `Done ${localDateLabel(a.completed_at)} · ` : ""}Approved {localDateLabel(a.approved_at)}

@@ -1,9 +1,10 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback } from "react";
 import { Alert, StyleSheet, View } from "react-native";
 import { Button, Card, Text, useTheme } from "react-native-paper";
 import type { Assignment, Chore, User } from "@paydirt/shared";
 import { REACTIONS, errorMessage, payLabel, payMode, undoApprovalPrompt } from "@paydirt/shared";
 import { client } from "../lib/client";
+import { useHistoryFeed } from "../lib/useHistoryFeed";
 
 type Expanded = Assignment & { expand?: { chore?: Chore; child?: User } };
 
@@ -23,25 +24,16 @@ export function RecentlyApproved({
   onMessage: (msg: string) => void;
 }) {
   const theme = useTheme();
-  const [items, setItems] = useState<Expanded[]>([]);
-
-  const load = useCallback(async () => {
-    try {
-      setItems((await client.listRecentlyApproved(householdId, 8)) as Expanded[]);
-    } catch {
-      // Offline banner already covers connectivity; keep the last list.
-    }
-  }, [householdId]);
-
-  useEffect(() => {
-    void load();
-  }, [load, reloadKey]);
+  const fetchPage = useCallback((after: Assignment | undefined, limit: number) =>
+    client.listApprovedHistoryPage(householdId, after, limit), [householdId]);
+  const history = useHistoryFeed(fetchPage, reloadKey);
+  const items = history.items as Expanded[];
 
   async function run(fn: () => Promise<unknown>, done: string) {
     try {
       await fn();
       onMessage(done);
-      await load();
+      await history.reload();
       onChanged();
     } catch (e) {
       onMessage(errorMessage(e));
@@ -61,7 +53,7 @@ export function RecentlyApproved({
     ]);
   }
 
-  if (items.length === 0) return null;
+  if (items.length === 0 && !history.busy && !history.error) return null;
 
   return (
     <>
@@ -76,6 +68,7 @@ export function RecentlyApproved({
               {a.expand?.child?.display_name ?? "child"} · +{a.expand?.chore ? payLabel(a.expand.chore, currencyName, a.credit_percent) : "?"}
               {a.credit_percent && a.credit_percent < 100 ? ` (${a.credit_percent}% credit)` : ""}
             </Text>
+            {a.approval_comment ? <Text style={{ marginTop: 8 }}>Feedback: {a.approval_comment}</Text> : null}
             <View style={styles.actions}>
               <View style={styles.reactions}>
                 {a.reaction ? (
@@ -105,6 +98,10 @@ export function RecentlyApproved({
           </Card.Content>
         </Card>
       ))}
+      {history.error ? <Text accessibilityRole="alert">{history.error}</Text> : null}
+      {history.error ? <Button disabled={history.busy} onPress={() => void history.reload()}>Retry history</Button> : null}
+      {history.hasMore ? <Button mode="outlined" loading={history.busy} disabled={history.busy}
+        onPress={() => void history.loadMore()}>Show more</Button> : null}
     </>
   );
 }

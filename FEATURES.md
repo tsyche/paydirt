@@ -22,7 +22,7 @@
 - **Chore notes** — optional plain-text instructions (up to 1,000 characters) in web/mobile create and edit forms, copied through templates and shown on kid cards and approval rows. Existing assignments display the current chore note.
 - **Starter chores** — curated chores by age band (4-6, 7-9, 10-12, 13+) in `packages/shared/src/starterChores.ts`; web Chores tab picker skips ones already added, and `just go-live` can seed whole bands.
 - **Approval undo** — "Recently approved" section in dashboard; `undoApproval()` moves the assignment back to completed and a server hook writes the compensating ledger entry (double-undo impossible; kids blocked from touching approved chores).
-- **Mobile approval ordering** — chore ideas, chore approvals, spend requests, and manual time-grant actions appear before queued delivery and settled grant/chore history.
+- **Mobile approval ordering** — chore ideas, chore approvals, spend requests, and manual time-grant actions appear before queued delivery and settled grant/chore history. Web and mobile start past grants and recently approved chores at five items each; Show more loads ten more until the end. Outstanding actions remain unlimited.
 - **Web navigation** — the selected dashboard tab is kept in the URL across refresh and browser Back/Forward. Kid chore sections start collapsed.
 - **Partial credit** — parent-only percentage approval on web/mobile, with 25/50/75% picks and a custom percentage. Grit scales to two decimals; minutes round down to five-minute steps. Approval closes the chore and counts as done (including race resolution); no remainder stays open. Zero-payout percentages are rejected. Undo reverses the actual payout; time grants remain irreversible. Validation is deferred.
 - **Real-time updates** — kid screens subscribe to their assignments + balance via PocketBase realtime (`subscribeToKidUpdates()`); approvals appear without pull-to-refresh. SSE polyfill (`react-native-sse`) on mobile.
@@ -45,6 +45,7 @@
 - **Scheduled chore reminders** — per-chore "HH:MM"; cron reminds assigned kids once a day.
 - **Approval nudges** — parents pinged when a completion sits unapproved longer than `nudge_hours`.
 - **Approval reactions** — parents react with an emoji from "Recently approved"; shown in the kid's history.
+- **Approval feedback** — parents can approve with an optional private comment on web/mobile. The child sees it in the approval alert and standard history. Quick approval stays available; feedback does not change the payout.
 - **Kid reminders** — kids set one-shot reminders (30m / 1h / 3h / tomorrow morning) on their own chores.
 - **Chore swap** — kid offers a chore to a sibling, who accepts (takes ownership) or declines; guarded server-side.
 - **Streak bonuses** — consecutive earn-days tracked per kid (🔥 shown in both apps); milestone bonuses at 3/7/14/30 days.
@@ -69,7 +70,7 @@
 - **Timed chores** — optional continuous 1–480 minute timers on web/mobile chore and template forms. Assignment duration is fixed on creation; kids start once using the server clock and cannot submit before the countdown ends. Both kid homes show progress, restore after restart, and schedule a local completion notification. Parent approval rows show the duration/start. No pause/resume; parent approval still decides whether the work was done. Validation is deferred.
 - **Backups + in-app updates** — nightly PocketBase backups (7 kept) and APK self-update from the host (`just ship`); see [docs/DEPLOYMENT.md](./docs/DEPLOYMENT.md).
 - **Parent Overview** — chart-icon modal (web + mobile): paid vs. potential for a week/month/year, screen-time vs. real-money redemptions, per-kid chores, streak and earnings, weekly potential.
-- **Kid My Bank** — both kid homes show available grit after pending requests, dollar/screen-minute equivalents, estimated rewards awaiting approval, streak, and savings-goal progress. Goals share the bank balance rather than reserving separate pots; no sibling information is shown. Validation is deferred.
+- **Kid My Bank** — both kid homes separate available grit, total/pending spending, alternative dollar/screen-minute values, estimated chore earnings, banked screen time, and savings goals. Goals share the bank balance rather than reserving separate pots. Phone/tablet browser renders and calculation tests pass; native acceptance remains open.
 - **In-app update** — the app downloads the new APK in-process with progress, then hands it to the installer (survives the "Install unknown apps" restart).
 
 ## Not Yet Implemented

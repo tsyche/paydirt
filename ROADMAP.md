@@ -37,7 +37,7 @@ These are verification/deployment tasks, not features to implement again. Specif
 - **Kudos, notes, partial credit, My Bank, and direct bonus controls** — source/UI entry points exist; finish deferred device checks before claiming full rollout.
 - **Delivery windows and timed chores** — verify per-day settings round-trip, timezone/DST boundaries, queued release at opening time, and timer restart behavior. School-time/downtime interaction still needs its own check.
 - **Latest mobile fixes** — verify invalid bonus-minute feedback and Approvals → suggested chore → editable modal → Create and approve / Cancel on the new APK. Rendered-component checks pass; native tap-through is not yet recorded.
-- 🧑 needs-human: deployment and real-device confirmation for any unverified release above. Browser launch is blocked in the current macOS runner; see [test guidance](AGENTS.md#development).
+- 🧑 needs-human: deployment and real-device confirmation for any unverified release above. Standalone browser launch is blocked in the current macOS runner; the isolated browser connection supports web checks.
 
 ## Phase 2 — Family Link Automation
 
@@ -83,11 +83,11 @@ Verify parent capabilities on both surfaces; pending checks are listed in the [a
 
 Ordered by impact-to-effort (2026-11-01 audit). Shipped items live in the ledger, not here.
 
-- **My Bank readability (2026-11-06)** — separate available balance, total/reserved amounts, alternative money/screen-time conversions, pending chore earnings, already-earned banked time, and savings goals. Use clear cards/spacing and restrained emphasis in standard and simplified kid layouts. Preserve all reward calculations and clearly distinguish estimates from available funds. A local layout draft was started, then deferred at the owner's request; visual phone/tablet review is still required. Phone headers remain unchanged.
+- **My Bank readability (2026-11-06, implemented; native acceptance pending)** — separated available balance, total/pending spending, alternative conversions, estimated chore earnings, banked time, and goals in both kid layouts. Calculation/render tests and phone/tablet browser review pass. Verify native scrolling, large text, and live records before closing the [acceptance item](docs/plans/feature-acceptance.md). Phone headers remain unchanged.
 
-- **Parent history paging (2026-11-06)** — web and mobile show five past screen-time grants and five recently approved chores initially. “Show more” loads ten additional items per tap until the end; retain stable ordering and avoid duplicates or skipped records across purchased/bonus grants. Keep all queued/manual grants and pending approvals visible; these are not part of the history limit.
+- **Parent history paging (2026-11-06, implemented; native acceptance pending)** — five initial past grants and approved chores, then ten per tap. Real PocketBase tests cover equal timestamps, cross-collection ID ties, complete traversal, and unlimited outstanding grants. Browser paging passes. Verify native taps and realtime refresh before closing the [acceptance item](docs/plans/feature-acceptance.md).
 
-- **Approve with feedback (2026-11-06)** — add an optional parent approval comment on web/mobile while preserving quick Approve. Store it with the specific completed assignment and show it to the child alongside approval, without changing the payout or using a rejection reason. Handle cancellation, failed saves, and repeat taps safely; verify both kid layouts can find the feedback.
+- **Approve with feedback (2026-11-06, implemented; native acceptance pending)** — optional private comments on web/mobile, preserved quick approval, child alert/history delivery, and unchanged payouts. API tests cover privacy, validation, undo, and concurrent approvals. Browser cancel/save/error-draft checks pass. Verify native dialog and both kid alert entry points before closing the [acceptance item](docs/plans/feature-acceptance.md).
 
 - **Web approval card polish (2026-11-06)** — place Partial credit below Approve, with a clear percent icon/button rather than plain text and a twisty. Keep its editor compact without shifting primary actions. Replace the inline “Resubmitted — you said…” text with a Resubmitted badge, a labelled previous-feedback callout, and a separately labelled child reply when present.
 

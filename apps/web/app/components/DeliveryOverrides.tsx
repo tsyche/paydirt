@@ -1,5 +1,5 @@
 import { useState } from "react";
-import type { User } from "@paydirt/shared";
+import { errorMessage, type User } from "@paydirt/shared";
 import { client } from "../lib/client";
 import { DeliverySchedule } from "./DeliverySchedule";
 export function DeliveryOverrides({ kid, onSaved }: { kid: User; onSaved: () => void }) {
@@ -15,7 +15,7 @@ export function DeliveryOverrides({ kid, onSaved }: { kid: User; onSaved: () => 
       try {
         await client.pb.collection("users").update(kid.id, { grant_weekday_window: weekday.trim(), grant_weekend_window: weekend.trim(), grant_day_windows: days });
         onSaved(); setMessage("Delivery windows saved.");
-      } catch { setMessage("Could not save. Pick both a start and end time, or clear it."); }
+      } catch (e) { setMessage(errorMessage(e)); }
       finally { setBusy(false); }
     }}>Save delivery windows</button>
     <p role="status">{message}</p>

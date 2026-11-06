@@ -90,6 +90,7 @@ One per (chore, child). Status: `assigned` → `completed` → `approved`/`rejec
 | due_at | date | server-computed recurring deadline, fixed at assignment creation; new rule applies to future assignments |
 | approved_at | date | set on parent approval |
 | credit_percent | number | parent-only integer 1–100 on approval; legacy 0/unset = full credit; immutable while settled. Partial approval closes the assignment |
+| approval_comment | text | optional parent feedback, trimmed, max 500 characters; set only when approving, cleared on undo; visible only to parents and the assigned child |
 | timer_minutes / timer_started_at | number / date | duration fixed at creation; owner may start once using server clock; swaps clear start; completion before elapsed duration is blocked |
 | photo | file (single) | optional proof |
 | rejection_message | text | optional |

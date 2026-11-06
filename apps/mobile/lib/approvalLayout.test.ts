@@ -22,11 +22,13 @@ describe("mobile approval layout", () => {
   it("places spend requests before manual, queued, and historical grants", () => {
     const source = readFileSync(new URL("../screens/ParentHome.tsx", import.meta.url), "utf8");
     const spend = source.indexOf("{/* Spend requests */}");
-    const grants = source.indexOf('(["manual", "queued", "history"] as const)');
+    const grants = source.indexOf('(["manual", "queued"] as const)');
+    const past = source.indexOf("<PastScreenGrants");
     const recent = source.indexOf("<RecentlyApproved");
     expect(spend).toBeGreaterThan(-1);
     expect(grants).toBeGreaterThan(spend);
-    expect(recent).toBeGreaterThan(grants);
+    expect(past).toBeGreaterThan(grants);
+    expect(recent).toBeGreaterThan(past);
   });
 
   it("keeps approve and reject together, with partial credit on its own row", () => {

@@ -4,6 +4,8 @@
 
 ## Shipped index
 
+- [x] 2026-11-06 — Multiple delivery windows persist; stale concurrent chore approvals cannot pay twice
+
 - [x] 2026-11-06 — Tablet APK update handoff restored by correcting its saved APK handler
 
 - [x] 2026-11-06 — `just ship` warns on uncommitted files and continues; build/deployment failures still stop it
@@ -50,6 +52,12 @@
 - [x] 2026-06-10 — MVP, Phase 1, and Phase 1.5 (migrated 2026-10-21)
 
 ## Archived entries
+
+### 2026-11-06 — Window storage and concurrent approval fixes
+
+- Expanded the old 11-character weekday/weekend field limits on households and children without changing saved schedules. Rollback refuses while multiple ranges remain. Real PocketBase regression tests failed before the migration and pass with 5:30–9 AM plus 4:30–8:30 PM and a Wednesday-only exception.
+- A stale concurrent approval could pay the same completed assignment twice. Status transitions now check the current record inside the write transaction. The concurrent-approval regression exposed the duplicate payout before the fix; approval, undo, feedback, and Family Link queue integration checks pass afterward.
+- Backend deployment is pending. Native delivery settings acceptance remains in the [acceptance plan](../plans/feature-acceptance.md).
 
 ### 2026-11-06 — Tablet APK handler corrected
 

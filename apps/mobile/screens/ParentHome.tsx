@@ -31,12 +31,14 @@ import { Avatar } from "../components/Avatar";
 import { ChoreNotes } from "../components/ChoreNotes";
 import { RecurringDueFields } from "../components/RecurringDueFields";
 import { PartialCredit } from "../components/PartialCredit";
+import { ApprovalFeedback } from "../components/ApprovalFeedback";
 import { BrandTitle } from "../components/BrandTitle";
 import { AppearanceControls } from "../components/AppearanceControls";
 import { ChunkyButton } from "../components/ChunkyButton";
 import { Celebration } from "../components/Celebration";
 import { KidDetail } from "../components/KidDetail";
 import { RecentlyApproved } from "../components/RecentlyApproved";
+import { PastScreenGrants } from "../components/PastScreenGrants";
 import { StarterChores } from "../components/StarterChores";
 import { PayModeFields } from "../components/PayModeFields";
 import { ChoreCreateDialog } from "../components/ChoreCreateDialog";
@@ -226,8 +228,8 @@ export function ParentHome({
         client.listPendingSpendRequests(user.household),
         client.listChores(user.household),
         client.listPendingProposals(user.household),
-        client.listScreenTimeGrants(user.household),
-        client.listBonusGrants(user.household),
+        client.listScreenTimeGrants(user.household, 0),
+        client.listBonusGrants(user.household, 0),
         client.listActiveAssignmentsForHousehold(user.household),
         client.listRecentAssignmentsForHousehold(user.household),
       ]);
@@ -1012,6 +1014,15 @@ export function ParentHome({
                           Reject
                         </Button>
                       </View>
+                      <ApprovalFeedback choreName={chore?.name ?? "Chore"}
+                        rewardLabel={chore ? `${payLabel(chore, currencyName)}.${payMode(chore) !== "bucks" ? " Screen-time grants cannot be undone." : ""}` : "Full chore reward."}
+                        onApprove={async (comment) => {
+                          await client.approveAssignment(a.id, 100, comment);
+                          party();
+                          setSnack("Approved — feedback sent.");
+                          await reload();
+                        }}
+                      />
                       {chore && <PartialCredit chore={chore} currency={currencyName} onApprove={async (percent) => {
                         await client.approveAssignment(a.id, percent);
                         await reload();
@@ -1078,10 +1089,8 @@ export function ParentHome({
             })}
           </>
         )}
-        {(["manual", "queued", "history"] as const).map((group) => {
-          const matches = (status?: string) => group === "history"
-            ? status !== "manual" && status !== "queued"
-            : status === group;
+        {(["manual", "queued"] as const).map((group) => {
+          const matches = (status?: string) => status === group;
           const grants = [
             ...bonusGrants.filter((g) => matches(g.grant_status)).map((g) => ({ ...g, bonus: true })),
             ...screenGrants.filter((g) => matches(g.grant_status)).map((g) => ({ ...g, bonus: false })),
@@ -1090,7 +1099,7 @@ export function ParentHome({
           return <View key={group}>
             <Divider style={styles.divider} />
             <Text variant="labelLarge" style={styles.sectionLabel}>
-              {group === "manual" ? "TIME GRANTS NEEDING ACTION" : group === "queued" ? "TIME GRANTS WAITING FOR DELIVERY" : "PAST SCREEN-TIME GRANTS"}
+              {group === "manual" ? "TIME GRANTS NEEDING ACTION" : "TIME GRANTS WAITING FOR DELIVERY"}
             </Text>
             {grants.map((grant) => <Card key={grant.id} style={[styles.approvalCard, styles.grantCard]}>
               <Card.Content>
@@ -1110,6 +1119,7 @@ export function ParentHome({
             </Card>)}
           </View>;
         })}
+        {household && <PastScreenGrants householdId={household.id} reloadKey={approvedKey} />}
         {household && (
           <RecentlyApproved
             householdId={household.id}

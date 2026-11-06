@@ -5,6 +5,22 @@
 // onRecordUpdateRequest fires only for API requests, so internal hook saves
 // (e.app.save) are never blocked by these.
 
+// Requests can load the same completed record before either approval saves.
+// Check its current status inside the write transaction so a stale request
+// cannot trigger the approval payout a second time.
+onRecordUpdate((e) => {
+  const before = e.record.original().getString("status");
+  const app = e.app;
+  app.runInTransaction((tx) => {
+    const current = tx.findRecordById("assignments", e.record.id);
+    if (current.getString("status") !== before) {
+      throw new BadRequestError("This chore changed while you were updating it. Refresh and try again.");
+    }
+    e.app = tx;
+    try { e.next(); } finally { e.app = app; }
+  });
+}, "assignments");
+
 // Assignment status + swap authority. The update rule lets the owning child,
 // the swap target, and household parents PATCH an assignment; this pins down
 // what each is actually allowed to do.
