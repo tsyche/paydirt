@@ -115,6 +115,8 @@ export type FamilyLinkRequest = (
 ) => Promise<{ status: number; text: string }>;
 
 export interface FamilyLinkGrant {
+  /** Do not add more bonus than can fit before this delivery window closes. */
+  validUntil?: string;
   childId: string;
   deviceId: string;
   apiKey: string;
@@ -208,8 +210,16 @@ export async function addFamilyLinkBonus(request: FamilyLinkRequest, grant: Fami
   }
   const remainingSeconds = remainingBonusSeconds(payload, grant.deviceId);
   // The per-purchase maximum must not truncate previously purchased time.
-  const totalSeconds = remainingSeconds + seconds;
+  let addedSeconds = seconds;
+  if (grant.validUntil) {
+    const closes = Date.parse(grant.validUntil);
+    if (!Number.isFinite(closes)) throw new Error("Invalid delivery window");
+    // Keep banked balances in whole minutes; a sub-minute gap waits for the next window.
+    addedSeconds = Math.min(seconds, Math.max(0, Math.floor(((closes - Date.now()) / 1000 - remainingSeconds) / 60) * 60));
+  }
+  const totalSeconds = remainingSeconds + addedSeconds;
   if (!Number.isSafeInteger(totalSeconds)) throw new Error("Family Link bonus total is too large");
+  if (!addedSeconds) return { status: 200, remainingSeconds, totalSeconds };
   const response = await checkedRequest(
     request,
     buildGrantUrl(grant.childId, grant.apiKey, grant.authorization),

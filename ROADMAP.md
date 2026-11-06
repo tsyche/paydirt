@@ -14,6 +14,8 @@ Last audited 2026-11-04 against source, tests, and implementation commits. Dupli
 
 ## Known Issues
 
+- **Dependabot glob cancellation bypass (#81, reported 2026-11-04)** — `pnpm-lock.yaml` resolves glob 13.0.6; versions through 14.0.1 allow filesystem traversal after an AbortSignal timeout. Review the transitive callers and upgrade through a compatible dependency update to patched 14.0.2 or later. [Alert](https://github.com/tsyche/paydirt/security/dependabot/81).
+
 - **Remaining edit-panel controls** — add descriptive headers and pinned Save/Cancel to chore edits and the remaining settings forms on web/mobile. Follow [the edit-panel rule](AGENTS.md#key-concepts). Review the actual screens; earlier completed conversions are recorded in the ledger.
 - **`just test-all` seed step fails intermittently (found 2026-11-02, unexplained)** — [pocketbase/seed.mjs](pocketbase/seed.mjs) dies with a generic 'Something went wrong' while creating `child2`, in about half of 8 runs on 2026-11-02, then passed on retry; 67 runs in a loop (idle, CPU-loaded, recipe-exact setup) never reproduced it. The failures clustered around concurrent `just ship` builds and hand-edited `scheduler.js` swaps. Diagnostics added 2026-11-02: `test-all` now runs PocketBase with `--dev` and dumps the last 40 log lines on any failure, and the seeder prints the failing status and URL. Next time it fails, read that output and fix the cause; if it never recurs in a few weeks, drop this entry.
 - **PocketBase download fallback on non-macOS** — when upstream tags have no Release assets, non-macOS setup still requires manual installation. Add a supported fallback or document the manual path; preserve the existing macOS fallback. Entry point: [justfile](justfile).
@@ -28,6 +30,8 @@ Last audited 2026-11-04 against source, tests, and implementation commits. Dupli
 ## Release checks for implemented work
 
 These are verification/deployment tasks, not features to implement again. Specific missing evidence and the returned original records are in the [acceptance plan](docs/plans/feature-acceptance.md).
+
+- **Banked time and action alerts** — deploy backend/worker together and the new APK, then verify split rewards at closing time and linked in-app/Android alert cleanup. Backend regression coverage exists; native/device acceptance remains open.
 
 - **Recurring due days** — active verification above. 🧑 needs-human: final native tap-through unless an emulator is available.
 - **Kudos, notes, partial credit, My Bank, and direct bonus controls** — source/UI entry points exist; finish deferred device checks before claiming full rollout.

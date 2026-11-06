@@ -65,7 +65,7 @@
 - **Auto-save to goals** — `auto_save_percent` on a savings goal diverts that slice of each earn.
 - **Approval photo grid** — inline photo thumbnails with tap-to-enlarge in both approval queues.
 - **Quiet hours** — household window that holds back pushes (still logged to the inbox).
-- **Screen-time delivery windows** — weekday/weekend household windows, an optional IANA timezone, per-kid overrides, and optional queue expiry in web/mobile settings. Blank household window means unrestricted; blank kid override inherits and `all` overrides to unrestricted. Queued purchases and chore bonuses show unlock information; the worker checks window/expiry timestamps before contacting Google. Expiry routes to manual review without automatic refunds. Published jobs retain their settings snapshot; an in-flight grant can finish after closing. Validation is deferred.
+- **Screen-time delivery windows** — weekday/weekend household windows, an optional IANA timezone, per-kid overrides, and optional queue expiry in web/mobile settings. Blank household window means unrestricted; blank kid override inherits and `all` overrides to unrestricted. Rewards are split to fit before closing, accounting for existing bonus; the remainder is banked for automatic delivery at the next opening. Web/mobile show the remaining banked amount. Expiry routes to manual review without automatic refunds. Published jobs retain their settings snapshot; an in-flight grant can finish after closing. Device validation is deferred.
 - **Timed chores** — optional continuous 1–480 minute timers on web/mobile chore and template forms. Assignment duration is fixed on creation; kids start once using the server clock and cannot submit before the countdown ends. Both kid homes show progress, restore after restart, and schedule a local completion notification. Parent approval rows show the duration/start. No pause/resume; parent approval still decides whether the work was done. Validation is deferred.
 - **Backups + in-app updates** — nightly PocketBase backups (7 kept) and APK self-update from the host (`just ship`); see [docs/DEPLOYMENT.md](./docs/DEPLOYMENT.md).
 - **Parent Overview** — chart-icon modal (web + mobile): paid vs. potential for a week/month/year, screen-time vs. real-money redemptions, per-kid chores, streak and earnings, weekly potential.
@@ -108,3 +108,6 @@
 - Child: chore assigned, spend approved/denied, chore rejected
 - Parent: chore pending approval, spend request submitted
 - Configurable topic per user
+- Actionable alerts clear after their linked action succeeds; unrelated alerts remain.
+  In-app lists refresh live. Android tray cleanup requires the updated APK.
+  Older alerts without an action link remain manually dismissible.

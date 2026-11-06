@@ -9,10 +9,11 @@ try {
     process.env.FL_QUEUE_DIR ?? "/var/lib/paydirt/familylink/queue",
     async (job) => {
       try {
-        execFileSync(process.execPath, [
+        const output = execFileSync(process.execPath, [
           "--experimental-strip-types", cli, "grant", String(job.seconds), job.childId, job.deviceId,
-        ], { stdio: "ignore", timeout: 60_000, killSignal: "SIGKILL" });
-        return 0;
+          job.validUntil || "",
+        ], { stdio: ["ignore", "pipe", "ignore"], encoding: "utf8", timeout: 60_000, killSignal: "SIGKILL" });
+        return { code: 0, deliveredSeconds: JSON.parse(output).deliveredSeconds };
       } catch (error) {
         return (error as { status?: number }).status === 2 ? 2 : 1;
       }

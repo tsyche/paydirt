@@ -26,7 +26,13 @@ export function InboxDialog({ userId, visible, onDismiss }: { userId: string; vi
 
   useEffect(() => {
     if (visible) void load();
-  }, [visible, load]);
+    let disposed = false;
+    let unsubscribe: (() => void) | undefined;
+    if (visible) void client.subscribeToInbox(userId, () => void load()).then((stop) => {
+      if (disposed) stop(); else unsubscribe = stop;
+    }).catch(() => {});
+    return () => { disposed = true; unsubscribe?.(); };
+  }, [visible, load, userId]);
 
   const remove = async (id: string) => {
     setItems((prev) => prev.filter((i) => i.id !== id));
@@ -132,8 +138,13 @@ export function useUnreadAlerts(userId: string, dialogOpen: boolean): { unread: 
   useEffect(() => {
     void check();
     const t = setInterval(() => void check(), 60_000);
-    return () => clearInterval(t);
-  }, [check]);
+    let disposed = false;
+    let unsubscribe: (() => void) | undefined;
+    void client.subscribeToInbox(userId, () => void check()).then((stop) => {
+      if (disposed) stop(); else unsubscribe = stop;
+    }).catch(() => {});
+    return () => { disposed = true; clearInterval(t); unsubscribe?.(); };
+  }, [check, userId]);
   useEffect(() => {
     if (!dialogOpen) void check();
   }, [dialogOpen, check]);

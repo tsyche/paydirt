@@ -26,12 +26,13 @@ function sendNtfy(app, topic, title, message) {
 // The body is JSON {title, body, type?} — decoded by UnifiedPushReceiver.kt.
 // `type` is optional; when present it lets the receiver trigger specific automations
 // (e.g. "spend_approved" fires ACTION_GRANT_SCREEN_TIME for Phase 2).
-function sendViaEndpoint(app, endpoint, title, message, type) {
+function sendViaEndpoint(app, endpoint, title, message, type, inboxId) {
   if (!endpoint) return;
   if ($os.getenv("NTFY_DISABLED")) return;
   try {
     const payload = { title, body: message };
     if (type) payload.type = type;
+    if (inboxId) payload.inboxId = inboxId;
     $http.send({
       url: endpoint,
       method: "POST",
@@ -68,14 +69,16 @@ function isQuietHours(app, householdId) {
 
 // Keeps a per-user history of everything we push (also during quiet hours, when
 // the push itself is skipped). Never lets a logging failure block the push.
-function logToInbox(app, userId, title, message, type) {
+function logToInbox(app, userId, title, message, type, source) {
   try {
     const item = new Record(app.findCollectionByNameOrId("inbox"));
     item.set("user", userId);
     item.set("title", title);
     item.set("body", message || "");
     item.set("type", type || "");
+    item.set("source", source || "");
     app.save(item);
+    return item.id;
   } catch (err) {
     app.logger().error("inbox log failed", "user", userId, "error", String(err));
   }
@@ -84,22 +87,22 @@ function logToInbox(app, userId, title, message, type) {
 // Notify a single user: prefer their UP endpoint (event-driven, no polling
 // overhead), fall back to ntfy topic if no endpoint is registered.
 // `type` is an optional string passed through to the UP payload for Phase 2 triggers.
-function notifyUserRecord(app, user, title, message, type) {
-  logToInbox(app, user.id, title, message, type);
+function notifyUserRecord(app, user, title, message, type, source) {
+  const inboxId = logToInbox(app, user.id, title, message, type, source);
   if (isQuietHours(app, user.getString("household"))) return;
   const endpoint = user.getString("up_endpoint");
   if (endpoint) {
-    sendViaEndpoint(app, endpoint, title, message, type);
+    sendViaEndpoint(app, endpoint, title, message, type, inboxId);
   } else {
     sendNtfy(app, user.getString("ntfy_topic"), title, message);
   }
 }
 
-function notifyUser(app, userId, title, message, type) {
-  notifyUserRecord(app, app.findRecordById("users", userId), title, message, type);
+function notifyUser(app, userId, title, message, type, source) {
+  notifyUserRecord(app, app.findRecordById("users", userId), title, message, type, source);
 }
 
-function notifyRole(app, householdId, role, title, message, type) {
+function notifyRole(app, householdId, role, title, message, type, source) {
   const members = app.findRecordsByFilter(
     "users",
     "household = {:hh} && role = {:role}",
@@ -109,16 +112,23 @@ function notifyRole(app, householdId, role, title, message, type) {
     { hh: householdId, role: role },
   );
   for (const m of members) {
-    notifyUserRecord(app, m, title, message, type);
+    notifyUserRecord(app, m, title, message, type, source);
   }
 }
 
-function notifyParents(app, householdId, title, message, type) {
-  notifyRole(app, householdId, "parent", title, message, type);
+function notifyParents(app, householdId, title, message, type, source) {
+  notifyRole(app, householdId, "parent", title, message, type, source);
 }
 
-function notifyChildren(app, householdId, title, message, type) {
-  notifyRole(app, householdId, "child", title, message, type);
+function notifyChildren(app, householdId, title, message, type, source) {
+  notifyRole(app, householdId, "child", title, message, type, source);
 }
 
-module.exports = { logToInbox, sendNtfy, sendViaEndpoint, notifyUser, notifyParents, notifyChildren, notifyUserRecord };
+function clearSource(app, source, userId) {
+  const rows = app.findRecordsByFilter("inbox",
+    "source = {:source}" + (userId ? " && user = {:user}" : ""), "", 0, 0,
+    { source, user: userId || "" });
+  for (const row of rows) app.delete(row);
+}
+
+module.exports = { clearSource, logToInbox, sendNtfy, sendViaEndpoint, notifyUser, notifyParents, notifyChildren, notifyUserRecord };

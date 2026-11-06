@@ -298,6 +298,8 @@ export interface BroadcastReply extends BaseRecord {
 
 /** Per-user copy of a pushed alert (server-written). The owner may delete it. */
 export interface InboxItem extends BaseRecord {
+  /** Server-owned action target, e.g. assignments:<id>. */
+  source?: string;
   user: string; // -> users.id
   title: string;
   body?: string;
@@ -309,6 +311,8 @@ export interface InboxItem extends BaseRecord {
 
 /** Bonus screen minutes earned by an approved chore; created only by the approval hook. */
 export interface TimeGrant extends BaseRecord {
+  /** Already delivered; the remainder stays banked while queued. */
+  grant_delivered_seconds?: number;
   given_by?: string;
   request_key?: string;
   child: string; // -> users.id
@@ -323,6 +327,7 @@ export interface TimeGrant extends BaseRecord {
 export type SpendRequestStatus = "pending" | "approved" | "denied";
 
 export interface SpendRequest extends BaseRecord {
+  grant_delivered_seconds?: number;
   child: string; // -> users.id
   /** parentBucks to deduct on approval. */
   amount: number;

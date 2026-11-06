@@ -15,6 +15,7 @@ function minutesOf(record) {
 
 function prepare(record, app) {
   if (!minutesOf(record)) return;
+  record.set("grant_delivered_seconds", 0);
   const child = app.findRecordById("users", record.getString("child"));
   let error = "";
   if ($os.getenv("FL_AUTOMATION_ENABLED") !== "1") {
@@ -26,17 +27,22 @@ function prepare(record, app) {
   record.set("grant_error", error);
 }
 
-function publish(app, record) {
+function deliveryId(record) {
+  const delivered = record.getInt("grant_delivered_seconds");
+  return record.id + (delivered ? "-" + delivered : "");
+}
+
+function publish(app, record, at) {
   const dir = queueDir();
   for (const part of ["pending", "processing", "results"]) $os.mkdirAll(dir + "/" + part, 0o700);
-  const name = record.id + ".json";
+  const name = deliveryId(record) + ".json";
   // Never publish a second copy while a worker owns this request.
   for (const part of ["pending", "processing", "results"]) {
     if (exists(dir + "/" + part + "/" + name)) return;
   }
   const child = app.findRecordById("users", record.getString("child"));
   const household = app.findRecordById("households", child.getString("household"));
-  const now = new Date();
+  const now = at || new Date();
   const expiryDays = household.getInt("grant_expiry_days");
   const expiresAt = expiryDays ? new Date(new Date(record.getString("created").replace(" ", "T")).getTime() + expiryDays * 86400000).toISOString() : "";
   if (expiresAt && now >= new Date(expiresAt)) {
@@ -51,10 +57,10 @@ function publish(app, record) {
   }
   if (!state.open) return;
   const job = {
-    id: record.id,
+    id: deliveryId(record),
     childId: child.getString("fl_child_id"),
     deviceId: child.getString("fl_device_id"),
-    seconds: minutesOf(record) * 60,
+    seconds: minutesOf(record) * 60 - record.getInt("grant_delivered_seconds"),
   };
   if (state.validUntil) job.validUntil = state.validUntil;
   if (expiresAt) job.expiresAt = expiresAt;
@@ -68,29 +74,31 @@ function notifyManual(app, record) {
   const child = app.findRecordById("users", record.getString("child"));
   notifyParents(app, child.getString("household"), "Screen time needs manual review",
     child.getString("display_name") + ": " + record.getString("description") + ". " +
-    record.getString("grant_error"));
+    record.getString("grant_error"), "grant_manual", record.collection().name + ":" + record.id + ":grant");
 }
 
-function reconcile(app) {
+function reconcile(app, at) {
+  const now = at || new Date();
   const rows = app.findRecordsByFilter("spend_requests",
     "status = 'approved' && grant_status = 'queued'", "created", 0, 0)
     .concat(app.findRecordsByFilter("time_grants", "grant_status = 'queued'", "created", 0, 0))
     .sort((a, b) => a.getString("created").localeCompare(b.getString("created")));
   for (const record of rows) {
     try {
-      const file = queueDir() + "/results/" + record.id + ".json";
+      const file = queueDir() + "/results/" + deliveryId(record) + ".json";
       if (!exists(file)) {
-        publish(app, record);
+        publish(app, record, now);
         continue;
       }
       const result = JSON.parse(toString($os.readFile(file)));
-      if (result.id !== record.id || ["granted", "manual", "deferred"].indexOf(result.status) === -1) {
+      if (result.id !== deliveryId(record) || ["granted", "manual", "deferred"].indexOf(result.status) === -1) {
         throw new Error("Invalid grant result");
       }
       if (result.status === "deferred") {
+        if (result.retryAfter && now < new Date(result.retryAfter)) continue;
         // Worker never contacted Google. Safe to retry in the next window.
         $os.remove(file);
-        publish(app, record);
+        publish(app, record, now);
         continue;
       }
       const errors = {
@@ -101,13 +109,26 @@ function reconcile(app) {
         invalid_request: "The grant target or duration is invalid. Check the child's settings and grant manually.",
         expired: "Queued time expired without delivery. Review the purchase or chore reward manually.",
       };
-      record.set("grant_status", result.status);
+      let delivered = 0;
+      if (result.status === "granted") {
+        // Old worker receipts omit the amount: they delivered the whole request.
+        const remaining = minutesOf(record) * 60 - record.getInt("grant_delivered_seconds");
+        delivered = result.deliveredSeconds === undefined ? remaining : result.deliveredSeconds;
+        if (!Number.isInteger(delivered) || delivered <= 0 || delivered > remaining || delivered % 60) {
+          throw new Error("Invalid delivered duration");
+        }
+        record.set("grant_delivered_seconds", record.getInt("grant_delivered_seconds") + delivered);
+      }
+      const partial = result.status === "granted" && record.getInt("grant_delivered_seconds") < minutesOf(record) * 60;
+      record.set("grant_status", partial ? "queued" : result.status);
       record.set("grant_error", result.status === "manual" ? errors[result.error] || errors.failed : "");
       app.save(record);
       if (result.status === "granted") {
         require(__hooks + "/lib/ntfy.js").notifyUser(app, record.getString("child"),
-          "Screen time delivered 📱", minutesOf(record) + " minutes have landed.", "time_granted");
+          "Screen time delivered 📱", delivered / 60 + " minutes have landed." +
+          (partial ? " The rest is banked for an allowed window." : ""), "time_granted");
       }
+      if (partial) publish(app, record, now);
       // Keep the receipt on disk: a repeated publish can never replay it.
       if (result.status === "manual") notifyManual(app, record);
     } catch (_) {

@@ -1,6 +1,6 @@
 import { View } from "react-native";
 import { Card, ProgressBar, Text } from "react-native-paper";
-import { bankView, kidBankSummary, type Assignment, type Chore, type SavingsGoal, type SpendRequest, type TimeGrant } from "@paydirt/shared";
+import { bankView, bankedTimeLabel, kidBankSummary, type Assignment, type Chore, type SavingsGoal, type SpendRequest, type TimeGrant } from "@paydirt/shared";
 
 /** Private bank detail for both kid homes. Goals share the same balance. */
 export function MyBank({ balance, currency, goodsRate, screenRate, streak, assignments, goals, requests, grants = [], simple = false }: {
@@ -20,9 +20,9 @@ export function MyBank({ balance, currency, goodsRate, screenRate, streak, assig
       <Text>⏳ {totals.pendingEarn} {currency} awaiting chore approval (estimate)</Text>
       <Text>🔥 {streak} day streak</Text>
       {requests.filter((request) => request.grant_status === "queued").map((request) => (
-        <Text key={request.id}>📱 {request.screen_minutes} min: {request.grant_error || "Queued for delivery"}</Text>
+        <Text key={request.id}>📱 {bankedTimeLabel(request)}{request.grant_error ? ` · ${request.grant_error}` : ""}</Text>
       ))}
-      {grants.map((grant) => <Text key={grant.id}>📱 {grant.minutes} bonus min: {grant.grant_error || "Queued for delivery"}</Text>)}
+      {grants.map((grant) => <Text key={grant.id}>📱 {bankedTimeLabel(grant)}{grant.grant_error ? ` · ${grant.grant_error}` : ""}</Text>)}
       {goals.filter((goal) => !goal.achieved).map((goal) => {
         const progress = Math.min(1, Math.max(0, balance / goal.target));
         return <View key={goal.id} style={{ gap: 4 }}>

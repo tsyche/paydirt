@@ -22,7 +22,7 @@ import {
 } from "react-native-paper";
 import { SafeAreaView } from "react-native-safe-area-context";
 import type { Assignment, Chore, ChoreProposal, ChoreTemplate, Household, PayMode, RecentAssignmentRow, SpendRequest, TimeGrant, User } from "@paydirt/shared";
-import { kidsAtLimit, knownChoreNames, parseAssignDraft, serializeAssignDraft, currencyDisplayName, screenRate, effectiveGoodsRate, screenGrantLabel, errorMessage, kidAccent, limitLabel, limitUnit, payLabel, payMode, validatePay, waitingActionCount } from "@paydirt/shared";
+import { kidsAtLimit, knownChoreNames, parseAssignDraft, serializeAssignDraft, currencyDisplayName, screenRate, effectiveGoodsRate, bankedTimeLabel, errorMessage, kidAccent, limitLabel, limitUnit, payLabel, payMode, validatePay, waitingActionCount } from "@paydirt/shared";
 import { client } from "../lib/client";
 import { isNetworkError } from "../lib/reachability";
 import { useRealtimeResume } from "../lib/useRealtimeResume";
@@ -1095,7 +1095,7 @@ export function ParentHome({
             {grants.map((grant) => <Card key={grant.id} style={[styles.approvalCard, styles.grantCard]}>
               <Card.Content>
                 <Text variant="titleMedium">{grant.expand?.child?.display_name ?? "Child"} — {grant.description}</Text>
-                <Text>{screenGrantLabel(grant.grant_status)}</Text>
+                <Text>{bankedTimeLabel(grant)}</Text>
                 {!!grant.grant_error && <Text>{grant.grant_error}</Text>}
                 {group === "manual" && <Button onPress={() =>
                   Alert.alert("Confirm manual grant", "Check Family Link first. Has this time been granted manually?", [

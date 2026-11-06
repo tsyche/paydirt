@@ -143,6 +143,7 @@ acknowledgement so a celebration plays once across all of their devices.
 | screen_minutes | number | set = screen-time request (15/30/45/60); the create hook sets `amount` from `screen_rate` |
 | grant_status | select(`queued`,`granted`,`manual`,`manual_done`) | optional; server-owned automation state; parents may confirm `manual` → `manual_done` |
 | grant_error | text | optional, max 300; safe manual-recovery message |
+| grant_delivered_seconds | number | server-owned successful delivery total; remaining minutes stay queued across windows |
 
 Submitted spending terms and settled approval decisions are immutable. Screen-time
 approval queues a grant only when automation is enabled and the child has target
@@ -163,6 +164,7 @@ Screen minutes earned by an approved chore (`pay_mode` `time`/`both`) or given d
 | description | text | e.g. `Chore: Dishes (10 min bonus)` |
 | grant_status | select(`queued`,`granted`,`manual`,`manual_done`) | same states and queue as purchases |
 | grant_error | text | optional, max 300 |
+| grant_delivered_seconds | number | server-owned successful delivery total; never changes the original reward |
 
 ### `savings_goals`
 Kid-owned targets; a hook marks them achieved + notifies when the balance
@@ -230,6 +232,13 @@ cron prunes items older than 30 days. Deleting an item never affects real data.
 | title | text | required |
 | body | text | |
 | type | text | push type, e.g. `broadcast`; `broadcast_sent` is the sending parent's copy |
+| source | text | server-owned action target (`collection:id`); resolving/deleting the target removes its actionable alerts |
+
+Assignment, suggestion, spend, help, broadcast-reply, and manual-grant actions
+clear their linked reminders after success. Broadcast replies clear only the
+replying child's reminder. Informational alerts remain dismissible. Older
+unlinked alerts remain available for manual clearing; titles are not used to
+guess which record an alert belongs to.
 
 ## Hooks (implemented)
 

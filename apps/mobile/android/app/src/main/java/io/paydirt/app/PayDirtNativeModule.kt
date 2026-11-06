@@ -1,6 +1,7 @@
 package io.paydirt.app
 
 import android.content.Context
+import android.app.NotificationManager
 import android.content.Intent
 import android.net.Uri
 import android.provider.Settings
@@ -11,6 +12,7 @@ import com.facebook.react.bridge.Promise
 import com.facebook.react.bridge.ReactApplicationContext
 import com.facebook.react.bridge.ReactContextBaseJavaModule
 import com.facebook.react.bridge.ReactMethod
+import com.facebook.react.bridge.ReadableArray
 import com.facebook.react.modules.core.DeviceEventManagerModule
 import com.facebook.react.uimanager.ViewManager
 import java.io.File
@@ -36,6 +38,25 @@ class PayDirtNativeModule(reactContext: ReactApplicationContext) :
   // Required so JS can subscribe with NativeEventEmitter.
   @ReactMethod fun addListener(eventName: String) {}
   @ReactMethod fun removeListeners(count: Int) {}
+
+  // Cancel only inbox notifications that no longer exist. Keep timer alerts
+  // and the foreground-service indicator, which have separate lifecycles.
+  @ReactMethod
+  fun syncInboxNotifications(ids: ReadableArray, promise: Promise) {
+    try {
+      val active = (0 until ids.size()).mapNotNull { ids.getString(it) }.toSet()
+      val manager = reactApplicationContext.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+      for (notification in manager.activeNotifications) {
+        val tag = notification.tag ?: continue
+        if (tag.startsWith("paydirt-inbox:") && tag.removePrefix("paydirt-inbox:") !in active) {
+          manager.cancel(tag, notification.id)
+        }
+      }
+      promise.resolve(true)
+    } catch (e: Exception) {
+      promise.reject("notification_sync_failed", e.message, e)
+    }
+  }
 
   // Returns (and clears) the reason code of a failed update download, or 0 if none.
   // Covers failures that happened while JS wasn't listening (app backgrounded).

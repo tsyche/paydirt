@@ -21,6 +21,12 @@ const DEEP_LINK_PREFIX = "paydirt://notification";
 // (see tabForNotificationType) so the app still opens, just without forcing a tab.
 const TYPE_TO_TAB: Partial<Record<string, ParentTab>> = {
   spend_approved: "approvals",
+  chore_completed: "approvals",
+  chore_proposed: "approvals",
+  chore_help: "approvals",
+  chore_reply: "approvals",
+  spend_requested: "approvals",
+  grant_manual: "approvals",
 };
 
 // Extracts the `type` query param from a paydirt:// notification deep link.
@@ -57,6 +63,8 @@ export function tabForNotificationType(type: string | null | undefined): ParentT
 
 const TYPE_TO_KID_TAB: Partial<Record<string, KidTab>> = {
   broadcast: "family",
+  chore_assigned: "chores",
+  chore_rejected: "chores",
 };
 
 // Kid-app counterpart of tabForNotificationType: a tapped broadcast opens the Family tab.

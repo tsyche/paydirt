@@ -813,11 +813,26 @@ export class PaydirtClient {
 
   // ── Inbox ──────────────────────────────────────────────────────────────────
 
+  subscribeToInbox(userId: string, onChange: () => void): Promise<() => void> {
+    return this.pb.collection(Collections.Inbox).subscribe("*", onChange, {
+      filter: this.pb.filter("user = {:u}", { u: userId }),
+    });
+  }
+
+  async listInboxIds(userId: string): Promise<string[]> {
+    const rows = await this.pb.collection(Collections.Inbox).getFullList({
+      filter: this.pb.filter("user = {:u}", { u: userId }), fields: "id",
+      requestKey: `inbox-notification-ids:${userId}`,
+    });
+    return rows.map((row) => row.id);
+  }
+
   /** Newest-first alert history for one user (the API rules only let you read your own). */
   listInbox(userId: string, limit = 50): Promise<InboxItem[]> {
     return this.pb.collection(Collections.Inbox).getList<InboxItem>(1, limit, {
       filter: this.pb.filter("user = {:u}", { u: userId }),
       sort: "-created",
+      requestKey: `inbox-list:${userId}:${limit}`,
     }).then((r) => r.items);
   }
 

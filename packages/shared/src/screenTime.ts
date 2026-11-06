@@ -39,3 +39,15 @@ export function screenGrantLabel(status?: string): string {
     default: return "Needs manual review";
   }
 }
+
+/** Minutes still owed, excluding successful deliveries from earlier windows. */
+export function bankedTimeLabel(grant: {
+  minutes?: number; screen_minutes?: number; grant_delivered_seconds?: number; grant_status?: string;
+}): string {
+  const remaining = Math.max(0, (grant.minutes || grant.screen_minutes || 0) - (grant.grant_delivered_seconds || 0) / 60);
+  if (grant.grant_status === "queued") {
+    return `${remaining} min banked — delivered automatically during allowed hours`;
+  }
+  if (grant.grant_status === "manual") return `${remaining} min still owed — needs manual review`;
+  return screenGrantLabel(grant.grant_status);
+}

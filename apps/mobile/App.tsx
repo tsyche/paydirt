@@ -53,6 +53,35 @@ function AppContent() {
   const [ntfySetupLoaded, setNtfySetupLoaded] = useState(false);
   const [ntfySetupVisible, setNtfySetupVisible] = useState(false);
   const [notificationRoute, setNotificationRoute] = useState<NotificationRoute | null>(null);
+  useEffect(() => {
+    if (!user || !NativeModules.PayDirtNative?.syncInboxNotifications) return;
+    let disposed = false;
+    let running = false;
+    let again = false;
+    let unsubscribe: (() => void) | undefined;
+    const sync = async () => {
+      if (running) { again = true; return; }
+      running = true;
+      try {
+        do {
+          again = false;
+          const ids = await client.listInboxIds(user.id);
+          if (!disposed && client.currentUser?.id === user.id) {
+            await NativeModules.PayDirtNative.syncInboxNotifications(ids);
+          }
+        } while (again && !disposed);
+      } catch { /* Offline: keep notifications until the next successful refresh. */ }
+      finally { running = false; }
+    };
+    void sync();
+    void client.subscribeToInbox(user.id, () => void sync()).then((stop) => {
+      if (disposed) stop(); else unsubscribe = stop;
+    }).catch(() => {});
+    const listener = AppState.addEventListener("change", (state) => {
+      if (state === "active") void sync();
+    });
+    return () => { disposed = true; listener.remove(); unsubscribe?.(); };
+  }, [user]);
   // In-app update: the download runs in-process (not DownloadManager, which can't
   // reach LAN hosts on Android 17); this dialog shows progress and the Install button.
   const [upd, dispatchUpd] = useReducer(updateReducer, IDLE);

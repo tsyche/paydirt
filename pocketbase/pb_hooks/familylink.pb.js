@@ -4,6 +4,7 @@
 onRecordCreateRequest((e) => {
   e.record.set("grant_status", "");
   e.record.set("grant_error", "");
+  e.record.set("grant_delivered_seconds", 0);
   e.next();
 }, "spend_requests");
 
@@ -22,7 +23,8 @@ onRecordUpdateRequest((e) => {
     r.getString("grant_status") === "manual_done";
   if (
     (r.getString("grant_status") !== prev.getString("grant_status") && !manualDone) ||
-    r.getString("grant_error") !== prev.getString("grant_error")
+    r.getString("grant_error") !== prev.getString("grant_error") ||
+    r.getInt("grant_delivered_seconds") !== prev.getInt("grant_delivered_seconds")
   ) {
     throw new ForbiddenError("Grant results are maintained by the server.");
   }
@@ -67,7 +69,7 @@ cronAdd("paydirt_familylink", "* * * * *", () => {
 onRecordUpdateRequest((e) => {
   const r = e.record;
   const prev = r.original();
-  for (const field of ["child", "assignment", "minutes", "description", "grant_error", "given_by", "request_key"]) {
+  for (const field of ["child", "assignment", "minutes", "description", "grant_error", "given_by", "request_key", "grant_delivered_seconds"]) {
     if (r.getString(field) !== prev.getString(field)) {
       throw new BadRequestError("Time grant details cannot change.");
     }

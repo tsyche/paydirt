@@ -53,6 +53,7 @@ class UnifiedPushReceiver : BroadcastReceiver() {
                         json.optString("title", "PayDirt"),
                         json.optString("body", ""),
                         type,
+                        json.optString("inboxId", ""),
                     )
                     // Phase 2 trigger: a spend approval should mirror into Family
                     // Link. The accessibility service registers its receiver only
@@ -75,7 +76,7 @@ class UnifiedPushReceiver : BroadcastReceiver() {
         }
     }
 
-    private fun showNotification(context: Context, title: String, body: String, type: String) {
+    private fun showNotification(context: Context, title: String, body: String, type: String, inboxId: String) {
         val nm = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
 
         // Channel creation is idempotent — safe even if the JS side already made it.
@@ -94,16 +95,20 @@ class UnifiedPushReceiver : BroadcastReceiver() {
             .setSmallIcon(R.mipmap.ic_launcher)
             .setAutoCancel(true)
             .setPriority(NotificationCompat.PRIORITY_HIGH)
-            .setContentIntent(buildContentIntent(context, type))
+            .setContentIntent(buildContentIntent(context, type, inboxId))
             .build()
 
-        nm.notify(System.currentTimeMillis().toInt(), notification)
+        if (inboxId.matches(Regex("[a-z0-9]{15}"))) {
+            nm.notify("paydirt-inbox:$inboxId", 0, notification)
+        } else {
+            nm.notify(System.currentTimeMillis().toInt(), notification)
+        }
     }
 
     // Launches MainActivity with a paydirt:// deep link carrying the payload's `type` so the
     // RN layer can route to the relevant screen. Targets MainActivity explicitly, so this
     // doesn't depend on AndroidManifest intent-filter resolution to open our own app.
-    private fun buildContentIntent(context: Context, type: String): PendingIntent {
+    private fun buildContentIntent(context: Context, type: String, inboxId: String): PendingIntent {
         val uri = Uri.Builder().scheme(DEEP_LINK_SCHEME).authority(DEEP_LINK_HOST).apply {
             if (type.isNotEmpty()) appendQueryParameter("type", type)
         }.build()
@@ -116,7 +121,7 @@ class UnifiedPushReceiver : BroadcastReceiver() {
 
         return PendingIntent.getActivity(
             context,
-            0,
+            (inboxId.ifEmpty { type }).hashCode(),
             intent,
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
         )

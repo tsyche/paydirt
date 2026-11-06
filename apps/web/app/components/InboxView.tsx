@@ -23,6 +23,12 @@ export function InboxView({ userId }: { userId: string }) {
 
   useEffect(() => {
     void load();
+    let disposed = false;
+    let unsubscribe: (() => void) | undefined;
+    void client.subscribeToInbox(userId, () => void load()).then((stop) => {
+      if (disposed) stop(); else unsubscribe = stop;
+    }).catch(() => {});
+    return () => { disposed = true; unsubscribe?.(); };
   }, [userId]);
 
   async function remove(id: string) {

@@ -21,17 +21,26 @@ onRecordAfterCreateSuccess((e) => {
     e.record.getString("child"),
     "New chore! ⭐",
     chore.getString("name"),
+    "chore_assigned", "assignments:" + e.record.id,
   );
   e.next();
 }, "assignments");
 
 // ── Assignment updated ────────────────────────────────────────────────────────
 onRecordAfterUpdateSuccess((e) => {
-  const { notifyUser, notifyParents } = require(`${__hooks}/lib/ntfy.js`);
+  const { notifyUser, notifyParents, clearSource } = require(`${__hooks}/lib/ntfy.js`);
   const chore = e.app.findRecordById("chores", e.record.getString("chore"));
   const name = chore.getString("name");
   const status = e.record.getString("status");
   const prev = e.record.original().getString("status");
+  const source = "assignments:" + e.record.id;
+  if (status !== prev) {
+    clearSource(e.app, source);
+    clearSource(e.app, source + ":help");
+  }
+  if (!e.record.getBool("needs_help") && e.record.original().getBool("needs_help")) {
+    clearSource(e.app, source + ":help");
+  }
 
   // Kid replied to a rejection — ping parents.
   const response = e.record.getString("kid_response");
@@ -42,6 +51,7 @@ onRecordAfterUpdateSuccess((e) => {
       chore.getString("household"),
       kid.getString("display_name") + " replied 💬",
       name + ": " + response,
+      "chore_reply", source,
     );
   }
 
@@ -55,6 +65,7 @@ onRecordAfterUpdateSuccess((e) => {
       chore.getString("household"),
       kid.getString("display_name") + " needs help 🆘",
       name,
+      "chore_help", source + ":help",
     );
   }
 
@@ -65,7 +76,7 @@ onRecordAfterUpdateSuccess((e) => {
 
   if (status === "completed" && prev !== "approved") {
     // Chore submitted — parents need to approve.
-    notifyParents(e.app, chore.getString("household"), "Chore needs approval", name);
+    notifyParents(e.app, chore.getString("household"), "Chore needs approval", name, "chore_completed", source);
   } else if (status === "approved") {
     const percent = e.record.getFloat("credit_percent") || 100;
     notifyUser(e.app, e.record.getString("child"), "Chore approved! ✅",
@@ -77,6 +88,7 @@ onRecordAfterUpdateSuccess((e) => {
       e.record.getString("child"),
       "Chore needs a redo",
       msg ? name + ": " + msg : name,
+      "chore_rejected", source,
     );
   }
 
@@ -92,19 +104,21 @@ onRecordAfterCreateSuccess((e) => {
     e.record.getString("household"),
     "Chore idea from " + kid.getString("display_name") + " 💡",
     e.record.getString("name") + " for " + e.record.getFloat("reward_requested"),
+    "chore_proposed", "chore_proposals:" + e.record.id,
   );
   e.next();
 }, "chore_proposals");
 
 // ── Chore proposal resolved → notify kid ─────────────────────────────────────
 onRecordAfterUpdateSuccess((e) => {
-  const { notifyUser } = require(`${__hooks}/lib/ntfy.js`);
+  const { notifyUser, clearSource } = require(`${__hooks}/lib/ntfy.js`);
   const status = e.record.getString("status");
   const prev = e.record.original().getString("status");
   if (prev !== "pending" || (status !== "approved" && status !== "declined")) {
     e.next();
     return;
   }
+  clearSource(e.app, "chore_proposals:" + e.record.id);
   const name = e.record.getString("name");
   const reason = e.record.getString("decline_reason");
   if (status === "approved") {
@@ -123,7 +137,7 @@ onRecordAfterCreateSuccess((e) => {
   const message = e.record.getString("message");
   // The sender keeps a copy so parents can see what they've sent.
   logToInbox(e.app, sender, "You sent a message 📣", message, "broadcast_sent");
-  notifyChildren(e.app, household, "Message from Mom/Dad 📣", message, "broadcast");
+  notifyChildren(e.app, household, "Message from Mom/Dad 📣", message, "broadcast", "broadcasts:" + e.record.id);
   const senderName = e.app.findRecordById("users", sender).getString("display_name") || "A parent";
   // Other parents get the push too; the sender already has the inbox copy.
   const parents = e.app.findRecordsByFilter(
@@ -142,8 +156,9 @@ onRecordAfterCreateSuccess((e) => {
 
 // ── Kid replies to a broadcast → notify parents ──────────────────────────────
 onRecordAfterCreateSuccess((e) => {
-  const { notifyParents } = require(`${__hooks}/lib/ntfy.js`);
+  const { notifyParents, clearSource } = require(`${__hooks}/lib/ntfy.js`);
   const labels = { ok: "👍 OK", question: "❓ Question", later: "⏰ Later", please: "🙏 Please" };
+  clearSource(e.app, "broadcasts:" + e.record.getString("broadcast"), e.record.getString("child"));
   const kid = e.app.findRecordById("users", e.record.getString("child"));
   const broadcast = e.app.findRecordById("broadcasts", e.record.getString("broadcast"));
   const code = e.record.getString("code");
@@ -166,19 +181,21 @@ onRecordAfterCreateSuccess((e) => {
     child.getString("household"),
     "Spend request",
     child.getString("display_name") + ": " + e.record.getString("description"),
+    "spend_requested", "spend_requests:" + e.record.id,
   );
   e.next();
 }, "spend_requests");
 
 // ── Spend request resolved → notify kid + trigger Phase 2 automation ─────────
 onRecordAfterUpdateSuccess((e) => {
-  const { notifyUser, notifyParents } = require(`${__hooks}/lib/ntfy.js`);
+  const { notifyUser, notifyParents, clearSource } = require(`${__hooks}/lib/ntfy.js`);
   const status = e.record.getString("status");
   const prev = e.record.original().getString("status");
   if (prev !== "pending" || (status !== "approved" && status !== "denied")) {
     e.next();
     return;
   }
+  clearSource(e.app, "spend_requests:" + e.record.id);
   const desc = e.record.getString("description");
   const reason = e.record.getString("decline_reason");
   const child = e.app.findRecordById("users", e.record.getString("child"));
@@ -186,12 +203,35 @@ onRecordAfterUpdateSuccess((e) => {
     notifyUser(e.app, e.record.getString("child"), "Spend approved! 🎉", desc);
     // The server queue owns screen-time grants. Do not also trigger the
     // shelved Android accessibility automation for these approvals.
-    notifyParents(e.app, child.getString("household"), "Spend approved", desc);
+    // Do not replace the deciding parent's cleared request with another alert
+    // about the action they just took. Other parents still get the update.
+    const others = e.app.findRecordsByFilter("users",
+      "household = {:hh} && role = 'parent' && id != {:resolver}", "", 0, 0,
+      { hh: child.getString("household"), resolver: e.record.getString("resolved_by") });
+    for (const parent of others) notifyUser(e.app, parent.id, "Spend approved", desc);
   } else {
     notifyUser(e.app, e.record.getString("child"), "Spend denied", reason ? `${desc} — ${reason}` : desc);
   }
   e.next();
 }, "spend_requests");
+
+// Deleting an action target also removes its now-useless reminders.
+onRecordAfterDeleteSuccess((e) => {
+  const { clearSource } = require(`${__hooks}/lib/ntfy.js`);
+  const source = e.record.collection().name + ":" + e.record.id;
+  clearSource(e.app, source);
+  clearSource(e.app, source + ":help");
+  clearSource(e.app, source + ":grant");
+  e.next();
+}, "assignments", "chore_proposals", "spend_requests", "time_grants", "broadcasts");
+
+onRecordAfterUpdateSuccess((e) => {
+  if (e.record.getString("grant_status") === "manual_done" &&
+      e.record.original().getString("grant_status") === "manual") {
+    require(`${__hooks}/lib/ntfy.js`).clearSource(e.app, e.record.collection().name + ":" + e.record.id + ":grant");
+  }
+  e.next();
+}, "spend_requests", "time_grants");
 
 // ── Test notification → push to the caller's own device ──────────────────────
 // Lets the setup dialog prove delivery end to end. Bypasses quiet hours (a test

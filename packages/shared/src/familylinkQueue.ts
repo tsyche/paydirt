@@ -24,10 +24,10 @@ async function syncPath(path: string) {
   try { await handle.sync(); } finally { await handle.close(); }
 }
 
-// Purchases are 15-60 min; chore bonuses are 5-120 min. All whole 5-minute steps.
-function isGrantSeconds(seconds: unknown) {
+// Rewards use five-minute steps; split deliveries may leave a one-minute remainder.
+function isGrantSeconds(seconds: unknown, remainder: boolean) {
   return typeof seconds === "number" && Number.isInteger(seconds) &&
-    seconds >= 300 && seconds <= 7200 && seconds % 300 === 0;
+    seconds >= (remainder ? 60 : 300) && seconds <= 7200 && seconds % (remainder ? 60 : 300) === 0;
 }
 
 function validJob(value: unknown, id: string): value is FamilyLinkJob {
@@ -37,12 +37,12 @@ function validJob(value: unknown, id: string): value is FamilyLinkJob {
     /^[a-z0-9]{20,80}$/.test(job.deviceId) &&
     (!job.validUntil || Number.isFinite(Date.parse(job.validUntil))) &&
     (!job.expiresAt || Number.isFinite(Date.parse(job.expiresAt))) &&
-    isGrantSeconds(job.seconds);
+    isGrantSeconds(job.seconds, /^[a-z0-9]{15}-\d+$/.test(id));
 }
 
 export async function processFamilyLinkQueue(
   directory: string,
-  grant: (job: FamilyLinkJob) => Promise<number>,
+  grant: (job: FamilyLinkJob) => Promise<number | { code: number; deliveredSeconds: number }>,
   enabled: boolean,
 ) {
   const pending = join(directory, "pending");
@@ -52,16 +52,16 @@ export async function processFamilyLinkQueue(
   await syncPath(directory);
   await syncPath(dirname(directory));
 
-  async function receipt(id: string, status: "granted" | "manual" | "deferred", error = "") {
+  async function receipt(id: string, status: "granted" | "manual" | "deferred", error = "", extra = {}) {
     const file = join(results, `${id}.json`);
-    await writeFile(`${file}.tmp`, JSON.stringify({ id, status, error }), { mode: 0o600, flush: true });
+    await writeFile(`${file}.tmp`, JSON.stringify({ id, status, error, ...extra }), { mode: 0o600, flush: true });
     await rename(`${file}.tmp`, file);
     await syncPath(results);
   }
 
   // A lost worker may have reached Google. Never replay an uncertain write.
   for (const name of await readdir(processing)) {
-    if (!/^[a-z0-9]{15}\.json$/.test(name)) continue;
+    if (!/^[a-z0-9]{15}(?:-\d+)?\.json$/.test(name)) continue;
     const id = name.slice(0, -5);
     if (!await exists(join(results, name))) await receipt(id, "manual", "interrupted");
     await unlink(join(processing, name));
@@ -70,7 +70,7 @@ export async function processFamilyLinkQueue(
   // A service activation drains everything present. The path unit reactivates
   // for jobs arriving after the final directory scan.
   for (;;) {
-    const names = (await readdir(pending)).filter((n) => /^[a-z0-9]{15}\.json$/.test(n)).sort();
+    const names = (await readdir(pending)).filter((n) => /^[a-z0-9]{15}(?:-\d+)?\.json$/.test(n)).sort();
     if (!names.length) return;
     for (const name of names) {
       const id = name.slice(0, -5);
@@ -99,10 +99,24 @@ export async function processFamilyLinkQueue(
         await receipt(id, "deferred");
       } else {
         let exitCode = 1;
-        try { exitCode = await grant(job); } catch { /* Uncertain outcome. */ }
+        let deliveredSeconds: number | undefined;
+        try {
+          const outcome = await grant(job);
+          exitCode = typeof outcome === "number" ? outcome : outcome.code;
+          if (typeof outcome !== "number") {
+            deliveredSeconds = outcome.deliveredSeconds;
+            if (!Number.isInteger(deliveredSeconds) || deliveredSeconds < 0 ||
+                deliveredSeconds > job.seconds || deliveredSeconds % 60 !== 0) exitCode = 1;
+          }
+        } catch { /* Uncertain outcome. */ }
         browserFailed = exitCode !== 0;
-        await receipt(id, exitCode === 0 ? "granted" : "manual",
-          exitCode === 2 ? "session_expired" : exitCode === 0 ? "" : "failed");
+        if (exitCode === 0 && deliveredSeconds === 0) {
+          await receipt(id, "deferred", "", { retryAfter: job.validUntil });
+        } else {
+          await receipt(id, exitCode === 0 ? "granted" : "manual",
+            exitCode === 2 ? "session_expired" : exitCode === 0 ? "" : "failed",
+            deliveredSeconds === undefined ? {} : { deliveredSeconds });
+        }
       }
       await unlink(claimed);
       // Leave the service after a browser failure/timeout. systemd reaps its

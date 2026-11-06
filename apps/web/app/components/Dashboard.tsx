@@ -17,7 +17,7 @@ import type {
   SpendRequest,
   User,
 } from "@paydirt/shared";
-import { kidsAtLimit, knownChoreNames, GOAL_NAME_MAX, GOAL_DETAILS_MAX, parseAssignDraft, serializeAssignDraft, AVATAR_COLORS, REACTIONS, undoApprovalPrompt, avatarUrl, currencyDisplayName, effectiveGoodsRate, kidAccent, kudosDefaultBucks, KUDOS_REASON_MAX, parseGoodsRateOverride, featureTip, screenGrantLabel, errorMessage, limitLabel, limitUnit, payLabel, approveTimePrompt, summarizeMonthActivity, waitingActionCount, payMode, validatePay, MINUTES_STEP, MAX_REWARD_MINUTES } from "@paydirt/shared";
+import { kidsAtLimit, knownChoreNames, GOAL_NAME_MAX, GOAL_DETAILS_MAX, parseAssignDraft, serializeAssignDraft, AVATAR_COLORS, REACTIONS, undoApprovalPrompt, avatarUrl, currencyDisplayName, effectiveGoodsRate, kidAccent, kudosDefaultBucks, KUDOS_REASON_MAX, parseGoodsRateOverride, featureTip, bankedTimeLabel, errorMessage, limitLabel, limitUnit, payLabel, approveTimePrompt, summarizeMonthActivity, waitingActionCount, payMode, validatePay, MINUTES_STEP, MAX_REWARD_MINUTES } from "@paydirt/shared";
 import { client } from "../lib/client";
 import { HouseholdSettings } from "./HouseholdSettings";
 import { RecurringDueFields } from "./RecurringDueFields";
@@ -540,7 +540,7 @@ export function Dashboard({
                 <div style={{ fontWeight: 600 }}>
                   {(g.expand?.child as User | undefined)?.display_name ?? "child"} — {g.description}
                 </div>
-                <div>{screenGrantLabel(g.grant_status)}</div>
+                <div>{bankedTimeLabel(g)}</div>
                 {g.grant_error && <div role="status" className="muted">{g.grant_error}</div>}
               </div>
               {g.grant_status === "manual" && <button className="sm" onClick={() => {
@@ -556,7 +556,7 @@ export function Dashboard({
                 <div style={{ fontWeight: 600 }}>
                   {(s.expand?.child as User | undefined)?.display_name ?? "child"} — {s.description}
                 </div>
-                <div>{screenGrantLabel(s.grant_status)}</div>
+                <div>{bankedTimeLabel(s)}</div>
                 {s.grant_error && <div role="status" className="muted">{s.grant_error}</div>}
               </div>
               {s.grant_status === "manual" && <button className="sm" onClick={() => {

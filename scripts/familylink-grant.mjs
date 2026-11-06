@@ -118,7 +118,7 @@ async function login() {
   return exportProfileSession();
 }
 
-async function grant(rawSeconds, rawChildId, rawDeviceId) {
+async function grant(rawSeconds, rawChildId, rawDeviceId, validUntil) {
   const seconds = parseGrantSeconds(rawSeconds);
   const childId = assertFamilyLinkId("childId", rawChildId);
   const deviceId = assertFamilyLinkId("deviceId", rawDeviceId);
@@ -156,15 +156,14 @@ async function grant(rawSeconds, rawChildId, rawDeviceId) {
             },
             { url, init },
           ),
-        { childId, deviceId, apiKey, authorization, seconds },
+        { childId, deviceId, apiKey, authorization, seconds, validUntil: validUntil || undefined },
       );
     } finally {
       await saveState(context);
     }
 
-    console.log(
-      `Added ${seconds}s; preserved ${res.remainingSeconds}s; bonus set to ${res.totalSeconds}s (HTTP ${res.status}).`,
-    );
+    // The queue needs the actual delivered amount, not the requested amount.
+    console.log(JSON.stringify({ deliveredSeconds: res.totalSeconds - res.remainingSeconds }));
     return 0;
   } finally {
     await browser.close();

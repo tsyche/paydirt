@@ -40,9 +40,12 @@ function windowState(household, now, child) {
   // Find the next allowed local minute, including weekend transitions and DST.
   for (let i = 0; i < 8 * 24 * 60; i++) {
     next.setTime(next.getTime() + 60000);
-    if (allowed(next)) return { open: false, message: "Queued — unlocks " + next.toISOString() + " (UTC)" };
+    if (allowed(next)) {
+      const local = new DateTime(next.toISOString()).time().in(new Timezone(zone));
+      return { open: false, message: "Banked — next delivery " + local.format("Mon, Jan 2 at 3:04 PM MST") };
+    }
   }
-  return { open: false, message: "Queued — waiting for an allowed delivery window." };
+  return { open: false, message: "Banked — waiting for an allowed delivery window." };
 }
 function validate(record) {
   let days;

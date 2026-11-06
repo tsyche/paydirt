@@ -24,6 +24,31 @@ afterEach(async () => {
 });
 
 describe("Family Link queue worker", () => {
+  it("persists a partial delivery receipt without replaying it", async () => {
+    const root = await setup();
+    await processFamilyLinkQueue(root, async () => ({ code: 0, deliveredSeconds: 600 }), true);
+    expect(await result(root)).toMatchObject({ status: "granted", deliveredSeconds: 600 });
+    await writeFile(join(root, "pending", `${job.id}.json`), JSON.stringify(job));
+    await processFamilyLinkQueue(root, async () => { throw new Error("replayed"); }, true);
+    expect(await result(root)).toMatchObject({ status: "granted", deliveredSeconds: 600 });
+  });
+
+  it("defers a full window without treating undelivered time as granted", async () => {
+    const value = { ...job, validUntil: new Date(Date.now() + 900_000).toISOString() };
+    const root = await setup("pending", value);
+    await processFamilyLinkQueue(root, async () => ({ code: 0, deliveredSeconds: 0 }), true);
+    expect(await result(root)).toMatchObject({ status: "deferred", retryAfter: value.validUntil });
+  });
+
+  it("accepts a seven-minute split remainder without relaxing original reward steps", async () => {
+    const root = await setup();
+    const id = `${job.id}-480`;
+    await writeFile(join(root, "pending", `${id}.json`), JSON.stringify({ ...job, id, seconds: 420 }));
+    const calls: number[] = [];
+    await processFamilyLinkQueue(root, async (value) => { calls.push(value.seconds); return 0; }, true);
+    expect(calls.sort((a, b) => a - b)).toEqual([420, 900]);
+    expect(await result(root, id)).toMatchObject({ status: "granted" });
+  });
   it("runs the real worker entry point with automation disabled", async () => {
     const root = await setup();
     execFileSync(process.execPath, [

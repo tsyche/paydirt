@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import {
   FL_ORIGIN,
   FamilyLinkAuthError,
@@ -210,6 +210,39 @@ describe("remainingBonusSeconds", () => {
 });
 
 describe("addFamilyLinkBonus", () => {
+  it("delivers exactly 15 of 30 earned minutes at 8:15 PM with an 8:30 PM close", async () => {
+    const payload = observedLimits();
+    (payload[1][0][0] as unknown[])[13] = [["0"]];
+    const { request } = network(payload);
+    const clock = vi.spyOn(Date, "now").mockReturnValue(Date.parse("2026-11-06T04:15:00Z"));
+    try {
+      const result = await addFamilyLinkBonus(request, {
+        ...GRANT, seconds: 1800, validUntil: "2026-11-06T04:30:00Z",
+      });
+      expect(result.totalSeconds - result.remainingSeconds).toBe(900);
+    } finally { clock.mockRestore(); }
+  });
+  it("banks the portion that does not fit before closing, including existing bonus", async () => {
+    const payload = observedLimits();
+    payload[0][1] = "1793229204372";
+    (payload[1][0][0] as unknown[])[13] = [["600"]];
+    const { request, calls } = network(payload);
+    const result = await addFamilyLinkBonus(request, {
+      ...GRANT, seconds: 1800, validUntil: new Date(Date.now() + 900_000).toISOString(),
+    });
+    expect(result.totalSeconds).toBeLessThanOrEqual(900);
+    expect(result.totalSeconds).toBeGreaterThanOrEqual(840);
+    expect(JSON.parse(calls.at(-1)!.init.body!)[2][0][13][0][0]).toBe(String(result.totalSeconds));
+  });
+
+  it("does not write when existing bonus fills the remaining window", async () => {
+    const { request, calls } = network(observedLimits());
+    const result = await addFamilyLinkBonus(request, {
+      ...GRANT, validUntil: new Date(Date.now() + 900_000).toISOString(),
+    });
+    expect(result.totalSeconds).toBe(result.remainingSeconds);
+    expect(calls.map((call) => call.init.method)).toEqual(["GET"]);
+  });
   it("retains ten paid minutes when another fifteen minutes are purchased", async () => {
     const payload = observedLimits();
     payload[0][1] = "1793229204372";

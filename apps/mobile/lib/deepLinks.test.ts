@@ -2,6 +2,15 @@ import { describe, expect, it } from "vitest";
 
 import { kidTabForNotificationType, parseNotificationType, tabForNotificationType } from "./deepLinks";
 
+it("routes actionable alerts to the place that resolves them", () => {
+  for (const type of ["chore_completed", "chore_proposed", "chore_help", "chore_reply", "spend_requested", "grant_manual"]) {
+    expect(tabForNotificationType(type)).toBe("approvals");
+  }
+  for (const type of ["chore_assigned", "chore_rejected"]) {
+    expect(kidTabForNotificationType(type)).toBe("chores");
+  }
+});
+
 describe("parseNotificationType", () => {
   it("extracts type from a paydirt notification deep link", () => {
     expect(parseNotificationType("paydirt://notification?type=spend_approved")).toBe(

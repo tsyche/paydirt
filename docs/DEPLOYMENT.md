@@ -66,7 +66,20 @@ the ordinary daily allowance into the bonus calculation.
 
 Bonus screen time is granted through the Family Link web API ([`scripts/familylink-grant.mjs`](../scripts/familylink-grant.mjs)). Google rejects sign-in from automated browsers, so you sign in on the Mac and copy the session to the host.
 
-Each grant reads the target device's active bonus and sets the bonus to remaining + purchased seconds. The calculation uses Google's server time and rounds remaining seconds up. Failed reads, missing devices, malformed responses, or unsupported active overrides stop the grant without writing. Purchases are 15-60 minutes; chore and direct parent bonuses (`time_grants`) are 5-120 minutes, and the worker accepts any whole 5-minute step in that range. Direct bonuses use the same delivery windows and manual fallback without changing grit. The worker and `fl-host-grant` share a host lock; do not run Mac grants concurrently with host grants.
+Each grant reads the target device's active bonus and adds only the new minutes
+that fit before the delivery window closes, accounting for bonus already
+running. A 30-minute reward at 8:15 PM with an 8:30 PM close delivers 15 minutes
+and banks 15 for the next opening. Sub-minute gaps wait for the next window;
+split remainders use whole minutes. Existing bonus is never reduced.
+
+The calculation uses Google's server time and rounds remaining seconds up.
+Failed reads, missing devices, malformed responses, or unsupported active
+overrides stop the grant without writing. Purchases are 15–60 minutes; chore
+and direct parent bonuses (`time_grants`) are 5–120 minutes in five-minute
+steps. Direct bonuses use the same delivery windows and manual fallback without
+changing grit. The worker and `fl-host-grant` share a host lock; do not run Mac
+grants concurrently with host grants. These limits apply to bonus delivery;
+they do not change Family Link's ordinary daily allowance.
 
 1. Mac: `just fl-login` (sign in to the co-parent account by hand, then quit that Chrome). Needs `~/.config/paydirt/familylink.env` with `FL_CHILD_ID`, `FL_DEVICE_ID`, `FL_API_KEY`.
 2. `just fl-host-setup [browsers]` (default `firefox`; `"firefox chromium"` for both). It is idempotent and:
@@ -93,6 +106,14 @@ When disabled or a child has no IDs, approval still deducts the purchase and sho
 - Approval commits `grant_status=queued` with the spend. The hook publishes a private JSON request; the minute cron repairs a missed publish and imports results.
 - `paydirt-fl.path` starts the worker. It claims each request atomically and processes grants serially, with a 60-second timeout per browser command.
 - Receipts stay on disk to prevent replay. Failed or interrupted grants are never retried automatically: Google may have accepted a write before the connection failed.
+- Partial receipts record actual delivered seconds. The row stays queued until
+  the full reward is delivered; each remainder has its own receipt key. A full
+  window waits until closing before retrying at a later opening. Optional queue
+  expiry still routes undelivered time to manual review.
+- Deploy the backend, grant script, and worker together (`just update-service`).
+  The old worker cannot process remainder receipt keys. Do not roll back the
+  delivery-progress migration while partially delivered rewards are outstanding;
+  preserve/settle their remaining balances first.
 - `grant_status` is `queued`, `granted`, `manual`, or `manual_done`; `grant_error` contains a safe recovery message. No browser responses, authenticated URLs, or credentials enter these fields or worker logs.
 - For `manual`, check Family Link before adding time, then use **Mark granted manually** in either parent app. Session expiry instructs the parent to run `fl-login` and `fl-host-setup`; refreshing auth does not replay failed purchases.
 - Updating code stops the worker. An interrupted job becomes manual review on recovery. Keep `queue/results/` receipts; do not remove the queue to retry grants.
