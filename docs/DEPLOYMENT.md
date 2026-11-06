@@ -53,7 +53,7 @@ Migrations run automatically on restart. No commit or push is needed to deploy l
 | Logs | `just service-logs [N]` |
 | Restart | `just service-restart` |
 | Copy backups to this Mac | `just backup-pull` |
-| Deploy backend + publish APK + adb install (commit first) | `just ship` |
+| Deploy backend + publish APK + adb install (warns on uncommitted files) | `just ship` |
 | Ship APK/OTA to the host | `just push-updates` |
 
 ## Family Link grants

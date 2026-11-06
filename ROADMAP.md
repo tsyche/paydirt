@@ -2,7 +2,7 @@
 
 ## TL;DR
 
-PayDirt is live on bb. Only completed work belongs in the [shipped ledger](docs/ledger/ROADMAP_SHIPPED.md). Implemented work with outstanding acceptance stays active in the [acceptance plan](docs/plans/feature-acceptance.md). Recurring due days are next, followed by mobile journey coverage and remaining edit-panel fixes.
+PayDirt is live on bb. Only completed work belongs in the [shipped ledger](docs/ledger/ROADMAP_SHIPPED.md). Implemented work with outstanding acceptance stays active in the [acceptance plan](docs/plans/feature-acceptance.md). The current queue covers the affected tablet's installer, My Bank readability, and parent approval/history UX; the existing recurring and mobile-journey checks remain active.
 
 Scope checklist: [FEATURES.md](./FEATURES.md). **This file is the authoritative
 status tracker.**
@@ -23,9 +23,9 @@ Last audited 2026-11-04 against source, tests, and implementation commits. Dupli
 
 ## Recommended Next 3
 
-1. **Recurring due days: verify and finish** — next at the owner's request. The implementation already exists; verify daily/weekly/monthly deadlines, household timezone and DST, month-end clamping, template prefill, assignment snapshots, and overdue/recurrence behavior. Add missing automated coverage and fix observed gaps rather than rebuilding the feature.
-2. **Mobile journey coverage** — implement the existing [Maestro E2E item](#backlog-unscheduled), including chore creation and suggestion approval as regression journeys. Component/API checks missed the hidden create form. Emulator execution is required; no scheduled CI run is requested.
-3. **Remaining edit-panel UX** — finish the existing [known issue](#known-issues): descriptive headers and pinned Save/Cancel on the remaining chore/kid/settings edit forms, then verify the actual surfaces.
+1. [Tablet installer investigation](#backlog-unscheduled) — diagnose the `.164` device's Files handoff once its current ADB connection port is available.
+2. [My Bank readability](#backlog-unscheduled) — the next UI refresh; finish and visually review the separated sections in both kid layouts.
+3. [Parent history and approval UX](#backlog-unscheduled) — five initial past records, ten more per tap, optional approval feedback, and clearer web approval controls.
 
 ## Release checks for implemented work
 
@@ -33,7 +33,7 @@ These are verification/deployment tasks, not features to implement again. Specif
 
 - **Banked time and action alerts** — deploy backend/worker together and the new APK, then verify split rewards at closing time and linked in-app/Android alert cleanup. Backend regression coverage exists; native/device acceptance remains open.
 
-- **Recurring due days** — active verification above. 🧑 needs-human: final native tap-through unless an emulator is available.
+- **Recurring due days** — verify daily/weekly/monthly deadlines, household timezone/DST, month-end clamping, template prefill, snapshots, and next-cycle behavior. Yesterday's completed submission awaiting approval must coexist with today's actionable card; check both kid layouts and make the occurrence dates clear. Existing source/API regression covers the next-day behavior; native verification remains open. 🧑 needs-human: final native tap-through unless an emulator is available.
 - **Kudos, notes, partial credit, My Bank, and direct bonus controls** — source/UI entry points exist; finish deferred device checks before claiming full rollout.
 - **Delivery windows and timed chores** — verify per-day settings round-trip, timezone/DST boundaries, queued release at opening time, and timer restart behavior. School-time/downtime interaction still needs its own check.
 - **Latest mobile fixes** — verify invalid bonus-minute feedback and Approvals → suggested chore → editable modal → Create and approve / Cancel on the new APK. Rendered-component checks pass; native tap-through is not yet recorded.
@@ -83,6 +83,22 @@ Verify parent capabilities on both surfaces; pending checks are listed in the [a
 
 Ordered by impact-to-effort (2026-11-01 audit). Shipped items live in the ledger, not here.
 
+- **Tablet installer opens Files (2026-11-06)** — one tablet, `192.168.20.164`, opens Files instead of installing the in-app APK update; the other tablet has the same model/OS and works. Inspect the affected device's installed build, APK intent handler/default, install permission, and policy before changing shared installer code. The APK is intentionally in PayDirt's private cache, exposed through FileProvider, so it is not normally visible in Downloads. 🧑 needs-human: enable Wireless debugging and provide the current connection port; fixed port 5555 currently refuses connections.
+
+- **My Bank readability (2026-11-06)** — separate available balance, total/reserved amounts, alternative money/screen-time conversions, pending chore earnings, already-earned banked time, and savings goals. Use clear cards/spacing and restrained emphasis in standard and simplified kid layouts. Preserve all reward calculations and clearly distinguish estimates from available funds. A local layout draft was started, then deferred at the owner's request; visual phone/tablet review is still required. Phone headers remain unchanged.
+
+- **Parent history paging (2026-11-06)** — web and mobile show five past screen-time grants and five recently approved chores initially. “Show more” loads ten additional items per tap until the end; retain stable ordering and avoid duplicates or skipped records across purchased/bonus grants. Keep all queued/manual grants and pending approvals visible; these are not part of the history limit.
+
+- **Approve with feedback (2026-11-06)** — add an optional parent approval comment on web/mobile while preserving quick Approve. Store it with the specific completed assignment and show it to the child alongside approval, without changing the payout or using a rejection reason. Handle cancellation, failed saves, and repeat taps safely; verify both kid layouts can find the feedback.
+
+- **Web approval card polish (2026-11-06)** — place Partial credit below Approve, with a clear percent icon/button rather than plain text and a twisty. Keep its editor compact without shifting primary actions. Replace the inline “Resubmitted — you said…” text with a Resubmitted badge, a labelled previous-feedback callout, and a separately labelled child reply when present.
+
+- **Swipe actions and recoverable archives (2026-11-06)** — add Android-style swipe actions to alerts, Kudos, and applicable history lists. Prefer archive with Undo over permanent deletion; keep visible accessible actions so swiping is optional. Add an Archived view and Restore. Archiving hides an item for that user without changing rewards, balances, badge counts, or immutable transaction history. A contextual opposite-direction action (such as Edit) and configurable directions are options to evaluate, not assumed defaults. Kudos currently only collapses; archived awards should leave the main kid view while remaining available in history.
+
+- **Retract a help request (2026-11-06)** — both kid layouts should switch “I need help” to a clear “Cancel help request” action while requested. Clear the flag, update both kid/parent surfaces, and remove linked help reminders without changing the chore's completion state. The server already supports clearing the flag; the kid UI lacks the action.
+
+- **Tablet header actions (2026-11-06)** — on tablets with sufficient width, expose Alerts immediately after the balance, plus Theme, Sign out, and parent Settings as applicable, replacing the hamburger menu. Keep the phone header unchanged, including landscape phones; use device classification as well as available width. Preserve labels/accessibility and unread indicators; confirm sign-out to avoid an accidental one-tap logout. Fall back to overflow when a tablet window is narrow. Assess the real screens before implementing.
+
 - **Overview reassessment (2026-11-02)** — reassess after a few weeks of real use: (a) dollar figure in the app header; (b) kid-facing lifetime totals ("grand total accomplished"); (c) actual-vs-potential trend across weeks; (d) heatmap (parked): kids see only their own, parents get a household grid. Open: reprice pending spend requests on approval (default no; prices lock at request time).
 
 - **Parent alerts for economy thresholds (2026-11-02)** — informational ntfy to parents, never blocking, when something drifts past a limit they set: (a) a kid's weekly potential (dollars) above a ceiling, e.g. $40, which fires when chores are assigned or repriced, not daily; (b) actual weekly earnings or screen minutes bought or earned above a ceiling, checked in the weekly digest or after the day's approvals. Household settings: per-kid or household "alert above $/week" and "alert above screen min/week", both off by default. One alert per kid per threshold per week (dedupe marker) so it can't nag; suppressed in vacation mode. Reuses `weeklyPotential`/`householdWeeklyBucks`, `bankView` and the period sums in `overview.ts`, so the numbers match the Overview. Parity: the settings go on web and mobile together. **Gotcha:** the potential figure is a perfect-compliance ceiling and reads high, so tie the threshold to it knowingly, or alert on actuals as the primary signal.
@@ -113,7 +129,7 @@ Ordered by impact-to-effort (2026-11-01 audit). Shipped items live in the ledger
   - 🧑 needs-human: on-device GrapheneOS behavior observation to confirm any fix actually lands
 - **TalkBack accessibility pass** — labels, focus order, and touch-target sizes across kid + parent mobile surfaces (simplified mode especially, since it's aimed at a 6-year-old). Audit, fix, and document remaining gaps. ~2-3 hrs.
   - 🧑 needs-human: on-device TalkBack validation
-- **Maestro E2E for kid flow** — integration + Playwright cover the shared/web stack, but the mobile kid journey (login → simplified mode → complete → parent approve → balance tick) has no automated end-to-end coverage. Maestro flows on an emulator, optionally in CI behind `workflow_dispatch` like `just test-all`. ~4-6 hrs.
+- **Maestro E2E for kid flow** — integration + Playwright cover the shared/web stack, but the mobile kid journey (login → simplified mode → complete → parent approve → balance tick) has no automated end-to-end coverage. Include chore creation and suggested-chore approval as regression journeys: API/component checks missed the hidden mobile form. Maestro flows require an emulator, optionally in CI behind `workflow_dispatch` like `just test-all`; no scheduled CI run. ~4-6 hrs.
 - **Android home-screen widget** — glanceable kid balance + next due chore without opening the app (Glance/AppWidget). High kid delight, but native surface + device validation. ~4-6 hrs.
   - 🧑 needs-human: on-device widget validation
 - **UnifiedPush self-hosted ntfy** — when ready to move off ntfy.sh, re-register on device → new endpoint URL encodes the self-hosted server automatically. No server-side config needed.

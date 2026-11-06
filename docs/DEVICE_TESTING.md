@@ -167,7 +167,7 @@ adb reverse tcp:3111 tcp:3111                  # tunnel device → host (run onc
 ## Rebuilding after code changes
 
 ```bash
-just ship         # backend + release APK + in-app update + adb install where reachable (commit first)
+just ship         # backend + release APK + in-app update + adb install; warns on uncommitted files
 just push-remote  # release APK to tablets on Wi-Fi (reads deploy-devices)
 just build-apk    # recompile the debug APK (no need to re-run prebuild unless app.json changed)
 just install-apk  # build + install the debug APK in one step
@@ -177,7 +177,16 @@ just install-apk  # build + install the debug APK in one step
 
 ## In-app updates (no adb)
 
-`just ship` does everything: deploys the backend, builds the release APK, publishes it (versionCode = git commit count, so commit first), mirrors it to the host, and adb-installs on any reachable device (unreachable ones are skipped). `just release-apk` is the APK-only part. Each tablet checks on launch, on resume and every 15 minutes while open, then shows "Update available".
+`just ship` deploys the backend, builds and publishes the release APK, mirrors it
+to the host, and adb-installs on reachable devices. Uncommitted tracked or new
+files produce a warning and do not block shipping. Build/deployment failures
+still stop the command.
+
+The APK versionCode remains the git commit count. Rebuilding without another
+commit reuses that version, so a device already on it will not show a new
+in-app update prompt; a direct adb install can reinstall it. `just release-apk`
+is the APK-only part. Each tablet checks on launch, on resume, and every
+15 minutes while open, then shows "Update available" for a newer version.
 
 - Tapping Update downloads the APK and opens the Android installer when it finishes (the "download complete" notification is the fallback if the app was backgrounded). Android always requires the Install tap; reopen PayDirt afterwards and it shows "PayDirt updated".
 - One-time per tablet: Settings → Apps → PayDirt → Install unknown apps → allow. Without it the install silently fails.

@@ -44,7 +44,7 @@ just test-integration  # live API/hook tests (needs running, seeded PB)
 just test-e2e           # Playwright dashboard tests (needs running, seeded PB)
 just verify-ledger      # recompute balances from currency_transactions, diff vs. cache (needs running PB)
 just update-service     # deploy to the always-on host (bb); see docs/DEPLOYMENT.md
-just ship               # commit first; deploy backend + build/publish APK (tablets self-update) + adb install where reachable
+just ship               # deploy backend + build/publish APK + adb install where reachable; warns on uncommitted files
 just release-apk        # just the APK build + publish for in-app update
 just backup-pull       # copy the host's nightly backups here (also: push-updates, host-reset, go-live)
 just lint               # lint all workspaces

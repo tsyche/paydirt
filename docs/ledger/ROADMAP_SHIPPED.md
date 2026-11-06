@@ -4,6 +4,8 @@
 
 ## Shipped index
 
+- [x] 2026-11-06 — `just ship` warns on uncommitted files and continues; build/deployment failures still stop it
+
 - [x] 2026-11-06 — `just conn` skips unavailable devices successfully; mDNS endpoint parsing fixed
 
 - [x] 2026-11-04 — Rapid-approval queue preservation and pending/approved/rejected limit counting verified against live PocketBase
@@ -46,6 +48,14 @@
 - [x] 2026-06-10 — MVP, Phase 1, and Phase 1.5 (migrated 2026-10-21)
 
 ## Archived entries
+
+### 2026-11-06 — Shipping with uncommitted work
+
+`just ship` warns for modified or new files and continues with the working
+tree, instead of requiring a commit. Help and deployment docs describe the
+behavior and the unchanged commit-count APK version limitation. The actual
+recipe is covered by shell tests for tracked/untracked files, clean trees,
+and failed backend or APK stages, using fakes at the deployment boundary.
 
 ### 2026-11-06 — Nonfatal device connection checks
 

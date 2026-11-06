@@ -22,9 +22,9 @@ default:
     printf '  just install-apk    build + install a debug APK on a connected device/emulator\n'
     printf '\n\033[1mShip a release build to family devices\033[0m\n'
     printf '  just deploy-start          step-by-step pairing + install instructions\n'
-    printf '  just ship                  EVERYTHING: backend + build + publish for in-app update + adb install where reachable (commit first)\n'
+    printf '  just ship                  EVERYTHING: backend + build + publish for in-app update + adb install where reachable (warns if uncommitted)\n'
     printf '  just push-remote           connect tablets from deploy-devices + push release APK (Wi-Fi, no cable)\n'
-    printf '  just push                  alias of ship: server + published APK + reachable devices (commit first)\n'
+    printf '  just push                  alias of ship: server + published APK + reachable devices (warns if uncommitted)\n'
     printf '  just install-apk-release-all   build a signed release APK, install on every connected device\n'
     printf '\n\033[1mAlways-on server on bb\033[0m (docs/DEPLOYMENT.md)\n'
     printf '  just install-service       first install (imports local pb_data once)\n'
@@ -750,14 +750,14 @@ release-apk:
     just publish-apk "${code}" "${name}" apps/mobile/android/app/build/outputs/apk/release/app-release.apk
     just push-updates
 
-# THE one command (commit first): deploy backend, build + publish APK for in-app update, adb-install where reachable.
+# Deploy backend, build + publish APK, and adb-install where reachable; dirty trees warn.
 [group('android')]
 ship:
     #!/usr/bin/env bash
     set -euo pipefail
-    if ! git diff --quiet HEAD; then
-        printf '\033[0;31mUncommitted changes: commit first (the update version is the commit count).\033[0m\n'
-        exit 1
+    if [ -n "$(git status --porcelain)" ]; then
+        printf '\033[0;33mUncommitted changes: continuing with the current working tree.\033[0m\n'
+        printf '\033[0;33mAPK versions still use the commit count; devices already on this version will not see a new in-app update prompt.\033[0m\n'
     fi
     just update-service
     just release-apk
