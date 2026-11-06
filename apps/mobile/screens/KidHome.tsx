@@ -1,3 +1,5 @@
+import { HelpRequestButton } from "../components/HelpRequestButton";
+import { ArchiveRow } from "../components/ArchiveActions";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Alert, View, ScrollView, StyleSheet, RefreshControl } from "react-native";
 import {
@@ -252,10 +254,11 @@ export function KidHome({
     }
   }
 
-  async function requestHelp(id: string) {
+  async function requestHelp(id: string, requested: boolean) {
     try {
-      await client.pb.collection("assignments").update(id, { needs_help: true });
-      setSnack("Help requested — parents notified 🆘");
+      await client.setHelpRequested(id, requested);
+      await reload();
+      setSnack(requested ? "Help requested — parents notified 🆘" : "Help request cancelled.");
     } catch (e) {
       setSnack(errorMessage(e));
     }
@@ -438,7 +441,7 @@ export function KidHome({
                       />
                     )}
                     <View style={styles.utilityRow}>
-                      <IconButton icon="help-circle-outline" size={18} onPress={() => void requestHelp(a.id)} />
+                      <HelpRequestButton requested={!!a.needs_help} onChange={(requested) => requestHelp(a.id, requested)} />
                       <IconButton icon="alarm" size={18} onPress={() => setRemindFor(a)} />
                       {siblings.length > 0 && !offered ? (
                         <IconButton icon="swap-horizontal" size={18} onPress={() => setSwapFor(a)} />
@@ -555,7 +558,7 @@ export function KidHome({
             style={styles.historyAccordion}
           >
             {history.map((a) => (
-              <Card key={a.id} style={[styles.choreCard, styles.historyCard]}>
+              <ArchiveRow key={a.id} kind="assignment" id={a.id} label={a.expand?.chore?.name ?? "chore"} onChanged={() => void reload()}><Card style={[styles.choreCard, styles.historyCard]}>
                 <Card.Content>
                   <View style={styles.choreRow}>
                     <Text variant="bodyLarge">
@@ -576,7 +579,7 @@ export function KidHome({
                     </Text>
                   ) : null}
                 </Card.Content>
-              </Card>
+              </Card></ArchiveRow>
             ))}
           </List.Accordion>
         )}
@@ -1151,7 +1154,7 @@ const styles = StyleSheet.create({
   doneBtnContent: { paddingVertical: 6 },
   doneBtnLabel: { fontSize: 15, fontWeight: "700" },
   buttonRow: { flexDirection: "row", gap: 8, marginTop: 8 },
-  utilityRow: { flexDirection: "row", alignItems: "center", marginTop: 2 },
+  utilityRow: { flexDirection: "row", flexWrap: "wrap", alignItems: "center", gap: 4, marginTop: 2 },
   offeredNote: { opacity: 0.6 },
   dueChip: { alignSelf: "flex-start", marginTop: 4 },
   overdueChip: { alignSelf: "flex-start", marginTop: 4 },

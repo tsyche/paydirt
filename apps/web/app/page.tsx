@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import type { User } from "@paydirt/shared";
 import { client } from "./lib/client";
 import { Login } from "./components/Login";
+import { ArchiveProvider } from "./components/ArchiveActions";
 import { Dashboard } from "./components/Dashboard";
 
 export default function Home() {
@@ -28,12 +29,12 @@ export default function Home() {
   }
 
   return (
-    <Dashboard
+    <ArchiveProvider key={user.id}><Dashboard
       user={user}
       onLogout={() => {
         client.logout();
         setUser(null);
       }}
-    />
+    /></ArchiveProvider>
   );
 }

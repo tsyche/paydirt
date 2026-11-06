@@ -44,7 +44,9 @@
 - **Screen-time requests** — kids pick 15/30/45/60 min (both kid UIs); the server prices it at the household `screen_rate` (bucks per minute, default 1:1). Opt-in Family Link approval grants use a serialized worker; both parent UIs show results and manual completion. Host rollout remains in [ROADMAP Phase 2](ROADMAP.md#phase-2--family-link-automation).
 - **Scheduled chore reminders** — per-chore "HH:MM"; cron reminds assigned kids once a day.
 - **Approval nudges** — parents pinged when a completion sits unapproved longer than `nudge_hours`.
+- **Help cancellation** — both kid layouts offer Cancel help request while help is requested. It clears the flag and linked parent alerts while preserving the chore’s completion state. Native interaction acceptance remains open.
 - **Approval reactions** — parents react with an emoji from "Recently approved"; shown in the kid's history.
+- **Web approval-card context** — Partial credit has a percent control below Approve with an overlay editor; resubmissions have a badge, labelled previous parent feedback, and a separate child reply. Browser layout and partial-payout checks pass.
 - **Approval feedback** — parents can approve with an optional private comment on web/mobile. The child sees it in the approval alert and standard history. Quick approval stays available; feedback does not change the payout.
 - **Kid reminders** — kids set one-shot reminders (30m / 1h / 3h / tomorrow morning) on their own chores.
 - **Chore swap** — kid offers a chore to a sibling, who accepts (takes ownership) or declines; guarded server-side.
@@ -59,7 +61,7 @@
 - **Offline/unreachable-backend UX** — mobile app detects an unreachable PocketBase (`apps/mobile/lib/reachability.ts`), shows a banner with manual retry, retries automatically on reconnect, and keeps last-known balance/data visible instead of blanking.
 - **Notification deep links (Android)** — tapping a push notification opens the relevant screen via a `paydirt://` deep link (`apps/mobile/lib/deepLinks.ts`); JS routing logic is unit-tested, verified on-device 2026-10-21 (warm and cold start).
 
-- **Alerts inbox** — every push is also logged to a per-user `inbox` (bell in web and both mobile UIs; ✕ removes one, "Clear all"); items older than 30 days are pruned.
+- **Alerts and personal archives** — alerts, Kudos, approved chores, and settled screen-time grants can be archived per user with Undo and restored from Archived. Mobile supports either-direction horizontal swipes plus visible buttons; web has explicit actions. Rewards, badge totals, source records, and other users’ views stay intact. Unarchived alerts expire after 30 days; archived alerts are retained unless their underlying action is resolved. Native gesture/tray acceptance remains open.
 - **Scheduled allowance** — household `allowance_amount`/`allowance_cadence` (daily/weekly) paid by cron, with kid notification.
 - **Kid weekly recap** — Sunday ntfy to each kid: earnings, chores completed, nearest savings goal.
 - **"I need help" flag** — kid taps it on a chore; parents are pinged and see it in the approval queue.

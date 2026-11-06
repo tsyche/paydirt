@@ -31,6 +31,10 @@ describe("parent history and approval feedback (isolated PocketBase)", () => {
         const household = e.app.findRecordById("households", child.getString("household"));
         return e.json(200, require(__hooks + "/lib/grantWindows.js").windowState(household, new Date(query.at), child));
       }, $apis.requireAuth("users"));
+      routerAdd("POST", "/test/run-daily", (e) => {
+        require(__hooks + "/lib/scheduler.js").runDaily(e.app);
+        return e.json(200, { ok: true });
+      }, $apis.requireAuth("users"));
     `);
     const binary = join(repo, "pocketbase/pocketbase");
     const args = ["--dir", join(root, "data"), "--migrationsDir", join(repo, "pocketbase/pb_migrations")];
@@ -230,19 +234,107 @@ describe("parent history and approval feedback (isolated PocketBase)", () => {
     }
     expect((await parent.listBonusGrants(hh, 0)).map((row) => row.id).sort()).toEqual(outstanding.sort());
     expect((await parent.listScreenGrantHistoryPage(hh)).items.every((row) => !outstanding.includes(row.id))).toBe(true);
+    const tiedBonusArchive = await parent.archiveItem("time_grant", "y".repeat(15));
+    const filtered = await parent.listScreenGrantHistoryPage(hh, undefined, 100);
+    expect(filtered.items.some((row) => row.id === "y".repeat(15) && row.bonus)).toBe(false);
+    expect(filtered.items.some((row) => row.id === "y".repeat(15) && !row.bonus)).toBe(true);
+    await parent.restoreArchivedItem(tiedBonusArchive.id);
   }, 15_000);
+
+  it("archives only the viewer's settled history and restores without changing rewards", async () => {
+    const c = await chore("Archive me");
+    const assignment = await parent.assignChore(c.id, kid.currentUser!.id);
+    await expect(kid.archiveItem("assignment", assignment.id)).rejects.toThrow();
+    await kid.markComplete(assignment.id);
+    await parent.approveAssignment(assignment.id);
+    const balance = await parent.getBalance(kid.currentUser!.id);
+    const archived = await parent.archiveItem("assignment", assignment.id);
+    await expect(parent.archiveItem("assignment", assignment.id)).rejects.toThrow();
+    await expect(parent.pb.collection("archives").update(archived.id, { user: kid.currentUser!.id })).rejects.toThrow();
+    expect((await parent.listApprovedHistoryPage(parent.currentUser!.household, undefined, 100)).items.some((a) => a.id === assignment.id)).toBe(false);
+    expect((await kid.listApprovedHistory(kid.currentUser!.id)).some((a) => a.id === assignment.id)).toBe(true);
+    await expect(sibling.archiveItem("assignment", assignment.id)).rejects.toThrow();
+    await expect(sibling.restoreArchivedItem(archived.id)).rejects.toThrow();
+    expect((await sibling.listArchivesPage()).items).toHaveLength(0);
+    expect((await parent.listArchivesPage()).items.find((a) => a.id === archived.id)?.expand?.assignment?.id).toBe(assignment.id);
+    await parent.restoreArchivedItem(archived.id);
+    expect((await parent.listApprovedHistoryPage(parent.currentUser!.household, undefined, 100)).items.some((a) => a.id === assignment.id)).toBe(true);
+    const award = await parent.giveKudos(kid.currentUser!.id, 5, "Archive this praise");
+    const kudosArchive = await kid.archiveItem("kudos", award.id);
+    expect(await kid.listArchivedIds("kudos")).toContain(award.id);
+    expect((await kid.listKudosForChild(kid.currentUser!.id)).some((a) => a.id === award.id)).toBe(true);
+    await kid.markKudosSeen(award.id);
+    await kid.restoreArchivedItem(kudosArchive.id);
+    expect(await parent.getBalance(kid.currentUser!.id)).toBe(balance + 5);
+    const alert = (await kid.listInbox(kid.currentUser!.id))[0]!;
+    const inboxArchive = await kid.archiveItem("inbox", alert.id);
+    expect((await kid.listInbox(kid.currentUser!.id)).some((a) => a.id === alert.id)).toBe(false);
+    expect(await kid.listInboxIds(kid.currentUser!.id)).not.toContain(alert.id);
+    await expect(parent.archiveItem("inbox", alert.id)).rejects.toThrow();
+    await kid.restoreArchivedItem(inboxArchive.id);
+    expect((await kid.listInbox(kid.currentUser!.id)).some((a) => a.id === alert.id)).toBe(true);
+    const pending = await parent.giveBonusMinutes(kid.currentUser!.id, 5, "Pending archive guard", "archive_guard");
+    await expect(parent.archiveItem("time_grant", pending.id)).rejects.toThrow();
+    await parent.confirmBonusGrant(pending.id);
+    const grantArchive = await parent.archiveItem("time_grant", pending.id);
+    expect((await parent.listScreenGrantHistoryPage(parent.currentUser!.household, undefined, 100)).items.some((a) => a.id === pending.id && a.bonus)).toBe(false);
+    await parent.restoreArchivedItem(grantArchive.id);
+  });
+
+  it("keeps archived alerts through ordinary retention and prunes them only after restoration", async () => {
+    const award = await parent.giveKudos(kid.currentUser!.id, 5, "Retention fixture");
+    const alert = (await kid.listInbox(kid.currentUser!.id)).find((item) => item.body?.includes("Retention fixture"))!;
+    const archived = await kid.archiveItem("inbox", alert.id);
+    const db = new DatabaseSync(join(root, "data/data.db"));
+    try { db.prepare("UPDATE inbox SET created = ? WHERE id = ?").run("2020-01-01 00:00:00.000Z", alert.id); }
+    finally { db.close(); }
+    await parent.pb.send("/test/run-daily", { method: "POST" });
+    expect((await kid.pb.collection("inbox").getOne(alert.id)).id).toBe(alert.id);
+    await kid.restoreArchivedItem(archived.id);
+    await parent.pb.send("/test/run-daily", { method: "POST" });
+    await expect(kid.pb.collection("inbox").getOne(alert.id)).rejects.toThrow();
+    expect((await kid.listKudosForChild(kid.currentUser!.id)).some((item) => item.id === award.id)).toBe(true);
+  });
+
+  it("retracts help without completing a chore and clears both parents' linked alerts", async () => {
+    const other = new PaydirtClient(parent.pb.baseURL);
+    await other.login("parent2@test.local", "password123");
+    const c = await chore("Help cancellation");
+    const assignment = await parent.assignChore(c.id, kid.currentUser!.id);
+    await kid.setHelpRequested(assignment.id, true);
+    const source = "assignments:" + assignment.id + ":help";
+    for (const viewer of [parent, other]) {
+      expect((await viewer.listInbox(viewer.currentUser!.id)).some((item) => item.source === source)).toBe(true);
+    }
+    await kid.setHelpRequested(assignment.id, false);
+    const record = await kid.pb.collection("assignments").getOne(assignment.id);
+    expect(record.needs_help).toBe(false);
+    expect(record.status).toBe("assigned");
+    for (const viewer of [parent, other]) {
+      expect((await viewer.listInbox(viewer.currentUser!.id)).some((item) => item.source === source)).toBe(false);
+    }
+  });
 
   it("preserves existing schedules through migration and refuses an incompatible rollback", async () => {
     const child = kid.currentUser!.id;
     const windows = "05:30-09:00,16:30-20:30";
     await parent.pb.collection("users").update(child, { grant_weekday_window: windows });
+    const award = await parent.giveKudos(child, 5, "Rollback archive fixture");
+    const archived = await kid.archiveItem("kudos", award.id);
     const exited = new Promise<void>((done) => server!.once("exit", () => done()));
     server!.kill();
     await exited;
     const binary = join(repo, "pocketbase/pocketbase");
     const args = ["--dir", join(root, "data"), "--migrationsDir", join(repo, "pocketbase/pb_migrations")];
     const down = () => execFileSync(binary, ["migrate", "down", "1", ...args], { input: "y\n", stdio: ["pipe", "ignore", "ignore"] });
-    expect(down).toThrow();
+    expect(down).toThrow(); // Archives must be restored before removing their storage.
+    const archiveDb = new DatabaseSync(join(root, "data/data.db"));
+    try {
+      expect(archiveDb.prepare("SELECT id FROM archives WHERE id = ?").get(archived.id)).toMatchObject({ id: archived.id });
+      archiveDb.prepare("DELETE FROM archives WHERE id = ?").run(archived.id);
+    } finally { archiveDb.close(); }
+    down(); // Remove the now-empty archive collection, leaving migration 42 latest.
+    expect(down).toThrow(); // Multiple saved windows still prevent rollback of 42.
     const db = new DatabaseSync(join(root, "data/data.db"));
     try {
       expect(db.prepare("SELECT grant_weekday_window FROM users WHERE id = ?").get(child))

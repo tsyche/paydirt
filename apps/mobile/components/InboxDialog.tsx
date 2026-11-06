@@ -1,125 +1,57 @@
 import { useCallback, useEffect, useState } from "react";
-import { householdDateTime } from "@paydirt/shared";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { Alert, ScrollView, StyleSheet, View } from "react-native";
-import { Button, Dialog, IconButton, Portal, Text } from "react-native-paper";
-import { errorMessage, type InboxItem } from "@paydirt/shared";
+import { ScrollView, View } from "react-native";
+import { Button, Dialog, Portal, SegmentedButtons, Text } from "react-native-paper";
+import { errorMessage, householdDateTime, type InboxItem } from "@paydirt/shared";
 import { client } from "../lib/client";
+import { ArchiveRow, useArchives } from "./ArchiveActions";
+import { ArchiveHistory } from "./ArchiveHistory";
 
-/**
- * Alert history dialog (opened from the header menu). Items are only copies of
- * pushes (the real data lives in assignments/ledger/requests), so the owner
- * can delete any of them.
- */
 export function InboxDialog({ userId, visible, onDismiss }: { userId: string; visible: boolean; onDismiss: () => void }) {
   const [items, setItems] = useState<InboxItem[]>([]);
   const [error, setError] = useState("");
-
+  const [tab, setTab] = useState("alerts");
+  const { version } = useArchives();
   const load = useCallback(async () => {
-    try {
-      setItems(await client.listInbox(userId));
-      setError("");
-    } catch (e) {
-      setError(errorMessage(e));
-    }
+    try { setItems(await client.listInbox(userId)); setError(""); }
+    catch (e) { setError(errorMessage(e)); }
   }, [userId]);
-
+  useEffect(() => { if (visible) void load(); }, [visible, load, version]);
   useEffect(() => {
-    if (visible) void load();
+    if (!visible) return;
     let disposed = false;
-    let unsubscribe: (() => void) | undefined;
-    if (visible) void client.subscribeToInbox(userId, () => void load()).then((stop) => {
-      if (disposed) stop(); else unsubscribe = stop;
-    }).catch(() => {});
-    return () => { disposed = true; unsubscribe?.(); };
-  }, [visible, load, userId]);
-
-  const remove = async (id: string) => {
-    setItems((prev) => prev.filter((i) => i.id !== id));
-    try {
-      await client.deleteInboxItem(id);
-    } catch (e) {
-      setError(errorMessage(e));
-      void load();
-    }
-  };
-
-  // Server pushes to this user's own endpoint; the copy also lands in this list.
-  const sendTest = async () => {
+    let stop: (() => void) | undefined;
+    void client.subscribeToInbox(userId, () => void load()).then((fn) => { if (disposed) fn(); else stop = fn; }).catch(() => {});
+    return () => { disposed = true; stop?.(); };
+  }, [visible, userId, load]);
+  async function sendTest() {
     try {
       const res = await client.sendTestNotification();
-      setError(res.sent ? "" : "No notification endpoint registered for this account yet.");
       await load();
-    } catch (e) {
-      setError(errorMessage(e));
-    }
-  };
-
-  const clearAll = () => {
-    Alert.alert("Clear all", "Delete every notification in your history?", [
-      { text: "Cancel", style: "cancel" },
-      { text: "Clear all", style: "destructive", onPress: () => void doClearAll() },
-    ]);
-  };
-
-  const doClearAll = async () => {
-    try {
-      await client.clearInbox(userId);
-      setItems([]);
-    } catch (e) {
-      setError(errorMessage(e));
-      void load();
-    }
-  };
-
-  return (
-    <>
-      <Portal>
-        <Dialog visible={visible} onDismiss={onDismiss}>
-          <Dialog.Title>Alerts</Dialog.Title>
-          <Dialog.ScrollArea style={styles.scrollArea}>
-            <ScrollView>
-              {error ? <Text style={styles.empty}>{error}</Text> : null}
-              {!error && items.length === 0 ? <Text style={styles.empty}>No alerts 🎉</Text> : null}
-              {items.map((i) => (
-                <View key={i.id} style={styles.row}>
-                  <View style={styles.text}>
-                    <Text variant="titleSmall">{i.title}</Text>
-                    {i.body ? <Text variant="bodyMedium">{i.body}</Text> : null}
-                    <Text variant="labelSmall">{householdDateTime(i.created)}</Text>
-                  </View>
-                  <IconButton
-                    icon="close"
-                    size={20}
-                    onPress={() =>
-                      Alert.alert("Delete notification", "Delete this notification?", [
-                        { text: "Cancel", style: "cancel" },
-                        { text: "Delete", style: "destructive", onPress: () => void remove(i.id) },
-                      ])
-                    }
-                    accessibilityLabel={`Dismiss ${i.title}`}
-                  />
-                </View>
-              ))}
-            </ScrollView>
-          </Dialog.ScrollArea>
-          <Dialog.Actions>
-            <Button onPress={() => void sendTest()}>Send test</Button>
-            <Button onPress={clearAll} disabled={items.length === 0}>Clear all</Button>
-            <Button onPress={onDismiss}>Done</Button>
-          </Dialog.Actions>
-        </Dialog>
-      </Portal>
-    </>
-  );
+      setError(res.sent ? "" : "No notification endpoint registered for this account yet.");
+    } catch (e) { setError(errorMessage(e)); }
+  }
+  return <Portal><Dialog visible={visible} onDismiss={onDismiss}>
+    <Dialog.Title>Alerts & history</Dialog.Title>
+    <View style={{ paddingHorizontal: 24, paddingBottom: 12 }}>
+      <SegmentedButtons value={tab} onValueChange={setTab} buttons={[{ value: "alerts", label: "Alerts" }, { value: "archived", label: "Archived" }]} />
+    </View>
+    <Dialog.ScrollArea style={{ maxHeight: 420, paddingHorizontal: 0 }}><ScrollView>
+      {tab === "archived" ? <ArchiveHistory /> : <View style={{ padding: 16 }}>
+        {!!error && <><Text accessibilityRole="alert">{error}</Text><Button onPress={() => void load()}>Retry</Button></>}
+        {!error && !items.length && <Text>No alerts 🎉</Text>}
+        {items.map((item) => <ArchiveRow key={item.id} kind="inbox" id={item.id} label={item.title} onChanged={() => void load()}>
+          <View style={{ padding: 12, gap: 4 }}>
+            <Text variant="titleSmall">{item.title}</Text>
+            {!!item.body && <Text>{item.body}</Text>}
+            <Text variant="labelSmall">{householdDateTime(item.created)}</Text>
+          </View>
+        </ArchiveRow>)}
+      </View>}
+    </ScrollView></Dialog.ScrollArea>
+    <Dialog.Actions><Button onPress={() => void sendTest()}>Send test</Button><Button onPress={onDismiss}>Done</Button></Dialog.Actions>
+  </Dialog></Portal>;
 }
-
-const styles = StyleSheet.create({
-  scrollArea: { maxHeight: 420, paddingHorizontal: 0 },
-  empty: { padding: 24, textAlign: "center" },
-  row: { flexDirection: "row", alignItems: "center", paddingLeft: 24, paddingVertical: 6 },
-  text: { flex: 1, gap: 2 },
-});
 
 const seenKey = (userId: string) => `paydirt.alertsSeen.${userId}`;
 

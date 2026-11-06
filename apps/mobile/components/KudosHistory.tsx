@@ -1,8 +1,12 @@
-import { useState } from "react";
-import { localDateLabel } from "@paydirt/shared";
+import { useEffect, useState } from "react";
+import { errorMessage, localDateLabel } from "@paydirt/shared";
 import { View } from "react-native";
 import { Button, Card, Text, useTheme } from "react-native-paper";
 import type { KudosAward } from "@paydirt/shared";
+
+import { client } from "../lib/client";
+import { ArchiveRow, useArchives } from "./ArchiveActions";
+import { ArchiveHistory } from "./ArchiveHistory";
 
 /** A kid's private list of parent "Great work" awards. */
 export function KudosHistory({
@@ -16,6 +20,17 @@ export function KudosHistory({
 }) {
   const theme = useTheme();
   const [open, setOpen] = useState(simple);
+  const { version } = useArchives();
+  const [archived, setArchived] = useState(false);
+  const [hidden, setHidden] = useState<Set<string> | null>(null);
+  const [retryKey, setRetryKey] = useState(0);
+  const [error, setError] = useState("");
+  useEffect(() => {
+    let active = true;
+    void client.listArchivedIds("kudos").then((ids) => { if (active) { setHidden(new Set(ids)); setError(""); } })
+      .catch((e) => { if (active) setError(errorMessage(e)); });
+    return () => { active = false; };
+  }, [version, retryKey]);
   if (awards.length === 0) return null;
 
   return (
@@ -30,7 +45,10 @@ export function KudosHistory({
         >
           Great work ×{awards.length}
         </Button>
-        {open && awards.map((award) => (
+        <Button icon="archive-outline" onPress={() => setArchived((value) => !value)}>{archived ? "Current awards" : "Archived awards"}</Button>
+        {!!error && <><Text accessibilityRole="alert">{error}</Text><Button onPress={() => setRetryKey((v) => v + 1)}>Retry</Button></>}
+        {archived ? <ArchiveHistory kind="kudos" /> : open && hidden && awards.filter((award) => !hidden.has(award.id)).map((award) => (
+          <ArchiveRow key={award.id} kind="kudos" id={award.id} label={award.reason || "Great work"}>
           <View
             key={award.id}
             style={{
@@ -54,7 +72,7 @@ export function KudosHistory({
             >
               +{award.bucks} {currencyName}
             </Text>
-          </View>
+          </View></ArchiveRow>
         ))}
       </Card.Content>
     </Card>

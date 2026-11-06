@@ -225,7 +225,7 @@ reply and the original message.
 Per-user copy of every push the server sends (also during quiet hours), so
 people can review and clear past alerts. Owner can list/view/delete; clients
 can't create or edit. Written by `logToInbox()` in `lib/ntfy.js`; the daily
-cron prunes items older than 30 days. Deleting an item never affects real data.
+cron prunes unarchived items older than 30 days. Archived alerts are retained; resolving their linked action still removes them. Deleting an item never affects real data.
 
 | Field | Type | Notes |
 |-------|------|-------|
@@ -240,6 +240,22 @@ clear their linked reminders after success. Broadcast replies clear only the
 replying child's reminder. Informational alerts remain dismissible. Older
 unlinked alerts remain available for manual clearing; titles are not used to
 guess which record an alert belongs to.
+
+### `archives`
+Personal display preferences, separate from the source records and ledger.
+Each immutable row has a required `user` relation and exactly one source relation:
+`inbox`, `kudos`, `assignment`, `spend_request`, or `time_grant`. Unique partial
+indexes prevent duplicate archives for the same user/source. Source deletion
+cascades to its archive row. Only the owner can list/view/delete the preference;
+creation validates access and forces the current user as owner. Only approved
+chores and settled screen-time grants are eligible; pending work stays visible.
+
+Archive creation hides the item for that viewer; deleting the preference restores
+it. Neither operation changes payout, acknowledgement, badge totals, or the
+source record. Clients filter personal archive IDs while filling history pages,
+so hidden records do not create empty pages or change another user's feed.
+Archived views expand the original record instead of keeping a stale copy.
+Migration rollback refuses while preferences remain; restore them first.
 
 ## Hooks (implemented)
 

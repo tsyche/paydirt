@@ -4,7 +4,8 @@ import { resumeRealtime as forceRealtimeResume, type RealtimeLike } from "./real
 import { choreLimit, limitWindowDays, limitWindowStart, type LimitWarning, type RecentAssignmentRow } from "./choreLimit";
 import { localDateInstant, householdMonthRange, setHouseholdTimeZone } from "./dates";
 import { screenCost, screenDescription, type ScreenPreset } from "./screenTime";
-import type { HistoryPage, ScreenGrantHistoryRow } from "./history";
+import type { ArchivedItem, ArchiveKind } from "./archives";
+import { visibleHistoryPage, type HistoryPage, type ScreenGrantHistoryRow } from "./history";
 import type {
   Assignment,
   Broadcast,
@@ -245,14 +246,17 @@ export class PaydirtClient {
 
   /** A kid's approved history, newest first, capped (default 50). */
   async listApprovedHistory(childId: string, limit = 50): Promise<Assignment[]> {
-    const result = await this.pb
-      .collection(Collections.Assignments)
-      .getList<Assignment>(1, limit, {
-        filter: this.pb.filter("child = {:c} && status = 'approved'", { c: childId }),
-        sort: "-approved_at",
-        expand: "chore",
+    const hidden = new Set(await this.listArchivedIds("assignment"));
+    const page = await visibleHistoryPage<Assignment>(async (after, count) => {
+      const result = await this.pb.collection(Collections.Assignments).getList<Assignment>(1, count + 1, {
+        filter: this.pb.filter("child = {:c} && status = 'approved'" +
+          (after ? " && (approved_at < {:at} || (approved_at = {:at} && id < {:id}))" : ""),
+          { c: childId, at: after?.approved_at || "", id: after?.id || "" }),
+        sort: "-approved_at,-id", expand: "chore",
       });
-    return result.items;
+      return { items: result.items.slice(0, count), hasMore: result.items.length > count };
+    }, (item) => !hidden.has(item.id), undefined, limit);
+    return page.items;
   }
 
   listPendingApprovals(householdId: string): Promise<Assignment[]> {
@@ -280,6 +284,10 @@ export class PaydirtClient {
     };
     if (photo) data.photo = photo;
     return this.pb.collection(Collections.Assignments).update<Assignment>(assignmentId, data);
+  }
+
+  setHelpRequested(assignmentId: string, requested: boolean): Promise<Assignment> {
+    return this.pb.collection(Collections.Assignments).update<Assignment>(assignmentId, { needs_help: requested });
   }
 
   startChoreTimer(assignmentId: string): Promise<Assignment> {
@@ -521,8 +529,21 @@ export class PaydirtClient {
     return result.items;
   }
 
+  async listApprovedHistoryPage(householdId: string, after?: Assignment, limit = 5): Promise<HistoryPage<Assignment>> {
+    const hidden = new Set(await this.listArchivedIds("assignment"));
+    return visibleHistoryPage((cursor, count) => this.rawApprovedHistoryPage(householdId, cursor, count),
+      (item) => !hidden.has(item.id), after, limit);
+  }
+
+  async listScreenGrantHistoryPage(householdId: string, after?: ScreenGrantHistoryRow, limit = 5): Promise<HistoryPage<ScreenGrantHistoryRow>> {
+    const [bonuses, purchases] = await Promise.all([this.listArchivedIds("time_grant"), this.listArchivedIds("spend_request")]);
+    const hidden = new Set([...bonuses.map((id) => "bonus:" + id), ...purchases.map((id) => "purchase:" + id)]);
+    return visibleHistoryPage((cursor, count) => this.rawScreenGrantHistoryPage(householdId, cursor, count),
+      (item) => !hidden.has((item.bonus ? "bonus:" : "purchase:") + item.id), after, limit);
+  }
+
   /** Keyset paging: five initially, then ten per request, including timestamp ties. */
-  async listApprovedHistoryPage(
+  private async rawApprovedHistoryPage(
     householdId: string, after?: Assignment, limit = 5,
   ): Promise<HistoryPage<Assignment>> {
     const result = await this.pb.collection(Collections.Assignments).getList<Assignment>(1, limit + 1, {
@@ -537,7 +558,7 @@ export class PaydirtClient {
   }
 
   /** One chronological feed across completed purchases and bonus grants. */
-  async listScreenGrantHistoryPage(
+  private async rawScreenGrantHistoryPage(
     householdId: string, after?: ScreenGrantHistoryRow, limit = 5,
   ): Promise<HistoryPage<ScreenGrantHistoryRow>> {
     const batches = await Promise.all([false, true].map(async (bonus) => {
@@ -854,10 +875,44 @@ export class PaydirtClient {
 
   // ── Inbox ──────────────────────────────────────────────────────────────────
 
-  subscribeToInbox(userId: string, onChange: () => void): Promise<() => void> {
-    return this.pb.collection(Collections.Inbox).subscribe("*", onChange, {
-      filter: this.pb.filter("user = {:u}", { u: userId }),
+
+  archiveItem(kind: ArchiveKind, id: string): Promise<ArchivedItem> {
+    return this.pb.collection("archives").create<ArchivedItem>({ user: this.currentUser?.id, [kind]: id });
+  }
+
+  restoreArchivedItem(id: string): Promise<boolean> {
+    return this.pb.collection("archives").delete(id);
+  }
+
+  async listArchivedIds(kind: ArchiveKind): Promise<string[]> {
+    const rows = await this.pb.collection("archives").getFullList<ArchivedItem>({
+      filter: this.pb.filter("user = {:user} && " + kind + " != ''", { user: this.currentUser?.id || "" }), fields: kind,
     });
+    return rows.map((row) => row[kind]!).filter(Boolean);
+  }
+
+  async listArchivesPage(after?: ArchivedItem, limit = 5, kind?: ArchiveKind): Promise<HistoryPage<ArchivedItem>> {
+    const result = await this.pb.collection("archives").getList<ArchivedItem>(1, limit + 1, {
+      filter: this.pb.filter("user = {:user}" + (kind ? ` && ${kind} != ''` : "") +
+        (after ? " && (created < {:at} || (created = {:at} && id < {:id}))" : ""),
+        { user: this.currentUser?.id || "", at: after?.created || "", id: after?.id || "" }),
+      expand: "inbox,kudos,assignment.chore,spend_request,time_grant", sort: "-created,-id",
+    });
+    return { items: result.items.slice(0, limit), hasMore: result.items.length > limit };
+  }
+
+  subscribeToArchives(onChange: () => void): Promise<() => void> {
+    return this.pb.collection("archives").subscribe("*", onChange, {
+      filter: this.pb.filter("user = {:user}", { user: this.currentUser?.id || "" }),
+    });
+  }
+
+  async subscribeToInbox(userId: string, onChange: () => void): Promise<() => void> {
+    const stops = await Promise.all([
+      this.pb.collection(Collections.Inbox).subscribe("*", onChange, { filter: this.pb.filter("user = {:u}", { u: userId }) }),
+      this.subscribeToArchives(onChange),
+    ]);
+    return () => { for (const stop of stops) stop(); };
   }
 
   async listInboxIds(userId: string): Promise<string[]> {
@@ -865,16 +920,22 @@ export class PaydirtClient {
       filter: this.pb.filter("user = {:u}", { u: userId }), fields: "id",
       requestKey: `inbox-notification-ids:${userId}`,
     });
-    return rows.map((row) => row.id);
+    const hidden = new Set(await this.listArchivedIds("inbox"));
+    return rows.map((row) => row.id).filter((id) => !hidden.has(id));
   }
 
   /** Newest-first alert history for one user (the API rules only let you read your own). */
-  listInbox(userId: string, limit = 50): Promise<InboxItem[]> {
-    return this.pb.collection(Collections.Inbox).getList<InboxItem>(1, limit, {
-      filter: this.pb.filter("user = {:u}", { u: userId }),
-      sort: "-created",
-      requestKey: `inbox-list:${userId}:${limit}`,
-    }).then((r) => r.items);
+  async listInbox(userId: string, limit = 50): Promise<InboxItem[]> {
+    const hidden = new Set(await this.listArchivedIds("inbox"));
+    const page = await visibleHistoryPage<InboxItem>(async (after, count) => {
+      const result = await this.pb.collection(Collections.Inbox).getList<InboxItem>(1, count + 1, {
+        filter: this.pb.filter("user = {:u}" + (after ? " && (created < {:at} || (created = {:at} && id < {:id}))" : ""),
+          { u: userId, at: after?.created || "", id: after?.id || "" }),
+        sort: "-created,-id", requestKey: `inbox-list:${userId}:${count}:${after?.id || ""}`,
+      });
+      return { items: result.items.slice(0, count), hasMore: result.items.length > count };
+    }, (item) => !hidden.has(item.id), undefined, limit);
+    return page.items;
   }
 
   deleteInboxItem(id: string): Promise<boolean> {
@@ -915,6 +976,7 @@ export class PaydirtClient {
    */
   async subscribeToKidUpdates(childId: string, onChange: () => void): Promise<() => void> {
     const unsubs = await Promise.all([
+      this.subscribeToArchives(onChange),
       this.pb.collection(Collections.Assignments).subscribe("*", onChange, {
         filter: this.pb.filter("child = {:c} || swap_to = {:c}", { c: childId }),
       }),
@@ -949,6 +1011,7 @@ export class PaydirtClient {
   ): Promise<() => void> {
     const hhFilter = this.pb.filter("household = {:hh}", { hh: householdId });
     const unsubs = await Promise.all([
+      this.subscribeToArchives(onChange),
       this.pb.collection(Collections.Assignments).subscribe("*", onChange, {
         filter: this.pb.filter("chore.household = {:hh}", { hh: householdId }),
       }),

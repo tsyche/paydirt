@@ -1,3 +1,4 @@
+import { ArchiveProvider } from "./components/ArchiveActions";
 import { useEffect, useReducer, useRef, useState } from "react";
 import { Alert, AppState, Linking, NativeEventEmitter, NativeModules, View } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
@@ -305,6 +306,7 @@ function AppContent() {
 
   return (
     <PaperProvider theme={theme}>
+      <ArchiveProvider key={user?.id ?? "guest"} userId={user?.id}>
       {/* Paint the screen background: without it the native window colour (dark
           under a dark system theme) shows through behind the in-app light theme. */}
       <View style={{ flex: 1, backgroundColor: theme.colors.background }}>
@@ -356,6 +358,7 @@ function AppContent() {
         </Dialog>
       </Portal>
       <StatusBar style={scheme === "dark" ? "light" : "dark"} />
+      </ArchiveProvider>
     </PaperProvider>
   );
 }

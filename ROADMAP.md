@@ -2,7 +2,7 @@
 
 ## TL;DR
 
-PayDirt is live on bb. Only completed work belongs in the [shipped ledger](docs/ledger/ROADMAP_SHIPPED.md). Implemented work with outstanding acceptance stays active in the [acceptance plan](docs/plans/feature-acceptance.md). My Bank and parent approval/history UX are next; a self-contained peer-to-peer feasibility spike is queued. Existing recurring and mobile-journey checks remain active.
+PayDirt is live on bb. Only completed work belongs in the [shipped ledger](docs/ledger/ROADMAP_SHIPPED.md). Implemented work with outstanding acceptance stays active in the [acceptance plan](docs/plans/feature-acceptance.md). Bank/approval UX is implemented with native acceptance outstanding. Web approval-card polish is verified; personal archives and help cancellation await native checks. A self-contained peer-to-peer feasibility spike is queued. Existing recurring and mobile-journey checks remain active.
 
 Scope checklist: [FEATURES.md](./FEATURES.md). **This file is the authoritative
 status tracker.**
@@ -23,13 +23,16 @@ Last audited 2026-11-04 against source, tests, and implementation commits. Dupli
 
 ## Recommended Next 3
 
-1. [My Bank readability](#backlog-unscheduled) — the next UI refresh; finish and visually review the separated sections in both kid layouts.
-2. [Parent history paging](#backlog-unscheduled) — five initial past grants/approved chores, then ten more per tap, on web and mobile.
-3. [Approve with feedback](#backlog-unscheduled) — optional parent comments alongside approval, visible to the child. These three items form the next batch; verify and commit it before starting the following batch.
+1. [Tablet header actions](#backlog-unscheduled) — direct tablet navigation while preserving phone headers.
+2. [Recurring due days acceptance](#release-checks-for-implemented-work) — prove deadline/calendar behavior and next-day cards with pending prior approvals.
+3. [Self-contained peer-to-peer feasibility spike](#backlog-unscheduled) — bounded offline/sync prototype and parity assessment, not a production migration.
 
 ## Release checks for implemented work
 
 These are verification/deployment tasks, not features to implement again. Specific missing evidence and the returned original records are in the [acceptance plan](docs/plans/feature-acceptance.md).
+
+- **Bank and approval/history refresh** — `e03249c` implements the bank sections, 5/10 history paging, and optional private approval feedback. Browser/API checks pass; native scrolling, keyboard, and tap-through remain open.
+- **Personal archives and help cancellation** — personal Archive/Undo/Restore on web/mobile, horizontal mobile swipes, and cancel-help controls in both kid layouts are implemented. Backend checks and headless web journeys pass. Verify native swipe/vertical-scroll behavior, both kid layouts, tray cleanup, offline errors, and cross-device refresh before closing acceptance. Phone headers are unchanged.
 
 - **Banked time and action alerts** — deploy backend/worker together and the new APK, then verify split rewards at closing time and linked in-app/Android alert cleanup. Backend regression coverage exists; native/device acceptance remains open.
 
@@ -83,17 +86,10 @@ Verify parent capabilities on both surfaces; pending checks are listed in the [a
 
 Ordered by impact-to-effort (2026-11-01 audit). Shipped items live in the ledger, not here.
 
-- **My Bank readability (2026-11-06, implemented; native acceptance pending)** — separated available balance, total/pending spending, alternative conversions, estimated chore earnings, banked time, and goals in both kid layouts. Calculation/render tests and phone/tablet browser review pass. Verify native scrolling, large text, and live records before closing the [acceptance item](docs/plans/feature-acceptance.md). Phone headers remain unchanged.
-
-- **Parent history paging (2026-11-06, implemented; native acceptance pending)** — five initial past grants and approved chores, then ten per tap. Real PocketBase tests cover equal timestamps, cross-collection ID ties, complete traversal, and unlimited outstanding grants. Browser paging passes. Verify native taps and realtime refresh before closing the [acceptance item](docs/plans/feature-acceptance.md).
-
-- **Approve with feedback (2026-11-06, implemented; native acceptance pending)** — optional private comments on web/mobile, preserved quick approval, child alert/history delivery, and unchanged payouts. API tests cover privacy, validation, undo, and concurrent approvals. Browser cancel/save/error-draft checks pass. Verify native dialog and both kid alert entry points before closing the [acceptance item](docs/plans/feature-acceptance.md).
-
-- **Web approval card polish (2026-11-06)** — place Partial credit below Approve, with a clear percent icon/button rather than plain text and a twisty. Keep its editor compact without shifting primary actions. Replace the inline “Resubmitted — you said…” text with a Resubmitted badge, a labelled previous-feedback callout, and a separately labelled child reply when present.
-
-- **Swipe actions and recoverable archives (2026-11-06)** — add Android-style swipe actions to alerts, Kudos, and applicable history lists. Prefer archive with Undo over permanent deletion; keep visible accessible actions so swiping is optional. Add an Archived view and Restore. Archiving hides an item for that user without changing rewards, balances, badge counts, or immutable transaction history. A contextual opposite-direction action (such as Edit) and configurable directions are options to evaluate, not assumed defaults. Kudos currently only collapses; archived awards should leave the main kid view while remaining available in history.
-
-- **Retract a help request (2026-11-06)** — both kid layouts should switch “I need help” to a clear “Cancel help request” action while requested. Clear the flag, update both kid/parent surfaces, and remove linked help reminders without changing the chore's completion state. The server already supports clearing the flag; the kid UI lacks the action.
+- **Scheduled money reveal and parent balance privacy (idea, 2026-11-06)** — optional kid-facing money reveal instead of a continuously visible dollar equivalent. Grit earnings and spending stay live. Between reveals, show a clear countdown such as “2 days until your next money reveal.” Start with a weekly cadence and a roughly 24-hour reveal period, configurable by parents; settle the exact defaults during design. Show a dated snapshot (“At Sunday’s reveal, your Grit was worth $12.40”), so later spending does not make the displayed figure misleading. The purpose is a brief look at real-world buying power while keeping everyday progress focused on Grit.
+  - Parents always retain access to current dollar equivalents. Consider concealing them by default until tapped, with optional parent/admin PIN protection against a child borrowing an unlocked parent device. Include parent-controlled disable/reset and authenticated recovery; a forgotten PIN must not require deleting household data. Apply privacy consistently across parent web/mobile headers, dialogs, bank/Overview, and purchase screens; do not leave another obvious dollar display exposed.
+  - Spending confirmations must still disclose the current Grit cost and applicable exchange value. Preserve already-submitted requests and their agreed cost. Evaluate locking the exchange rate for each reveal period and applying parent changes to the next period, so a reveal does not unexpectedly contradict earned progress. Do not present a past snapshot as a live spendable dollar balance.
+  - Design before implementation: timezone-aware scheduling/countdown, offline behavior, rate-change boundaries, visibility during/after the reveal, accessible kid wording, parent privacy/PIN recovery, and web/mobile parity. No implementation is authorized by recording this idea.
 
 - **Tablet header actions (2026-11-06)** — on tablets with sufficient width, expose Alerts immediately after the balance, plus Theme, Sign out, and parent Settings as applicable, replacing the hamburger menu. Keep the phone header unchanged, including landscape phones; use device classification as well as available width. Preserve labels/accessibility and unread indicators; confirm sign-out to avoid an accidental one-tap logout. Fall back to overflow when a tablet window is narrow. Assess the real screens before implementing.
 

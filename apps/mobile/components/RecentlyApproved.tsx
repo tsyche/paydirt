@@ -1,3 +1,4 @@
+import { ArchiveRow, useArchives } from "./ArchiveActions";
 import { useCallback } from "react";
 import { Alert, StyleSheet, View } from "react-native";
 import { Button, Card, Text, useTheme } from "react-native-paper";
@@ -26,7 +27,8 @@ export function RecentlyApproved({
   const theme = useTheme();
   const fetchPage = useCallback((after: Assignment | undefined, limit: number) =>
     client.listApprovedHistoryPage(householdId, after, limit), [householdId]);
-  const history = useHistoryFeed(fetchPage, reloadKey);
+  const { version } = useArchives();
+  const history = useHistoryFeed(fetchPage, reloadKey + version);
   const items = history.items as Expanded[];
 
   async function run(fn: () => Promise<unknown>, done: string) {
@@ -61,7 +63,7 @@ export function RecentlyApproved({
         RECENTLY APPROVED
       </Text>
       {items.map((a) => (
-        <Card key={a.id} style={styles.card}>
+        <ArchiveRow key={a.id} kind="assignment" id={a.id} label={a.expand?.chore?.name ?? "chore"} onChanged={() => void history.reload()}><Card style={styles.card}>
           <Card.Content>
             <Text variant="titleSmall">{a.expand?.chore?.name ?? "Chore"}</Text>
             <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant }}>
@@ -96,7 +98,7 @@ export function RecentlyApproved({
               )}
             </View>
           </Card.Content>
-        </Card>
+        </Card></ArchiveRow>
       ))}
       {history.error ? <Text accessibilityRole="alert">{history.error}</Text> : null}
       {history.error ? <Button disabled={history.busy} onPress={() => void history.reload()}>Retry history</Button> : null}

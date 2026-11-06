@@ -4,6 +4,8 @@
 
 ## Shipped index
 
+- [x] 2026-11-06 — Web partial-credit control and resubmission context polished and browser-verified
+
 - [x] 2026-11-06 — Multiple delivery windows persist; stale concurrent chore approvals cannot pay twice
 
 - [x] 2026-11-06 — Tablet APK update handoff restored by correcting its saved APK handler
@@ -52,6 +54,12 @@
 - [x] 2026-06-10 — MVP, Phase 1, and Phase 1.5 (migrated 2026-10-21)
 
 ## Archived entries
+
+### 2026-11-06 — Web approval-card polish
+
+Original scope: put Partial credit below Approve, with a recognizable percent control; preserve the overlay editor and stable primary actions. Replace the inline resubmission sentence with a badge, labelled previous parent feedback, and a separately labelled child reply.
+
+Implemented with themed spacing, grouped controls, and escaped text. Render tests and a headless Playwright journey verify the labels, document-relative button placement before/after opening the editor, and an actual 50% approval. Browser tests also preserve normal approval/undo and irreversible time-grant behavior. Deployment is pending; the separate archive/help native acceptance is not claimed here.
 
 ### 2026-11-06 — Window storage and concurrent approval fixes
 

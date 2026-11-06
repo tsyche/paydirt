@@ -11,7 +11,7 @@ export function PartialCredit({ chore, currency, onApprove }: {
   const [percent, setPercent] = useState(50);
   const pay = partialPay(chore, percent);
   return <details className="partial-credit">
-    <summary>Partial credit</summary>
+    <summary><span aria-hidden="true" className="percent-icon">%</span> Partial credit</summary>
     <div className="partial-credit-panel">
       <div className="inline" style={{ gap: 6 }}>
         {[25, 50, 75].map((n) => (

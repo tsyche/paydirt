@@ -15,6 +15,7 @@ export default defineConfig({
     ? [["list"], ["json", { outputFile: "e2e-results/report.json" }]]
     : [["list"]],
   use: {
+    headless: true,
     baseURL: "http://localhost:3110",
   },
   webServer: {

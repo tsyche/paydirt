@@ -1,5 +1,7 @@
 "use client";
 
+import { ArchiveButton, useArchives } from "./ArchiveActions";
+
 import { useCallback, useEffect, useRef, useState } from "react";
 import { localDateKey, localDateLabel, householdDateTime, householdDateTimeInput, localDateInstant, householdWallDate } from "@paydirt/shared";
 import type {
@@ -21,6 +23,7 @@ import { kidsAtLimit, knownChoreNames, GOAL_NAME_MAX, GOAL_DETAILS_MAX, parseAss
 import { client } from "../lib/client";
 import { HouseholdSettings } from "./HouseholdSettings";
 import { RecurringDueFields } from "./RecurringDueFields";
+import { ResubmissionInfo } from "./ResubmissionInfo";
 import { PartialCredit } from "./PartialCredit";
 import { ApprovalFeedback } from "./ApprovalFeedback";
 import { PastScreenGrants } from "./PastScreenGrants";
@@ -96,7 +99,8 @@ export function Dashboard({
   const [historyReloadKey, setHistoryReloadKey] = useState(0);
   const approvedPage = useCallback((after: Assignment | undefined, limit: number) =>
     client.listApprovedHistoryPage(householdId, after, limit), [householdId]);
-  const approvedHistory = useHistoryFeed(approvedPage, historyReloadKey);
+  const { version: archiveVersion } = useArchives();
+  const approvedHistory = useHistoryFeed(approvedPage, historyReloadKey + archiveVersion);
   const recentApproved = approvedHistory.items as Expanded<Assignment>[];
   const [error, setError] = useState("");
   const [templateFill, setTemplateFill] = useState<ChoreTemplate | null>(null);
@@ -446,16 +450,7 @@ export function Dashboard({
                       🆘 Kid asked for help
                     </div>
                   )}
-                  {a.rejection_message && (
-                    <div className="muted" style={{ fontSize: 12, marginTop: 2 }}>
-                      ↩️ Resubmitted — you said: {a.rejection_message}
-                    </div>
-                  )}
-                  {a.kid_response && (
-                    <div className="muted" style={{ fontSize: 12, marginTop: 2 }}>
-                      💬 {a.kid_response}
-                    </div>
-                  )}
+                  {(a.rejection_message || a.kid_response) && <ResubmissionInfo previousFeedback={a.rejection_message} childReply={a.kid_response} />}
                   {a.photo && (
                     <button
                       type="button"
@@ -472,7 +467,7 @@ export function Dashboard({
                   )}
                 </div>
               </div>
-              <div className="inline" style={{ flexShrink: 0, flexWrap: "wrap", maxWidth: 440 }}>
+              <div className="approval-card-actions">
                 <button
                   className="primary sm"
                   onClick={() => {
@@ -483,6 +478,7 @@ export function Dashboard({
                 >
                   Approve
                 </button>
+                {a.expand?.chore && <PartialCredit chore={a.expand.chore as Chore} currency={currencyName} onApprove={(percent) => act(() => client.approveAssignment(a.id, percent))} />}
                 <ApprovalFeedback choreName={(a.expand?.chore as Chore | undefined)?.name ?? "Chore"}
                   rewardLabel={a.expand?.chore ? `${payLabel(a.expand.chore as Chore, currencyName)}.${payMode(a.expand.chore as Chore) !== "bucks" ? " Screen-time grants cannot be undone." : ""}` : "Full chore reward."}
                   onApprove={async (comment) => {
@@ -491,7 +487,7 @@ export function Dashboard({
                     await reload();
                   }}
                 />
-                {a.expand?.chore && <PartialCredit chore={a.expand.chore as Chore} currency={currencyName} onApprove={(percent) => act(() => client.approveAssignment(a.id, percent))} />}
+
                 <button
                   className="danger sm"
                   onClick={() => {
@@ -618,6 +614,7 @@ export function Dashboard({
                     </button>
                   ))
                 )}
+                <ArchiveButton kind="assignment" id={a.id} label={chore?.name ?? "chore"} />
                 {(!chore || payMode(chore) === "bucks") && <button
                   className="danger sm"
                   onClick={() => {

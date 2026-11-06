@@ -107,7 +107,11 @@ When disabled or a child has no IDs, approval still deducts the purchase and sho
   adds optional approval feedback; `1717000042` expands weekday/weekend storage
   for multiple windows while retaining existing schedules. Older apps remain
   compatible. Restore single ranges before rolling back `1717000042`; its
-  rollback refuses to invalidate saved multi-range schedules.
+  rollback refuses to invalidate saved multi-range schedules. Migration
+  `1717000043` adds personal archives. Apply it before the new web/APK clients;
+  older clients remain usable but do not hide personally archived items. Restore
+  all archives before rolling this migration back; source records and rewards
+  are not removed by archiving.
 - Approval commits `grant_status=queued` with the spend. The hook publishes a private JSON request; the minute cron repairs a missed publish and imports results.
 - `paydirt-fl.path` starts the worker. It claims each request atomically and processes grants serially, with a 60-second timeout per browser command.
 - Receipts stay on disk to prevent replay. Failed or interrupted grants are never retried automatically: Google may have accepted a write before the connection failed.

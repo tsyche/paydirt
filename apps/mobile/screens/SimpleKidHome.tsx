@@ -1,3 +1,4 @@
+import { HelpRequestButton } from "../components/HelpRequestButton";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { householdDateTime } from "@paydirt/shared";
 import { View, ScrollView, StyleSheet, RefreshControl, TouchableOpacity } from "react-native";
@@ -151,10 +152,11 @@ export function SimpleKidHome({ user, onLogout }: { user: User; onLogout: () => 
     }
   }
 
-  async function requestHelp(id: string) {
+  async function requestHelp(id: string, requested: boolean) {
     try {
-      await client.pb.collection("assignments").update(id, { needs_help: true });
-      setSnack("Help requested — parents notified 🆘");
+      await client.setHelpRequested(id, requested);
+      await reload();
+      setSnack(requested ? "Help requested — parents notified 🆘" : "Help request cancelled.");
     } catch (e) {
       setSnack(errorMessage(e));
     }
@@ -314,9 +316,7 @@ export function SimpleKidHome({ user, onLogout }: { user: User; onLogout: () => 
             >
               {a.expand?.chore?.photo_required ? "Take photo! 📷" : "I did it! ✓"}
             </Button>}
-            <Button mode="text" compact onPress={() => void requestHelp(a.id)} style={{ marginTop: 2 }}>
-              🆘 I need help
-            </Button>
+            <HelpRequestButton requested={!!a.needs_help} onChange={(requested) => requestHelp(a.id, requested)} />
           </Surface>
         ))}
 

@@ -1220,3 +1220,29 @@ button.danger-filled:disabled { box-shadow: none; }
 .approval-feedback-dialog::backdrop { background: rgba(0, 0, 0, .5); }
 .approval-feedback-dialog h2 { margin-top: 0; }
 .approval-feedback-dialog textarea { width: 100%; resize: vertical; }
+
+.approval-card-actions {
+  display: grid;
+  grid-template-columns: minmax(160px, 1fr) auto;
+  align-items: start;
+  gap: 10px 12px;
+  flex-shrink: 0;
+  max-width: 440px;
+}
+.approval-card-actions > .partial-credit { grid-column: 1; grid-row: 2; }
+.approval-card-actions > .danger { grid-column: 2; grid-row: 1; }
+.approval-card-actions > button:not(.primary):not(.danger) { grid-column: 1 / -1; grid-row: 3; }
+.partial-credit > summary {
+  display: inline-flex; align-items: center; gap: 8px; list-style: none;
+  border: 1px solid var(--md-outline-variant); border-radius: 20px;
+  padding: 7px 12px; color: var(--md-primary); font-weight: 600;
+}
+.partial-credit > summary::-webkit-details-marker { display: none; }
+.partial-credit > summary:hover, .partial-credit[open] > summary { background: var(--md-secondary-container); }
+.percent-icon { display: inline-grid; place-items: center; width: 21px; height: 21px; border-radius: 50%; background: var(--md-secondary-container); }
+.resubmission-info { display: grid; gap: 10px; margin-top: 12px; max-width: 540px; }
+.resubmission-badge { justify-self: start; display: inline-flex; gap: 6px; align-items: center; border-radius: 20px; background: var(--md-secondary-container); color: var(--md-on-secondary-container); padding: 4px 10px; font-size: 12px; font-weight: 700; }
+.resubmission-message { padding: 10px 12px; border-left: 3px solid var(--md-outline); border-radius: 0 10px 10px 0; background: var(--md-surface-container); font-size: 13px; }
+.resubmission-message p { margin: 6px 0 0; white-space: pre-wrap; overflow-wrap: anywhere; }
+.child-reply { border-left-color: var(--md-primary); }
+.archive-notice { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%); z-index: 100; display: flex; align-items: center; gap: 12px; padding: 12px 16px; border-radius: 12px; max-width: calc(100vw - 32px); background: var(--md-on-surface); color: var(--md-surface); box-shadow: var(--md-elevation-3); }

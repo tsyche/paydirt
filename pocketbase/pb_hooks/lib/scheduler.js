@@ -391,10 +391,11 @@ function runDaily(app) {
   const { computeStreak } = require(`${__hooks}/lib/streaks.js`);
   const now = new Date();
   runRecurring(app, now);
-  // Inbox items are only a convenience history; keep 30 days.
+  // Keep ordinary inbox history for 30 days; personal archives remain restorable.
   const cutoff = pbDate(new Date(now.getTime() - 30 * DAY_MS));
   for (const old of app.findRecordsByFilter("inbox", "created < {:cutoff}", "", 0, 0, { cutoff: cutoff })) {
-    app.delete(old);
+    const archived = app.findRecordsByFilter("archives", "inbox = {:id}", "", 1, 0, { id: old.id });
+    if (!archived.length) app.delete(old);
   }
   for (const hh of listHouseholds(app)) {
 

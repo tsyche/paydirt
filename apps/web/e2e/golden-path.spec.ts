@@ -34,14 +34,15 @@ test("approve screen time, see the manual fallback, and confirm the grant", asyn
     await signIn(page);
     const row = page.locator(".card.row").filter({ hasText: request.description });
     await row.getByRole("button", { name: "Approve", exact: true }).click();
-    await expect(row).toContainText("Needs manual review");
+    await expect(row).toContainText(/needs manual review/i);
     await expect(row).toContainText("Automatic grants are disabled");
     // The server result remains visible after a reload.
     await page.reload();
-    await expect(row).toContainText("Needs manual review");
+    await expect(row).toContainText(/needs manual review/i);
     page.once("dialog", (dialog) => void dialog.accept());
     await row.getByRole("button", { name: "Mark granted manually" }).click();
-    await expect(row).toContainText("Granted manually");
+    await expect(page.getByRole("region", { name: "Past screen-time grants" }).locator(".card").filter({ hasText: request.description })).toContainText("Granted manually");
+    await expect(row).toHaveCount(0);
     expect((await parent.pb.collection("spend_requests").getOne(request.id)).grant_status).toBe("manual_done");
   } finally {
     // Keep the append-only ledger and cached balance consistent after cleanup.
@@ -117,14 +118,15 @@ test("create → assign → kid completes → approve → undo", async ({ page }
     .not.toBe("");
   await api.markComplete(assignmentId);
 
-  // Approve it in the dashboard (reload resets to the Approvals tab)
+  // The dashboard retains its selected tab across reloads.
   await page.reload();
+  await goTab(page, /Approvals/);
   const approvalRow = page
     .locator(".card.row")
     .filter({ hasText: choreName })
-    .filter({ has: page.getByRole("button", { name: "Approve" }) });
+    .filter({ has: page.getByRole("button", { name: "Approve", exact: true }) });
   await expect(approvalRow).toBeVisible();
-  await approvalRow.getByRole("button", { name: "Approve" }).click();
+  await approvalRow.getByRole("button", { name: "Approve", exact: true }).click();
   await goTab(page, /Kids/);
   await expect.poll(readBalance).toBe(startBalance + REWARD);
 
@@ -192,25 +194,26 @@ test("a chore that pays time grants minutes on approval and can't be undone", as
   await api.markComplete(assignmentId);
 
   await page.reload();
+  await goTab(page, /Approvals/);
   const approvalRow = page
     .locator(".card.row")
     .filter({ hasText: choreName })
-    .filter({ has: page.getByRole("button", { name: "Approve" }) });
+    .filter({ has: page.getByRole("button", { name: "Approve", exact: true }) });
   await expect(approvalRow).toBeVisible();
   await expect(approvalRow).toContainText("10 min");
   // Time approvals are irreversible: dismissing the confirm must not approve.
   let confirmText = "";
   page.removeAllListeners("dialog");
   page.once("dialog", (d) => { confirmText = d.message(); void d.dismiss(); });
-  await approvalRow.getByRole("button", { name: "Approve" }).click();
+  await approvalRow.getByRole("button", { name: "Approve", exact: true }).click();
   expect(confirmText).toContain("can't be undone");
   expect(confirmText).toContain("10 min");
   await expect(approvalRow).toBeVisible();
   page.on("dialog", (d) => void d.accept());
-  await approvalRow.getByRole("button", { name: "Approve" }).click();
+  await approvalRow.getByRole("button", { name: "Approve", exact: true }).click();
 
   // A grant shows up under Screen-time grants, and the approved row has no Undo.
-  const grantRow = page.locator(".card.row").filter({ hasText: `Chore: ${choreName} (10 min bonus)` });
+  const grantRow = page.locator(".card").filter({ hasText: `Chore: ${choreName} (10 min bonus)` });
   await expect(grantRow).toBeVisible();
   const approvedRow = page
     .locator(".card.row")
@@ -285,10 +288,13 @@ test("broadcast a message to all kids", async ({ page }) => {
   await page.getByRole("button", { name: "Send" }).click();
   await expect(page.getByText("Sent to all kids 📣")).toBeVisible();
 
-  // The sender's copy lands in the Alerts tab, and can be cleared.
+  // Archive this sender copy without deleting unrelated alerts.
   await goTab(page, /Alerts/);
-  await expect(page.getByText("E2E broadcast test").first()).toBeVisible();
-  page.once("dialog", (d) => void d.accept()); // confirm before wiping history
-  await page.getByRole("button", { name: "Clear all" }).click();
-  await expect(page.getByText("No alerts")).toBeVisible();
+  const row = page.locator(".card.row").filter({ hasText: "E2E broadcast test" }).first();
+  const archive = row.getByRole("button", { name: /^Archive / });
+  const label = await archive.getAttribute("aria-label");
+  await archive.click();
+  await expect(page.getByRole("status")).toContainText("Archived.");
+  await page.getByRole("status").getByRole("button", { name: "Undo", exact: true }).click();
+  await expect(page.getByRole("button", { name: label!, exact: true }).first()).toBeVisible();
 });

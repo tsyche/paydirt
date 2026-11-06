@@ -1,86 +1,38 @@
 "use client";
-
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { errorMessage, householdDateTime, type InboxItem } from "@paydirt/shared";
 import { client } from "../lib/client";
+import { ArchiveButton, useArchives } from "./ArchiveActions";
+import { ArchiveHistory } from "./ArchiveHistory";
 
-/** The parent's alert history. Items are only copies of pushes, so any can be removed. */
 export function InboxView({ userId }: { userId: string }) {
   const [items, setItems] = useState<InboxItem[]>([]);
-  const [busy, setBusy] = useState(true);
   const [error, setError] = useState("");
-
-  async function load() {
-    try {
-      setItems(await client.listInbox(userId));
-      setError("");
-    } catch (e) {
-      setError(errorMessage(e));
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  useEffect(() => {
-    void load();
-    let disposed = false;
-    let unsubscribe: (() => void) | undefined;
-    void client.subscribeToInbox(userId, () => void load()).then((stop) => {
-      if (disposed) stop(); else unsubscribe = stop;
-    }).catch(() => {});
-    return () => { disposed = true; unsubscribe?.(); };
+  const [busy, setBusy] = useState(true);
+  const [archived, setArchived] = useState(false);
+  const { version } = useArchives();
+  const load = useCallback(async () => {
+    try { setItems(await client.listInbox(userId)); setError(""); }
+    catch (e) { setError(errorMessage(e)); }
+    finally { setBusy(false); }
   }, [userId]);
-
-  async function remove(id: string) {
-    if (!window.confirm("Delete this notification?")) return;
-    setItems((prev) => prev.filter((i) => i.id !== id));
-    try {
-      await client.deleteInboxItem(id);
-    } catch (e) {
-      setError(errorMessage(e));
-      void load();
-    }
-  }
-
-  async function clearAll() {
-    if (!window.confirm("Delete every notification in your history?")) return;
-    try {
-      await client.clearInbox(userId);
-      setItems([]);
-    } catch (e) {
-      setError(errorMessage(e));
-      void load();
-    }
-  }
-
-  return (
-    <div className="stack" style={{ gap: 12 }}>
-      <div className="row" style={{ justifyContent: "flex-end" }}>
-        <button className="sm" onClick={() => void clearAll()} disabled={items.length === 0}>
-          Clear all
-        </button>
-      </div>
-      {error && <p className="error">{error}</p>}
-      {busy && <p className="muted">Loading…</p>}
-      {!busy && !error && items.length === 0 && <p className="muted">No alerts 🎉</p>}
-      {items.map((i) => (
-        <div
-          key={i.id}
-          className="row"
-          style={{ gap: 8, alignItems: "center", borderTop: "1px solid var(--border, #eee)", paddingTop: 8 }}
-        >
-          <div style={{ flex: 1 }}>
-            <div style={{ fontWeight: 600 }}>{i.title}</div>
-            {i.body && <div>{i.body}</div>}
-            <div className="muted" style={{ fontSize: 12 }}>
-              {householdDateTime(i.created)}
-            </div>
-          </div>
-          <button className="sm" aria-label={`Dismiss ${i.title}`} onClick={() => void remove(i.id)}>
-            ✕
-          </button>
-        </div>
-      ))}
-    </div>
-  );
+  useEffect(() => { void load(); }, [load, version]);
+  useEffect(() => {
+    let disposed = false;
+    let stop: (() => void) | undefined;
+    void client.subscribeToInbox(userId, () => void load()).then((fn) => { if (disposed) fn(); else stop = fn; }).catch(() => {});
+    return () => { disposed = true; stop?.(); };
+  }, [userId, load]);
+  return <div className="stack" style={{ gap: 12 }}>
+    <div className="inline"><button aria-pressed={!archived} onClick={() => setArchived(false)}>Alerts</button><button aria-pressed={archived} onClick={() => setArchived(true)}>Archived</button></div>
+    {archived ? <ArchiveHistory /> : <>
+      {error && <><p className="error" role="alert">{error}</p><button onClick={() => void load()}>Retry</button></>}
+      {busy && <p>Loading…</p>}
+      {!busy && !error && !items.length && <p>No alerts 🎉</p>}
+      {items.map((item) => <div className="card row" key={item.id}>
+        <div><strong>{item.title}</strong>{item.body && <div>{item.body}</div>}<div className="muted">{householdDateTime(item.created)}</div></div>
+        <ArchiveButton kind="inbox" id={item.id} label={item.title} />
+      </div>)}
+    </>}
+  </div>;
 }

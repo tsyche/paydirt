@@ -2,6 +2,7 @@ export * from "./types";
 export * from "./collections";
 export * from "./client";
 export * from "./history";
+export * from "./archives";
 export * from "./currency";
 export * from "./ledger";
 export * from "./realtime";
