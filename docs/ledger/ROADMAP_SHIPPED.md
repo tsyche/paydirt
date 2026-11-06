@@ -4,6 +4,8 @@
 
 ## Shipped index
 
+- [x] 2026-11-06 — Tablet APK update handoff restored by correcting its saved APK handler
+
 - [x] 2026-11-06 — `just ship` warns on uncommitted files and continues; build/deployment failures still stop it
 
 - [x] 2026-11-06 — `just conn` skips unavailable devices successfully; mDNS endpoint parsing fixed
@@ -48,6 +50,17 @@
 - [x] 2026-06-10 — MVP, Phase 1, and Phase 1.5 (migrated 2026-10-21)
 
 ## Archived entries
+
+### 2026-11-06 — Tablet APK handler corrected
+
+On `192.168.20.164`, Material Files was the saved APK handler and opened its
+archive browser. Android's package installer was present, PayDirt's install
+permission was allowed, and 11 GB was free. The parent cleared the association,
+then selected the installer as the default and confirmed the update works.
+No shared installer code change was needed. Material Files supports APK
+installation from within the file manager; the external archive-view handler
+was the problem here. The downloaded APK remains in PayDirt's private cache,
+shared with the selected installer through FileProvider rather than Downloads.
 
 ### 2026-11-06 — Shipping with uncommitted work
 

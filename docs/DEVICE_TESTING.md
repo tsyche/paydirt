@@ -190,6 +190,12 @@ is the APK-only part. Each tablet checks on launch, on resume, and every
 
 - Tapping Update downloads the APK and opens the Android installer when it finishes (the "download complete" notification is the fallback if the app was backgrounded). Android always requires the Install tap; reopen PayDirt afterwards and it shows "PayDirt updated".
 - One-time per tablet: Settings → Apps → PayDirt → Install unknown apps → allow. Without it the install silently fails.
+- If Install opens a file manager, clear that file manager's saved APK-opening
+  default, retry, and choose Package installer / Always. The downloaded APK is
+  in PayDirt's private cache, so it is not normally visible in Downloads.
+  Material Files can install APKs, but its external APK handler can open the
+  archive browser instead; that saved association caused the `.164` issue,
+  resolved and confirmed on 2026-11-06.
 - JS-only changes can use `just update-publish` + `just push-updates` (OTA, no prompt).
 - Verified end to end on one phone 2026-10-31 (alert, download, installer, "PayDirt updated"); the other tablets need one adb install of a 2026-10-31+ build first (older builds lack the native method). `just push` stays the fallback.
 

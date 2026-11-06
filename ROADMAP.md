@@ -2,7 +2,7 @@
 
 ## TL;DR
 
-PayDirt is live on bb. Only completed work belongs in the [shipped ledger](docs/ledger/ROADMAP_SHIPPED.md). Implemented work with outstanding acceptance stays active in the [acceptance plan](docs/plans/feature-acceptance.md). The current queue covers the affected tablet's installer, My Bank readability, and parent approval/history UX; the existing recurring and mobile-journey checks remain active.
+PayDirt is live on bb. Only completed work belongs in the [shipped ledger](docs/ledger/ROADMAP_SHIPPED.md). Implemented work with outstanding acceptance stays active in the [acceptance plan](docs/plans/feature-acceptance.md). My Bank and parent approval/history UX are next; a self-contained peer-to-peer feasibility spike is queued. Existing recurring and mobile-journey checks remain active.
 
 Scope checklist: [FEATURES.md](./FEATURES.md). **This file is the authoritative
 status tracker.**
@@ -23,9 +23,9 @@ Last audited 2026-11-04 against source, tests, and implementation commits. Dupli
 
 ## Recommended Next 3
 
-1. [Tablet installer investigation](#backlog-unscheduled) — diagnose the `.164` device's Files handoff once its current ADB connection port is available.
-2. [My Bank readability](#backlog-unscheduled) — the next UI refresh; finish and visually review the separated sections in both kid layouts.
-3. [Parent history and approval UX](#backlog-unscheduled) — five initial past records, ten more per tap, optional approval feedback, and clearer web approval controls.
+1. [My Bank readability](#backlog-unscheduled) — the next UI refresh; finish and visually review the separated sections in both kid layouts.
+2. [Parent history paging](#backlog-unscheduled) — five initial past grants/approved chores, then ten more per tap, on web and mobile.
+3. [Approve with feedback](#backlog-unscheduled) — optional parent comments alongside approval, visible to the child. These three items form the next batch; verify and commit it before starting the following batch.
 
 ## Release checks for implemented work
 
@@ -83,8 +83,6 @@ Verify parent capabilities on both surfaces; pending checks are listed in the [a
 
 Ordered by impact-to-effort (2026-11-01 audit). Shipped items live in the ledger, not here.
 
-- **Tablet installer opens Files (2026-11-06)** — one tablet, `192.168.20.164`, opens Files instead of installing the in-app APK update; the other tablet has the same model/OS and works. Inspect the affected device's installed build, APK intent handler/default, install permission, and policy before changing shared installer code. The APK is intentionally in PayDirt's private cache, exposed through FileProvider, so it is not normally visible in Downloads. 🧑 needs-human: enable Wireless debugging and provide the current connection port; fixed port 5555 currently refuses connections.
-
 - **My Bank readability (2026-11-06)** — separate available balance, total/reserved amounts, alternative money/screen-time conversions, pending chore earnings, already-earned banked time, and savings goals. Use clear cards/spacing and restrained emphasis in standard and simplified kid layouts. Preserve all reward calculations and clearly distinguish estimates from available funds. A local layout draft was started, then deferred at the owner's request; visual phone/tablet review is still required. Phone headers remain unchanged.
 
 - **Parent history paging (2026-11-06)** — web and mobile show five past screen-time grants and five recently approved chores initially. “Show more” loads ten additional items per tap until the end; retain stable ordering and avoid duplicates or skipped records across purchased/bonus grants. Keep all queued/manual grants and pending approvals visible; these are not part of the history limit.
@@ -98,6 +96,12 @@ Ordered by impact-to-effort (2026-11-01 audit). Shipped items live in the ledger
 - **Retract a help request (2026-11-06)** — both kid layouts should switch “I need help” to a clear “Cancel help request” action while requested. Clear the flag, update both kid/parent surfaces, and remove linked help reminders without changing the chore's completion state. The server already supports clearing the flag; the kid UI lacks the action.
 
 - **Tablet header actions (2026-11-06)** — on tablets with sufficient width, expose Alerts immediately after the balance, plus Theme, Sign out, and parent Settings as applicable, replacing the hamburger menu. Keep the phone header unchanged, including landscape phones; use device classification as well as available width. Preserve labels/accessibility and unread indicators; confirm sign-out to avoid an accidental one-tap logout. Fall back to overflow when a tablet window is narrow. Assess the real screens before implementing.
+
+- **Self-contained peer-to-peer feasibility spike (2026-11-06)** — investigate full parent/kid capability parity across paired mobile devices, useful offline operation, and no PayDirt backend for either the developer to operate or a household to host/configure. This is a research/prototype item, not an approved architecture migration. A single phone acting as a required always-on household server does not satisfy the full vision.
+  - **Data and trust:** evaluate a local database on each device with authenticated operation/event replication, conflict handling, and duplicate suppression. Do not assume syncing live SQLite files with Syncthing merges application transactions; evaluate Syncthing-like transport separately from database semantics. Parent authority, private kid data, pairing, device revocation, backup/recovery, and schema upgrades must survive offline/rejoining devices.
+  - **Behavioral parity:** account for concurrent approvals, offline spending, races, reversals, timer proofs, household calendar recurrence, scheduled notifications, and banked time. Identify how Family Link execution and Google session custody move off the host without putting parent credentials on kid devices. Define safe behavior when no eligible device is awake or online; transport/CRDT convergence alone does not prevent double payouts or external time grants.
+  - **Connectivity and web:** test LAN/VLAN discovery, different networks/NAT, background Android limits without Play Services, and peer catch-up. Include web access in the vision: compare a browser as a paired local-first participant, a page served by a nearby mobile device, and an optionally hosted static frontend. Spell out secure-context/TLS, offline caching, initial delivery, and background limitations. Whether optional public encrypted relays/static hosting are acceptable remains open; no required developer-operated or user-provisioned backend may be hidden in the proposal.
+  - **Spike exit:** a bounded throwaway multi-device prototype proving offline completion → reconnect → parent approval → one payout, simultaneous parent decisions, restart/recovery, device loss/revocation, and an assessed web path. Produce a feature-parity/gap matrix, explicit infrastructure dependencies, and a migration/rollback recommendation before proposing production implementation. Evidence: [Syncthing conflict behavior](https://docs.syncthing.net/users/syncing.html), [SQLite WAL state](https://www.sqlite.org/wal.html), [Android background restrictions](https://developer.android.com/training/monitoring-device-state/doze-standby).
 
 - **Overview reassessment (2026-11-02)** — reassess after a few weeks of real use: (a) dollar figure in the app header; (b) kid-facing lifetime totals ("grand total accomplished"); (c) actual-vs-potential trend across weeks; (d) heatmap (parked): kids see only their own, parents get a household grid. Open: reprice pending spend requests on approval (default no; prices lock at request time).
 
