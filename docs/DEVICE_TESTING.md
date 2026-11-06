@@ -57,6 +57,9 @@ just push-remote   # connect, build the release APK, install on all (alias: just
 Notes:
 
 - `scripts/tablet-connect.sh` tries each entry as written, then `ip:5555`, then mDNS.
+- `just conn` skips unavailable/offline devices and exits successfully, even if
+  none are reachable. Missing configuration remains an error; install commands
+  separately check that a device is connected.
 - A device **reboot** drops the pinned port and the random Wireless-debugging
   port changes: re-enable Wireless debugging and run `just conn` (list the new
   `ip:port` once if the bare IP fails); it re-pins 5555.

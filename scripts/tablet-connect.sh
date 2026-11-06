@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Connect every tablet listed in DEPLOY_DEVICES env or ./deploy-devices.
 # Per entry: entry as-is → ip:5555 (fixed port via `adb tcpip 5555`) → mDNS.
-# Exits 0 if at least one device ended up connected, 1 if none did.
+# Unavailable devices are skipped; missing configuration remains an error.
 set -uo pipefail
 
 entries="${DEPLOY_DEVICES:-}"
@@ -42,7 +42,7 @@ connect_one() {
     host="${e%%:*}"
     # already connected: fine on 5555; on a random Wireless Debugging port, pin it to 5555
     local have
-    have=$(adb devices | awk '$2 == "device" {print $1}' | grep "^${host}:" | head -1)
+    have=$(adb devices | awk -v prefix="${host}:" '$2 == "device" && index($1, prefix) == 1 {print $1; exit}')
     if [[ -n "${have}" ]]; then
         if [[ "${have}" == "${host}:5555" ]]; then
             printf '\033[0;32malready connected to %s\033[0m\n' "${host}"
@@ -59,12 +59,25 @@ connect_one() {
             return 0
         fi
     fi
-    res=$(adb_connect "${host}:5555")
-    if [[ "${res}" == *"connected to"* && "${res}" != *"failed"* ]]; then
-        printf '\033[0;32m%s\033[0m\n' "${res}"
-        return 0
+    if [[ "${e}" != "${host}:5555" ]]; then
+        res=$(adb_connect "${host}:5555")
+        if [[ "${res}" == *"connected to"* && "${res}" != *"failed"* ]]; then
+            printf '\033[0;32m%s\033[0m\n' "${res}"
+            return 0
+        fi
     fi
-    port=$(adb mdns services 2>/dev/null | awk -v h="${host}" '$4==h {print $5; exit}')
+    # ADB reports service-name, service-type, ip:port, not separate IP/port columns.
+    # Pairing services are not connection endpoints.
+    port=$(adb mdns services 2>/dev/null | awk -v h="${host}" '
+        /_adb-tls-connect[.]_tcp|_adb[.]_tcp/ {
+            for (i = 1; i <= NF; i++) {
+                split($i, endpoint, ":")
+                if (endpoint[1] == h && endpoint[2] ~ /^[0-9]+$/) {
+                    print endpoint[2]
+                    exit
+                }
+            }
+        }')
     if [[ -n "${port}" ]]; then
         res=$(adb_connect "${host}:${port}")
         if [[ "${res}" == *"connected to"* && "${res}" != *"failed"* ]]; then
@@ -77,15 +90,14 @@ connect_one() {
 }
 
 ok=0
+unavailable=0
 for e in ${entries}; do
     if connect_one "${e}"; then
         ok=$((ok + 1))
     else
-        printf '\033[0;33mFailed to reach %s (also tried %s:5555 + mDNS).\033[0m\n' "${e}" "${e%%:*}"
-        printf '\033[0;33m  Tablet asleep/off, wrong IP/VLAN, or rebooted (reboot resets the debug port).\033[0m\n'
-        printf '\033[0;33m  One-time per reboot: pair from the Wireless debugging screen if needed, then\n'
-        printf '\033[0;33m  run '\''adb -s <serial> tcpip 5555'\'' — entries then auto-fall-back to 5555.\033[0m\n'
+        unavailable=$((unavailable + 1))
+        printf '  unavailable: %s (offline or debugging disabled; skipped)\n' "${e%%:*}"
     fi
 done
 
-[[ ${ok} -gt 0 ]]
+printf 'Connections: %s ready, %s unavailable.\n' "${ok}" "${unavailable}"

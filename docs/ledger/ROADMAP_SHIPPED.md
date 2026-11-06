@@ -4,6 +4,8 @@
 
 ## Shipped index
 
+- [x] 2026-11-06 — `just conn` skips unavailable devices successfully; mDNS endpoint parsing fixed
+
 - [x] 2026-11-04 — Rapid-approval queue preservation and pending/approved/rejected limit counting verified against live PocketBase
 
 - [x] 2026-11-04 — Family Link early-bonus allowance-loss report ruled out on device: normal daily time resumes after the bonus expires
@@ -44,6 +46,19 @@
 - [x] 2026-06-10 — MVP, Phase 1, and Phase 1.5 (migrated 2026-10-21)
 
 ## Archived entries
+
+### 2026-11-06 — Nonfatal device connection checks
+
+`just conn` now reports ready/unavailable counts and succeeds when every saved
+device is offline or has debugging disabled. Missing configuration remains an
+error, and install commands still check for a connected device. Fixed mDNS
+parsing for `ip:port` endpoints, excluded pairing services, and removed the
+duplicate fixed-port connection attempt.
+
+Three shell regression tests failed before the fix and pass after it. Actual
+`just conn` completed successfully with zero ready and four unavailable devices;
+discovery recovery is covered at the ADB boundary, without claiming a physical
+device connection.
 
 ### 2026-11-02 — Tier 2 APK self-update confirmed on the remaining tablets
 
