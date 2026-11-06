@@ -1,6 +1,5 @@
-// The caller supplies a household wall-clock proxy and converts the result
-// back to an instant using lib/calendar.js.
-// Date setters preserve wall-clock time through daylight-saving transitions.
+// The caller supplies calendar.wallUtc and converts with calendar.instantUtc.
+// UTC field arithmetic keeps host DST rules out of the household wall clock.
 function nextDue(chore, now) {
   const time = chore.getString("due_time");
   if (chore.getString("type") !== "recurring" || !time) return "";
@@ -8,20 +7,20 @@ function nextDue(chore, now) {
   const day = chore.getInt("due_day");
   const cadence = chore.getString("cadence");
   const due = new Date(now);
-  due.setHours(parts[0], parts[1], 0, 0);
+  due.setUTCHours(parts[0], parts[1], 0, 0);
   if (cadence === "daily") {
-    if (due <= now) due.setDate(due.getDate() + 1);
+    if (due <= now) due.setUTCDate(due.getUTCDate() + 1);
   } else if (cadence === "weekly") {
-    due.setDate(due.getDate() + (day - due.getDay() + 7) % 7);
-    if (due <= now) due.setDate(due.getDate() + 7);
+    due.setUTCDate(due.getUTCDate() + (day - due.getUTCDay() + 7) % 7);
+    if (due <= now) due.setUTCDate(due.getUTCDate() + 7);
   } else if (cadence === "monthly") {
-    const month = due.getMonth();
-    due.setDate(1);
-    due.setDate(Math.min(day, new Date(due.getFullYear(), month + 1, 0).getDate()));
+    const month = due.getUTCMonth();
+    due.setUTCDate(1);
+    due.setUTCDate(Math.min(day, new Date(Date.UTC(due.getUTCFullYear(), month + 1, 0)).getUTCDate()));
     if (due <= now) {
-      due.setDate(1);
-      due.setMonth(month + 1);
-      due.setDate(Math.min(day, new Date(due.getFullYear(), due.getMonth() + 1, 0).getDate()));
+      due.setUTCDate(1);
+      due.setUTCMonth(month + 1);
+      due.setUTCDate(Math.min(day, new Date(Date.UTC(due.getUTCFullYear(), due.getUTCMonth() + 1, 0)).getUTCDate()));
     }
   } else return "";
   return due.toISOString();

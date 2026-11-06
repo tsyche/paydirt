@@ -18,7 +18,8 @@ records below preserve history, not completion claims.
 
 | Area | Evidence already present | Remaining work |
 |---|---|---|
-| Recurring due days | Fields, hooks, parent forms, and assignment deadlines exist | Direct daily/weekly/monthly rule tests; timezone/DST and month-end coverage; template/create/edit/deadline/next-cycle journey. Next priority. |
+| Recurring due days | Eleven direct cadence/timezone/DST/month-end tests; three live deadline snapshot/tamper checks; existing prior-pending/next-day recurrence tests pass. Both kid layouts show occurrence dates; headless template/prefill/create/edit/snapshot journey passes. | Native standard/simplified pending-yesterday and actionable-today cards, including dates and timer reset. |
+| Tablet header actions | Shared header implementation; five rendered boundary tests cover tablet width/classification, unread indicators, navigation, role visibility, and confirmed sign-out; four headless header scenarios pass using a device-classification boundary | Native wide/narrow tablet, portrait/landscape phone, large text, menu/dialog behavior, cancel/confirm sign-out. No emulator is connected. |
 | Kudos | Schema, hook/client, parent controls, kid surfaces, unit/API checks | Verify parent award → kid notification/celebration/history and no replay on a second device. |
 | Chore notes | Parent forms, template prefill, kid/approval rendering, server length cap | Verify actual create/edit/template and both kid layouts, including long text. |
 | Partial credit | Shared/server payout logic, web/mobile controls | Verify parent percentage controls, confirmation, actual payout/history, zero-minute case, and undo restrictions. |

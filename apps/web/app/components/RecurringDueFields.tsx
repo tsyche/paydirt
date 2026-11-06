@@ -3,7 +3,7 @@ export function RecurringDueFields({ cadence, time, day, onTime, onDay }: {
   onTime: (value: string) => void; onDay: (value: number) => void;
 }) {
   return <div className="inline">
-    <label>Recurring due time (server-local; blank = off) <input type="time" value={time} onChange={(e) => onTime(e.target.value)} /></label>
+    <label>Recurring due time (household time; blank = off) <input type="time" value={time} onChange={(e) => onTime(e.target.value)} /></label>
     {cadence === "weekly" && <label>Due weekday <select value={day} onChange={(e) => onDay(Number(e.target.value))}>
       {["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"].map((name, i) => <option key={name} value={i}>{name}</option>)}
     </select></label>}

@@ -15,4 +15,12 @@ function instant(household, wallDate) {
 function midnight(household, at) {
   return new Date(new DateTime(day(household, at) + " 00:00:00", zone(household)).string().replace(" ", "T"));
 }
-module.exports = { zone, day, wall, instant, midnight };
+// Recurring arithmetic uses UTC fields as a timezone-neutral wall-clock carrier.
+// A local Date cannot represent household times inside the host's DST gap.
+function wallUtc(household, at) {
+  return new Date(new DateTime(at.toISOString()).time().in(new Timezone(zone(household))).format("2006-01-02T15:04:05") + "Z");
+}
+function instantUtc(household, wallDate) {
+  return new Date(new DateTime(wallDate.toISOString().slice(0, 19).replace("T", " "), zone(household)).string().replace(" ", "T"));
+}
+module.exports = { zone, day, wall, instant, midnight, wallUtc, instantUtc };

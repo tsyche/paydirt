@@ -225,9 +225,7 @@ describe("Phase 1 features (live)", () => {
     // Create a recurring chore and give kid1 the first assignment
     const chore = await newChore("Take out trash", { type: "recurring", cadence: "daily" });
     const first = await parent.assignChore(chore.id, kid1User.id);
-    const afterManual = (await kid1.listInbox(kid1User.id, 200)).filter(
-      (i) => i.title === "New chore! ⭐" && i.body === chore.name,
-    ).length;
+    expect((await kid1.listInbox(kid1User.id, 200)).some((i) => i.source === `assignments:${first.id}` && i.title === "New chore! ⭐")).toBe(true);
 
     // Backdate yesterday's occurrence; completion/approval may happen late.
     const yesterday = yesterdayEvening();
@@ -241,6 +239,11 @@ describe("Phase 1 features (live)", () => {
     await kid1.markComplete(first.id);
     await parent.approveAssignment(first.id);
 
+    // Completion clears the original actionable alert; compare after that cleanup.
+    const pushes = async () =>
+      (await kid1.listInbox(kid1User.id, 200)).filter((i) => i.title === "New chore! ⭐" && i.body === chore.name).length;
+    const afterApproval = await pushes();
+
     // Running daily cron should re-assign since there's no open assignment
     await admin.pb.send("/api/paydirt/cron/daily", { method: "POST" });
 
@@ -250,11 +253,7 @@ describe("Phase 1 features (live)", () => {
     expect(newAssignment!.status).toBe("assigned");
 
     // The 3 AM batch must not push per chore (the daily summary covers it).
-    // (Seed data may already hold a same-named chore, so compare against the
-    // count right after the manual assign: only that one push is allowed.)
-    const pushes = async () =>
-      (await kid1.listInbox(kid1User.id, 200)).filter((i) => i.title === "New chore! ⭐" && i.body === chore.name).length;
-    expect(await pushes()).toBe(afterManual);
+    expect(await pushes()).toBe(afterApproval);
 
     // Running daily cron again should NOT create a duplicate (open one exists)
     await admin.pb.send("/api/paydirt/cron/daily", { method: "POST" });

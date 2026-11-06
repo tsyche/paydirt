@@ -1,3 +1,4 @@
+import { OccurrenceLabel } from "../components/OccurrenceLabel";
 import { HelpRequestButton } from "../components/HelpRequestButton";
 import { ArchiveRow } from "../components/ArchiveActions";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -391,6 +392,7 @@ export function KidHome({
                   </Text>
                   <Chip compact>{STATUS_LABEL[a.status] ?? a.status}</Chip>
                 </View>
+                <OccurrenceLabel assignment={a} />
                 {chore ? (
                   <ChoreNotes text={chore.description} />
                 ) : null}

@@ -4,6 +4,8 @@
 
 ## Shipped index
 
+- [x] 2026-11-06 — Recurring deadline arithmetic no longer inherits host DST gaps; fail-before/pass-after verified locally
+
 - [x] 2026-11-06 — Web partial-credit control and resubmission context polished and browser-verified
 
 - [x] 2026-11-06 — Multiple delivery windows persist; stale concurrent chore approvals cannot pay twice
@@ -54,6 +56,10 @@
 - [x] 2026-06-10 — MVP, Phase 1, and Phase 1.5 (migrated 2026-10-21)
 
 ## Archived entries
+
+### 2026-11-06 — Host-independent recurring deadline arithmetic
+
+A Tokyo household's 02:30 deadline moved to 03:30 when the host entered its own DST gap. Recurring calculation now carries household wall-clock fields through UTC Date arithmetic, then converts using the household timezone. Existing calendar consumers are unchanged. The regression failed before the fix; eleven direct deadline tests pass under both Pacific and UTC process timezones. Three live snapshot/tamper checks and nineteen existing recurrence/Phase 1 integration checks pass, with ledger verification clean. A headless template/prefill/create/edit/snapshot journey also passes. Both parent forms now label deadlines as household time, with fail-before/pass-after rendered checks. Backend deployment and the broader recurring native acceptance remain open in the [roadmap](../../ROADMAP.md#release-checks-for-implemented-work).
 
 ### 2026-11-06 — Web approval-card polish
 

@@ -1,3 +1,4 @@
+import { OccurrenceLabel } from "../components/OccurrenceLabel";
 import { HelpRequestButton } from "../components/HelpRequestButton";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { householdDateTime } from "@paydirt/shared";
@@ -295,6 +296,7 @@ export function SimpleKidHome({ user, onLogout }: { user: User; onLogout: () => 
             {a.expand?.chore ? (
               <ChoreNotes text={a.expand.chore.description} />
             ) : null}
+            <OccurrenceLabel assignment={a} />
             {!!a.due_at && <Text>Due {householdDateTime(a.due_at)}</Text>}
             {a.expand?.chore ? (
               <Text style={[styles.choreReward, { color: accentColor }]}>
@@ -330,6 +332,7 @@ export function SimpleKidHome({ user, onLogout }: { user: User; onLogout: () => 
             <Text style={[styles.choreName, { color: theme.colors.onErrorContainer }]}>
               {a.expand?.chore?.name ?? "Chore"}
             </Text>
+            <OccurrenceLabel assignment={a} />
             {a.rejection_message ? (
               <Text style={[styles.waitingText, { color: theme.colors.onErrorContainer }]}>
                 {a.rejection_message}
@@ -355,6 +358,7 @@ export function SimpleKidHome({ user, onLogout }: { user: User; onLogout: () => 
             <Text style={[styles.choreName, { color: theme.colors.onSurface }]}>
               {a.expand?.chore?.name ?? "Chore"}
             </Text>
+            <OccurrenceLabel assignment={a} />
             <Text style={[styles.waitingText, { color: theme.colors.onSurfaceVariant }]}>
               Waiting for Mom/Dad…
             </Text>
