@@ -716,9 +716,9 @@ input[type="checkbox"]:focus-visible {
 }
 
 /* ─── Settings Panel ─────────────────────────────────────────────────────── */
-/* Centered modal. It's rendered inline in the app bar, so without fixed
-   positioning the tall form overflows the 64px bar and runs off the top of the
-   screen. The big box-shadow spread doubles as a backdrop scrim (no extra DOM). */
+/* Centered viewport modal. Header-triggered panels mount into document.body
+   so the app bar's backdrop filter cannot become their fixed containing block.
+   The large box-shadow spread doubles as the backdrop scrim. */
 .settings-panel {
   position: fixed;
   top: 50%;

@@ -135,9 +135,9 @@ test("create → assign → kid completes → approve → undo", async ({ page }
   const undoRow = page
     .locator(".card.row")
     .filter({ hasText: choreName })
-    .filter({ has: page.getByRole("button", { name: "Undo" }) });
+    .filter({ has: page.getByRole("button", { name: "Undo approval", exact: true }) });
   await expect(undoRow).toBeVisible();
-  await undoRow.getByRole("button", { name: "Undo" }).click();
+  await undoRow.getByRole("button", { name: "Undo approval", exact: true }).click();
   await goTab(page, /Kids/);
   await expect.poll(readBalance).toBe(startBalance);
 
@@ -219,7 +219,7 @@ test("a chore that pays time grants minutes on approval and can't be undone", as
     .locator(".card.row")
     .filter({ hasText: choreName })
     .filter({ has: page.getByRole("button", { name: /Send a reaction/ }) });
-  await expect(approvedRow.getByRole("button", { name: "Undo" })).toHaveCount(0);
+  await expect(approvedRow.getByRole("button", { name: "Undo approval", exact: true })).toHaveCount(0);
 
   // Cleanup: settle the manual grant and retire the chore.
   await grantRow.getByRole("button", { name: "Mark granted manually" }).click();

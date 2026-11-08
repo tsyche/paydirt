@@ -21,6 +21,7 @@ class MainApplication : Application(), ReactApplication {
   override val reactHost: ReactHost by lazy {
     ExpoReactHostFactory.getDefaultReactHost(
       context = applicationContext,
+      useDevSupport = BuildConfig.DEBUG,
       packageList =
         PackageList(this).packages.apply {
           add(PayDirtPackage())

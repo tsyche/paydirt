@@ -49,3 +49,10 @@ describe("responsive header navigation", () => {
     expect(boundary.actions.has("Household settings")).toBe(false);
   });
 });
+it.each([false, true])("keeps Overview after Alerts on tablets and before overflow on phones (tablet=%s)", (tablet) => {
+  boundary.deviceType = tablet ? 2 : 1;
+  const html = renderToStaticMarkup(createElement(HeaderNavigation, { ...props(), overviewAction: createElement("button", null, "Overview") }));
+  expect(html).toContain("Overview");
+  if (tablet) expect(html.indexOf("Alerts")).toBeLessThan(html.indexOf("Overview"));
+  else expect(html.indexOf("Overview")).toBeLessThan(html.indexOf("Menu"));
+});

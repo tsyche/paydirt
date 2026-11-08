@@ -93,7 +93,7 @@ export function RecentlyApproved({
               </View>
               {(!a.expand?.chore || payMode(a.expand.chore) === "bucks") && (
                 <Button compact textColor={theme.colors.error} onPress={() => confirmUndo(a)}>
-                  Undo
+                  Undo approval
                 </Button>
               )}
             </View>

@@ -1,5 +1,6 @@
 "use client";
 
+import { createPortal } from "react-dom";
 import { useEffect, useMemo, useState } from "react";
 import type { Assignment, Chore, Household, User } from "@paydirt/shared";
 import {
@@ -233,14 +234,14 @@ export function OverviewModalButton(props: {
   return (
     <>
       <button className="outlined sm" aria-label="Overview" title="Overview" onClick={() => setOpen(true)}>📊</button>
-      {open && (
+      {open && createPortal(
         <div className="settings-panel overview-modal" role="dialog" aria-modal="true" aria-label="Overview">
           <div className="row" style={{ justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
             <h3 style={{ margin: 0 }}>📊 Overview</h3>
             <button className="outlined sm" onClick={() => setOpen(false)}>Close</button>
           </div>
           <OverviewView {...props} />
-        </div>
+        </div>, document.body
       )}
     </>
   );

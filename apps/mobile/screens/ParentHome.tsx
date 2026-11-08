@@ -1,3 +1,4 @@
+import { SwipeActionsRow } from "../components/SwipeActionsRow";
 import { TimeField } from "../components/TimeField";
 import { localDateKey, localDateInstant, householdDateTime } from "@paydirt/shared";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -566,12 +567,12 @@ export function ParentHome({
   }
 
   function confirmDeactivate(choreId: string, choreName: string) {
-    Alert.alert("Deactivate chore", `Deactivate "${choreName}"? It won't be assignable.`, [
+    Alert.alert("Archive chore", `Archive "${choreName}"? It won't be assignable.`, [
       { text: "Cancel", style: "cancel" },
       {
-        text: "Deactivate",
+        text: "Archive",
         style: "destructive",
-        onPress: () => void act(() => client.deactivateChore(choreId), "Deactivated."),
+        onPress: () => void act(() => client.deactivateChore(choreId), "Chore archived."),
       },
     ]);
   }
@@ -667,8 +668,7 @@ export function ParentHome({
           subtitle={pendingCount > 0 ? `${pendingCount} item${pendingCount === 1 ? "" : "s"} waiting` : "All clear 🎉"}
         />
         <GritButton rows={kids} currency={currencyName} goodsRate={goodsRate} screenRate={screenRate(household)} total />
-        <OverviewModalButton household={household} kids={kids} chores={chores} heldByChore={heldByChore} />
-        <HeaderMenu userId={user.id} onLogout={onLogout} onSettings={() => setHhSettingsOpen(true)} />
+        <HeaderMenu userId={user.id} onLogout={onLogout} onSettings={() => setHhSettingsOpen(true)} overviewAction={<OverviewModalButton household={household} kids={kids} chores={chores} heldByChore={heldByChore} />} />
       </Appbar.Header>
 
       <OfflineBanner />
@@ -1342,11 +1342,21 @@ export function ParentHome({
           const busy = assigning[chore.id] ?? false;
           const isEditing = editingChoreId === chore.id;
           return (
-            <Card key={chore.id} style={styles.approvalCard}>
+            <SwipeActionsRow key={chore.id} disabled={isEditing || busy || savingEdit}
+              onArchive={() => confirmDeactivate(chore.id, chore.name)} onEdit={() => startEditChore(chore)}>
+            <Card style={styles.approvalCard}>
               <Card.Content>
                 {isEditing ? (
                   <View style={styles.createChoreContent}>
                     <Text variant="labelMedium" style={{ color: theme.colors.onSurfaceVariant }}>Editing: {chore.name}</Text>
+                    <View style={[styles.approvalActions, { marginTop: 8 }]}>
+                      <Button mode="contained" icon="check" onPress={() => void saveChoreEdit(chore.id)} disabled={savingEdit || !editName.trim()} style={[styles.approveBtn, { borderRadius: 12 }]}>
+                        {savingEdit ? "Saving…" : "Save"}
+                      </Button>
+                      <Button mode="outlined" onPress={() => setEditingChoreId(null)} style={[styles.rejectBtn, { borderRadius: 12 }]}>
+                        Cancel
+                      </Button>
+                    </View>
                     <TextInput mode="outlined" label="Chore name" value={editName} onChangeText={setEditName} dense />
                     <TextInput mode="outlined" label="Instructions (optional, visible to kids)" value={editNotes} onChangeText={setEditNotes} multiline maxLength={1000} />
                     <TextInput label="Timer minutes (0 = off, max 480)" value={editTimerMinutes} onChangeText={setEditTimerMinutes} keyboardType="number-pad" />
@@ -1396,14 +1406,7 @@ export function ParentHome({
                       <TextInput mode="outlined" label="Due date (optional)" value={editDueAt} onChangeText={setEditDueAt} keyboardType="numbers-and-punctuation" placeholder="YYYY-MM-DD" dense style={{ marginTop: 4 }} />
                       </>
                     )}
-                    <View style={[styles.approvalActions, { marginTop: 8 }]}>
-                      <Button mode="contained" icon="check" onPress={() => void saveChoreEdit(chore.id)} disabled={savingEdit || !editName.trim()} style={[styles.approveBtn, { borderRadius: 12 }]}>
-                        {savingEdit ? "Saving…" : "Save"}
-                      </Button>
-                      <Button mode="outlined" onPress={() => setEditingChoreId(null)} style={[styles.rejectBtn, { borderRadius: 12 }]}>
-                        Cancel
-                      </Button>
-                    </View>
+
                   </View>
                 ) : (
                   <>
@@ -1427,7 +1430,7 @@ export function ParentHome({
                           ]}
                         />
                       </View>
-                      <Button mode="text" compact onPress={() => startEditChore(chore)} icon="pencil" style={{ minWidth: 0 }}>{""}</Button>
+                      <Button mode="text" compact accessibilityLabel={`Edit ${chore.name}`} onPress={() => startEditChore(chore)} icon="pencil" style={{ minWidth: 0 }}>{""}</Button>
                     </View>
                     <View style={styles.assignRow}>
                       {kids.length > 0 && (
@@ -1462,12 +1465,13 @@ export function ParentHome({
                         </Button>
                       </>
                       )}
-                      <Button mode="text" compact onPress={() => confirmDeactivate(chore.id, chore.name)} icon="archive-off-outline" textColor={theme.colors.error} style={{ minWidth: 0, marginLeft: "auto" }}>{""}</Button>
+                      <Button mode="text" compact accessibilityLabel={`Archive ${chore.name}`} onPress={() => confirmDeactivate(chore.id, chore.name)} icon="archive-outline" textColor={theme.colors.error} style={{ minWidth: 0, marginLeft: "auto" }}>{""}</Button>
                     </View>
                   </>
                 )}
               </Card.Content>
             </Card>
+            </SwipeActionsRow>
           );
         })}
           </>

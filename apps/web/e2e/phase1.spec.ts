@@ -82,7 +82,7 @@ test("react to a recently approved chore", async ({ page }) => {
   const approvedRow = page
     .locator(".card.row")
     .filter({ hasText: choreName })
-    .filter({ has: page.getByRole("button", { name: "Undo" }) });
+    .filter({ has: page.getByRole("button", { name: "Undo approval", exact: true }) });
   await expect(approvedRow).toBeVisible();
   await approvedRow.getByRole("button", { name: "🎉" }).click();
   await expect(approvedRow).toContainText("🎉");
@@ -487,11 +487,14 @@ test("overview modal: cost strip, period totals and weekly potential; ledger tab
   await expect(page.getByRole("heading", { name: /Overview/ })).toHaveCount(0);
   await expect(page.locator("table.ledger-table")).toBeVisible();
   await expect(page.getByTestId("grit-chip")).toBeVisible(); // household total in the header
+  await expect(page.getByTestId("grit-chip").locator('svg[data-icon="cash"]')).toBeVisible();
   await page.getByTestId("grit-chip").click();
   await expect(page.getByTestId("grit-modal")).toContainText("Total:");
   await expect(page.getByTestId("grit-modal")).toContainText("min");
-  await page.getByRole("button", { name: "Close" }).click();
+  await expect(page.getByRole("dialog").getByRole("button", { name: "Close", exact: true })).toBeInViewport();
+  await page.getByRole("dialog").getByRole("button", { name: "Close", exact: true }).click();
   await page.getByRole("button", { name: "Overview" }).click();
+  await expect(page.getByRole("dialog").getByRole("button", { name: "Close", exact: true })).toBeInViewport();
   await expect(page.getByRole("heading", { name: /Overview/ })).toBeVisible();
   await expect(page.getByTestId("cost-strip")).toContainText("Paid vs. potential");
   await expect(page.getByTestId("cost-strip")).toContainText("Screen time redeemed");

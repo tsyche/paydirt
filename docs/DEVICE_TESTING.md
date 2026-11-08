@@ -1,6 +1,6 @@
 # Physical Device Testing
 
-**TL;DR:** Pair each tablet once, list its IP in `deploy-devices` (`just conn` pins port 5555), then `just ship` (or `just push` for an adb-only install). The checklist and findings below record the 2026-10-21 Pixel 8 / GrapheneOS smoke test.
+**TL;DR:** Pair each tablet once, list its IP in `deploy-devices` (`just conn` pins port 5555), then `just ship` (or `just push` for an adb-only install). This guide records the 2026-10-21 Pixel 8 / GrapheneOS smoke test and the 2026-11-06 API 34 emulator acceptance.
 
 ## Contents
 
@@ -8,6 +8,7 @@
 - [Wireless push (no cable after initial pairing)](#wireless-push-no-cable-after-initial-pairing)
 - [Build the APK](#build-the-apk)
 - [Test checklist](#test-checklist)
+- [API 34 emulator acceptance (2026-11-06)](#api-34-emulator-acceptance-2026-11-06)
 - [Findings (2026-10-21 smoke test, Pixel 8 / GrapheneOS)](#findings-2026-10-21-smoke-test-pixel-8--grapheneos)
 - [Useful adb commands](#useful-adb-commands)
 - [Rebuilding after code changes](#rebuilding-after-code-changes)
@@ -144,6 +145,28 @@ adb install -r apps/mobile/android/app/build/outputs/apk/debug/app-debug.apk
 - [x] Giant balance card visible — 2026-10-21, child2: blue 💰 header + huge balance, verified on device
 - [x] Chore cards with large "I did it!" buttons — star cards with giant gold buttons (and "Take photo!" variants for photo chores)
 - [x] Broadcast cards show in blue — **stale wording**: cards use `secondaryContainer` (theme accent, olive/brown in the current kid theme), distinct from chore cards; intent satisfied
+
+## API 34 emulator acceptance (2026-11-06)
+
+This was an isolated, headless API 34 emulator using a disposable PocketBase
+fixture. It is native-app evidence, not a physical-device or production check.
+
+- Tablet header: wide layout placed Alerts immediately after balance, then
+  Overview, Theme, Settings, and Sign out. At 711 dp, direct actions collapsed
+  into the menu. Large text kept all wide actions within the header.
+- Parent actions: Theme and household Settings opened; sign-out Cancel stayed
+  signed in and confirm returned to login. On catalogue chores, right swipe
+  opened editing with Save/Cancel above the fields; left swipe opened Archive
+  confirmation. Cancel left the chore active.
+- Recurring chores: standard and simplified kid layouts showed the prior
+  pending occurrence and today's actionable timed occurrence with their dates.
+  Both timers survived force-stop/relaunch. Approving yesterday's standard
+  occurrence left today's assignment and timer unchanged.
+- The Expo activity remained portrait-locked during a forced-rotation attempt;
+  phone-landscape behavior was checked by rendered classification tests only.
+- Existing Expo LogBox warnings appeared for notification sound `default` and
+  Paper Dialog fragments. They remain tracked in [ROADMAP.md](../ROADMAP.md);
+  this emulator check does not establish notification delivery behavior.
 
 ## Findings (2026-10-21 smoke test, Pixel 8 / GrapheneOS)
 

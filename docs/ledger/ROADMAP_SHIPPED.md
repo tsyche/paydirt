@@ -4,6 +4,8 @@
 
 ## Shipped index
 
+- [x] 2026-11-06 — Tablet header actions and recurring due-day native acceptance passed on isolated API 34 emulator; deployment remains separate
+
 - [x] 2026-11-06 — Recurring deadline arithmetic no longer inherits host DST gaps; fail-before/pass-after verified locally
 
 - [x] 2026-11-06 — Web partial-credit control and resubmission context polished and browser-verified
@@ -56,6 +58,24 @@
 - [x] 2026-06-10 — MVP, Phase 1, and Phase 1.5 (migrated 2026-10-21)
 
 ## Archived entries
+
+### 2026-11-06 — Tablet header actions and recurring due-day acceptance
+
+The shared header exposes tablet actions in the order balance, Alerts,
+Overview, Theme, Settings, and Sign out. Native API 34 checks covered wide and
+narrow tablet widths, large text, Theme/Settings navigation, and cancel/confirm
+sign-out. Rendered classification tests cover phone overflow; the emulator
+activity stayed portrait-locked during a landscape attempt.
+
+Recurring daily acceptance used isolated fixtures in both standard and
+simplified kid layouts. Yesterday's pending occurrence and today's actionable
+occurrence displayed distinct dates. Timers survived app restart; approving
+yesterday's standard-layout occurrence left today's assignment and timer
+unchanged. Deadline-rule, snapshot, and browser acceptance evidence is recorded
+in the [feature acceptance plan](../plans/feature-acceptance.md).
+
+No production data was used and no deployment was performed. See
+[API 34 emulator notes](../DEVICE_TESTING.md#api-34-emulator-acceptance-2026-11-06).
 
 ### 2026-11-06 — Host-independent recurring deadline arithmetic
 

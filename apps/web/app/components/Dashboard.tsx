@@ -623,7 +623,7 @@ export function Dashboard({
                     void act(() => client.undoApproval(a.id));
                   }}
                 >
-                  Undo
+                  Undo approval
                 </button>}
               </div>
             </div>

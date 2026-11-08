@@ -1,11 +1,11 @@
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { Alert, View, useWindowDimensions } from "react-native";
 import { deviceType, DeviceType } from "expo-device";
 import { Appbar, Badge, Menu } from "react-native-paper";
 
 /** Direct navigation needs both a tablet classification and room for all actions. */
-export function HeaderNavigation({ unread, onInbox, onTheme, onLogout, onSettings }: {
-  unread: boolean; onInbox: () => void; onTheme: () => void; onLogout: () => void; onSettings?: () => void;
+export function HeaderNavigation({ unread, onInbox, onTheme, onLogout, onSettings, overviewAction }: {
+  unread: boolean; onInbox: () => void; onTheme: () => void; onLogout: () => void; onSettings?: () => void; overviewAction?: ReactNode;
 }) {
   const { width } = useWindowDimensions();
   const direct = deviceType === DeviceType.TABLET && width >= 768;
@@ -18,10 +18,13 @@ export function HeaderNavigation({ unread, onInbox, onTheme, onLogout, onSetting
   return (<>
       {direct ? <>
         <Appbar.Action icon={unread ? "bell-badge" : "bell-outline"} accessibilityLabel={unread ? "Alerts, new alerts" : "Alerts"} onPress={onInbox} />
+        {overviewAction}
         <Appbar.Action icon="palette-outline" accessibilityLabel="Theme and colors" onPress={onTheme} />
         {onSettings ? <Appbar.Action icon="cog-outline" accessibilityLabel="Household settings" onPress={onSettings} /> : null}
         <Appbar.Action icon="logout" accessibilityLabel="Sign out" onPress={confirmLogout} />
-      </> : <Menu
+      </> : <>
+        {overviewAction}
+        <Menu
         visible={menu}
         onDismiss={() => setMenu(false)}
         anchorPosition="bottom"
@@ -45,6 +48,6 @@ export function HeaderNavigation({ unread, onInbox, onTheme, onLogout, onSetting
         />
         {onSettings ? <Menu.Item leadingIcon="cog-outline" title="Household settings" onPress={pick(onSettings)} /> : null}
         <Menu.Item leadingIcon="logout" title="Sign out" onPress={pick(onLogout)} />
-      </Menu>}
+      </Menu></>}
   </>);
 }

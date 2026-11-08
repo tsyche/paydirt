@@ -6,7 +6,7 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import { Appearance, useColorScheme } from "react-native";
+import { useColorScheme } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import {
   MD3DarkTheme,
@@ -24,6 +24,8 @@ import {
   type PaletteId,
   type ThemeMode,
 } from "@paydirt/shared";
+
+import { syncNativeAppearance } from "./systemAppearance";
 
 const PALETTE_KEY = "paydirt-palette";
 const MODE_KEY = "paydirt-mode";
@@ -129,7 +131,7 @@ export function AppearanceProvider({ children }: { children: ReactNode }) {
   // dark-mode device while the RN surfaces paint light — dark backgrounds under
   // dark text. null hands control back to the system.
   useEffect(() => {
-    Appearance.setColorScheme(mode === "system" ? "unspecified" : mode);
+    syncNativeAppearance(mode);
   }, [mode]);
 
   const scheme = resolveScheme(mode, systemScheme === "dark");
