@@ -4,6 +4,8 @@
 
 ## Shipped index
 
+- [x] 2026-11-08 — Owner confirmed Android typing fix and parent layout/archive/help walkthrough on the shipped app
+
 - [x] 2026-11-08 — Owner confirmed the tablet/recurring batch shipped and pushed (`3d993c0`); native emulator evidence remains recorded under 2026-11-06
 
 - [x] 2026-11-08 — Glob cancellation vulnerability patched to 14.0.2; synchronous/asynchronous traversal and abort smoke checks pass locally
@@ -316,3 +318,7 @@ The former active issue (#81, reported 2026-11-04) resolved glob 13.0.6, which c
 ### 2026-11-08 — Tablet and recurring release confirmation
 
 The owner reported shipping and pushing the tablet-header and recurring-deadline batch at `3d993c0`. API 34 emulator acceptance and automated coverage are preserved in the 2026-11-06 entry. This is owner-reported release confirmation; no additional physical-device checks were performed in this session.
+
+### 2026-11-08 — Owner device walkthrough
+
+The owner confirmed the installed Android app passes the supplied walkthrough: middle-of-field typing, backspace and keyboard suggestions, correct saved text, pending sections and empty messages, collapsed past grants above expanded history, household-timezone dates/times, catalogue edit/cancel/archive/restore, personal-history Undo/Restore, and help request/cancellation with parent refresh. The cursor bug no longer occurs. The owner also confirmed regular shipping. This report does not establish offline failures, cross-device behavior, large text, every kid layout, or external Google grant recovery.

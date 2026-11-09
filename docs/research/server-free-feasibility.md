@@ -2,7 +2,7 @@
 
 ## TL;DR
 
-Offline completion and duplicate-safe settlement work in a small signed-operation model and a three-browser WebRTC experiment. This does not establish a server-free replacement: Android transport, authority recovery, external grants, and browser pairing remain unproven. Keep PocketBase in production while testing those constraints.
+Offline completion and duplicate-safe settlement work in a small signed-operation model and a three-browser WebRTC experiment. This does not establish a server-free replacement: Android transport, authority recovery, external grants, and browser pairing remain unproven. Keep PocketBase in production while testing those constraints. Iroh screening now supports a bounded LAN harness, but hosted-relay economics and native/browser integration remain blockers to production selection.
 
 ## Scope and observed evidence
 
@@ -62,7 +62,54 @@ These are source-based constraints and engineering inferences, not device observ
 
 [Service workers require secure contexts](https://developer.mozilla.org/en-US/docs/Web/API/Service_Worker_API), with localhost treated specially. A browser on another machine visiting a phone's plain LAN IP does not inherit the localhost exception. Do not promise installable offline web access from that arrangement without a tested delivery/TLS solution.
 
+## 2026-11-08 — Iroh dependency and cost screen
+
+**Gate 0 result: conditional go for an isolated Android LAN harness; no production selection.** A mandatory developer-funded managed relay does not meet the stated cost constraint. Public/community capacity has not been established as a sustainable substitute. No dependency was installed into PayDirt, no account was created, and no device or cross-network transport was tested in this screen.
+
+### Source and artifact checks
+
+| Check | Observed result | Consequence / remaining proof |
+|---|---|---|
+| Published Android artifact | Maven Central lists `computer.iroh:iroh-android:1.2.0`; the upstream FFI release is `v1.2.0` (2026-10-22). | Pin this candidate for a reproducible harness rather than follow `main`. |
+| Source identity | The `v1.2.0` Git tree API returned tree SHA `66a8d619a4d791d458d582f312df6e0ab42bc541`. | This identifies the inspected source tree, not an independently verified binary checksum. |
+| License declarations | FFI source offers MIT or Apache-2.0; published Android/JVM POMs declare both. | No obvious license blocker at screening; retain required notices and review transitive licenses before distribution. |
+| Android packaging | Tagged Android module targets minimum API 24, Java/Kotlin JVM target 17; Android initialization calls `IrohAndroid.installAndroidContext(context)` before endpoints. | PayDirt also targets minimum API 24. APK packaging, ABI compatibility, native loading and device behavior remain untested. |
+| Google independence | Examined direct Android/JVM POM dependencies are Iroh, JNA, Kotlin and coroutines; initialization uses Android `Context`. No direct Play Services dependency was found. | This is source/POM evidence, not a verified resolved dependency graph or Google-free device result. |
+| Kotlin compatibility | Published POMs request Kotlin stdlib 2.2.21; PayDirt's React Native catalog uses Kotlin 2.1.20. | A build gate is required. Do not upgrade production Kotlin or suppress metadata checks merely to force the spike through. |
+| Expo integration | PayDirt already has a Kotlin native-module seam. Expo supports custom Kotlin modules in native builds. | The FFI Node.js binding is not evidence of React Native compatibility. A Kotlin bridge plus rebuilt APK, or a standalone harness, is required; Expo Go/JS-only OTA cannot add the native library. |
+| Direct-only mode | Tagged endpoint source exposes a minimal preset without external services. Its relay-disabled n0 preset is distinct from that minimal preset. | Use minimal mode plus explicitly exchanged addresses for LAN proof; disabling relays alone does not establish zero discovery dependencies. |
+| Protocol scope | FFI README covers endpoints/connections and excludes the higher-level blobs/docs/gossip protocols. | Do not assume document replication or durable operation storage is supplied by the binding. |
+| Browser | An upstream Wasm example explicitly uses relay-only connectivity because browser sockets are restricted. | Browser parity is a separate gate; do not label the npm Node binding a browser implementation or assume server-free browser LAN connectivity. |
+
+Primary sources checked: [release](https://github.com/n0-computer/iroh-ffi/releases/tag/v1.2.0), [Android Maven metadata](https://repo.maven.apache.org/maven2/computer/iroh/iroh-android/maven-metadata.xml), [Android POM](https://repo.maven.apache.org/maven2/computer/iroh/iroh-android/1.2.0/iroh-android-1.2.0.pom), [JVM POM](https://repo.maven.apache.org/maven2/computer/iroh/iroh/1.2.0/iroh-1.2.0.pom), [tagged Android build](https://github.com/n0-computer/iroh-ffi/blob/v1.2.0/kotlin/android/build.gradle.kts), [initializer](https://github.com/n0-computer/iroh-ffi/blob/v1.2.0/kotlin/android/src/main/kotlin/computer/iroh/IrohAndroid.kt), [endpoint presets](https://github.com/n0-computer/iroh-ffi/blob/v1.2.0/src/endpoint.rs), [FFI scope/license](https://github.com/n0-computer/iroh-ffi), [Expo custom native code](https://docs.expo.dev/workflow/customizing/), [upstream browser example](https://github.com/n0-computer/iroh-esp32-examples/blob/main/wasm-gui/README.md).
+
+### Hosted infrastructure and illustrative cost
+
+The [vendor pricing page](https://www.iroh.computer/pricing), checked 2026-11-08, describes rate-limited public Community relays without uptime guarantees. Pro lists a $19 monthly base, 10,000 included concurrent connections, $0.003 per additional endpoint, and 100 GB included egress with $0.09/GB overage. These are published list figures, not a negotiated quote or proof that a given adoption level is supported.
+
+The following scenarios are hypothetical sensitivity calculations, **not measured usage forecasts**. Assume all households are active, decimal MB/GB, a shared Pro relay, and endpoint billing as described above. Exclude metrics, taxes, support, extra regions, photos/backups beyond the stated bytes, and operating costs. Confirm actual endpoint billing semantics before using these estimates for a decision.
+
+| Scenario | Households | Concurrent endpoints assumed | Relayed GB/month | Illustrative monthly total |
+|---|---:|---:|---:|---:|
+| 3 devices/household; 10% concurrent; 5 MB sync/household/month; 20% relayed | 100,000 | 30,000 | 100 | $79 |
+| Same assumptions | 1,000,000 | 300,000 | 1,000 | $970 |
+| 4 devices/household; 25% concurrent; 50 MB sync/household/month; 50% relayed | 100,000 | 100,000 | 2,500 | $505 |
+| Same assumptions | 1,000,000 | 1,000,000 | 25,000 | $5,230 |
+
+Formula: `19 + max(0, endpoints - 10000) * 0.003 + max(0, GB - 100) * 0.09`. This extrapolates list pricing beyond an established service capacity; large deployments may require different plans. Even tiny application records do not eliminate connection costs. Community availability/limits, production terms, abuse controls, and discovery metadata handling still need review. No unlimited free capacity or uptime commitment was found in the examined material.
+
+### Next bounded experiment
+
+1. Use a separate disposable Android harness pinned to the published 1.2.0 artifact. Resolve the dependency graph and verify native library loading before bridging into the Expo app. The Kotlin-version difference makes this the cheaper initial path.
+2. Configure minimal/direct-only endpoints, exchange authenticated peer IDs and explicit addresses out of band, and allow only the paired identity. Mark QR/code provisioning as experimental, not production enrollment.
+3. On two physical Android devices, record a fake completion offline, reconnect over the same Wi-Fi, exchange it, restart, and replay it. Confirm durable storage and duplicate suppression; record route and bytes. Explicit addressing proves transport, not automatic discovery or NAT traversal.
+4. Only after LAN proof, test cross-network direct/relay behavior and measure the cost inputs above. Do not enable paid services or add real Google credentials.
+
+Physical devices are not currently available through `adb`; the screening performed no native build or device test. Bluetooth, Android background behavior, pairing recovery, and full browser support remain unproven. If Iroh's device or economics gate fails, compare Syncthing immutable-record delivery and Briar/Bramble before building a custom networking stack.
+
 ## Recommendation and next gate
+
+The [Draft experiment plan](../plans/server-free-spike.md) (restructured 2026-11-09) moves policy/reducer modelling ahead of device work and proposes public Nostr mailboxes as the primary transport, because direct peer-to-peer transports require both devices awake at once. Iroh is demoted to an optional LAN accelerator. It does not select a production architecture.
 
 Keep the existing backend and ledger unchanged. A single designated settlement device is a useful experiment, but not yet a recommendation for the full product: losing it must not strand the household or permit two recovered authorities to issue grants.
 

@@ -16,11 +16,11 @@ records below preserve history, not completion claims.
 
 ## Current priority fixes
 
-Android typing now keeps immediate field state and ignores stale portal echoes; regression checks exercise rapid middle edits, delayed echoes, template replacement, and clearing. Native IME/cursor proof is still required. Daily recurrence now counts an older assignment completed today, while approval of work completed yesterday does not consume today's occurrence. Feed Turtle's live configuration was not changed.
+Android typing now keeps immediate field state and ignores stale portal echoes; regression checks exercise rapid middle edits, delayed echoes, template replacement, and clearing. The owner confirmed on-device typing, middle edits, keyboard suggestions, saving, and reopening without cursor jumps or extra characters on 2026-11-08. Daily recurrence now counts an older assignment completed today, while approval of work completed yesterday does not consume today's occurrence. Feed Turtle's live configuration was not changed.
 
-Web/mobile history and ledger entries show household-timezone timestamps. Pending approval and screen-time grant sections remain visible; past grants start collapsed above expanded recently approved chores. Verify native scrolling and empty states alongside the existing checks below.
+Web/mobile history and ledger entries show household-timezone timestamps. Pending approval and screen-time grant sections remain visible; past grants start collapsed above expanded recently approved chores. The owner confirmed these parent-screen layouts, empty states, and displayed timestamps on-device on 2026-11-08.
 
-Local verification on 2026-11-08: lint/typecheck, 480 workspace tests, all 79 API tests, and all 29 headless browser journeys passed (the starter-picker selector was corrected and rerun). Ledger verification matched every balance. These checks do not establish native IME behavior.
+Local verification on 2026-11-08: lint/typecheck, 480 workspace tests, all 79 API tests, and all 29 headless browser journeys passed (the starter-picker selector was corrected and rerun). Ledger verification matched every balance. Native typing and the device walkthrough were subsequently confirmed by the owner; untested cases below remain open.
 
 ## Remaining acceptance
 
@@ -31,7 +31,7 @@ Local verification on 2026-11-08: lint/typecheck, 480 workspace tests, all 79 AP
 | Partial credit | Shared/server payout logic, web/mobile controls | Verify parent percentage controls, confirmation, actual payout/history, zero-minute case, and undo restrictions. |
 | Expanded My Bank | Separated sections in both kid homes; calculation/render tests and phone/tablet browser review | Verify native standard and simplified screens against real records, scrolling, and large text. |
 | Personal archives | API tests cover owner privacy, settled-only eligibility, unchanged rewards/Kudos counts, retention, and guarded rollback; headless web Archive/Undo/Restore and catalogue-chore restore pass | Native left-to-archive, vertical scrolling, More actions → Archive, Undo/Restore, catalogue-chore restore, offline errors, tray cleanup, and cross-device refresh. Editable parent catalogue chores additionally use right-to-edit and retain visible Edit/Archive icons; verify pinned edit actions and cancellation. |
-| Help cancellation | Shared control in both kid layouts; real API verifies both parent reminders clear and assignment status is unchanged | Native request → Cancel help request, failed request feedback, and parent refresh. |
+| Help cancellation | Shared control in both kid layouts; real API verifies both parent reminders clear and assignment status is unchanged | Owner confirmed request → Cancel help request and parent refresh on-device; failed request feedback and explicit coverage of both kid layouts remain open. |
 | Parent history paging | Real API traversal tests cover 5/10 paging, ties, combined grant sources, and outstanding grants; browser paging passes | Verify native Show more, errors/retry, and realtime refresh retain expanded lists. |
 | Approval feedback | Real API tests cover private delivery, validation, undo, and concurrent payout protection; browser cancel/save/error-draft checks | Verify native dialog, keyboard/large text, quick approval, and feedback discovery through both kid layouts. |
 | Delivery windows | Multi-range/day overrides and backend checks; real API regression covers 5:30–9 AM plus 4:30–8:30 PM with a Wednesday exception on household and child settings | Verify saved weekday/weekend/day exceptions on both parent surfaces, reopening, queued release, and school-time/downtime interaction. |
