@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { StyleSheet, TouchableOpacity, View } from "react-native";
-import { Button, Card, IconButton, Text, TextInput, useTheme } from "react-native-paper";
+import { Button, Card, IconButton, Text, useTheme } from "react-native-paper";
+import { TextInput } from "./TextInput";
 import { AVATAR_COLORS, errorMessage, featureTip, kidAccent, parseGoodsRateOverride } from "@paydirt/shared";
 import type { User } from "@paydirt/shared";
 import { client } from "../lib/client";

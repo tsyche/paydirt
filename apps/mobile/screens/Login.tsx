@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { View, StyleSheet } from "react-native";
-import { TextInput, Button, Text, useTheme } from "react-native-paper";
+import { Button, Text, useTheme } from "react-native-paper";
+import { TextInput } from "../components/TextInput";
 import { SafeAreaView } from "react-native-safe-area-context";
 import type { User } from "@paydirt/shared";
 import { client } from "../lib/client";

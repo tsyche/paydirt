@@ -1,5 +1,6 @@
 import { View, StyleSheet } from "react-native";
-import { HelperText, SegmentedButtons, Text, TextInput, useTheme } from "react-native-paper";
+import { HelperText, SegmentedButtons, Text, useTheme } from "react-native-paper";
+import { TextInput } from "./TextInput";
 import type { PayMode } from "@paydirt/shared";
 import { MINUTES_STEP, MAX_REWARD_MINUTES, validatePay } from "@paydirt/shared";
 

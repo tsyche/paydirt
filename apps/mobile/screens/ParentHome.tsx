@@ -10,7 +10,6 @@ import {
   Card,
   Text,
   Button,
-  TextInput,
   Chip,
   Icon,
   Dialog,
@@ -21,6 +20,7 @@ import {
   SegmentedButtons,
   useTheme,
 } from "react-native-paper";
+import { TextInput } from "../components/TextInput";
 import { SafeAreaView } from "react-native-safe-area-context";
 import type { Assignment, Chore, ChoreProposal, ChoreTemplate, Household, PayMode, RecentAssignmentRow, SpendRequest, TimeGrant, User } from "@paydirt/shared";
 import { kidsAtLimit, knownChoreNames, parseAssignDraft, serializeAssignDraft, currencyDisplayName, screenRate, effectiveGoodsRate, bankedTimeLabel, errorMessage, kidAccent, limitLabel, limitUnit, payLabel, payMode, validatePay, waitingActionCount } from "@paydirt/shared";
@@ -117,6 +117,8 @@ export function ParentHome({
   const [bonusGrants, setBonusGrants] = useState<ExpandedGrant[]>([]);
   const [proposals, setProposals] = useState<ExpandedProposal[]>([]);
   const [chores, setChores] = useState<Chore[]>([]);
+  const [archivedChores, setArchivedChores] = useState<Chore[]>([]);
+  const [showArchivedChores, setShowArchivedChores] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [broadcastMsg, setBroadcastMsg] = useState("");
   const [broadcasting, setBroadcasting] = useState(false);
@@ -222,12 +224,13 @@ export function ParentHome({
     setRefreshing(true);
     setApprovedKey((k) => k + 1);
     try {
-      const [hh, k, a, s, c, p, grants, bonus, active, recent] = await Promise.all([
+      const [hh, k, a, s, c, archived, p, grants, bonus, active, recent] = await Promise.all([
         client.getHousehold(user.household),
         client.listChildren(user.household),
         client.listPendingApprovals(user.household),
         client.listPendingSpendRequests(user.household),
         client.listChores(user.household),
+        client.listArchivedChores(user.household),
         client.listPendingProposals(user.household),
         client.listScreenTimeGrants(user.household, 0),
         client.listBonusGrants(user.household, 0),
@@ -241,6 +244,7 @@ export function ParentHome({
       setScreenGrants(grants as ExpandedSpend[]);
       setBonusGrants(bonus as ExpandedGrant[]);
       setChores(c);
+      setArchivedChores(archived);
       setHeldByChore(active.reduce<Record<string, Set<string>>>((m, x) => { (m[x.chore] ??= new Set()).add(x.child); return m; }, {}));
       setRecentRows(recent);
       setProposals(p as ExpandedProposal[]);
@@ -577,6 +581,16 @@ export function ParentHome({
     ]);
   }
 
+  async function restoreChore(chore: Chore) {
+    try {
+      await client.updateChore(chore.id, { active: true });
+      await reload();
+      setSnack(`Restored ${chore.name}.`);
+    } catch (e) {
+      setSnack(errorMessage(e));
+    }
+  }
+
   useEffect(() => {
     if (showCreateChore) {
       client.listTemplates(user.household).then(setTemplates).catch(() => {});
@@ -638,7 +652,6 @@ export function ParentHome({
     }
   }
 
-  const pendingCount = approvals.length + spend.length + proposals.length;
   const waitingCount = waitingActionCount({ approvals, spend, proposals, screenGrants, bonusGrants });
 
   if (detailKid) {
@@ -665,7 +678,7 @@ export function ParentHome({
       <Appbar.Header statusBarHeight={0}>
         <Appbar.Content
           title={<BrandTitle size={30} tagline />}
-          subtitle={pendingCount > 0 ? `${pendingCount} item${pendingCount === 1 ? "" : "s"} waiting` : "All clear 🎉"}
+          subtitle={waitingCount > 0 ? `${waitingCount} item${waitingCount === 1 ? "" : "s"} waiting` : "All clear 🎉"}
         />
         <GritButton rows={kids} currency={currencyName} goodsRate={goodsRate} screenRate={screenRate(household)} total />
         <HeaderMenu userId={user.id} onLogout={onLogout} onSettings={() => setHhSettingsOpen(true)} overviewAction={<OverviewModalButton household={household} kids={kids} chores={chores} heldByChore={heldByChore} />} />
@@ -861,59 +874,6 @@ export function ParentHome({
         {/* Approvals tab: proposals + approvals + spend */}
         {tab === "approvals" && (
           <>
-        {/* Chore ideas from kids */}
-        {proposals.length > 0 && (
-          <>
-            <Text variant="labelLarge" style={[styles.sectionLabel, { color: theme.colors.onSurfaceVariant }]}>
-              CHORE IDEAS ({proposals.length})
-            </Text>
-            {proposals.map((p) => {
-              const kid = p.expand?.child;
-              return (
-                <Card key={p.id} style={styles.approvalCard}>
-                  <Card.Content>
-                    <Text variant="titleMedium">
-                      💡 {p.name}
-                      {p.description ? ` — ${p.description}` : ""}
-                    </Text>
-                    <View style={styles.approvalMeta}>
-                      {kid && (
-                        <Chip compact style={styles.kidChip}>
-                          {kid.avatar_emoji || "🧒"} {kid.display_name}
-                        </Chip>
-                      )}
-                      <Chip compact style={[styles.rewardChip, { backgroundColor: theme.colors.secondaryContainer }]}>
-                        asks {p.reward_requested} {currencyName}
-                      </Chip>
-                    </View>
-                    <View style={styles.approvalActions}>
-                      <Button
-                        mode="contained"
-                        icon="check"
-                        onPress={() => startProposalApprove(p)}
-                        style={styles.approveBtn}
-                        contentStyle={styles.actionBtnContent}
-                      >
-                        Approve
-                      </Button>
-                      <Button
-                        mode="outlined"
-                        icon="close"
-                        onPress={() => { setReasonDraft(""); setReasonDialog({ kind: "decline", id: p.id }); }}
-                        style={styles.rejectBtn}
-                        contentStyle={styles.actionBtnContent}
-                        textColor={theme.colors.error}
-                      >
-                        Decline
-                      </Button>
-                    </View>
-                  </Card.Content>
-                </Card>
-              );
-            })}
-          </>
-        )}
-
         {/* Pending approvals */}
         <Text variant="labelLarge" style={[styles.sectionLabel, { color: theme.colors.onSurfaceVariant }]}>
           PENDING APPROVALS {approvals.length > 0 ? `(${approvals.length})` : ""}
@@ -1089,6 +1049,61 @@ export function ParentHome({
             })}
           </>
         )}
+        {/* Chore ideas from kids */}
+        {proposals.length > 0 && (
+          <>
+            <Text variant="labelLarge" style={[styles.sectionLabel, { color: theme.colors.onSurfaceVariant }]}>
+              CHORE IDEAS ({proposals.length})
+            </Text>
+            {proposals.map((p) => {
+              const kid = p.expand?.child;
+              return (
+                <Card key={p.id} style={styles.approvalCard}>
+                  <Card.Content>
+                    <Text variant="titleMedium">
+                      💡 {p.name}
+                      {p.description ? ` — ${p.description}` : ""}
+                    </Text>
+                    <View style={styles.approvalMeta}>
+                      {kid && (
+                        <Chip compact style={styles.kidChip}>
+                          {kid.avatar_emoji || "🧒"} {kid.display_name}
+                        </Chip>
+                      )}
+                      <Chip compact style={[styles.rewardChip, { backgroundColor: theme.colors.secondaryContainer }]}>
+                        asks {p.reward_requested} {currencyName}
+                      </Chip>
+                    </View>
+                    <View style={styles.approvalActions}>
+                      <Button
+                        mode="contained"
+                        icon="check"
+                        onPress={() => startProposalApprove(p)}
+                        style={styles.approveBtn}
+                        contentStyle={styles.actionBtnContent}
+                      >
+                        Approve
+                      </Button>
+                      <Button
+                        mode="outlined"
+                        icon="close"
+                        onPress={() => { setReasonDraft(""); setReasonDialog({ kind: "decline", id: p.id }); }}
+                        style={styles.rejectBtn}
+                        contentStyle={styles.actionBtnContent}
+                        textColor={theme.colors.error}
+                      >
+                        Decline
+                      </Button>
+                    </View>
+                  </Card.Content>
+                </Card>
+              );
+            })}
+          </>
+        )}
+
+        <Text variant="labelLarge" style={styles.sectionLabel}>PENDING SCREEN-TIME GRANTS</Text>
+        {screenGrants.length === 0 && bonusGrants.length === 0 && <Text style={styles.emptyNote}>Nothing waiting.</Text>}
         {(["manual", "queued"] as const).map((group) => {
           const matches = (status?: string) => status === group;
           const grants = [
@@ -1474,6 +1489,25 @@ export function ParentHome({
             </SwipeActionsRow>
           );
         })}
+        {archivedChores.length > 0 && (
+          <View style={{ gap: 8, marginTop: 16 }}>
+            <Divider />
+            <Button mode="outlined" icon={showArchivedChores ? "chevron-up" : "chevron-down"}
+              accessibilityLabel={`Archived chores, ${archivedChores.length}`}
+              onPress={() => setShowArchivedChores((open) => !open)}>
+              Archived chores ({archivedChores.length})
+            </Button>
+            {showArchivedChores && archivedChores.map((chore) => (
+              <Card key={chore.id} mode="outlined">
+                <Card.Content style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
+                  <Text variant="titleSmall" style={{ flex: 1 }}>{chore.name}</Text>
+                  <Button mode="text" accessibilityLabel={`Restore ${chore.name}`}
+                    onPress={() => void restoreChore(chore)}>Restore</Button>
+                </Card.Content>
+              </Card>
+            ))}
+          </View>
+        )}
           </>
         )}
 

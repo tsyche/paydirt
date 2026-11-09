@@ -10,15 +10,15 @@ import {
   Portal,
   Dialog,
   Switch,
-  TextInput,
   Button,
   IconButton,
   Snackbar,
   useTheme,
 } from "react-native-paper";
+import { TextInput } from "./TextInput";
 import { SafeAreaView } from "react-native-safe-area-context";
 import type { Assignment, Chore, Household, SavingsGoal, User } from "@paydirt/shared";
-import { GOAL_NAME_MAX, GOAL_DETAILS_MAX, KUDOS_REASON_MAX, avatarUrl, currencyDisplayName, featureTip, errorMessage, kidAccent, kudosDefaultBucks, payLabel, effectiveGoodsRate } from "@paydirt/shared";
+import { GOAL_NAME_MAX, GOAL_DETAILS_MAX, KUDOS_REASON_MAX, avatarUrl, currencyDisplayName, featureTip, errorMessage, kidAccent, kudosDefaultBucks, payLabel, householdDateTime, effectiveGoodsRate } from "@paydirt/shared";
 import { client } from "../lib/client";
 import { isNetworkError } from "../lib/reachability";
 import { useReachability } from "../lib/useReachability";
@@ -310,9 +310,10 @@ export function KidDetail({
             {history.slice(0, 3).map((a) => (
               <Card key={a.id} style={styles.card}>
                 <Card.Content style={styles.rowBetween}>
-                  <Text variant="bodyMedium" style={styles.flex} numberOfLines={1}>
-                    {a.expand?.chore?.name ?? "Chore"}{a.reaction ? `  ${a.reaction}` : ""}
-                  </Text>
+                  <View style={styles.flex}>
+                    <Text variant="bodyMedium">{a.expand?.chore?.name ?? "Chore"}{a.reaction ? `  ${a.reaction}` : ""}</Text>
+                    <Text variant="bodySmall">{householdDateTime(a.approved_at || a.updated)}</Text>
+                  </View>
                   <Text variant="bodyMedium" style={{ color: theme.colors.primary, fontWeight: "700" }}>
                     +{a.expand?.chore ? payLabel(a.expand.chore, "", a.credit_percent) : "?"}
                     {a.credit_percent && a.credit_percent < 100 ? ` (${a.credit_percent}%)` : ""}
@@ -458,6 +459,17 @@ export function KidDetail({
       <Portal>
         <Dialog visible={adjustOpen} onDismiss={() => { if (!saving) setAdjustOpen(false); }}>
           <Dialog.Title>{adjustSign > 0 ? "Add bonus" : "Deduct"}</Dialog.Title>
+          <Dialog.Actions>
+            <Button disabled={saving} onPress={() => setAdjustOpen(false)}>Cancel</Button>
+            <Button onPress={() => {
+              if (timeBonus) Alert.alert("Give bonus time?", `Give ${amount} minutes? This cannot be undone.`, [
+                { text: "Cancel", style: "cancel" }, { text: "Give time", onPress: () => void saveAdjust() },
+              ]);
+              else void saveAdjust();
+            }} disabled={saving || !(Number(amount) > 0) || (timeBonus && !(Number(amount) >= 5 && Number(amount) <= 120 && Number(amount) % 5 === 0))}>
+              {adjustSign > 0 ? "Add" : "Deduct"}
+            </Button>
+          </Dialog.Actions>
           <Dialog.Content>
             {adjustSign > 0 && <Button disabled={saving} onPress={() => { setTimeBonus(!timeBonus); setAmount(""); }}>
               {timeBonus ? "Switch to grit bonus" : "Switch to bonus screen minutes"}
@@ -480,23 +492,18 @@ export function KidDetail({
               style={styles.reasonInput}
             />
           </Dialog.Content>
-          <Dialog.Actions>
-            <Button disabled={saving} onPress={() => setAdjustOpen(false)}>Cancel</Button>
-            <Button onPress={() => {
-              if (timeBonus) Alert.alert("Give bonus time?", `Give ${amount} minutes? This cannot be undone.`, [
-                { text: "Cancel", style: "cancel" }, { text: "Give time", onPress: () => void saveAdjust() },
-              ]);
-              else void saveAdjust();
-            }} disabled={saving || !(Number(amount) > 0) || (timeBonus && !(Number(amount) >= 5 && Number(amount) <= 120 && Number(amount) % 5 === 0))}>
-              {adjustSign > 0 ? "Add" : "Deduct"}
-            </Button>
-          </Dialog.Actions>
         </Dialog>
       </Portal>
 
       <Portal>
         <Dialog visible={kudosOpen} onDismiss={() => setKudosOpen(false)}>
           <Dialog.Title>Give kudos to {kid?.display_name ?? "this kid"}</Dialog.Title>
+          <Dialog.Actions>
+            <Button onPress={() => setKudosOpen(false)}>Cancel</Button>
+            <Button onPress={saveKudos} disabled={saving || !(Number(kudosAmount) > 0)}>
+              Give
+            </Button>
+          </Dialog.Actions>
           <Dialog.Content>
             <TextInput
               mode="outlined"
@@ -516,18 +523,18 @@ export function KidDetail({
               style={styles.reasonInput}
             />
           </Dialog.Content>
-          <Dialog.Actions>
-            <Button onPress={() => setKudosOpen(false)}>Cancel</Button>
-            <Button onPress={saveKudos} disabled={saving || !(Number(kudosAmount) > 0)}>
-              Give
-            </Button>
-          </Dialog.Actions>
         </Dialog>
       </Portal>
 
       <Portal>
         <Dialog visible={goalOpen} onDismiss={() => setGoalOpen(false)}>
           <Dialog.Title>Set a goal for {kid?.display_name ?? "them"}</Dialog.Title>
+          <Dialog.Actions>
+            <Button onPress={() => setGoalOpen(false)}>Cancel</Button>
+            <Button onPress={saveGoal} disabled={saving || !goalName.trim() || !(Number(goalTarget) >= 1)}>
+              Add
+            </Button>
+          </Dialog.Actions>
           <Dialog.Content>
             <TextInput mode="outlined" label="What are they saving for?" value={goalName} onChangeText={setGoalName} maxLength={GOAL_NAME_MAX} autoFocus />
             <TextInput
@@ -548,12 +555,6 @@ export function KidDetail({
               style={styles.reasonInput}
             />
           </Dialog.Content>
-          <Dialog.Actions>
-            <Button onPress={() => setGoalOpen(false)}>Cancel</Button>
-            <Button onPress={saveGoal} disabled={saving || !goalName.trim() || !(Number(goalTarget) >= 1)}>
-              Add
-            </Button>
-          </Dialog.Actions>
         </Dialog>
       </Portal>
 
@@ -614,16 +615,18 @@ function DigestCard({
     <Card style={styles.card}>
       <Card.Content>
         <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
-          <Text variant="titleSmall">Chore summary push</Text>
+          <Text variant="titleSmall">Editing {kid.display_name}'s chore summary</Text>
           <IconButton icon="information-outline" size={16} onPress={onTip} style={{ margin: 0 }} />
+        </View>
+        <View style={{ flexDirection: "row", flexWrap: "wrap" }}>
+          <Button onPress={() => void save()} disabled={busy}>Save</Button>
+          <Button disabled={busy} onPress={() => { setWeekday(kid.digest_weekday ?? ""); setWeekend(kid.digest_weekend ?? ""); }}>Cancel</Button>
         </View>
         <View style={{ gap: 8, marginTop: 4 }}>
           <TimeField label="Weekdays" value={weekday} onChange={setWeekday} />
           <TimeField label="Weekends" value={weekend} onChange={setWeekend} />
         </View>
-        <Button mode="contained-tonal" onPress={() => void save()} disabled={busy} style={{ marginTop: 8 }}>
-          Save
-        </Button>
+
       </Card.Content>
     </Card>
   );
@@ -676,6 +679,11 @@ function FamilyLinkCard({
         </View>
         {open && (
           <>
+            <Text variant="titleSmall">Editing {kid.display_name}'s Family Link settings</Text>
+            <View style={{ flexDirection: "row", flexWrap: "wrap" }}>
+              <Button onPress={() => void save()} disabled={busy}>Save</Button>
+              <Button disabled={busy} onPress={() => { setChildId(kid.fl_child_id ?? ""); setDeviceId(kid.fl_device_id ?? ""); setOpen(false); }}>Cancel</Button>
+            </View>
             <TextInput dense label="Child ID" value={childId} onChangeText={setChildId} autoCapitalize="none" />
             <TextInput
               dense
@@ -685,9 +693,7 @@ function FamilyLinkCard({
               autoCapitalize="none"
               style={{ marginTop: 8 }}
             />
-            <Button mode="contained-tonal" onPress={() => void save()} disabled={busy} style={{ marginTop: 8 }}>
-              Save
-            </Button>
+
           </>
         )}
       </Card.Content>

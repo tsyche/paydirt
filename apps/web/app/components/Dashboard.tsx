@@ -3,7 +3,7 @@
 import { ArchiveButton, useArchives } from "./ArchiveActions";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { localDateKey, localDateLabel, householdDateTime, householdDateTimeInput, localDateInstant, householdWallDate } from "@paydirt/shared";
+import { localDateKey, householdDateTime, householdDateTimeInput, localDateInstant, householdWallDate } from "@paydirt/shared";
 import type {
   TimeGrant,
   PayMode,
@@ -89,6 +89,7 @@ export function Dashboard({
   const [activeAssignments, setActiveAssignments] = useState<Expanded<Assignment>[]>([]);
   const [goalsByKid, setGoalsByKid] = useState<Record<string, SavingsGoal[]>>({});
   const [chores, setChores] = useState<Chore[]>([]);
+  const [archivedChores, setArchivedChores] = useState<Chore[]>([]);
   const [approvals, setApprovals] = useState<Expanded<Assignment>[]>([]);
   const [selectedApprovals, setSelectedApprovals] = useState<Set<string>>(new Set());
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
@@ -147,10 +148,11 @@ export function Dashboard({
 
   const reload = useCallback(async () => {
     try {
-      const [hh, k, c, a, s, p, grants, bonus, active, recent] = await Promise.all([
+      const [hh, k, c, archived, a, s, p, grants, bonus, active, recent] = await Promise.all([
         client.getHousehold(householdId),
         client.listChildren(householdId),
         client.listChores(householdId),
+        client.listArchivedChores(householdId),
         client.listPendingApprovals(householdId),
         client.listPendingSpendRequests(householdId),
         client.listPendingProposals(householdId),
@@ -164,6 +166,7 @@ export function Dashboard({
       setKids(k);
       setGoalsByKid(Object.fromEntries(k.map((kid, i) => [kid.id, goals[i]])));
       setChores(c);
+      setArchivedChores(archived);
       setActiveAssignments(active as Expanded<Assignment>[]);
       setRecentAssignments(recent);
       setApprovals(a as Expanded<Assignment>[]);
@@ -339,26 +342,6 @@ export function Dashboard({
         </>)}
 
         {tab === "approvals" && (<>
-        {/* ── Chore proposals ── */}
-        {proposals.length > 0 && (
-          <>
-            <h2>💡 Chore ideas from the kids ({proposals.length})</h2>
-            {proposals.map((p) => (
-              <ProposalRow
-                key={p.id}
-                proposal={p}
-                parentId={user.id}
-                currencyName={currencyName}
-                onActed={reload}
-                onApproveToForm={(p2) => {
-                  setTemplateFill(null);
-                  setProposalFill(p2);
-                }}
-              />
-            ))}
-          </>
-        )}
-
         {/* ── Pending approvals — priority section ── */}
         <div className="section-priority">
           <div className="row" style={{ flexWrap: "wrap", gap: 8 }}>
@@ -542,8 +525,29 @@ export function Dashboard({
           );
         })}
 
-        {(screenGrants.length > 0 || bonusGrants.length > 0) && <>
-          <h2>Screen-time grants</h2>
+        {/* ── Chore proposals ── */}
+        {proposals.length > 0 && (
+          <>
+            <h2>💡 Chore ideas from the kids ({proposals.length})</h2>
+            {proposals.map((p) => (
+              <ProposalRow
+                key={p.id}
+                proposal={p}
+                parentId={user.id}
+                currencyName={currencyName}
+                onActed={reload}
+                onApproveToForm={(p2) => {
+                  setTemplateFill(null);
+                  setProposalFill(p2);
+                }}
+              />
+            ))}
+          </>
+        )}
+
+        {<>
+          <h2>Pending screen-time grants</h2>
+          {screenGrants.length === 0 && bonusGrants.length === 0 && <p className="muted">Nothing waiting.</p>}
           {bonusGrants.map((g) => (
             <div className="card row" key={g.id}>
               <div>
@@ -597,6 +601,7 @@ export function Dashboard({
                     {a.credit_percent && a.credit_percent < 100 ? ` (${a.credit_percent}% credit)` : ""}
                   </span>
                 </div>
+                <div className="muted">{householdDateTime(a.approved_at || a.updated)}</div>
                 {a.approval_comment && <p style={{ marginBottom: 0 }}>Feedback: {a.approval_comment}</p>}
               </div>
               <div className="inline">
@@ -679,6 +684,7 @@ export function Dashboard({
             onChanged={reload}
           />
         ))}
+        <ArchivedChores chores={archivedChores} onRestored={reload} />
         </>)}
 
         {tab === "ledger" && (
@@ -709,6 +715,37 @@ export function Dashboard({
 
     </div>
   );
+}
+
+function ArchivedChores({ chores, onRestored }: { chores: Chore[]; onRestored: () => void }) {
+  const [busyId, setBusyId] = useState("");
+  const [error, setError] = useState("");
+  if (!chores.length) return null;
+
+  async function restore(chore: Chore) {
+    setBusyId(chore.id);
+    setError("");
+    try {
+      await client.updateChore(chore.id, { active: true });
+      onRestored();
+    } catch (e) {
+      setError(errorMessage(e));
+    } finally {
+      setBusyId("");
+    }
+  }
+
+  return <details className="archived-chores">
+    <summary>Archived chores ({chores.length})</summary>
+    <section aria-label="Archived chores">
+      {error && <p className="error" role="alert">{error}</p>}
+      {chores.map((chore) => <div className="card row" key={chore.id}>
+        <span>{chore.name}</span>
+        <button className="sm" aria-label={`Restore ${chore.name}`} disabled={!!busyId}
+          onClick={() => void restore(chore)}>{busyId === chore.id ? "Restoring…" : "Restore"}</button>
+      </div>)}
+    </section>
+  </details>;
 }
 
 /* ─── Sub-components ─────────────────────────────────────────────────────── */
@@ -870,7 +907,7 @@ function LedgerToggle({ kidId, kidName }: { kidId: string; kidName: string }) {
           {txns.length === 0 && <p className="muted">No transactions yet.</p>}
           {txns.map((t) => (
             <div key={t.id} className="ledger-row">
-              <span className="muted">{localDateLabel(t.created)}</span>
+              <span className="muted">{householdDateTime(t.created)}</span>
               <span>{TX_LABEL[t.type] ?? t.type}</span>
               <span className={t.amount >= 0 ? "amount-positive" : "amount-negative"}>
                 {t.amount >= 0 ? "+" : ""}{t.amount}
@@ -1438,6 +1475,8 @@ function ChoreRow({
 
   return (
     <div className="card-filled" style={{ marginBottom: 8 }}>
+      <EditHeader title={`Editing ${chore.name}`} busy={busy} saveDisabled={!name.trim()} error={error}
+        onSave={() => void save()} onCancel={cancelEdit} />
       <div className="inline" style={{ marginBottom: 8 }}>
         <input
           placeholder="Chore name"
@@ -1501,8 +1540,6 @@ function ChoreRow({
         </div>
       )}
       <div className="inline" style={{ gap: 8 }}>
-        <button className="primary sm" onClick={save} disabled={busy || !name.trim()}>Save</button>
-        <button className="sm" onClick={cancelEdit} disabled={busy}>Cancel</button>
         <button className="danger sm" onClick={deactivate} disabled={busy} style={{ marginLeft: "auto" }}>
           Archive
         </button>
@@ -1977,12 +2014,14 @@ function AvatarPicker({ kid, onSaved }: { kid: User; onSaved: () => void }) {
 function EditHeader({
   title,
   busy,
+  saveDisabled,
   error,
   onSave,
   onCancel,
 }: {
   title: string;
   busy?: boolean;
+  saveDisabled?: boolean;
   error?: string;
   onSave: () => void;
   onCancel: () => void;
@@ -1992,7 +2031,7 @@ function EditHeader({
       <div className="edit-header-bar">
         <strong>{title}</strong>
         <span className="edit-header-actions">
-          <button className="primary sm" disabled={busy} onClick={onSave}>{busy ? "Saving…" : "Save"}</button>
+          <button className="primary sm" disabled={busy || saveDisabled} onClick={onSave}>{busy ? "Saving…" : "Save"}</button>
           <button className="sm" disabled={busy} onClick={onCancel}>Cancel</button>
         </span>
       </div>
@@ -2308,7 +2347,7 @@ function KidEarnings({ kid, currencyName, onMore }: { kid: User; currencyName: s
         const chore = a.expand?.chore as Chore | undefined;
         return (
           <div className="goal-row" key={a.id}>
-            <span className="goal-name-static">{chore?.name ?? "Chore"}{a.reaction ? ` ${a.reaction}` : ""}</span>
+            <span className="goal-name-static">{chore?.name ?? "Chore"}{a.reaction ? ` ${a.reaction}` : ""}<small className="muted" style={{ display: "block" }}>{householdDateTime(a.approved_at || a.updated)}</small></span>
             <span className="goal-progress muted">+{chore ? payLabel(chore, currencyName) : "?"}</span>
           </div>
         );

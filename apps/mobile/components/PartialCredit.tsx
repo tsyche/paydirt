@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Alert } from "react-native";
-import { Button, Dialog, Portal, Text, TextInput } from "react-native-paper";
+import { Button, Dialog, Portal, Text } from "react-native-paper";
+import { TextInput } from "./TextInput";
 import { partialPay, type Chore } from "@paydirt/shared";
 
 export function PartialCredit({ chore, currency, onApprove }: {

@@ -10,7 +10,7 @@ export function DeliveryOverrides({ kid, onSaved }: { kid: User; onSaved: () => 
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
   return <>
-    <DeliverySchedule kid value={{ grant_weekday_window: weekday, grant_weekend_window: weekend, grant_day_windows: days }} onChange={(schedule) => { setWeekday(schedule.grant_weekday_window); setWeekend(schedule.grant_weekend_window); setDays(schedule.grant_day_windows); }} />
+    <Text variant="titleSmall">Editing {kid.display_name}'s delivery windows</Text>
     <Button disabled={busy} onPress={async () => {
       setBusy(true);
       try {
@@ -19,6 +19,8 @@ export function DeliveryOverrides({ kid, onSaved }: { kid: User; onSaved: () => 
       } catch (e) { setMessage(errorMessage(e)); }
       finally { setBusy(false); }
     }}>Save delivery windows</Button>
+    <Button disabled={busy} onPress={() => { setWeekday(kid.grant_weekday_window ?? ""); setWeekend(kid.grant_weekend_window ?? ""); setDays(kid.grant_day_windows ?? ""); setMessage(""); }}>Cancel</Button>
+    <DeliverySchedule kid value={{ grant_weekday_window: weekday, grant_weekend_window: weekend, grant_day_windows: days }} onChange={(schedule) => { setWeekday(schedule.grant_weekday_window); setWeekend(schedule.grant_weekend_window); setDays(schedule.grant_day_windows); }} />
     {!!message && <Text>{message}</Text>}
   </>;
 }

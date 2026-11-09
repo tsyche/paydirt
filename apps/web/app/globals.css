@@ -1073,6 +1073,9 @@ button.danger-filled:disabled { box-shadow: none; }
 .chore-grid-header { padding: 8px 16px; font-size: 12px; font-weight: 700; color: var(--md-on-surface-variant); }
 .chore-title, .chore-meta, .chore-assignments { min-width: 0; overflow-wrap: anywhere; }
 .chore-row .chore-meta { font-size: 13px; }
+.archived-chores { margin-top: 16px; }
+.archived-chores > summary { cursor: pointer; font-weight: 600; margin-bottom: 8px; }
+.archived-chores section { display: grid; gap: 8px; }
 .chore-schedule { margin-top: 5px; line-height: 1.5; }
 .chore-assignments { display: flex; flex-direction: column; align-items: flex-start; gap: 10px; }
 .chore-assignments label { flex-wrap: wrap; }

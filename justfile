@@ -563,7 +563,7 @@ test-all:
     head -c 3145728 /dev/urandom > "${EDIR}/pb_data/updates/app-release.apk"
     printf '{"versionCode":1,"versionName":"test","downloadUrl":"/api/updates/apk"}' > "${EDIR}/pb_data/updates/version.json"
 
-    NTFY_DISABLED=1 {{pb}} serve --dev \
+    NTFY_DISABLED=1 {{pb}} serve --dev --hooksWatch=false \
         --dir "${EDIR}/pb_data" \
         --hooksDir pocketbase/pb_hooks \
         --migrationsDir pocketbase/pb_migrations \

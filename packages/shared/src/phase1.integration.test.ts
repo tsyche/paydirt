@@ -227,7 +227,7 @@ describe("Phase 1 features (live)", () => {
     const first = await parent.assignChore(chore.id, kid1User.id);
     expect((await kid1.listInbox(kid1User.id, 200)).some((i) => i.source === `assignments:${first.id}` && i.title === "New chore! ⭐")).toBe(true);
 
-    // Backdate yesterday's occurrence; completion/approval may happen late.
+    // Backdate yesterday's occurrence and completion; approval may happen late.
     const yesterday = yesterdayEvening();
     // Autodate fields are API-owned. Only the isolated test-all DB is writable here.
     const db = new DatabaseSync(process.env.PB_TEST_DB!);
@@ -235,8 +235,11 @@ describe("Phase 1 features (live)", () => {
     finally { db.close(); }
     const dated = await admin.pb.collection("assignments").getOne(first.id);
     expect(new Date(dated.created).getTime()).toBe(yesterday.getTime());
-    // Complete and approve — no open assignment now
+    // The work was completed yesterday; approving it today must allow today's work.
     await kid1.markComplete(first.id);
+    const completedDb = new DatabaseSync(process.env.PB_TEST_DB!);
+    try { completedDb.prepare("UPDATE assignments SET completed_at = ? WHERE id = ?").run(yesterday.toISOString().replace("T", " "), first.id); }
+    finally { completedDb.close(); }
     await parent.approveAssignment(first.id);
 
     // Completion clears the original actionable alert; compare after that cleanup.
@@ -273,6 +276,9 @@ describe("Phase 1 features (live)", () => {
     try { db.prepare("UPDATE assignments SET created = ?, timer_started_at = ? WHERE id = ?").run(stamp, stamp, first.id); }
     finally { db.close(); }
     await kid1.markComplete(first.id);
+    const completedDb = new DatabaseSync(process.env.PB_TEST_DB!);
+    try { completedDb.prepare("UPDATE assignments SET completed_at = ? WHERE id = ?").run(stamp, first.id); }
+    finally { completedDb.close(); }
     await admin.pb.send("/api/paydirt/cron/tick", { method: "POST" });
     const rows = await kid1.pb.collection("assignments").getFullList({ filter: `chore = "${chore.id}" && child = "${kid1User.id}"` });
     expect(rows.filter((a) => a.status === "completed")).toHaveLength(1);
@@ -298,6 +304,9 @@ describe("Phase 1 features (live)", () => {
       try { db.prepare("UPDATE assignments SET created = ? WHERE id = ?").run(yesterdayEvening().toISOString().replace("T", " "), first.id); }
       finally { db.close(); }
       await kid1.markComplete(first.id);
+      const completedDb = new DatabaseSync(process.env.PB_TEST_DB!);
+      try { completedDb.prepare("UPDATE assignments SET completed_at = ? WHERE id = ?").run(yesterdayEvening().toISOString().replace("T", " "), first.id); }
+      finally { completedDb.close(); }
       expect(await parent.assignLimitWarnings(chore.id, [kid1User.id])).toHaveLength(0);
       await admin.pb.send("/api/paydirt/cron/tick", { method: "POST" });
       const rows = await kid1.pb.collection("assignments").getFullList({ filter: `chore = "${chore.id}" && status = "assigned"` });

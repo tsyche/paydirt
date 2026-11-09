@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
 import { Pressable, StyleSheet, View } from "react-native";
 import { DateTimePickerAndroid } from "@react-native-community/datetimepicker";
-import { Button, Text, TextInput } from "react-native-paper";
+import { Button, Text } from "react-native-paper";
+import { TextInput } from "./TextInput";
 import { formatTime12, formatTimeRange, isTime, parseTimeRange, timeRangeError } from "@paydirt/shared";
 
 function toDate(value: string): Date {

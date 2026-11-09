@@ -149,8 +149,16 @@ export class PaydirtClient {
   }
 
   listChores(householdId: string): Promise<Chore[]> {
+    return this.listChoresByActive(householdId, true);
+  }
+
+  listArchivedChores(householdId: string): Promise<Chore[]> {
+    return this.listChoresByActive(householdId, false);
+  }
+
+  private listChoresByActive(householdId: string, active: boolean): Promise<Chore[]> {
     return this.pb.collection(Collections.Chores).getFullList<Chore>({
-      filter: this.pb.filter("household = {:hh} && active = true", { hh: householdId }),
+      filter: this.pb.filter("household = {:hh} && active = {:active}", { hh: householdId, active }),
       sort: "name",
     });
   }

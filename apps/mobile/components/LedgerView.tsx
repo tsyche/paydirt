@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { ScrollView, StyleSheet, View } from "react-native";
 import { Button, Card, Chip, Text } from "react-native-paper";
 import type { CurrencyTransaction, Household, User } from "@paydirt/shared";
-import { currencyDisplayName, localDateLabel, householdWallDate } from "@paydirt/shared";
+import { currencyDisplayName, householdDateTime, householdWallDate } from "@paydirt/shared";
 import { client } from "../lib/client";
 
 export const ALL_KIDS = "all";
@@ -74,7 +74,7 @@ export function LedgerView({ household, initialKidId }: { household: Household |
           <Card.Content style={styles.txRow}>
             <View style={{ flex: 1 }}>
               <Text variant="bodySmall" style={{ color: "#888" }}>
-                {localDateLabel(t.created)}{kidId === ALL_KIDS ? ` · ${kids.find((k) => k.id === t.user)?.display_name ?? ""}` : ""}
+                {householdDateTime(t.created)}{kidId === ALL_KIDS ? ` · ${kids.find((k) => k.id === t.user)?.display_name ?? ""}` : ""}
               </Text>
               <Text variant="bodyMedium">{t.reason}</Text>
             </View>

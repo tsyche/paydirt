@@ -1,5 +1,6 @@
 import { useRef, useState } from "react";
-import { Button, Dialog, HelperText, Portal, Text, TextInput } from "react-native-paper";
+import { Button, Dialog, HelperText, Portal, Text } from "react-native-paper";
+import { TextInput } from "./TextInput";
 import { errorMessage } from "@paydirt/shared";
 
 export function ApprovalFeedback({ choreName, rewardLabel, onApprove }: {

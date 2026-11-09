@@ -61,62 +61,55 @@ export function NtfySetup({
 
   return (
     <Portal>
-      <Dialog visible={visible} onDismiss={() => {}} style={styles.dialog}>
-        {step === "install" && (
-          <>
-            <Dialog.Title>Install ntfy for Notifications</Dialog.Title>
-            <Dialog.Content>
-              <Text>
-                PayDirt uses the free ntfy app to push chore updates, approvals, and messages to
-                this device.
-              </Text>
-              {error ? <Text style={styles.error}>{error}</Text> : null}
-            </Dialog.Content>
-            <Dialog.Actions style={styles.actions}>
-              <Button onPress={onDismiss}>Maybe later</Button>
-              <Button onPress={recheckInstalled}>I installed it</Button>
-              <Button onPress={() => Linking.openURL("https://f-droid.org/packages/io.heckel.ntfy/")}>
-                F-Droid
-              </Button>
-              <Button
-                onPress={() =>
-                  Linking.openURL("https://play.google.com/store/apps/details?id=io.heckel.ntfy")
-                }
-              >
-                Play Store
-              </Button>
-            </Dialog.Actions>
-          </>
-        )}
-
-        {step === "up" && (
-          <>
-            <Dialog.Title>Notifications</Dialog.Title>
-            <Dialog.Content>
-              <Text>
-                PayDirt receives push notifications through the ntfy app (UnifiedPush). Keep ntfy
-                installed — nothing else to configure inside it. For notifications to arrive
-                reliably, set ntfy's battery usage to "Unrestricted" in Android settings.
-              </Text>
-              {error ? <Text style={styles.error}>{error}</Text> : null}
-            </Dialog.Content>
-            <Dialog.Actions style={styles.actions}>
-              <Button onPress={onDismiss}>Maybe later</Button>
-              <Button
-                onPress={() =>
-                  Linking.openURL(
-                    "intent://#Intent;action=android.settings.APPLICATION_DETAILS_SETTINGS;package=io.heckel.ntfy;end",
-                  ).catch(() => Linking.openSettings())
-                }
-              >
-                Battery settings
-              </Button>
-              <Button mode="contained" onPress={checkUp} disabled={busy}>
-                {busy ? "Checking…" : "Check connection"}
-              </Button>
-            </Dialog.Actions>
-          </>
-        )}
+      <Dialog visible={visible && step === "install"} onDismiss={() => {}} style={styles.dialog}>
+        <Dialog.Title>Install ntfy for Notifications</Dialog.Title>
+        <Dialog.Content>
+          <Text>
+            PayDirt uses the free ntfy app to push chore updates, approvals, and messages to
+            this device.
+          </Text>
+          {error ? <Text style={styles.error}>{error}</Text> : null}
+        </Dialog.Content>
+        <Dialog.Actions style={styles.actions}>
+          <Button onPress={onDismiss}>Maybe later</Button>
+          <Button onPress={recheckInstalled}>I installed it</Button>
+          <Button onPress={() => Linking.openURL("https://f-droid.org/packages/io.heckel.ntfy/")}>
+            F-Droid
+          </Button>
+          <Button
+            onPress={() =>
+              Linking.openURL("https://play.google.com/store/apps/details?id=io.heckel.ntfy")
+            }
+          >
+            Play Store
+          </Button>
+        </Dialog.Actions>
+      </Dialog>
+      <Dialog visible={visible && step === "up"} onDismiss={() => {}} style={styles.dialog}>
+        <Dialog.Title>Notifications</Dialog.Title>
+        <Dialog.Content>
+          <Text>
+            PayDirt receives push notifications through the ntfy app (UnifiedPush). Keep ntfy
+            installed — nothing else to configure inside it. For notifications to arrive
+            reliably, set ntfy's battery usage to "Unrestricted" in Android settings.
+          </Text>
+          {error ? <Text style={styles.error}>{error}</Text> : null}
+        </Dialog.Content>
+        <Dialog.Actions style={styles.actions}>
+          <Button onPress={onDismiss}>Maybe later</Button>
+          <Button
+            onPress={() =>
+              Linking.openURL(
+                "intent://#Intent;action=android.settings.APPLICATION_DETAILS_SETTINGS;package=io.heckel.ntfy;end",
+              ).catch(() => Linking.openSettings())
+            }
+          >
+            Battery settings
+          </Button>
+          <Button mode="contained" onPress={checkUp} disabled={busy}>
+            {busy ? "Checking…" : "Check connection"}
+          </Button>
+        </Dialog.Actions>
       </Dialog>
     </Portal>
   );

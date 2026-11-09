@@ -41,6 +41,7 @@ test("approve screen time, see the manual fallback, and confirm the grant", asyn
     await expect(row).toContainText(/needs manual review/i);
     page.once("dialog", (dialog) => void dialog.accept());
     await row.getByRole("button", { name: "Mark granted manually" }).click();
+    await page.getByRole("region", { name: "Past screen-time grants" }).locator("summary").click();
     await expect(page.getByRole("region", { name: "Past screen-time grants" }).locator(".card").filter({ hasText: request.description })).toContainText("Granted manually");
     await expect(row).toHaveCount(0);
     expect((await parent.pb.collection("spend_requests").getOne(request.id)).grant_status).toBe("manual_done");

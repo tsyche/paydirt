@@ -1,5 +1,6 @@
 import { TimeField } from "./TimeField";
-import { Text, TextInput } from "react-native-paper";
+import { Text } from "react-native-paper";
+import { TextInput } from "./TextInput";
 
 export function RecurringDueFields({ cadence, time, day, onTime, onDay }: {
   cadence: string; time: string; day: string;

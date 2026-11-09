@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import type { CurrencyTransaction, User } from "@paydirt/shared";
-import { localDateLabel, householdWallDate } from "@paydirt/shared";
+import { householdDateTime, householdWallDate } from "@paydirt/shared";
 import { client } from "../lib/client";
 import { currencyDisplayName, errorMessage } from "@paydirt/shared";
 import type { Household } from "@paydirt/shared";
@@ -75,7 +75,7 @@ export function LedgerView({ household, initialKidId }: { household: Household |
       <table className="data-table ledger-table">
         <thead>
           <tr>
-            <th>Date</th>
+            <th>Date and time</th>
             {kidId === ALL_KIDS && <th>Kid</th>}
             <th>Type</th>
             <th>Amount</th>
@@ -85,7 +85,7 @@ export function LedgerView({ household, initialKidId }: { household: Household |
         <tbody>
           {txns.map((t) => (
             <tr key={t.id}>
-              <td data-label="Date">{localDateLabel(t.created)}</td>
+              <td data-label="Date and time">{householdDateTime(t.created)}</td>
               {kidId === ALL_KIDS && <td data-label="Kid">{kids.find((k) => k.id === t.user)?.display_name ?? ""}</td>}
               <td data-label="Type"><span className={`type-chip type-${t.type}`}>{t.type.replace("_", " ")}</span></td>
               <td data-label="Amount" className={`num ${t.amount >= 0 ? "pos" : "neg"}`}>

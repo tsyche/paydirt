@@ -134,9 +134,15 @@ export function HouseholdSettings({
   // would otherwise make position:fixed anchor to the 64px bar (clipping the top).
   return createPortal(
     <div className="settings-panel">
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
-        <span style={{ fontWeight: 700, fontSize: 15 }}>Household settings</span>
-        <button className="icon-btn" onClick={() => setOpen(false)} title="Close">✕</button>
+      <div className="edit-header">
+        <div className="edit-header-bar">
+          <strong>Editing household settings</strong>
+          <span className="edit-header-actions">
+            <button className="primary sm" onClick={save} disabled={busy}>{busy ? "Saving…" : "Save"}</button>
+            <button className="sm" disabled={busy} onClick={() => { setOpen(false); setError(""); }}>Cancel</button>
+          </span>
+        </div>
+        {error && <p className="error" style={{ marginTop: 8 }}>{error}</p>}
       </div>
 
       <div className="stack" style={{ gap: 6 }}>
@@ -335,16 +341,6 @@ export function HouseholdSettings({
         </details>
       </div>
 
-      <div className="divider" />
-      <div className="inline">
-        <button className="primary sm" onClick={save} disabled={busy}>
-          {busy ? "Saving…" : "Save"}
-        </button>
-        <button className="sm" onClick={() => { setOpen(false); setError(""); }}>
-          Cancel
-        </button>
-      </div>
-      {error && <p className="error" style={{ marginTop: 8 }}>{error}</p>}
     </div>,
     document.body,
   );

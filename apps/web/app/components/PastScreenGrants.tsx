@@ -10,8 +10,8 @@ export function PastScreenGrants({ householdId, reloadKey }: { householdId: stri
   const { version } = useArchives();
   const history = useHistoryFeed(fetchPage, reloadKey + version);
   if (!history.items.length && !history.busy && !history.error) return null;
-  return <section aria-label="Past screen-time grants">
-    <h2>Past screen-time grants</h2>
+  return <section aria-label="Past screen-time grants"><details aria-label="Past screen-time grants">
+    <summary>Past screen-time grants</summary>
     {history.items.map((grant) => <div className="card" key={`${grant.bonus ? "bonus" : "purchase"}:${grant.id}`}>
       <strong>{grant.expand?.child?.display_name ?? "Child"} — {grant.description}</strong>
       <div>{bankedTimeLabel(grant)}</div>
@@ -23,5 +23,5 @@ export function PastScreenGrants({ householdId, reloadKey }: { householdId: stri
     {history.hasMore && <button disabled={history.busy} onClick={() => void history.loadMore()}>
       {history.busy ? "Loading…" : "Show more"}
     </button>}
-  </section>;
+  </details></section>;
 }

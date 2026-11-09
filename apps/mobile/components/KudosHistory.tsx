@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { errorMessage, localDateLabel } from "@paydirt/shared";
+import { errorMessage, householdDateTime } from "@paydirt/shared";
 import { View } from "react-native";
 import { Button, Card, Text, useTheme } from "react-native-paper";
 import type { KudosAward } from "@paydirt/shared";
@@ -63,7 +63,7 @@ export function KudosHistory({
                 {award.reason || "Great work!"}
               </Text>
               <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant }}>
-                {localDateLabel(award.created)}
+                {householdDateTime(award.created)}
               </Text>
             </View>
             <Text

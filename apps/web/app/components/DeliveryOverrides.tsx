@@ -9,7 +9,8 @@ export function DeliveryOverrides({ kid, onSaved }: { kid: User; onSaved: () => 
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
   return <details><summary>Time delivery overrides</summary>
-    <DeliverySchedule kid value={{ grant_weekday_window: weekday, grant_weekend_window: weekend, grant_day_windows: days }} onChange={(schedule) => { setWeekday(schedule.grant_weekday_window); setWeekend(schedule.grant_weekend_window); setDays(schedule.grant_day_windows); }} />
+    <div className="edit-header">
+    <strong>Editing {kid.display_name}'s delivery windows</strong>
     <button disabled={busy} onClick={async () => {
       setBusy(true);
       try {
@@ -18,6 +19,9 @@ export function DeliveryOverrides({ kid, onSaved }: { kid: User; onSaved: () => 
       } catch (e) { setMessage(errorMessage(e)); }
       finally { setBusy(false); }
     }}>Save delivery windows</button>
+    <button disabled={busy} onClick={() => { setWeekday(kid.grant_weekday_window ?? ""); setWeekend(kid.grant_weekend_window ?? ""); setDays(kid.grant_day_windows ?? ""); setMessage(""); }}>Cancel</button>
+    </div>
+    <DeliverySchedule kid value={{ grant_weekday_window: weekday, grant_weekend_window: weekend, grant_day_windows: days }} onChange={(schedule) => { setWeekday(schedule.grant_weekday_window); setWeekend(schedule.grant_weekend_window); setDays(schedule.grant_day_windows); }} />
     <p role="status">{message}</p>
   </details>;
 }

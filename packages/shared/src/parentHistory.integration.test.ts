@@ -74,6 +74,22 @@ describe("parent history and approval feedback (isolated PocketBase)", () => {
     });
   }
 
+  it("does not repeat a daily chore completed today from an older assignment", async () => {
+    const item = await chore("Late daily completion");
+    await parent.updateChore(item.id, { type: "recurring", cadence: "daily", max_per_period: 1 });
+    const assignment = await parent.assignChore(item.id, kid.currentUser!.id);
+    const db = new DatabaseSync(join(root, "data/data.db"));
+    try {
+      db.prepare("UPDATE assignments SET created = ? WHERE id = ?")
+        .run(new Date(Date.now() - 2 * 86400_000).toISOString().replace("T", " "), assignment.id);
+    } finally { db.close(); }
+    await kid.markComplete(assignment.id);
+    await parent.approveAssignment(assignment.id);
+    await parent.pb.send("/test/run-daily", { method: "POST" });
+    expect((await kid.listActiveAssignmentsForChild(kid.currentUser!.id))
+      .filter((row) => row.chore === item.id)).toHaveLength(0);
+  });
+
   it.each(["users", "households"])("saves the exact two weekday windows plus a Wednesday exception on %s", async (scope) => {
     const hh = parent.currentUser!.household;
     const child = kid.currentUser!.id;

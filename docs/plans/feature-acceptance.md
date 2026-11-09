@@ -1,6 +1,6 @@
 # Pending feature acceptance
 
-**TL;DR:** These features have implementation, but their completion evidence is incomplete or contradictory. Finish the specific checks below before moving them into the shipped index; recurring due days are first.
+**TL;DR:** These features have implementation, but their completion evidence is incomplete or contradictory. Finish the specific checks below before moving them into the shipped index; Android typing and parent history are the current priorities.
 
 **Status:** Building
 
@@ -14,17 +14,23 @@ Record the relevant automated test and user-facing verification; retain an
 explicit rollout check when deployment is not established. The original
 records below preserve history, not completion claims.
 
+## Current priority fixes
+
+Android typing now keeps immediate field state and ignores stale portal echoes; regression checks exercise rapid middle edits, delayed echoes, template replacement, and clearing. Native IME/cursor proof is still required. Daily recurrence now counts an older assignment completed today, while approval of work completed yesterday does not consume today's occurrence. Feed Turtle's live configuration was not changed.
+
+Web/mobile history and ledger entries show household-timezone timestamps. Pending approval and screen-time grant sections remain visible; past grants start collapsed above expanded recently approved chores. Verify native scrolling and empty states alongside the existing checks below.
+
+Local verification on 2026-11-08: lint/typecheck, 480 workspace tests, all 79 API tests, and all 29 headless browser journeys passed (the starter-picker selector was corrected and rerun). Ledger verification matched every balance. These checks do not establish native IME behavior.
+
 ## Remaining acceptance
 
 | Area | Evidence already present | Remaining work |
 |---|---|---|
-| Recurring due days | Eleven direct cadence/timezone/DST/month-end tests; three live deadline snapshot/tamper checks; prior-pending/next-day recurrence tests; headless template/prefill/create/edit/snapshot journey; API 34 emulator showed both kid layouts with yesterday pending and today actionable, timers survived restart, and approving yesterday left today's timer/assignment unchanged. | Release/deployment confirmation on the household device. |
-| Tablet header actions | Shared header; rendered boundary tests and four headless header scenarios; API 34 emulator confirmed wide and narrow tablet order/overflow, large text, Theme/Settings, and cancel/confirm sign-out. | Release/deployment confirmation. Phone landscape classification remains covered by rendered tests; emulator app stayed portrait-locked during attempted rotation. |
 | Kudos | Schema, hook/client, parent controls, kid surfaces, unit/API checks | Verify parent award → kid notification/celebration/history and no replay on a second device. |
 | Chore notes | Parent forms, template prefill, kid/approval rendering, server length cap | Verify actual create/edit/template and both kid layouts, including long text. |
 | Partial credit | Shared/server payout logic, web/mobile controls | Verify parent percentage controls, confirmation, actual payout/history, zero-minute case, and undo restrictions. |
 | Expanded My Bank | Separated sections in both kid homes; calculation/render tests and phone/tablet browser review | Verify native standard and simplified screens against real records, scrolling, and large text. |
-| Personal archives | API tests cover owner privacy, settled-only eligibility, unchanged rewards/Kudos counts, retention, and guarded rollback; headless web Archive/Undo/Restore passes | Native left-to-archive, vertical scrolling, More actions → Archive, Undo/Restore, offline errors, tray cleanup, and cross-device refresh. Editable parent catalogue chores additionally use right-to-edit and retain visible Edit/Archive icons; verify pinned edit actions and cancellation. Catalogue Archive deactivates the chore; there is no catalogue restore path yet (tracked in [ROADMAP](../../ROADMAP.md#known-issues)). |
+| Personal archives | API tests cover owner privacy, settled-only eligibility, unchanged rewards/Kudos counts, retention, and guarded rollback; headless web Archive/Undo/Restore and catalogue-chore restore pass | Native left-to-archive, vertical scrolling, More actions → Archive, Undo/Restore, catalogue-chore restore, offline errors, tray cleanup, and cross-device refresh. Editable parent catalogue chores additionally use right-to-edit and retain visible Edit/Archive icons; verify pinned edit actions and cancellation. |
 | Help cancellation | Shared control in both kid layouts; real API verifies both parent reminders clear and assignment status is unchanged | Native request → Cancel help request, failed request feedback, and parent refresh. |
 | Parent history paging | Real API traversal tests cover 5/10 paging, ties, combined grant sources, and outstanding grants; browser paging passes | Verify native Show more, errors/retry, and realtime refresh retain expanded lists. |
 | Approval feedback | Real API tests cover private delivery, validation, undo, and concurrent payout protection; browser cancel/save/error-draft checks | Verify native dialog, keyboard/large text, quick approval, and feedback discovery through both kid layouts. |

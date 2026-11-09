@@ -27,7 +27,6 @@ export async function setupNotificationChannels() {
     importance: Notifications.AndroidImportance.HIGH,
     vibrationPattern: [0, 250, 250, 250],
     lightColor: "#2f7d4f",
-    sound: "default",
   });
   // Low-importance channel for the persistent foreground-service indicator.
   await Notifications.setNotificationChannelAsync("paydirt-service", {

@@ -4,6 +4,10 @@
 
 ## Shipped index
 
+- [x] 2026-11-08 — Owner confirmed the tablet/recurring batch shipped and pushed (`3d993c0`); native emulator evidence remains recorded under 2026-11-06
+
+- [x] 2026-11-08 — Glob cancellation vulnerability patched to 14.0.2; synchronous/asynchronous traversal and abort smoke checks pass locally
+
 - [x] 2026-11-06 — Tablet header actions and recurring due-day native acceptance passed on isolated API 34 emulator; deployment remains separate
 
 - [x] 2026-11-06 — Recurring deadline arithmetic no longer inherits host DST gaps; fail-before/pass-after verified locally
@@ -304,3 +308,11 @@ Real PocketBase integration tests verify the application-owned queue and limit s
 ### 2026-11-04 — Ordinary Family Link time resumes after bonus expiry
 
 Owner approved a five-minute time-pay chore with two hours of ordinary daily time remaining. After the bonus expired, ordinary daily depletion resumed. The reported allowance-loss bug was ruled out on the device; no grant-calculation change was required.
+
+### 2026-11-08 — Glob cancellation bypass
+
+The former active issue (#81, reported 2026-11-04) resolved glob 13.0.6, which could continue traversing after an AbortSignal timeout. A scoped override now resolves affected transitive versions to 14.0.2. Node engine compatibility, CommonJS/ESM resolution, synchronous/asynchronous traversal, and immediate cancellation were checked locally. Deployment and GitHub alert closure follow the next approved push. [Advisory](https://github.com/advisories/GHSA-3g3m-2fjr-6pw4).
+
+### 2026-11-08 — Tablet and recurring release confirmation
+
+The owner reported shipping and pushing the tablet-header and recurring-deadline batch at `3d993c0`. API 34 emulator acceptance and automated coverage are preserved in the 2026-11-06 entry. This is owner-reported release confirmation; no additional physical-device checks were performed in this session.

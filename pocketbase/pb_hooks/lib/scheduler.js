@@ -355,7 +355,15 @@ function assignRecurring(app, now) {
           if (open.length > 0) continue;
           // Daily chores get one automatic occurrence per calendar day, even
           // without a configured advisory limit. Old pending approvals remain.
-          if (daily && new Date(lastByChild[childId].getString("created").replace(" ", "T")) >= today) continue;
+          // An older assignment finished today also consumes today's occurrence.
+          // Approval time is deliberately excluded: approving yesterday's work
+          // must not suppress work the kid can actually do today.
+          if (daily && history.some((a) =>
+            a.getString("child") === childId &&
+            a.getString("status") !== "closed" &&
+            ["created", "completed_at"].some((field) =>
+              a.getString(field) && new Date(a.getString(field).replace(" ", "T")) >= today),
+          )) continue;
           // Automatic recurrence follows the chore's repeat limit. Parents can
           // still deliberately override it through the assignment flow.
           if (limit > 0 && history.filter((a) =>

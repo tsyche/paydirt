@@ -8,8 +8,8 @@ import {
   Portal,
   Switch,
   Text,
-  TextInput,
-} from "react-native-paper";
+  } from "react-native-paper";
+import { TextInput } from "./TextInput";
 import type { Household } from "@paydirt/shared";
 import { CURRENCY_PRESETS, DEFAULT_CURRENCY_NAME, currencyDisplayName, screenRate, errorMessage, featureTip, kudosDefaultBucks } from "@paydirt/shared";
 import { client } from "../lib/client";
@@ -131,7 +131,15 @@ export function HouseholdSettings({
   return (
     <Portal>
       <Dialog visible={visible} onDismiss={onDismiss} style={{ maxHeight: "90%" }}>
-        <Dialog.Title>Household settings</Dialog.Title>
+        <Dialog.Title>Editing household settings</Dialog.Title>
+        <Dialog.Actions>
+          <Button onPress={onDismiss} disabled={busy}>
+            Cancel
+          </Button>
+          <Button onPress={save} disabled={busy} loading={busy}>
+            Save
+          </Button>
+        </Dialog.Actions>
         <Dialog.ScrollArea>
           <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ paddingHorizontal: 8 }}>
             <SettingsGroup title="Currency">
@@ -139,7 +147,7 @@ export function HouseholdSettings({
             <TextInput
               value={form.currency_name}
               placeholder={DEFAULT_CURRENCY_NAME}
-              onChangeText={(v) => setForm({ ...form, currency_name: v })}
+              onChangeText={(v) => setForm((current) => ({ ...current, currency_name: v }))}
               style={{ marginBottom: 8 }}
             />
             <SettingLabel label="Presets" tip="currency_presets" />
@@ -149,7 +157,7 @@ export function HouseholdSettings({
                   key={p}
                   compact
                   mode={form.currency_name.trim() === p ? "contained" : "outlined"}
-                  onPress={() => setForm({ ...form, currency_name: p })}
+                  onPress={() => setForm((current) => ({ ...current, currency_name: p }))}
                   style={{ marginRight: 4 }}
                 >
                   {p}
@@ -159,7 +167,7 @@ export function HouseholdSettings({
 
             </SettingsGroup>
             <SettingsGroup title="Screen-time delivery">
-            <TextInput style={{ marginBottom: 12 }} label="Queued grant expires after days (0 = never)" keyboardType="number-pad" value={form.grant_expiry_days} onChangeText={(v) => setForm({ ...form, grant_expiry_days: v })} />
+            <TextInput style={{ marginBottom: 12 }} label="Queued grant expires after days (0 = never)" keyboardType="number-pad" value={form.grant_expiry_days} onChangeText={(v) => setForm((current) => ({ ...current, grant_expiry_days: v }))} />
             <DeliverySchedule value={form} onChange={(schedule) => setForm((old) => ({ ...old, ...schedule }))} />
             </SettingsGroup>
             <SettingsGroup title="Rewards and conversion">
@@ -167,35 +175,35 @@ export function HouseholdSettings({
             <TextInput
               keyboardType="numeric"
               value={form.bank_threshold}
-              onChangeText={(v) => setForm({ ...form, bank_threshold: v })}
+              onChangeText={(v) => setForm((current) => ({ ...current, bank_threshold: v }))}
               style={{ marginBottom: 8 }}
             />
             <SettingLabel label="Kudos default amount" tip="kudos_default_bucks" />
             <TextInput
               keyboardType="numeric"
               value={form.kudos_default_bucks}
-              onChangeText={(v) => setForm({ ...form, kudos_default_bucks: v })}
+              onChangeText={(v) => setForm((current) => ({ ...current, kudos_default_bucks: v }))}
               style={{ marginBottom: 8 }}
             />
             <SettingLabel label="Rewards expire after days (0 = off)" tip="expiry_days" />
             <TextInput
               keyboardType="numeric"
               value={form.expiry_days}
-              onChangeText={(v) => setForm({ ...form, expiry_days: v })}
+              onChangeText={(v) => setForm((current) => ({ ...current, expiry_days: v }))}
               style={{ marginBottom: 8 }}
             />
             <SettingLabel label={`${cur} per $1 (0 = off)`} tip="goods_rate" />
             <TextInput
               keyboardType="numeric"
               value={form.goods_rate}
-              onChangeText={(v) => setForm({ ...form, goods_rate: v })}
+              onChangeText={(v) => setForm((current) => ({ ...current, goods_rate: v }))}
               style={{ marginBottom: 8 }}
             />
             <SettingLabel label={`${cur} per screen-time minute`} tip="screen_rate" />
             <TextInput
               keyboardType="numeric"
               value={form.screen_rate}
-              onChangeText={(v) => setForm({ ...form, screen_rate: v })}
+              onChangeText={(v) => setForm((current) => ({ ...current, screen_rate: v }))}
               style={{ marginBottom: 8 }}
             />
             </SettingsGroup>
@@ -204,37 +212,37 @@ export function HouseholdSettings({
             <TextInput
               keyboardType="numeric"
               value={form.nudge_hours}
-              onChangeText={(v) => setForm({ ...form, nudge_hours: v })}
+              onChangeText={(v) => setForm((current) => ({ ...current, nudge_hours: v }))}
               style={{ marginBottom: 8 }}
             />
             <SettingLabel label="Quiet hours start" tip="quiet_start" />
             <TextInput
               value={form.quiet_start}
-              onChangeText={(v) => setForm({ ...form, quiet_start: v })}
+              onChangeText={(v) => setForm((current) => ({ ...current, quiet_start: v }))}
               placeholder="21:00"
               style={{ marginBottom: 8 }}
             />
             <SettingLabel label="Quiet hours end" tip="quiet_end" />
             <TextInput
               value={form.quiet_end}
-              onChangeText={(v) => setForm({ ...form, quiet_end: v })}
+              onChangeText={(v) => setForm((current) => ({ ...current, quiet_end: v }))}
               placeholder="07:00"
               style={{ marginBottom: 8 }}
             />
             </SettingsGroup>
             <SettingsGroup title="Household preferences">
             <Text style={{ marginBottom: 12 }}>The household timezone applies to chore resets, schedules, reminders, reports, and dates.</Text>
-            <TextInput style={{ marginBottom: 12 }} label="Household timezone" placeholder="America/Los_Angeles" value={form.grant_timezone} onChangeText={(v) => setForm({ ...form, grant_timezone: v })} />
+            <TextInput style={{ marginBottom: 12 }} label="Household timezone" placeholder="America/Los_Angeles" value={form.grant_timezone} onChangeText={(v) => setForm((current) => ({ ...current, grant_timezone: v }))} />
             <SettingLabel label="Vacation mode" tip="paused" />
             <Switch
               value={form.paused}
-              onValueChange={(v) => setForm({ ...form, paused: v })}
+              onValueChange={(v) => setForm((current) => ({ ...current, paused: v }))}
               style={{ marginBottom: 8 }}
             />
             <SettingLabel label="Kids see each other's balance" tip="kids_see_balances" />
             <Switch
               value={form.kids_see_balances}
-              onValueChange={(v) => setForm({ ...form, kids_see_balances: v })}
+              onValueChange={(v) => setForm((current) => ({ ...current, kids_see_balances: v }))}
               style={{ marginBottom: 8 }}
             />
             </SettingsGroup>
@@ -243,13 +251,13 @@ export function HouseholdSettings({
             <TextInput
               keyboardType="numeric"
               value={form.allowance_amount}
-              onChangeText={(v) => setForm({ ...form, allowance_amount: v })}
+              onChangeText={(v) => setForm((current) => ({ ...current, allowance_amount: v }))}
               style={{ marginBottom: 8 }}
             />
             <SettingLabel label="Allowance cadence" tip="allowance_cadence" />
             <TextInput
               value={form.allowance_cadence}
-              onChangeText={(v) => setForm({ ...form, allowance_cadence: v === "daily" ? "daily" : "weekly" })}
+              onChangeText={(v) => setForm((current) => ({ ...current, allowance_cadence: v === "daily" ? "daily" : "weekly" }))}
               style={{ marginBottom: 8 }}
             />
             </SettingsGroup>
@@ -258,42 +266,34 @@ export function HouseholdSettings({
             <TextInput
               keyboardType="numeric"
               value={form.streak_bonus_3}
-              onChangeText={(v) => setForm({ ...form, streak_bonus_3: v })}
+              onChangeText={(v) => setForm((current) => ({ ...current, streak_bonus_3: v }))}
               style={{ marginBottom: 4 }}
             />
             <SettingLabel label="7-day bonus" tip="streak_bonus_7" />
             <TextInput
               keyboardType="numeric"
               value={form.streak_bonus_7}
-              onChangeText={(v) => setForm({ ...form, streak_bonus_7: v })}
+              onChangeText={(v) => setForm((current) => ({ ...current, streak_bonus_7: v }))}
               style={{ marginBottom: 4 }}
             />
             <SettingLabel label="14-day bonus" tip="streak_bonus_14" />
             <TextInput
               keyboardType="numeric"
               value={form.streak_bonus_14}
-              onChangeText={(v) => setForm({ ...form, streak_bonus_14: v })}
+              onChangeText={(v) => setForm((current) => ({ ...current, streak_bonus_14: v }))}
               style={{ marginBottom: 4 }}
             />
             <SettingLabel label="30-day bonus" tip="streak_bonus_30" />
             <TextInput
               keyboardType="numeric"
               value={form.streak_bonus_30}
-              onChangeText={(v) => setForm({ ...form, streak_bonus_30: v })}
+              onChangeText={(v) => setForm((current) => ({ ...current, streak_bonus_30: v }))}
               style={{ marginBottom: 8 }}
             />
             </SettingsGroup>
             {error ? <Text style={{ color: "red", marginBottom: 8 }}>{error}</Text> : null}
           </ScrollView>
         </Dialog.ScrollArea>
-        <Dialog.Actions>
-          <Button onPress={onDismiss} disabled={busy}>
-            Cancel
-          </Button>
-          <Button onPress={save} disabled={busy} loading={busy}>
-            Save
-          </Button>
-        </Dialog.Actions>
       </Dialog>
     </Portal>
   );

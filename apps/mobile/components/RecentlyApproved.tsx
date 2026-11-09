@@ -3,7 +3,7 @@ import { useCallback } from "react";
 import { Alert, StyleSheet, View } from "react-native";
 import { Button, Card, Text, useTheme } from "react-native-paper";
 import type { Assignment, Chore, User } from "@paydirt/shared";
-import { REACTIONS, errorMessage, payLabel, payMode, undoApprovalPrompt } from "@paydirt/shared";
+import { REACTIONS, householdDateTime, errorMessage, payLabel, payMode, undoApprovalPrompt } from "@paydirt/shared";
 import { client } from "../lib/client";
 import { useHistoryFeed } from "../lib/useHistoryFeed";
 
@@ -70,6 +70,7 @@ export function RecentlyApproved({
               {a.expand?.child?.display_name ?? "child"} · +{a.expand?.chore ? payLabel(a.expand.chore, currencyName, a.credit_percent) : "?"}
               {a.credit_percent && a.credit_percent < 100 ? ` (${a.credit_percent}% credit)` : ""}
             </Text>
+            <Text variant="bodySmall">{householdDateTime(a.approved_at || a.updated)}</Text>
             {a.approval_comment ? <Text style={{ marginTop: 8 }}>Feedback: {a.approval_comment}</Text> : null}
             <View style={styles.actions}>
               <View style={styles.reactions}>

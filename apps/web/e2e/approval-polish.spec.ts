@@ -74,6 +74,7 @@ test("archiving a settled chore supports Undo and Restore while keeping its payo
     const balance = await parent.getBalance(kid.currentUser!.id);
     await signIn(page);
     const archive = page.getByRole("button", { name: `Archive ${chore.name}`, exact: true });
+    await expect(page.locator(".card.row").filter({ has: archive })).toContainText(/\d{1,2}:\d{2}/);
     await page.route("**/api/collections/archives/records", (route) => route.request().method() === "POST"
       ? route.fulfill({ status: 400, contentType: "application/json", body: JSON.stringify({ status: 400, message: "Could not archive this item.", data: {} }) })
       : route.continue());
@@ -100,5 +101,60 @@ test("archiving a settled chore supports Undo and Restore while keeping its payo
     await parent.undoApproval(assignment.id);
     await parent.pb.collection("assignments").delete(assignment.id);
     await parent.pb.collection("chores").delete(chore.id);
+  }
+});
+
+test("a parent can restore a catalogue chore after archiving it", async ({ page }) => {
+  const parent = new PaydirtClient(PB_URL);
+  await parent.login("parent1@test.local", "password123");
+  const chore = await parent.createChore({
+    household: parent.currentUser!.household, name: `E2E catalogue restore ${Date.now()}`, reward: 5,
+    type: "oneoff", created_by: parent.currentUser!.id, active: true,
+  });
+  try {
+    await signIn(page);
+    await page.getByRole("tab", { name: /Chores/ }).click();
+    const row = page.locator(".chore-row").filter({ hasText: chore.name });
+    await row.getByRole("button", { name: "Edit chore" }).click();
+    const editor = page.locator(".card-filled").filter({ has: page.getByRole("button", { name: "Save", exact: true }) });
+    page.once("dialog", (dialog) => void dialog.accept());
+    await editor.getByRole("button", { name: "Archive", exact: true }).click();
+    await expect(row).toHaveCount(0);
+
+    const archived = page.locator("details.archived-chores");
+    await expect(archived).toContainText("Archived chores");
+    await archived.locator("summary").click();
+    await archived.getByRole("button", { name: `Restore ${chore.name}`, exact: true }).click();
+    await expect(page.locator(".chore-row").filter({ hasText: chore.name })).toBeVisible();
+    await expect.poll(async () => (await parent.pb.collection("chores").getOne(chore.id)).active).toBe(true);
+  } finally {
+    await parent.pb.collection("chores").delete(chore.id);
+  }
+});
+
+test("pending sections stay visible and past time starts collapsed above approved history", async ({ page }) => {
+  const parent = new PaydirtClient(PB_URL);
+  const kid = new PaydirtClient(PB_URL);
+  await parent.login("parent1@test.local", "password123");
+  await kid.login("child1@test.local", "password123");
+  const description = `E2E past time ${Date.now()}`;
+  const grant = await parent.giveBonusMinutes(kid.currentUser!.id, 5, description, `past_time_${Date.now()}`);
+  try {
+    await parent.confirmBonusGrant(grant.id);
+    await signIn(page);
+    await expect(page.getByRole("heading", { name: /Pending approvals/ })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Pending screen-time grants", exact: true })).toBeVisible();
+    const past = page.locator("details[aria-label='Past screen-time grants']");
+    await expect(past).not.toHaveAttribute("open");
+    await expect(past.getByText(description, { exact: false })).not.toBeVisible();
+    const history = page.getByRole("heading", { name: /Recently approved/ });
+    await expect(history).toBeVisible();
+    expect((await past.boundingBox())!.y).toBeLessThan((await history.boundingBox())!.y);
+    await past.locator("summary").click();
+    await expect(past.getByText(description, { exact: false })).toBeVisible();
+  } finally {
+    const admin = new PaydirtClient(PB_URL);
+    await admin.pb.collection("_superusers").authWithPassword(process.env.PB_ADMIN_EMAIL ?? "admin@paydirt.local", process.env.PB_ADMIN_PASSWORD ?? "password123");
+    await admin.pb.collection("time_grants").delete(grant.id);
   }
 });

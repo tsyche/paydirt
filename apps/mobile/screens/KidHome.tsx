@@ -16,10 +16,10 @@ import {
   Dialog,
   ProgressBar,
   SegmentedButtons,
-  TextInput,
   Snackbar,
   useTheme,
 } from "react-native-paper";
+import { TextInput } from "../components/TextInput";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { GOAL_NAME_MAX } from "@paydirt/shared";
 import type { Assignment, Broadcast, Chore, Household, KudosAward, SavingsGoal, ScreenPreset, User } from "@paydirt/shared";
@@ -48,7 +48,7 @@ import { KudosHistory } from "../components/KudosHistory";
 import { ChoreNotes } from "../components/ChoreNotes";
 import { MyBank } from "../components/MyBank";
 import { ChoreTimer } from "../components/ChoreTimer";
-import { localDateLabel, householdDateTime, nextHouseholdTime } from "@paydirt/shared";
+import { householdDateTime, nextHouseholdTime } from "@paydirt/shared";
 import type { SpendRequest } from "@paydirt/shared";
 import type { TimeGrant } from "@paydirt/shared";
 import { ChunkyButton } from "../components/ChunkyButton";
@@ -493,7 +493,7 @@ export function KidHome({
                 <Card.Content>
                   <Text variant="bodyMedium">{b.message}</Text>
                   <Text variant="bodySmall" style={styles.date}>
-                    {localDateLabel(b.created)}
+                    {householdDateTime(b.created)}
                   </Text>
                   <BroadcastReplies sent={replies[b.id]} onReply={(c) => void sendReply(b.id, c)} />
                 </Card.Content>
@@ -539,7 +539,7 @@ export function KidHome({
                             <Text key={w.id} variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant }}>
                               ✅ {(w as Expanded).expand?.chore?.name ?? "Chore"}{" "}
                               <Text style={{ color: theme.colors.onSurfaceVariant, opacity: 0.7 }}>
-                                {w.approved_at ? localDateLabel(w.approved_at) : ""}
+                                {w.approved_at ? householdDateTime(w.approved_at) : ""}
                               </Text>
                             </Text>
                           ))}
@@ -577,7 +577,7 @@ export function KidHome({
                   ) : null}
                   {a.approved_at ? (
                     <Text variant="bodySmall" style={styles.date}>
-                      {a.completed_at ? `Done ${localDateLabel(a.completed_at)} · ` : ""}Approved {localDateLabel(a.approved_at)}
+                      {a.completed_at ? `Done ${householdDateTime(a.completed_at)} · ` : ""}Approved {householdDateTime(a.approved_at)}
                     </Text>
                   ) : null}
                 </Card.Content>

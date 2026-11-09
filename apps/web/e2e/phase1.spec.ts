@@ -25,8 +25,6 @@ test("approve a kid's chore idea at a negotiated reward", async ({ page }) => {
   const kidUser = await kid.login("child1@test.local", PW);
   const proposal = await kid.proposeChore(kidUser.household, kidUser.id, ideaName, 50);
 
-  // Parent answers the reward prompt with 12
-  page.on("dialog", (d) => void d.accept("12"));
   await signIn(page);
 
   // Chore ideas surface in the Approvals tab (the default landing tab).
@@ -37,6 +35,9 @@ test("approve a kid's chore idea at a negotiated reward", async ({ page }) => {
   // The idea becomes a real chore at the negotiated reward, assigned to the
   // kid — it now lives in the Chores tab.
   await goTab(page, /Chores/);
+  const review = page.locator(".chore-form");
+  await review.getByRole("spinbutton", { name: "Reward", exact: true }).fill("12");
+  await review.getByRole("button", { name: "Add chore", exact: true }).click();
   const choreRow = page
     .locator(".card.row")
     .filter({ hasText: ideaName })
@@ -119,6 +120,7 @@ test("screen-time request is priced from the household rate set in settings", as
     // Parent sets 2 bucks/minute in the settings panel
     await signIn(page);
     await page.getByRole("button", { name: /Settings/ }).click();
+    await page.locator(".settings-panel").getByText("Reward expiry and conversion", { exact: true }).click();
     await page.getByLabel(/per screen-time minute/).fill("2");
     await page.getByRole("button", { name: "Save" }).click();
     await expect.poll(async () => (await parent.getHousehold(householdId)).screen_rate).toBe(2);
@@ -145,6 +147,7 @@ test("screen-time request is priced from the household rate set in settings", as
 test("settings info icons show their help text instantly on hover", async ({ page }) => {
   await signIn(page);
   await page.getByRole("button", { name: /Settings/ }).click();
+  await page.locator(".settings-panel").getByText("Reward expiry and conversion", { exact: true }).click();
   const row = page.locator(".settings-row").filter({ hasText: /per \$1/ });
   await expect(row.getByRole("note")).toHaveCount(0);
   await row.getByRole("button", { name: "More info" }).hover();
@@ -175,7 +178,7 @@ test("add a starter chore from the age-band picker, then it shows as already add
   await goTab(page, /Chores/);
   await page.getByRole("button", { name: /Starter chores/ }).click();
   await page.getByRole("button", { name: "Ages 7-9" }).click();
-  await page.getByLabel(/Unload the dishwasher/).check();
+  await page.getByRole("checkbox", { name: /Unload the dishwasher/ }).check();
   await page.getByRole("button", { name: "Add 1 chore" }).click();
   await expect(page.getByText("already added")).toBeVisible();
 
@@ -427,6 +430,7 @@ test("chore row says who is assigned or already at the limit, before you try", a
 test("add-chore form hides Due/Reminder/Max behind Advanced; ledger stacks on narrow screens", async ({ page }) => {
   await signIn(page);
   await goTab(page, /Chores/);
+  await page.getByRole("button", { name: "Add a chore" }).click();
   await expect(page.getByLabel("Max per period")).toHaveCount(0);
   await page.getByRole("button", { name: /Advanced/ }).click();
   await expect(page.getByLabel("Max per period")).toBeVisible();
