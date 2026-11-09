@@ -1,3 +1,5 @@
+import { EarnedTimeBank } from "../components/EarnedTimeBank";
+import { chooseTimeReward } from "../lib/chooseTimeReward";
 import { OccurrenceLabel } from "../components/OccurrenceLabel";
 import { HelpRequestButton } from "../components/HelpRequestButton";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -173,8 +175,10 @@ export function SimpleKidHome({ user, onLogout }: { user: User; onLogout: () => 
   }
 
   async function markDone(id: string) {
+    const choice = await chooseTimeReward(assignments.find((a) => a.id === id)?.expand?.chore);
+    if (!choice) return;
     try {
-      await client.markComplete(id);
+      await client.markComplete(id, undefined, choice);
       setSnack("Woohoo! Waiting for Mom/Dad to check!");
       await reload();
     } catch (e) {
@@ -184,7 +188,9 @@ export function SimpleKidHome({ user, onLogout }: { user: User; onLogout: () => 
 
   async function markDoneWithPhoto(id: string) {
     try {
-      const result = await takePhotoAndComplete(id);
+      const choice = await chooseTimeReward(assignments.find((a) => a.id === id)?.expand?.chore);
+      if (!choice) return;
+      const result = await takePhotoAndComplete(id, choice);
       if (result === "no-permission") {
         setSnack("Need camera permission for this chore!");
         return;
@@ -253,7 +259,7 @@ export function SimpleKidHome({ user, onLogout }: { user: User; onLogout: () => 
         </Surface>
 
         <KudosHistory awards={kudos} currencyName={currencyName} simple />
-        <MyBank balance={balance} currency={currencyName} goodsRate={goodsRate} screenRate={rate} streak={me.streak_count ?? 0} assignments={assignments} goals={bankGoals} requests={bankRequests} grants={bankGrants} simple />
+        <MyBank earnedTime={<EarnedTimeBank childId={user.id} kidControl />} balance={balance} currency={currencyName} goodsRate={goodsRate} screenRate={rate} streak={me.streak_count ?? 0} assignments={assignments} goals={bankGoals} requests={bankRequests} grants={bankGrants} simple />
 
         <Surface style={styles.choreCard} elevation={2}>
           <Text style={styles.choreEmoji}>📱</Text>

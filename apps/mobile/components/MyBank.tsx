@@ -1,9 +1,11 @@
+import type { ReactNode } from "react";
 import { StyleSheet, View } from "react-native";
 import { Card, Icon, ProgressBar, Text, useTheme } from "react-native-paper";
 import { bankView, bankedTimeLabel, kidBankSummary, type Assignment, type Chore, type SavingsGoal, type SpendRequest, type TimeGrant } from "@paydirt/shared";
 
 /** Private bank detail for both kid homes. Goals share the same balance. */
-export function MyBank({ balance, currency, goodsRate, screenRate, streak, assignments, goals, requests, grants = [], simple = false }: {
+export function MyBank({ earnedTime, balance, currency, goodsRate, screenRate, streak, assignments, goals, requests, grants = [], simple = false }: {
+  earnedTime?: ReactNode;
   balance: number; currency: string; goodsRate: number; screenRate: number; streak: number;
   assignments: (Assignment & { expand?: { chore?: Chore } })[];
   goals: SavingsGoal[]; requests: SpendRequest[]; simple?: boolean;
@@ -49,6 +51,8 @@ export function MyBank({ balance, currency, goodsRate, screenRate, streak, assig
           </View>
         </View>
 
+        {earnedTime}
+
         <View accessibilityLabel="Reward options" style={styles.section}>
           <Text variant="titleMedium" accessibilityRole="header">What you could get</Text>
           <View style={styles.tiles}>
@@ -77,8 +81,8 @@ export function MyBank({ balance, currency, goodsRate, screenRate, streak, assig
           </View>
         </View>
 
-        {waitingTime.length > 0 && <View accessibilityLabel="Banked screen time" style={styles.section}>
-          <Text variant="titleMedium" accessibilityRole="header">Screen time bank</Text>
+        {waitingTime.length > 0 && <View accessibilityLabel="Queued screen time" style={styles.section}>
+          <Text variant="titleMedium" accessibilityRole="header">Time awaiting delivery</Text>
           <Text variant="bodySmall" style={{ color: colors.onSurfaceVariant }}>
             Already earned or purchased. Separate from your {currency}.
           </Text>

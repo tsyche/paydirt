@@ -26,6 +26,12 @@ describe("approveTimePrompt", () => {
     expect(m).toContain("15 min");
     expect(m).toContain("Kid 1");
     expect(m).toContain("can't be undone");
+    expect(m).toContain("Bank");
+    expect(m).not.toContain("screen time now");
+  });
+
+  it("shows the kid's Use now choice without promising unrestricted immediate delivery", () => {
+    expect(approveTimePrompt([{ chore: { pay_mode: "time", reward_minutes: 20 }, timeChoice: "use" }])).toContain("Use now in 15-minute blocks; remainder saved");
   });
 
   it("sums a mixed batch and skips bucks-only rows", () => {

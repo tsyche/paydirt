@@ -78,8 +78,8 @@ onRecordUpdate((e) => {
 }, "spend_requests");
 
 // ── assignments → approved: pay the chore (bucks, screen time, or both) ──────
-// The earn transaction / time_grants row recorded here is the snapshot of what
-// was paid; later chore edits never rewrite it. See lib/chorePay.js.
+// Grit earnings snapshot the payout here; minute earnings are recorded inside
+// the assignment transaction by lib/timeBank.js. Later chore edits rewrite neither.
 onRecordAfterUpdateSuccess((e) => {
   const becameApproved =
     e.record.getString("status") === "approved" &&
@@ -98,21 +98,6 @@ onRecordAfterUpdateSuccess((e) => {
       e.app.save(tx);
     }
     if (pay.minutes > 0) {
-      const fl = require(`${__hooks}/lib/familylink.js`);
-      const grant = new Record(e.app.findCollectionByNameOrId("time_grants"));
-      grant.set("child", e.record.getString("child"));
-      grant.set("assignment", e.record.id);
-      grant.set("minutes", pay.minutes);
-      grant.set("description", "Chore: " + chore.getString("name") + " (" + pay.minutes + " min bonus)");
-      fl.prepare(grant, e.app);
-      e.app.save(grant);
-      if (grant.getString("grant_status") === "queued") {
-        try { fl.publish(e.app, grant); } catch (_) {
-          e.app.logger().error("Family Link publish deferred to cron", "time_grant", grant.id);
-        }
-      } else {
-        fl.notifyManual(e.app, grant);
-      }
       if (pay.bucks <= 0) {
         // No earn row to trigger the streak check, so run it here.
         const child = e.app.findRecordById("users", e.record.getString("child"));

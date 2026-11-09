@@ -46,7 +46,7 @@ export function bankedTimeLabel(grant: {
 }): string {
   const remaining = Math.max(0, (grant.minutes || grant.screen_minutes || 0) - (grant.grant_delivered_seconds || 0) / 60);
   if (grant.grant_status === "queued") {
-    return `${remaining} min banked — delivered automatically during allowed hours`;
+    return `${remaining} min queued — delivered automatically during allowed hours`;
   }
   if (grant.grant_status === "manual") return `${remaining} min still owed — needs manual review`;
   return screenGrantLabel(grant.grant_status);

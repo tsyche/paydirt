@@ -36,7 +36,7 @@ function computeStreakFromDays(now, days) {
 }
 
 // Count consecutive days, ending today (server-local), on which the child earned from
-// a chore (type = "earn" ledger entries or time_grants).
+// a chore (Grit earns, held-minute earns, or legacy chore grants).
 function computeStreak(app, childId) {
   const calendar = require(__hooks + "/lib/calendar.js");
   const child = app.findRecordById("users", childId);
@@ -53,8 +53,12 @@ function computeStreak(app, childId) {
   for (const t of txs) {
     days[calendar.day(household, new Date(t.getString("created").replace(" ", "T")))] = true;
   }
-  // Chores paid only in screen time leave no earn row, so their grants count too.
-  const grants = app.findRecordsByFilter("time_grants", "child = {:c}", "-created", 200, 0, { c: childId });
+  // Count approval-day earnings, never later redemptions or standalone bonuses.
+  const earned = app.findRecordsByFilter("time_ledger", "child = {:c} && kind = 'earn'", "-created", 200, 0, { c: childId });
+  for (const row of earned) {
+    days[calendar.day(household, new Date(row.getString("created").replace(" ", "T")))] = true;
+  }
+  const grants = app.findRecordsByFilter("time_grants", "child = {:c} && assignment != '' && redemption = ''", "-created", 200, 0, { c: childId });
   for (const g of grants) {
     days[calendar.day(household, new Date(g.getString("created").replace(" ", "T")))] = true;
   }

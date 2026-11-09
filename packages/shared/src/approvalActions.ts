@@ -21,12 +21,13 @@ export function undoApprovalPrompt(
 export interface ApprovalItem {
   chore?: (ChorePayFields & { name?: string }) | null;
   kidName?: string;
+  timeChoice?: "bank" | "use";
 }
 
 /**
  * Confirm text for approving, or null when nothing pays screen time (bucks-only
- * approvals stay one click). Time grants go to Family Link at once and can't be
- * undone, so the parent gets one last look.
+ * approvals stay one click). Time earnings remain irreversible; Bank holds
+ * them, while Use now requests whole 15-minute blocks under delivery windows.
  */
 export function approveTimePrompt(items: ApprovalItem[]): string | null {
   const lines: string[] = [];
@@ -35,8 +36,8 @@ export function approveTimePrompt(items: ApprovalItem[]): string | null {
     const minutes = it.chore ? normalizePay(it.chore).minutes : 0;
     if (minutes <= 0) continue;
     total += minutes;
-    lines.push(`• ${it.kidName ?? "kid"}: ${minutes} min (${it.chore?.name ?? "chore"})`);
+    lines.push(`• ${it.kidName ?? "kid"}: ${minutes} min (${it.chore?.name ?? "chore"}) — ${it.timeChoice === "use" ? "Use now in 15-minute blocks; remainder saved" : "Bank"}`);
   }
   if (lines.length === 0) return null;
-  return `Approving grants ${total} min of screen time now and can't be undone:\n${lines.join("\n")}`;
+  return `Approving awards ${total} min of earned screen time and can't be undone:\n${lines.join("\n")}`;
 }

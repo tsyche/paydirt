@@ -10,7 +10,8 @@
     "web": "expo start --web",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
-    "test": "vitest run --passWithNoTests",
+    "test": "node --test scripts/check-icons.mjs && vitest run --passWithNoTests --exclude '**/*.integration.test.tsx'",
+    "test:integration": "vitest run --no-file-parallelism integration.test.tsx",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
@@ -42,6 +43,7 @@
     "@types/react": "~19.2.18",
     "@types/react-test-renderer": "^19.3.1",
     "react-test-renderer": "19.2.3",
+    "sharp": "0.35.5",
     "typescript": "~6.0.3",
     "typescript-eslint": "^8.71.0"
   }

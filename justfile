@@ -507,6 +507,7 @@ test-integration:
         exit 1
     fi
     pnpm --filter @paydirt/shared test:integration
+    pnpm --filter mobile test:integration
 
 # Playwright dashboard tests — needs running, seeded PocketBase
 [group('quality')]
@@ -583,6 +584,7 @@ test-all:
 
     printf '\033[0;34mRunning integration tests...\033[0m\n'
     PB_URL="${TEST_URL}" PB_TEST_DB="${EDIR}/pb_data/data.db" pnpm --filter @paydirt/shared test:integration
+    pnpm --filter mobile test:integration
 
     printf '\033[0;34mVerifying ledger integrity...\033[0m\n'
     PB_URL="${TEST_URL}" node pocketbase/verify-ledger.mjs

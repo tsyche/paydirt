@@ -343,6 +343,7 @@ describe("parent history and approval feedback (isolated PocketBase)", () => {
     const binary = join(repo, "pocketbase/pocketbase");
     const args = ["--dir", join(root, "data"), "--migrationsDir", join(repo, "pocketbase/pb_migrations")];
     const down = () => execFileSync(binary, ["migrate", "down", "1", ...args], { input: "y\n", stdio: ["pipe", "ignore", "ignore"] });
+    down(); // Remove the empty earned-time bank (migration 44).
     expect(down).toThrow(); // Archives must be restored before removing their storage.
     const archiveDb = new DatabaseSync(join(root, "data/data.db"));
     try {

@@ -14,14 +14,14 @@ import { client, reachability } from "./client";
  * `onResume` is the screen's reload — events aren't replayed across a socket
  * rebuild, so a catch-up fetch rides along with every resume.
  */
-export function useRealtimeResume(onResume: () => void): void {
+export function useRealtimeResume(onResume: () => void, reconnect = true): void {
   const resumeRef = useRef(onResume);
   resumeRef.current = onResume;
 
   useEffect(() => {
     const scheduler = createResumeScheduler(
       () => {
-        client.resumeRealtime();
+        if (reconnect) client.resumeRealtime();
         resumeRef.current();
       },
       {
@@ -42,5 +42,5 @@ export function useRealtimeResume(onResume: () => void): void {
       reachabilityUnsub();
       scheduler.dispose();
     };
-  }, []);
+  }, [reconnect]);
 }

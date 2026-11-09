@@ -4,6 +4,8 @@
 
 ## Shipped index
 
+- [x] 2026-11-09 — Kid-controlled earned-time bank, 15-minute redemptions, and parent web/mobile totals (local implementation; deployment/device acceptance remains in ROADMAP)
+
 - [x] 2026-11-08 — Owner confirmed Android typing fix and parent layout/archive/help walkthrough on the shipped app
 
 - [x] 2026-11-08 — Owner confirmed the tablet/recurring batch shipped and pushed (`3d993c0`); native emulator evidence remains recorded under 2026-11-06
@@ -62,6 +64,49 @@
 - [x] 2026-07-06 — Second parent support (co-parent)
 - [x] 2026-06-28 — ntfy onboarding flow
 - [x] 2026-06-10 — MVP, Phase 1, and Phase 1.5 (migrated 2026-10-21)
+
+
+## Earned-time bank and parent totals (2026-11-09)
+
+Implemented locally; deployment and physical-device acceptance remain in ROADMAP.
+
+- Kids choose Bank (default) or Use now at submission, including photo proof.
+  Approval awards immutable held-minute earnings for time/both chores. Use now
+  reserves whole 15-minute blocks; smaller remainders stay saved.
+- Both kid layouts offer Use time in 15-minute steps, 15–120 per delivery under
+  the existing worker limit. No second approval or extra Grit charge. Held time
+  never expires or drains when a window opens; after-hours use requires explicit
+  queue consent. Existing queued rewards and purchased time retain their state.
+- Minute earns/reservations/releases and partial-delivery history are immutable.
+  Transactions and unique keys prevent duplicate awards, overdrafts and retry
+  grants. Mobile persists uncertain requests across restarts. Cancellation only
+  releases queued time that has never been published; a permanent dispatch marker
+  is committed before the worker sees a job. Manual and uncertain outcomes remain
+  reserved for parent review. Time-paying approvals retain the existing undo prohibition.
+- Parent web/mobile summaries and details separate saved available minutes,
+  manual reservations, pending purchase requests, and queued remainders. Both kid
+  layouts show their own totals/history. Sibling grant and purchase-request reads are blocked; regression tests reproduced
+  both old exposures before the restrictions were applied.
+- Streaks count held-minute earn dates and legacy chore rewards, excluding later
+  redemptions and direct parent bonuses. A real API regression test reproduced
+  bonus-driven streak inflation before the fix.
+- Automated evidence: real-PocketBase accounting, concurrent approvals/debits,
+  cancellation versus first publication, manual confirmation, lost-response/restart retries,
+  rollback protection, legacy queue preservation, split delivery, and realtime
+  parent/kid totals and foreground catch-up after missed realtime events.
+- Verification: 488 workspace unit tests, 3 icon checks, 12 Android tests,
+  93 shared API integrations, 5 native component integrations, and 30 headless
+  Docker Playwright journeys. Lint and typecheck pass. An earlier development
+  browser run timed out on Add chore stability; the frozen-source full run
+  passed all 30 without retries. Physical-device acceptance remains pending.
+
+Original requested scope:
+
+- **Kid-controlled earned-time bank and parent totals (requested 2026-11-09; planned)** — let kids save chore-earned screen minutes instead of automatically activating/queuing them. Include chores paying time alone or time plus Grit. A kid can express Bank / Use now when submitting or collecting the reward; only parent approval actually awards minutes. Default selection and exact collection UI need design. Preserve the immutable earned-minute snapshot and avoid changing existing queued grants silently.
+  - **Held is not queued:** saved minutes remain available until the kid explicitly redeems a chosen amount. A delivery window opening must not automatically drain the saved bank. Existing “banked” window remainders are queued automatic delivery, so distinguish that state and wording from the new held balance. Spending saved minutes must not charge Grit again. Decide parent re-approval requirements, allowed increments, cancellation, expiry, and how a request made outside allowed hours behaves; never silently convert Bank into “deliver next morning.”
+  - **Parent visibility:** show each kid's saved available minutes in the Kids summary and kid detail on both web and mobile. Show reserved/requested minutes and minutes already queued for delivery separately; expose earned/redeemed adjustments in history. Both kid layouts show their own saved total and a simple Use time action. No sibling balance access.
+  - **Accounting and acceptance:** immutable earn/reserve/redeem/release records, server validation and idempotency; concurrent redemptions cannot spend the same minutes twice. Test bedtime chores → next-morning window opens with saved balance unchanged → kid later uses only part of the balance → only that portion is delivered under current windows/restrictions. Cover offline retries, split delivery, cancellation, concurrent parent actions, rejected/undone chore approvals, and parent/kid realtime totals. This is separate from remaining daily Family Link time: it measures PayDirt-held minutes, not Google's remaining allowance. Include this lifecycle in the server-free parity model.
+
 
 ## Archived entries
 

@@ -34,13 +34,13 @@ const render = (extra: Partial<typeof props> = {}) =>
   renderToStaticMarkup(createElement(MyBank, { ...props, ...extra })).replace(/<[^>]+>/g, " ");
 
 describe("My Bank reward information", () => {
-  it.each([false, true])("preserves available funds, estimates, conversions, and banked remainder (simple=%s)", (simple) => {
+  it.each([false, true])("preserves available funds, estimates, conversions, and queued remainder (simple=%s)", (simple) => {
     const text = render({ simple });
     expect(text).toMatch(/70\s+Grit/);
     expect(text).toContain("$7.00");
     expect(text).toContain("35 min");
     expect(text).toMatch(/20\s+Grit/);
-    expect(text).toContain("15 min banked");
+    expect(text).toContain("15 min queued");
     expect(text).toContain("New bike");
     expect(text).toContain("150");
   });

@@ -69,7 +69,7 @@ cronAdd("paydirt_familylink", "* * * * *", () => {
 onRecordUpdateRequest((e) => {
   const r = e.record;
   const prev = r.original();
-  for (const field of ["child", "assignment", "minutes", "description", "grant_error", "given_by", "request_key", "grant_delivered_seconds"]) {
+  for (const field of ["child", "assignment", "minutes", "description", "grant_error", "given_by", "request_key", "grant_delivered_seconds", "redemption", "grant_dispatch_started"]) {
     if (r.getString(field) !== prev.getString(field)) {
       throw new BadRequestError("Time grant details cannot change.");
     }

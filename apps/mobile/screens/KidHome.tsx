@@ -1,3 +1,5 @@
+import { EarnedTimeBank } from "../components/EarnedTimeBank";
+import { chooseTimeReward } from "../lib/chooseTimeReward";
 import { OccurrenceLabel } from "../components/OccurrenceLabel";
 import { HelpRequestButton } from "../components/HelpRequestButton";
 import { ArchiveRow } from "../components/ArchiveActions";
@@ -266,12 +268,16 @@ export function KidHome({
   }
 
   async function markDone(id: string) {
-    await act(() => client.markComplete(id), "Marked done — waiting for approval!")();
+    const choice = await chooseTimeReward(assignments.find((a) => a.id === id)?.expand?.chore);
+    if (!choice) return;
+    await act(() => client.markComplete(id, undefined, choice), "Marked done — waiting for approval!")();
   }
 
   async function markDoneWithPhoto(id: string, resubmit = false) {
     try {
-      const result = await takePhotoAndComplete(id);
+      const choice = await chooseTimeReward(assignments.find((a) => a.id === id)?.expand?.chore);
+      if (!choice) return;
+      const result = await takePhotoAndComplete(id, choice);
       if (result === "no-permission") {
         setSnack("Camera permission needed to submit this chore.");
         return;
@@ -336,7 +342,7 @@ export function KidHome({
             />
             {!calm && <BadgeShelf badges={badges} kudosCount={kudos.length} />}
             <KudosHistory awards={kudos} currencyName={currencyName} />
-            <MyBank balance={me.balance} currency={currencyName} goodsRate={goodsRate} screenRate={screenRate(household)} streak={me.streak_count ?? 0} assignments={assignments} goals={goals} requests={bankRequests} grants={bankGrants} />
+            <MyBank earnedTime={<EarnedTimeBank childId={user.id} kidControl />} balance={me.balance} currency={currencyName} goodsRate={goodsRate} screenRate={screenRate(household)} streak={me.streak_count ?? 0} assignments={assignments} goals={goals} requests={bankRequests} grants={bankGrants} />
 
         {swapsIn.length > 0 && (
           <>

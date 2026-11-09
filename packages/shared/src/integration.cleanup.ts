@@ -73,6 +73,10 @@ export async function cleanupUsers(userIds: string[]): Promise<void> {
     for (const t of txs) await pb.collection("currency_transactions").delete(t.id).catch(() => {});
     const grants = await pb.collection("time_grants").getFullList({ filter: pb.filter("child = {:u}", { u: id }) });
     for (const g of grants) await pb.collection("time_grants").delete(g.id).catch(() => {});
+    for (const collection of ["time_ledger", "time_redemptions"]) {
+      const rows = await pb.collection(collection).getFullList({ filter: pb.filter("child = {:u}", { u: id }) });
+      for (const row of rows) await pb.collection(collection).delete(row.id);
+    }
     await pb.collection("users").delete(id).catch(() => {});
   }
 }

@@ -51,6 +51,10 @@ just lint               # lint all workspaces
 just typecheck          # type-check all workspaces (tsc --noEmit)
 ```
 
+Native earned-time component integration tests boot a separate disposable
+PocketBase and run with both integration recipes. Ordinary `just test` needs no
+running backend or PocketBase binary.
+
 For the live test targets, start the backend with notifications muted so test
 runs don't blast the real ntfy.sh topics: `NTFY_DISABLED=1 just dev-pb`, then
 `just seed`.

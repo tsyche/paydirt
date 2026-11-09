@@ -180,10 +180,10 @@ describe("PocketBase hooks & guards (live)", () => {
       await parent.approveAssignment(assignment.id);
 
       expect(await parent.getBalance(kidUser.id)).toBe(start);
-      const grants = await grantsFor(assignment.id);
-      expect(grants).toHaveLength(1);
-      expect(grants[0]?.minutes).toBe(10);
-      expect(["queued", "manual"]).toContain(grants[0]?.grant_status);
+      const ledger = (await parent.getTimeBank(kidUser.id)).ledger.filter((r) => r.assignment === assignment.id);
+      expect(ledger).toHaveLength(1);
+      expect(ledger[0]).toMatchObject({ kind: "earn", minutes: 10 });
+      expect(await grantsFor(assignment.id)).toHaveLength(0);
     });
 
     it("a time-only approval alone starts a streak (fresh kid, no earn rows)", async () => {
@@ -221,8 +221,8 @@ describe("PocketBase hooks & guards (live)", () => {
       await parent.approveAssignment(assignment.id);
 
       expect(await parent.getBalance(kidUser.id)).toBe(start + 12);
-      const grants = await grantsFor(assignment.id);
-      expect(grants.map((g) => g.minutes)).toEqual([5]);
+      const ledger = (await parent.getTimeBank(kidUser.id)).ledger.filter((r) => r.assignment === assignment.id);
+      expect(ledger.map((r) => r.minutes)).toEqual([5]);
     });
 
     it("a chore that granted time cannot be undone, even after the chore is edited back to bucks", async () => {
@@ -233,7 +233,7 @@ describe("PocketBase hooks & guards (live)", () => {
 
       await parent.updateChore(chore.id, { pay_mode: "bucks", reward: 5, reward_minutes: 0 });
       await expect(parent.undoApproval(assignment.id)).rejects.toThrow();
-      expect(await grantsFor(assignment.id)).toHaveLength(1);
+      expect((await parent.getTimeBank(kidUser.id)).ledger.filter((r) => r.assignment === assignment.id)).toHaveLength(1);
     });
 
     it("bucks-only chores never create a grant, and a stale reward_minutes is ignored", async () => {

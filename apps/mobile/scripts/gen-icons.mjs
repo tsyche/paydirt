@@ -1,7 +1,8 @@
-// Regenerates every icon from assets/paydirt-logo.svg (the Noto Emoji money bag on a
-// dirt pile): launcher, splash, favicon, in-app bag, the web
-// logo/favicon, and the committed Android mipmaps + notification icons.
-// Run: node apps/mobile/scripts/gen-icons.mjs, then bump versionCode.
+// Regenerates launcher/header artwork from paydirt-logo.svg and notification
+// artwork from notification-icon.svg. Standard launchers/favicons are transparent;
+// Android adaptive launchers use a warm neutral background.
+// Run: node apps/mobile/scripts/gen-icons.mjs. Native changes need a new APK;
+// versionCode comes from the commit count, and native runtime versions must match.
 // android/ is committed and hand-edited (custom Kotlin), so never run
 // `expo prebuild` for icons; this script writes the res files directly.
 import sharp from "sharp";
@@ -13,9 +14,11 @@ const here = path.dirname(fileURLToPath(import.meta.url));
 const assets = (f) => path.join(here, "..", "assets", f);
 const res = (...p) => path.join(here, "..", "android", "app", "src", "main", "res", ...p);
 const web = (f) => path.join(here, "..", "..", "web", f);
-const GREEN = "#2f7d4f";
+const LAUNCHER_BACKGROUND = "#f6f1e7";
 
 const source = await readFile(assets("paydirt-logo.svg"), "utf8");
+const notificationSource = await readFile(assets("notification-icon.svg"));
+const notificationPng = (size) => sharp(notificationSource, { density: 600 }).resize(size, size).png().toBuffer();
 const bagPng = (size) => sharp(Buffer.from(source), { density: 600 }).resize(size, size).png().toBuffer();
 
 // Bag centred on a size x size transparent canvas, scaled to `fill` of it
@@ -28,9 +31,7 @@ const layer = async (size, fill) => {
     .toBuffer();
 };
 const solid = (size) =>
-  sharp({ create: { width: size, height: size, channels: 3, background: GREEN } }).png().toBuffer();
-const onGreen = async (size, fill) =>
-  sharp(await solid(size)).composite([{ input: await layer(size, fill) }]).png().toBuffer();
+  sharp({ create: { width: size, height: size, channels: 3, background: LAUNCHER_BACKGROUND } }).png().toBuffer();
 
 // Alpha-only silhouette with the dark-brown $ and tie (#5d4037) cut out.
 const mono = async (size, fill) => {
@@ -42,11 +43,6 @@ const mono = async (size, fill) => {
   }
   return sharp(data, { raw: info }).png().toBuffer();
 };
-const white = async (buf) => {
-  const { data, info } = await sharp(buf).raw().toBuffer({ resolveWithObject: true });
-  for (let i = 0; i < data.length; i += 4) data[i] = data[i + 1] = data[i + 2] = 255;
-  return sharp(data, { raw: info }).png().toBuffer();
-};
 const roundMask = (size) =>
   Buffer.from(`<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}"><circle cx="${size / 2}" cy="${size / 2}" r="${size / 2}"/></svg>`);
 
@@ -55,22 +51,23 @@ const save = (buf, file) => sharp(buf).png().toFile(file);
 const saveWebp = (buf, file) => sharp(buf).webp({ lossless: true }).toFile(file);
 
 const jobs = [
-  save(await onGreen(1024, 0.88), assets("icon.png")),
+  save(await layer(1024, 0.88), assets("icon.png")),
   save(await layer(1024, SAFE), assets("android-icon-foreground.png")),
   save(await solid(1024), assets("android-icon-background.png")),
   save(await mono(432, SAFE), assets("android-icon-monochrome.png")),
   save(await layer(1024, SAFE), assets("splash-icon.png")),
-  save(await onGreen(48, 0.95), assets("favicon.png")),
+  save(await layer(48, 0.95), assets("favicon.png")),
+  save(await notificationPng(96), assets("notification-icon.png")),
   save(await bagPng(256), assets("bag.png")),
   writeFile(web("public/bag.svg"), source),
 ];
 
-// Web favicon: bag on a green rounded square (nested copy of the source SVG).
+// Web favicon: transparent background; preserve the same header artwork.
 const nested = source.replace(/<\?xml[^>]*\?>/, "").replace(/<!--[\s\S]*?-->/g, "").replace(/<svg[^>]*>/, (tag) => tag.replace(/\s(width|height)="[^"]*"/g, "").replace("<svg", '<svg x="16" y="16" width="96" height="96"'));
 jobs.push(
   writeFile(
     web("app/icon.svg"),
-    `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="128" height="128"><rect width="128" height="128" rx="24" fill="${GREEN}"/>${nested}</svg>\n`,
+    `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="128" height="128">${nested}</svg>\n`,
   ),
 );
 
@@ -82,7 +79,7 @@ for (const [d, scale] of Object.entries(densities)) {
   await Promise.all([mkdir(m, { recursive: true }), mkdir(n, { recursive: true })]);
   const adaptive = 108 * scale;
   const legacy = 48 * scale;
-  const square = await onGreen(legacy, 0.95);
+  const square = await layer(legacy, 0.95);
   const round = await sharp(square).composite([{ input: roundMask(legacy), blend: "dest-in" }]).png().toBuffer();
   jobs.push(
     saveWebp(await layer(adaptive, SAFE), path.join(m, "ic_launcher_foreground.webp")),
@@ -90,7 +87,7 @@ for (const [d, scale] of Object.entries(densities)) {
     saveWebp(await mono(adaptive, SAFE), path.join(m, "ic_launcher_monochrome.webp")),
     saveWebp(square, path.join(m, "ic_launcher.webp")),
     saveWebp(round, path.join(m, "ic_launcher_round.webp")),
-    save(await white(await mono(24 * scale, 0.9)), path.join(n, "notification_icon.png")),
+    save(await notificationPng(24 * scale), path.join(n, "notification_icon.png")),
   );
 }
 

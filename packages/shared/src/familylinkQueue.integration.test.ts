@@ -230,17 +230,17 @@ describe("Family Link approval queue (isolated PocketBase)", () => {
     });
     const chore = await parent.createChore({
       household: parent.currentUser!.household, name: "Queue bonus chore", reward: 0, type: "oneoff",
-      created_by: parent.currentUser!.id, active: true, pay_mode: "time", reward_minutes: 10,
+      created_by: parent.currentUser!.id, active: true, pay_mode: "time", reward_minutes: 15,
     });
     const assignment = await parent.assignChore(chore.id, kid.currentUser!.id);
-    await kid.markComplete(assignment.id);
+    await kid.markComplete(assignment.id, undefined, "use");
     await parent.approveAssignment(assignment.id);
 
     const grant = (await parent.listBonusGrants(parent.currentUser!.household)).find((g) => g.assignment === assignment.id)!;
     expect(grant.grant_status).toBe("queued");
     const filename = `${grant.id}.json`;
     expect(JSON.parse(readFileSync(join(queue, "pending", filename), "utf8"))).toEqual({
-      id: grant.id, childId: "123456789012", deviceId: "a".repeat(30), seconds: 600,
+      id: grant.id, childId: "123456789012", deviceId: "a".repeat(30), seconds: 900,
     });
     // Clients can't forge results or edit terms; nobody can delete a queued grant.
     await expect(kid.pb.collection("time_grants").update(grant.id, { grant_status: "granted" })).rejects.toThrow();
@@ -278,10 +278,10 @@ describe("Family Link approval queue (isolated PocketBase)", () => {
     await parent.pb.collection("users").update(kid.currentUser!.id, { fl_child_id: "", fl_device_id: "" });
     const chore = await parent.createChore({
       household: parent.currentUser!.household, name: "Manual bonus chore", reward: 5, type: "oneoff",
-      created_by: parent.currentUser!.id, active: true, pay_mode: "both", reward_minutes: 5,
+      created_by: parent.currentUser!.id, active: true, pay_mode: "both", reward_minutes: 15,
     });
     const assignment = await parent.assignChore(chore.id, kid.currentUser!.id);
-    await kid.markComplete(assignment.id);
+    await kid.markComplete(assignment.id, undefined, "use");
     await parent.approveAssignment(assignment.id);
     const grant = (await parent.listBonusGrants(parent.currentUser!.household)).find((g) => g.assignment === assignment.id)!;
     expect(grant.grant_status).toBe("manual");
@@ -299,10 +299,10 @@ describe("Family Link approval queue (isolated PocketBase)", () => {
     for (let i = 0; i < 3; i++) {
       const chore = await parent.createChore({
         household: parent.currentUser!.household, name: `Rapid queue chore ${i}`, reward: 0, type: "oneoff",
-        created_by: parent.currentUser!.id, active: true, pay_mode: "time", reward_minutes: 5,
+        created_by: parent.currentUser!.id, active: true, pay_mode: "time", reward_minutes: 15,
       });
       const assignment = await parent.assignChore(chore.id, kid.currentUser!.id);
-      await kid.markComplete(assignment.id);
+      await kid.markComplete(assignment.id, undefined, "use");
       await parent.approveAssignment(assignment.id);
       const grant = (await parent.listBonusGrants(parent.currentUser!.household)).find((g) => g.assignment === assignment.id)!;
       expect(grant.grant_status).toBe("queued");
@@ -322,7 +322,7 @@ describe("Family Link approval queue (isolated PocketBase)", () => {
     await processFamilyLinkQueue(queue, async () => { calls++; return 0; }, true);
     expect(calls).toBe(3);
   });
-  it("banks a 30-minute reward at 8:15 PM, delivers 15 now and 15 at the next opening exactly once", async () => {
+  it("queues a 30-minute use-now reward at 8:15 PM, delivers 15 now and 15 at the next opening exactly once", async () => {
     const hh = parent.currentUser!.household;
     const childId = kid.currentUser!.id;
     await parent.pb.collection("users").update(childId, {
@@ -338,7 +338,7 @@ describe("Family Link approval queue (isolated PocketBase)", () => {
         created_by: parent.currentUser!.id, active: true, pay_mode: "time", reward_minutes: 30,
       });
       const assignment = await parent.assignChore(chore.id, childId);
-      await kid.markComplete(assignment.id);
+      await kid.markComplete(assignment.id, undefined, "use");
       await parent.approveAssignment(assignment.id);
       const grant = (await parent.listBonusGrants(hh)).find((g) => g.assignment === assignment.id)!;
       expect(readdirSync(join(queue, "pending"))).not.toContain(`${grant.id}.json`);
@@ -391,6 +391,9 @@ describe("Family Link approval queue (isolated PocketBase)", () => {
         await tick("2099-11-05T23:02:00.000Z");
         await processFamilyLinkQueue(queue, async () => { calls++; return 0; }, true);
         expect(calls).toBe(2);
+        const bank = await kid.getTimeBank(childId);
+        const delivered = bank.ledger.filter((r) => r.redemption === grant.redemption && r.kind === "redeem");
+        expect(delivered.map((r) => r.minutes)).toEqual([15, 15]);
         await expect(parent.pb.collection("time_grants").update(grant.id, { grant_delivered_seconds: 0 })).rejects.toThrow();
       } finally { clock.mockRestore(); }
     } finally {

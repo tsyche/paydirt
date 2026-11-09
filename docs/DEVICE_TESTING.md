@@ -130,6 +130,9 @@ adb install -r apps/mobile/android/app/build/outputs/apk/debug/app-debug.apk
 - [x] Spend request dialog opens and submits — 2026-10-21: dialog opens, field + amount (Grits 10), Send creates pending request server-side; parent approve deducts exactly (177→167) and fires the "Spend approved" notification live
 - [x] Realtime: approve a chore from the web dashboard → kid screen updates without pull-to-refresh — 2026-10-21, balance + list both live, no spinner
 
+- [ ] Earned-time bank (both kid layouts): submit a time/both chore with Bank; approve before bed; open the morning delivery window and confirm saved minutes remain unchanged. Use 15 minutes; verify only that portion lands and Grit stays unchanged.
+- [ ] Confirm parent web/mobile Kids summaries and detail show matching saved, reserved/requested, and queued totals. Try Use now, a sub-15-minute reward, after-hours confirmation, and a lost-response/restart retry. Physical-device acceptance remains pending; automated component/API/browser evidence is recorded in the shipped ledger.
+
 ### Notifications (key test)
 - [x] Background: lock the screen, have parent approve a chore → notification appears from **PayDirt** (not ntfy) — channel `paydirt-alerts`; all four types confirmed
 - [x] Background: parent broadcasts a message → notification appears

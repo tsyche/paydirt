@@ -1,3 +1,4 @@
+import { EarnedTimeBank } from "./EarnedTimeBank";
 import { TimeField } from "./TimeField";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Alert, View, ScrollView, StyleSheet, RefreshControl } from "react-native";
@@ -222,6 +223,7 @@ export function KidDetail({
         contentContainerStyle={styles.content}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={reload} />}
       >
+        <EarnedTimeBank childId={kidId} />
         {kid && (
           <ClaimHero
             name={kid.display_name}

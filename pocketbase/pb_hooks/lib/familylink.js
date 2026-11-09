@@ -33,6 +33,12 @@ function deliveryId(record) {
 }
 
 function publish(app, record, at) {
+  if (record.getString("grant_status") !== "queued") return;
+  if (record.getString("redemption")) record = app.findRecordById("time_grants", record.id);
+  if (record.getString("grant_status") === "queued") publishReady(app, record, at);
+}
+
+function publishReady(app, record, at) {
   const dir = queueDir();
   for (const part of ["pending", "processing", "results"]) $os.mkdirAll(dir + "/" + part, 0o700);
   const name = deliveryId(record) + ".json";
@@ -56,6 +62,12 @@ function publish(app, record, at) {
     app.save(record);
   }
   if (!state.open) return;
+  // Commit the permanent marker BEFORE touching the worker's filesystem.
+  // The time-bank update guard serializes this write against cancellation.
+  if (record.getString("redemption") && !record.getBool("grant_dispatch_started")) {
+    record.set("grant_dispatch_started", true);
+    app.save(record);
+  }
   const job = {
     id: deliveryId(record),
     childId: child.getString("fl_child_id"),
@@ -126,7 +138,7 @@ function reconcile(app, at) {
       if (result.status === "granted") {
         require(__hooks + "/lib/ntfy.js").notifyUser(app, record.getString("child"),
           "Screen time delivered 📱", delivered / 60 + " minutes have landed." +
-          (partial ? " The rest is banked for an allowed window." : ""), "time_granted");
+          (partial ? " The rest is queued for an allowed window." : ""), "time_granted");
       }
       if (partial) publish(app, record, now);
       // Keep the receipt on disk: a repeated publish can never replay it.

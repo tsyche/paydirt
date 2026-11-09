@@ -63,7 +63,13 @@ describe("takePhotoAndComplete", () => {
     expect(options.headers).toMatchObject({ Authorization: "test-token" });
     const params = options.parameters as Record<string, string>;
     expect(params.status).toBe("completed");
+    expect(params.time_choice).toBe("bank");
     expect(new Date(params.completed_at).toISOString()).toBe(params.completed_at);
+  });
+
+  it("includes the kid's Use now choice in the same multipart submission", async () => {
+    await takePhotoAndComplete("assignment_1", "use");
+    expect(uploadAsync.mock.calls[0]?.[2].parameters.time_choice).toBe("use");
   });
 
   it("throws with the server status and body on a failed upload", async () => {

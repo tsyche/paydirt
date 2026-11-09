@@ -15,6 +15,8 @@ export const Collections = {
   ChoreTemplates: "chore_templates",
   Inbox: "inbox",
   TimeGrants: "time_grants",
+  TimeLedger: "time_ledger",
+  TimeRedemptions: "time_redemptions",
   Kudos: "kudos",
 } as const;
 

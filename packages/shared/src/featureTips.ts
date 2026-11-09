@@ -39,7 +39,7 @@ export const FEATURE_TIPS: Record<string, string> = {
   goods_rate_kid:
     "Per-kid override of the household grit-per-dollar rate. A higher rate means the same grit buys less money. 0 = use the household default.",
   screen_rate:
-    "Grit required per minute of screen time. A higher rate means the same grit buys less time. Example: 30 grit buys 10 minutes at 3 grit/min, or 5 minutes at 6 grit/min. Kids ask in 15-minute steps, up to an hour per request.",
+    "Grit cost per minute when buying extra screen time. Saved chore-earned minutes cost no extra Grit. A higher rate means the same grit buys less time. Example: 30 grit buys 10 minutes at 3 grit/min, or 5 minutes at 6 grit/min. Kids ask in 15-minute steps, up to an hour per request.",
   chore_digest:
     "One push a day listing the kid's open chores, sent at this time (weekday / weekend). Blank = no summary. New recurring chores no longer push at 3 AM.",
   fl_ids:

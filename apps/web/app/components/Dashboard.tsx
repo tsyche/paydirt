@@ -1,5 +1,6 @@
 "use client";
 
+import { EarnedTimeBank } from "./EarnedTimeBank";
 import { ArchiveButton, useArchives } from "./ArchiveActions";
 
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -137,6 +138,7 @@ export function Dashboard({
       list.map((x) => ({
         chore: x.expand?.chore as Chore | undefined,
         kidName: (x.expand?.child as User | undefined)?.display_name,
+        timeChoice: x.time_choice,
       })),
     );
     return msg === null || window.confirm(msg);
@@ -318,6 +320,7 @@ export function Dashboard({
               />
               <GoalControl kid={kid} onChanged={reload} />
             </div>
+            <EarnedTimeBank childId={kid.id} />
             <KidChores assignments={activeByKid[kid.id] ?? []} currencyName={currencyName} />
             <GoalList kid={kid} goals={goalsByKid[kid.id] ?? []} onChanged={reload} />
             <KidEarnings
@@ -420,6 +423,7 @@ export function Dashboard({
                   {(a.expand?.chore as Chore | undefined)?.description && (
                     <details><summary>Instructions</summary><p style={{ whiteSpace: "pre-wrap", overflowWrap: "anywhere" }}>{(a.expand?.chore as Chore).description}</p></details>
                   )}
+                  {a.expand?.chore && payMode(a.expand.chore as Chore) !== "bucks" && <div className="muted">{a.time_choice === "use" ? "Use now in 15-minute blocks; remainder saved" : "Bank earned minutes"}</div>}
                   {a.due_at && <div className="muted">Due {householdDateTime(a.due_at)}</div>}
                   {!!a.timer_minutes && <div className="muted">⏱ {a.timer_minutes} min · {a.timer_started_at ? `started ${householdDateTime(a.timer_started_at)}` : "not started"}</div>}
                   <div className="muted">

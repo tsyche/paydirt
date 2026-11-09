@@ -147,7 +147,7 @@ test("create → assign → kid completes → approve → undo", async ({ page }
   await api.deactivateChore(choreId);
 });
 
-test("a chore that pays time grants minutes on approval and can't be undone", async ({ page }) => {
+test("a chore that pays time banks minutes on approval and can't be undone", async ({ page }) => {
   const choreName = `E2E time chore ${Date.now()}`;
   const api = new PaydirtClient(PB_URL);
   await api.login("parent1@test.local", PW);
@@ -213,18 +213,19 @@ test("a chore that pays time grants minutes on approval and can't be undone", as
   page.on("dialog", (d) => void d.accept());
   await approvalRow.getByRole("button", { name: "Approve", exact: true }).click();
 
-  // A grant shows up under Screen-time grants, and the approved row has no Undo.
-  const grantRow = page.locator(".card").filter({ hasText: `Chore: ${choreName} (10 min bonus)` });
-  await expect(grantRow).toBeVisible();
+  // Bank is the default: no delivery job is created, and approval has no Undo.
   const approvedRow = page
     .locator(".card.row")
     .filter({ hasText: choreName })
-    .filter({ has: page.getByRole("button", { name: /Send a reaction/ }) });
+    .filter({ has: page.getByRole("button", { name: `Archive ${choreName}`, exact: true }) });
+  await expect(approvedRow).toBeVisible();
   await expect(approvedRow.getByRole("button", { name: "Undo approval", exact: true })).toHaveCount(0);
 
-  // Cleanup: settle the manual grant and retire the chore.
-  await grantRow.getByRole("button", { name: "Mark granted manually" }).click();
-  await expect(grantRow).toContainText("Granted manually");
+  const bank = await api.getTimeBank(kid1!.id);
+  expect(bank.ledger.find((r) => r.assignment === assignmentId)).toMatchObject({ kind: "earn", minutes: 10 });
+  expect((await api.listBonusGrants(api.currentUser!.household)).some((g) => g.assignment === assignmentId)).toBe(false);
+  await goTab(page, /Kids/);
+  await expect(page.getByTestId(`kid-card-${kid1!.id}`).getByRole("region", { name: "Saved earned time" })).toBeVisible();
   await api.deactivateChore(choreId);
 });
 

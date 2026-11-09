@@ -1,3 +1,4 @@
+import { EarnedTimeBank } from "../components/EarnedTimeBank";
 import { SwipeActionsRow } from "../components/SwipeActionsRow";
 import { TimeField } from "../components/TimeField";
 import { localDateKey, localDateInstant, householdDateTime } from "@paydirt/shared";
@@ -734,6 +735,7 @@ export function ParentHome({
                   </View>
                   <Text style={[styles.kidChevron, { color: theme.colors.onSurfaceVariant }]}>›</Text>
                 </View>
+                <View style={{ padding: 12 }}><EarnedTimeBank childId={kid.id} detail={false} /></View>
               </Card>
             ))}
           </View>
@@ -913,6 +915,7 @@ export function ParentHome({
                           {chore?.name ?? "Chore"}
                         </Text>
                         <ChoreNotes text={chore?.description} />
+                        {chore && payMode(chore) !== "bucks" && <Text variant="bodySmall">{a.time_choice === "use" ? "Use now in 15-minute blocks; remainder saved" : "Bank earned minutes"}</Text>}
                         {!!a.timer_minutes && <Text variant="bodySmall">⏱ {a.timer_minutes} min · {a.timer_started_at ? `started ${householdDateTime(a.timer_started_at)}` : "not started"}</Text>}
                         {!!a.due_at && <Text variant="bodySmall">Due {householdDateTime(a.due_at)}</Text>}
                         <View style={styles.approvalMeta}>

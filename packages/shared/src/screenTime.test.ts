@@ -12,7 +12,7 @@ import {
 describe("bankedTimeLabel", () => {
   it("shows only the undelivered remainder for bonus and purchased time", () => {
     expect(bankedTimeLabel({ minutes: 30, grant_delivered_seconds: 900, grant_status: "queued" }))
-      .toBe("15 min banked — delivered automatically during allowed hours");
+      .toBe("15 min queued — delivered automatically during allowed hours");
     expect(bankedTimeLabel({ screen_minutes: 30, grant_delivered_seconds: 900, grant_status: "manual" }))
       .toBe("15 min still owed — needs manual review");
   });

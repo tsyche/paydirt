@@ -109,7 +109,7 @@ Physical devices are not currently available through `adb`; the screening perfor
 
 ## Recommendation and next gate
 
-The [Draft experiment plan](../plans/server-free-spike.md) (restructured 2026-11-09) moves policy/reducer modelling ahead of device work and proposes public Nostr mailboxes as the primary transport, because direct peer-to-peer transports require both devices awake at once. Iroh is demoted to an optional LAN accelerator. It does not select a production architecture.
+The [Draft experiment plan](../plans/server-free-spike.md) (restructured 2026-11-09) moves policy/reducer modelling ahead of device work and proposes public Nostr mailboxes as the primary transport, because direct peer-to-peer transports require both devices awake at once. The corrected draft separately gates convergence and authorization, treats HLC as untrusted ordering rather than proof of time, and leaves revocation, encryption key lifecycle, relay sustainability and Family Link scope unresolved. Start a passive mailbox screen alongside a separate reducer candidate; retain the existing authority model as baseline. Iroh is demoted to an optional LAN accelerator. It does not select a production architecture.
 
 Keep the existing backend and ledger unchanged. A single designated settlement device is a useful experiment, but not yet a recommendation for the full product: losing it must not strand the household or permit two recovered authorities to issue grants.
 

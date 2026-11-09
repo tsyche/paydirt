@@ -2,7 +2,7 @@
 // Mirrors the PocketBase collections defined in pocketbase/pb_migrations/.
 // Keep this file and the migrations in lockstep.
 
-/** Fields PocketBase adds to every record. */
+/** Common timestamped collection fields; immutable minute records omit updated. */
 export interface BaseRecord {
   id: string;
   created: string; // ISO datetime
@@ -178,6 +178,7 @@ export type AssignmentStatus = "assigned" | "completed" | "approved" | "rejected
  * One chore can have multiple assignments (one per child).
  */
 export interface Assignment extends BaseRecord {
+  time_choice?: "bank" | "use";
   /** Duration snapshotted when assigned; server clock owns the start. */
   timer_minutes?: number;
   timer_started_at?: string;
@@ -311,10 +312,13 @@ export interface InboxItem extends BaseRecord {
 
 // ─── Spend Requests ──────────────────────────────────────────────────────────
 
-/** Bonus screen minutes earned by an approved chore; created only by the approval hook. */
+/** Delivery of redeemed chore earnings, a legacy chore reward, or a parent bonus. */
 export interface TimeGrant extends BaseRecord {
-  /** Already delivered; the remainder stays banked while queued. */
+  /** Already delivered; the remainder stays queued for automatic delivery. */
   grant_delivered_seconds?: number;
+  redemption?: string;
+  /** Permanent first-publication marker; only untouched queued time can be cancelled. */
+  grant_dispatch_started?: boolean;
   given_by?: string;
   request_key?: string;
   child: string; // -> users.id
@@ -322,7 +326,7 @@ export interface TimeGrant extends BaseRecord {
   minutes: number;
   description?: string;
   /** Server-owned automation result; manual_done is a parent's confirmation. */
-  grant_status?: "queued" | "granted" | "manual" | "manual_done" | "";
+  grant_status?: "queued" | "granted" | "manual" | "manual_done" | "cancelled" | "";
   grant_error?: string;
 }
 
@@ -343,4 +347,20 @@ export interface SpendRequest extends BaseRecord {
   status: SpendRequestStatus;
   resolved_at?: string;
   resolved_by?: string; // -> users.id (parent)
+}
+
+/** Append-only minute accounting, separate from Grit and queued delivery. */
+export interface TimeLedgerEntry extends Omit<BaseRecord, "updated"> {
+  child: string;
+  kind: "earn" | "reserve" | "redeem" | "release";
+  minutes: number;
+  assignment?: string;
+  redemption?: string;
+  event_key: string;
+}
+export interface TimeRedemption extends Omit<BaseRecord, "updated"> {
+  child: string;
+  minutes: number;
+  request_key: string;
+  cancelled: boolean;
 }

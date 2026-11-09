@@ -14,6 +14,8 @@ onRecordCreateRequest((e) => {
   const reason = r.getString("description").trim();
   if (reason.length > 500) throw new BadRequestError("Reason must be 500 characters or fewer.");
   r.set("assignment", "");
+  r.set("redemption", "");
+  r.set("grant_dispatch_started", false);
   r.set("given_by", e.auth.id);
   r.set("description", reason || "Parent bonus time");
   require(__hooks + "/lib/familylink.js").prepare(r, e.app);
@@ -21,14 +23,13 @@ onRecordCreateRequest((e) => {
 }, "time_grants");
 
 onRecordAfterCreateSuccess((e) => {
-  if (e.record.getString("assignment")) { e.next(); return; }
   const fl = require(__hooks + "/lib/familylink.js");
   if (e.record.getString("grant_status") === "queued") {
     try { fl.publish(e.app, e.record); } catch (_) {
       e.app.logger().error("Bonus time publication deferred to cron", "grant", e.record.id);
     }
   } else fl.notifyManual(e.app, e.record);
-  require(__hooks + "/lib/ntfy.js").notifyUser(e.app, e.record.getString("child"),
+  if (!e.record.getString("redemption") && !e.record.getString("assignment")) require(__hooks + "/lib/ntfy.js").notifyUser(e.app, e.record.getString("child"),
     "Bonus time! 📱", e.record.getInt("minutes") + " minutes: " + e.record.getString("description"), "time_bonus");
   e.next();
 }, "time_grants");

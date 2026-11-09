@@ -15,7 +15,7 @@ export type PhotoCompleteResult = "done" | "cancelled" | "no-permission";
  * Native uploadAsync hands the file URI to OkHttp directly and never touches
  * Hermes fetch for the body.
  */
-export async function takePhotoAndComplete(assignmentId: string): Promise<PhotoCompleteResult> {
+export async function takePhotoAndComplete(assignmentId: string, timeChoice: "bank" | "use" = "bank"): Promise<PhotoCompleteResult> {
   const perm = await ImagePicker.requestCameraPermissionsAsync();
   if (perm.status !== "granted") return "no-permission";
   const result = await ImagePicker.launchCameraAsync({ mediaTypes: "images", quality: 0.7 });
@@ -32,6 +32,7 @@ export async function takePhotoAndComplete(assignmentId: string): Promise<PhotoC
       mimeType: asset.mimeType ?? "image/jpeg",
       parameters: {
         status: "completed",
+        time_choice: timeChoice,
         completed_at: new Date().toISOString(),
       },
       headers: {

@@ -17,7 +17,12 @@ onRecordUpdate((e) => {
       throw new BadRequestError("This chore changed while you were updating it. Refresh and try again.");
     }
     e.app = tx;
-    try { e.next(); } finally { e.app = app; }
+    try {
+      e.next();
+      if (before !== "approved" && e.record.getString("status") === "approved") {
+        require(__hooks + "/lib/timeBank.js").award(tx, e.record);
+      }
+    } finally { e.app = app; }
   });
 }, "assignments");
 
@@ -30,14 +35,13 @@ onRecordUpdateRequest((e) => {
   const status = e.record.getString("status");
   const prev = e.record.original().getString("status");
 
-  // Screen time already granted through Family Link can't be clawed back, so an
-  // assignment that earned a time grant stays approved. Keyed off the grant row,
-  // not the chore's current pay_mode, which parents are free to edit.
+  // Preserve the time-pay undo prohibition for held earnings and legacy grants.
+  // The recorded payout owns this decision, not the editable chore pay_mode.
   if (prev === "approved" && status !== "approved") {
-    let granted = false;
+    let granted = e.app.findRecordsByFilter("time_ledger", "assignment = {:id} && kind = 'earn'", "", 1, 0, { id: e.record.id }).length > 0;
     try { e.app.findFirstRecordByData("time_grants", "assignment", e.record.id); granted = true; } catch (_) { /* none */ }
     if (granted) {
-      throw new BadRequestError("This chore granted screen time, which can't be taken back. Adjust the time in Family Link instead.");
+      throw new BadRequestError("This chore earned screen time and cannot be undone. Held savings and delivered time are tracked separately.");
     }
   }
 

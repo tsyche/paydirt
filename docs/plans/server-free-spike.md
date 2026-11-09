@@ -1,6 +1,6 @@
 # Server-free PayDirt spike
 
-**TL;DR:** Evaluate turning PayDirt into a public app that any household can install and run with no backend for the developer to operate or the household to set up. Balances come from an occurrence-keyed operation log that merges deterministically. Encrypted operations travel through public store-and-forward mailboxes (Nostr first), with direct LAN as an optional fast path. Family Link is removed or locked down for the public app.
+**TL;DR:** Evaluate turning PayDirt into a public app that any household can install and run with no backend for the developer to operate or the household to set up. Screen an occurrence-keyed operation log and encrypted store-and-forward mailboxes (Nostr first), with direct LAN as an optional fast path. Policy validity, child privacy, sustainable relay use, and public-app Family Link scope remain open.
 
 **Status:** Draft
 
@@ -31,8 +31,8 @@
 ## Goal and product shift
 
 - **Target:** a public app that any household can install. The current one-household showcase on bb is the reference implementation, not the destination.
-- **Identity change:** AGENTS.md currently says "built for one household, not a hosted service". If this spike is approved, update that text, FEATURES.md, and the roadmap in the same change.
-- **Family Link:** the unofficial API driven by a copied Google session does not scale. Its risks are Terms of Service exposure, silent breakage, and a Google session on every parent phone. The public app drops automated grants, or keeps them locked behind an unsupported advanced toggle. Screen time stays a manual parent grant, which is how the app's model originally described it.
+- **Identity change:** AGENTS.md currently says "built for one household, not a hosted service". If a production product shift is approved, update that text, FEATURES.md, and the roadmap together; approval to experiment alone does not change the current product identity.
+- **Family Link:** the unofficial API driven by a copied Google session does not scale. Its risks are Terms of Service exposure, silent breakage, and a Google session on every parent phone. Dropping automated grants, limiting them to an advanced mode, and keeping manual parent grants as the baseline are proposals requiring owner acceptance. Existing household automation remains unchanged during research. An unsupported toggle does not lower the correctness requirements for any enabled external grants.
 - **No bill that grows with adoption:** mass adoption must not create a developer-funded service. Public infrastructure is acceptable only if its cost does not land on the developer and the app keeps working usefully when that infrastructure is unavailable.
 - **Not a hidden server:** a parent phone may hold specific roles, such as being the export source. It must never be a required always-on household server.
 
@@ -40,7 +40,7 @@
 
 - **Production:** PocketBase on bb with an append-only `currency_transactions` ledger. [`verifyLedger`](../../packages/shared/src/ledger.ts) already derives balances by folding that ledger, and the proposed data model reuses this idea.
 - **Model spike:** four [signed-operation tests](../../packages/shared/src/serverFree.spike.test.ts) and a three-browser WebRTC experiment. They prove offline recording, catch-up, and duplicate-safe settlement with a designated settlement authority and a fixed reward. Not covered: physical devices, cross-network delivery, pairing, recovery. See the [gap matrix](../research/server-free-feasibility.md#parity-and-gap-matrix).
-- **Gate 0 (Iroh screen), done 2026-11-08:** conditional go for a LAN harness only. A Kotlin version conflict, a relay-only browser path, and Pro relay pricing at scale block selecting it as the primary transport. See the [screen](../research/server-free-feasibility.md#2026-11-08--iroh-dependency-and-cost-screen).
+- **Gate 0 (Iroh screen), done 2026-11-08:** conditional go for a LAN harness only. An untested Kotlin-version difference, a relay-only browser path, and hosted-relay economics prevent selecting it as the primary transport. The version difference is a build risk, not an observed compile failure. See the [screen](../research/server-free-feasibility.md#2026-11-08--iroh-dependency-and-cost-screen).
 - **Existing public dependencies:** ntfy.sh (push notifications) and bb (APK updates, nightly backups). A server-free design has to replace or explicitly keep each one.
 
 ## Constraints and decisions
@@ -52,10 +52,10 @@
 | Confirmed | No developer bill that grows with adoption | Free tiers or volunteer services do not count as unlimited production capacity. |
 | Confirmed | No Play Services in PayDirt's code | Rules out any transport or wake mechanism that needs FCM. |
 | Confirmed | Full parent/kid parity, useful offline behaviour, web access desired | Reduced functionality is listed as a gap, never hidden. |
-| Confirmed | Family Link removed or locked down in the public app | Grant-executor recovery is no longer a P0 blocker for the public app. |
-| Proposed | Occurrence-keyed log + deterministic reducer, no settlement authority | See [Conflict policy proposals](#conflict-policy-proposals). Automerge is likely unnecessary. |
-| Proposed | Store-and-forward mailbox is the primary transport | Peer-to-peer requires both devices to be awake at once; phones under Doze rarely are. |
-| Proposed | Nostr screened first; ntfy as fallback; Iroh/LAN as an optional accelerator | Covers browser and native from one JS code path with no developer bill. |
+| Open | Public-app Family Link scope | Removing automation or changing its availability requires owner acceptance. External-effect recovery remains P0 whenever automation is enabled. |
+| Proposed | Occurrence-keyed log + deterministic reducer; evaluate removing the settlement authority | Same-log convergence and valid/stable business outcomes are separate gates. See [Conflict policy proposals](#conflict-policy-proposals). |
+| Proposed | Store-and-forward mailbox is the primary transport | Asynchronous delivery can work without simultaneous peer reachability; Android background availability must be measured. |
+| Proposed | Nostr screened first; ntfy as fallback; Iroh/LAN as an optional accelerator | Potential shared JS transport; Hermes/crypto/storage compatibility, retention and sustainable funding still require proof. |
 | Open | Which privacy trade-offs on public relays are acceptable | See [Privacy assessment](#privacy-assessment). |
 
 ## Proposed architecture
@@ -66,8 +66,8 @@ flowchart LR
     P1[Parent device<br/>Local log + reducer]
     P2[Second parent<br/>Local log + reducer]
     W[Paired browser<br/>IndexedDB log + reducer]
-    M[(Public mailboxes<br/>3+ Nostr relays<br/>encrypted, store-and-forward)]
-    L[Optional LAN fast path<br/>Iroh or mDNS]
+    M[(Public mailboxes<br/>Nostr candidate relays<br/>encrypted, store-and-forward)]
+    L[Optional LAN fast path<br/>Transport TBD; mDNS discovery]
     K <-->|Encrypted ops| M
     P1 <-->|Encrypted ops| M
     P2 <-->|Encrypted ops| M
@@ -76,39 +76,42 @@ flowchart LR
     P1 -. Same Wi-Fi .- L
 ```
 
-- **Data model:** each device keeps an append-only log of signed operations, each with a globally unique ID. Rewards are keyed by **occurrence ID** (chore + household-calendar occurrence + child). The balance is `fold(merged log)`, never a replicated counter.
-- **Merge:** operations are a grow-only set. Merging is a set union, so it is idempotent and order-independent. The reducer applies [conflict policies](#conflict-policy-proposals) deterministically, so every device that has the same set of operations shows the same state.
-- **Ordering:** hybrid logical clocks (HLC) break ties and show recency. Device wall clocks are never trusted for authority.
-- **Transport:** each device publishes encrypted operations to a household mailbox on several relays and keeps re-publishing until peers acknowledge receipt. Any device holding the log can serve catch-up. The LAN path is an optimisation, not a requirement.
-- **Shared code:** the reducer lives in `packages/shared`, and the same tests run on web, mobile, and model. Do not replicate SQLite files.
+- **Data model:** each device keeps an append-only log of signed operations, each with a globally unique ID. Reward credits use a canonical **occurrence ID** based on parent-authorized chore/schedule version, household-calendar occurrence and child. A race additionally needs a shared race-group ID across children. Validate reward snapshots and prerequisites. Evaluate balances as a projection of accepted operations; the existing ledger fold is a reference, not proof of distributed authorization.
+- **Merge:** operations are a grow-only set. Merging is a set union, so it is idempotent and order-independent. The reducer must converge for the same operation set and separately enforce [business and security policies](#conflict-policy-proposals). A device missing operations can show a provisional state that changes on catch-up; deterministic merge alone does not establish stable payouts or authorized actions.
+- **Ordering:** evaluate HLC for display and stable tie ordering only. It does not prove physical time, who completed a race first, or authorization. Use explicit causal references for superseding decisions; adversarial clocks must not create extra occurrences, authority, or rewards.
+- **Transport:** evaluate per-recipient encrypted operation delivery through mailbox routing keys that do not decrypt data. Specify acknowledgments, expiry, bounded retries/backoff, catch-up after relay loss, and retirement of lost peers; do not re-publish indefinitely waiting for every device. A peer can export only records the recipient is authorized to receive. The LAN path is an optimisation, not a requirement.
+- **Validation:** verify canonical operation signatures, parent-authorized reward/schedule snapshots, roles and causal prerequisites before granting credit. Deduplicate by inner operation ID across different encrypted envelopes; quarantine ID/content collisions and malformed operations. Receiving a valid gift wrap does not itself authorize a business action.
+- **Shared code:** keep the candidate reducer and transport harness isolated from production exports. If selected later, reuse shared logic across web/mobile and run the same invariants on both. Do not replicate live SQLite files.
 - **Not a blockchain.** No requirement calls for global consensus or a public ledger.
+
+The pending [chore conversation and earned-time bank features](../../ROADMAP.md#backlog-unscheduled) add lifecycle requirements to the eventual parity assessment: role-scoped threaded history, held versus queued minutes, and concurrent time redemption. They are roadmap scope, not implemented features.
 
 ## Conflict policy proposals
 
-Most of the old "P0 consensus" risks become product rules once balance is derived rather than settled. These are proposals to model in Phase 1, not accepted policy.
+These are unresolved product/security policies to model in Phase 1. Deriving balances does not eliminate authorization, revocation, or consistency risks. Accepting temporary negative balances or changing race outcomes is an explicit product trade-off, not an automatic consequence of convergence.
 
-| Case | Proposed rule | Why it is safe enough |
+| Case | Policy to model | Required invariant / open decision |
 |---|---|---|
-| Two parents approve the same occurrence | One credit by construction (occurrence-keyed) | Duplicate approvals merge into one. No authority needed. |
-| One parent approves, another rejects | Reject wins (or latest decision by HLC — choose one), shown as "changed by Parent 2" | Deterministic and visible. A parent can re-approve. |
-| Offline spending exceeds balance | Allow a temporary negative balance, flag it, block new spending until it is positive | Family virtual currency, not a bank. Parents resolve it. |
-| Race chore claimed by two kids offline | Earliest approved claim by HLC wins; loser gets a visible reversal (alternative: pay both) | Deterministic, explainable, rare. |
-| Approval reversal / undo | Compensating operation referencing the original | The log stays append-only, as the current ledger is. |
-| Revoked device rejoins | Operations after its revocation epoch are rejected; earlier ones are kept | Needs membership operations in the same log. |
-| Schema/version skew | Operations carry a schema version; unknown versions are stored but not reduced until the app updates | Older devices never corrupt state. |
-| External effects (Family Link, if locked-down mode exists) | One explicit executor device with a per-grant dedupe key | The only place a single authority is still needed. |
+| Two parents approve one occurrence | At most one effective credit using canonical occurrence identity | Different reward snapshots, partial credit, duplicate IDs and malformed approvals cannot mint extra credit. |
+| Concurrent approval and rejection | Propose reject for truly concurrent decisions; a later re-approval explicitly references/supersedes the rejection | Owner must accept the rule; replay/reordering must not change its result. Do not rely on wall-clock latest-wins. |
+| Offline spending exceeds balance | Compare provisional spending/reservations against allowing a temporary negative balance | Negative balance policy is not accepted. Define when a request becomes final and block or flag new spending as agreed. |
+| Multiple offline race claims | Compare provisional winner pending parent resolution, or explicitly accepted pay-both policy | HLC cannot prove the first real-world finisher. Define a shared race-group identity and what happens to already-spent rewards. |
+| Reversal / undo | Compensating operation references an effective credit/decision | Duplicate or concurrent reversals cannot debit twice; compensation cannot exceed the referenced effective credit. |
+| Revocation and delayed old-epoch operations | Signed membership changes and causal cutoffs; quarantine ambiguous late operations for parent recovery/decision | A revoked device can label new work with an old epoch or time. Epoch labels alone are insufficient; no revoked peer regains authority by replay. |
+| Schema/version skew | Store unknown operations opaquely; quarantine their dependent projections/actions | An older client must not show a final spendable balance or accept dependent decisions using incomplete semantics. |
+| External effects, if enabled | One explicit executor plus dedupe keys and reconciliation | Single-executor design alone cannot resolve a crash after Google acts but before local acknowledgment. Keep this P0. |
 
 ## Transport shortlist
 
 | Candidate | Role | Strengths | Gaps / risks |
 |---|---|---|---|
-| **Nostr relays — first screen** | Primary mailbox | Store-and-forward; hundreds of public relays; WebSocket works in browsers and React Native; pure JS ([nostr-tools](https://github.com/nbd-wtf/nostr-tools)); NIP-44 encryption, NIP-59 gift wrap | Retention not guaranteed; relay policies vary (rate limits, kind filters, auth); metadata exposure (see privacy) |
+| **Nostr relays — first screen** | Primary mailbox | Store-and-forward candidate; WebSocket availability and relay suitability must be verified in browsers and React Native; JS library ([nostr-tools](https://github.com/nbd-wtf/nostr-tools)); NIP-44 encryption, NIP-59 gift wrap | Retention not guaranteed; relay policies vary (rate limits, kind filters, auth); metadata exposure (see privacy) |
 | **ntfy — fallback** | Mailbox and push | Already in the stack; no Play Services; SSE/WebSocket; self-hostable | Single operator per server; ntfy.sh caches about 12 h; not intended as a data bus at scale; paid tiers |
-| **Iroh — optional LAN accelerator** | Direct device-to-device on same Wi-Fi | Fast and private on LAN; [Gate 0](../research/server-free-feasibility.md#2026-11-08--iroh-dependency-and-cost-screen) done | Both peers must be online; Kotlin 2.2 vs 2.1 conflict; native bridge; relay-only browser |
+| **Iroh — optional LAN accelerator** | Direct device-to-device on same Wi-Fi | Fast and private on LAN; [Gate 0](../research/server-free-feasibility.md#2026-11-08--iroh-dependency-and-cost-screen) done | Both peers must be online; Kotlin 2.2 vs 2.1 compatibility untested; native bridge; relay-only browser |
 | **Syncthing** | Comparison only | Mature discovery/relay | File conflicts, not transactions; embedding/UX; both peers online |
 | **Briar / Bramble** | Bluetooth/Tor reference | Proven Android radios | Library boundaries, GPL, no browser |
 | **libp2p** | Broad fallback | Many transports | Most integration work; relays still cost someone |
-| **Automerge** | Likely unnecessary | General CRDT merge | Grow-only signed log + reducer already covers the domain; second native dependency |
+| **Automerge** | Likely unnecessary | General CRDT merge | Custom log/reducer may suffice, but must pass authorization, lifecycle and convergence gates before dismissing a library |
 
 Notifications: a Nostr subscription can also drive in-app alerts while the app is running. Background push without FCM still needs ntfy (or UnifiedPush). Keep ntfy for wake-ups and send no sensitive content through it.
 
@@ -132,18 +135,18 @@ Kids' data travelling over public relays is the main new risk. Encryption protec
 - **Household clustering:** a relay can link a household's devices by shared mailbox keys and IP addresses. Activity timing can reveal routines, such as when kids are home or using devices.
 - **Permanence:** relays may keep events forever and mirror them to archives. NIP-09 deletion and NIP-40 expiry are advisory. Assume ciphertext is public forever.
 - **No forward secrecy:** NIP-44 uses static-key ECDH. A device key compromised later can decrypt archived history encrypted to that key. This is the "harvest now, decrypt later" risk.
-- **Developer choice of default relays:** choosing defaults decides where children's encrypted data goes. App-store listings require a privacy policy even when the developer runs no servers. Children's privacy rules (COPPA, GDPR-K) are lighter when the developer collects nothing, but this still needs review.
-- **Photos:** never send them through public relays. Use LAN only, drop them, or design separately.
+- **Developer choice of default relays:** choosing defaults decides where children's encrypted data goes. App-store listings require a privacy policy even when the developer runs no servers. Do not infer reduced children's-privacy obligations from the absence of a developer-operated server; third-party processing, defaults and distribution need a separate review before release.
+- **Photos:** propose keeping them off public relays until a separate encrypted attachment/storage design is assessed. LAN-only delivery or dropping photos reduces parity and requires explicit owner acceptance; neither is a confirmed product change.
 
 ### Mitigations to test in Phase 2
 
-- **Gift wrap everything:** publish through NIP-59 so sender and real timestamps are hidden.
-- **Rotating mailbox keys:** derive the recipient mailbox key from the household secret and an epoch, and rotate on a schedule and on revocation. This limits clustering and caps how much history a compromised key exposes.
-- **Epoch encryption keys:** encrypt payloads to a per-epoch household key rather than long-lived device keys. Rotating the epoch acts as coarse forward secrecy.
+- **Gift wrap candidate operations:** assess NIP-59 metadata protection and remaining leaks. Keep independently signed canonical PayDirt operations inside the encrypted payload and validate them after decryption; NIP-59 rumors are unsigned, so envelope validity alone must not establish durable business authorization ([specification](https://github.com/nostr-protocol/nips/blob/master/59.md)).
+- **Routing versus decryption keys:** separate mailbox routing identities from device signing keys and per-recipient/per-child content keys. A common household key must not let siblings decrypt each other's private records. Evaluate routing-key rotation without claiming it prevents IP/timing correlation.
+- **Key lifecycle:** rotation alone is not forward secrecy. Deriving all epochs from one retained secret exposes derived epochs if that secret leaks; wrapping old epoch keys to a compromised long-lived key may expose history too. Specify key distribution, recovery, erasure and offline catch-up. Use an established reviewed protocol if forward secrecy is required; do not invent one in the spike. NIP-44 explicitly lacks forward and post-compromise secrecy ([limitations](https://github.com/nostr-protocol/nips/blob/master/44.md#limitations)).
 - **Traffic shaping:** pad to fixed size buckets and batch operations to blunt size and timing analysis.
 - **Minimal payloads:** IDs, amounts, and status only. Chore titles, notes, and kid names travel encrypted but should be avoidable via local catalogue references where practical.
 - **Relay hygiene:** default to relays with published retention/expiry policies and support for authentication (NIP-42). Let households choose or add relays, including a paid relay they fund themselves.
-- **Comparison:** ntfy.sh is one operator that sees everything. Iroh relays see IPs and endpoint IDs but store nothing. Record the same exposure table for each candidate tested.
+- **Comparison:** document precisely what ntfy and Iroh operators can observe, retain or log. An encrypted ntfy payload differs from the current plaintext notification path; a stream relay is not a durable mailbox, but that does not guarantee no operator logging. Record evidence and unknowns per candidate.
 
 **Gate input:** a written threat model and data-exposure table per transport, reviewed before any default relay list ships.
 
@@ -151,23 +154,23 @@ Kids' data travelling over public relays is the main new risk. Encryption protec
 
 A setup wizard offers two paths:
 
-- **Recommended (default):** public relays plus ntfy.sh. No setup, aimed at non-technical households.
+- **Candidate default:** public relays plus ntfy.sh, subject to sustainability, privacy and reliability gates. No default list or production recommendation is selected yet.
 - **Advanced:** the household's own Nostr relay URL(s) and/or ntfy server. Optionally keep public relays as a fallback, with the privacy trade-off shown in the wizard.
 
 **Boundary:** only endpoints are pluggable. The data model, reducer, and app are identical in both modes. "Own instance" means off-the-shelf relay software (for example strfry or nostr-rs-relay) or an existing ntfy server. There is no self-hosted PocketBase mode, because a second backend architecture would double the test matrix.
 
 **Rules:**
 
-- **Privacy upgrade:** a household relay that only accepts the household's own keys (via NIP-42 auth) removes third-party metadata exposure. This is the recommended path for privacy-conscious households.
-- **Validated before saving:** the wizard publishes and reads back a test event, checks auth and size limits, and reports observed retention. It refuses a configuration that fails.
-- **Household-wide:** the relay list is a signed, parent-only configuration operation in the log. Every device switches, and kid devices cannot change it.
+- **Privacy option:** evaluate a household-controlled relay with authenticated read/write ACLs. NIP-42 authentication alone is not authorization; verify actual access restrictions, hosting/logging exposure, and any public fallback. Own-relay-only must remain possible without silently sending data to public services.
+- **Validated before saving:** the wizard publishes and reads back a test event, checks observed read/write authorization and size limits, and distinguishes documented retention from observed event availability. A short probe cannot promise future retention. It refuses a configuration that fails the tested requirements.
+- **Household-wide:** the relay list is a signed, parent-only configuration operation in the log. Online authorized devices can apply it; offline devices need a recovery/catch-up route. Kid devices cannot authorize endpoint changes.
 - **Pairing:** QR pairing carries the current relay list, so new devices join the right relays.
-- **Migration overlap:** during a relay change, devices publish to both old and new relays until every member acknowledges. This prevents a lockout caused by a dead or mistyped relay.
+- **Migration overlap:** during a relay change, use bounded overlap plus an explicit membership/recovery policy. A lost device must not force indefinite publishing, and an offline device must have a way to discover changed endpoints without relying forever on a dead old relay. Public fallback requires an explicit household choice.
 - **Optional:** bring-your-own is never required. The default path must meet every gate on its own.
 
 ## Phases and verification gates
 
-Time boxes are initial estimates. Exceeding one triggers reassessment, not automatic expansion. The cheap desk and model work comes first because its answers decide what the transport has to do.
+Time boxes are initial estimates. Exceeding one triggers reassessment, not automatic expansion. Start Phase 0b as a passive desk screen alongside a minimal Phase 1 policy model. Complete the policy/security gate before live mailbox payload design. Pause Iroh harness work until the mailbox approach has been screened.
 
 ### 0. Iroh dependency and cost screen — done 2026-11-08
 
@@ -178,39 +181,39 @@ Conditional go for a LAN harness only. See [Current state](#current-state).
 **Estimate:** half a day.
 
 - Confirm the Family Link scope for the public app: removed, or locked-down advanced mode.
-- Screen Nostr: current NIP-44/NIP-59 status and audits, nostr-tools React Native compatibility, a sample of 10+ public relays (accepted kinds, size limits, rate limits, retention, auth), and terms.
+- Screen Nostr: current NIP-44/NIP-59 status and audits, nostr-tools React Native compatibility, published relay policies/metadata (accepted kinds, size limits, rate limits, retention, read/write auth), and usage terms. Avoid a large active survey until a minimal mailbox experiment succeeds.
 - Screen ntfy as the fallback: ntfy.sh limits, cache duration, and terms for data-bus use.
 - List the replacements needed for bb's update and backup roles (see Phase 5).
 
-**Gate:** go/no-go per candidate, the relay sample table, and explicit unknowns.
+**Gate:** desk-based go/no-go per candidate, a source-backed policy table, and explicit unknowns. No free-capacity guarantee is inferred. Pick only a small eligible relay sample for Phase 2; expand to 10+ only if useful evidence justifies it.
 
 ### 1. Policy and reducer model
 
 **Estimate:** one to two days. No devices.
 
-- Extend [`serverFree.spike.test.ts`](../../packages/shared/src/serverFree.spike.test.ts): replace the designated settlement authority with occurrence-keyed operations and a deterministic reducer.
-- Add property tests: random operation sets merged in random orders and duplicated must reduce to identical state.
+- Extend [`serverFree.spike.test.ts`](../../packages/shared/src/serverFree.spike.test.ts): preserve the designated-authority experiment as a baseline and add a separate authority-free candidate using occurrence-keyed operations. Do not replace existing evidence with an unproven model.
+- Add property tests for random merge orders, duplicates, missing predecessors, malicious clocks, forged role/epoch claims, conflicting reward snapshots, and repeated/concurrent compensation. Assert both convergence and valid business/security outcomes. Explicitly test provisional state becoming final or being revised on catch-up.
 - Cover every row in [Conflict policy proposals](#conflict-policy-proposals), plus reversals, recurrence/timezone occurrence IDs, membership epochs, and schema-version skew.
 - Assert that a balance is always `fold(log)`, reusing the `verifyLedger` approach.
 
-**Gate:** convergence tests pass, and the owner accepts or amends the policy table.
+**Gate:** convergence and authorization/accounting invariants pass separately, and the owner accepts the product conflict policies. A negative-balance policy or authority removal is not approved by a deterministic test alone.
 
 ### 2. Mailbox transport (browser and Node)
 
-**Estimate:** one to two days. No devices needed.
+**Estimate:** one to two days for initial connectivity evidence. Long retention observations run separately; no devices are needed for the initial browser/Node experiment.
 
-- Run the Phase 1 operations through real public Nostr relays from isolated Playwright contexts plus a Node client: gift-wrapped, padded, rotating mailbox key.
+- Begin with one encrypted, independently signed fake operation through a small, policy-eligible relay sample, using isolated headless Playwright contexts and a Node client. Verify round-trip, offline catch-up, rejection handling and observed metadata. Bound payloads, retries and traffic; use no household identifiers or real child data. Expand protocol/key-rotation cases only after the minimal path works.
 - One peer stays offline for hours. Confirm catch-up from relay storage alone, then with relays dropping events (re-publishing and peer-served catch-up).
-- Measure bytes per operation, delivery latency, relay rejection rate, and retention observed after 24 h, 7 d, and 30 d.
+- Measure bytes per operation, delivery latency and rejection rate. Schedule 24 h, 7 d and 30 d retention observations separately, recording start/due dates and service changes. Early success cannot close the long-term reliability gate.
 - Fill in the privacy exposure table from real observation.
 
-**Gate:** reproducible catch-up with one peer asleep, measured inputs for the cost and privacy tables, and no plaintext beyond the documented metadata.
+**Initial gate:** publish/read, offline catch-up and rejection recovery pass with fake operations; measured cost/privacy inputs and compatibility evidence are recorded. **Later durability gate:** complete the scheduled retention and total-mailbox-loss tests before recommending defaults. Relay disappearance with all peers offline remains a recovery case, not solved by replication count alone.
 
 ### 3. Android devices and background behaviour
 
 **Estimate:** one to two days. Needs two physical devices, ideally one Google-free. An emulator-only result does not pass.
 
-- Same JS transport inside the Expo app on a dev build; no native bridge expected for Nostr.
+- Verify the same transport in an Expo development build, including Hermes crypto, secure randomness, WebSocket reconnection and durable key/storage adapters. A JS package alone does not prove a bridge-free mobile integration.
 - Measure foreground, background, screen-off, battery-restricted, network change, and restart behaviour under Doze without FCM.
 - Test the ntfy/UnifiedPush wake-up followed by a Nostr fetch.
 - Optional: Iroh LAN fast path in a disposable harness, only if mailbox latency on the same Wi-Fi is unacceptable.
@@ -249,7 +252,7 @@ Conditional go for a LAN harness only. See [Current state](#current-state).
 
 Model **100,000 and 1,000,000 households**, separating households, registered devices, active devices, and operations per day. Include a pessimistic case.
 
-- **Developer bill:** target $0 per household at both levels. The only allowed developer costs are a fixed, adoption-independent amount (domain, static app shell, F-Droid repo).
+- **Developer bill:** target $0 per household at both levels. A domain may be fixed cost, but static app delivery and package repositories can incur adoption-dependent bandwidth/storage. Identify their cost owners and quotas; do not classify them as fixed merely because a free hosting tier exists.
 - **Public relay load:** `monthly relay bytes = active households × ops per month × padded op size × relays published to × re-publish factor`. Report the load per relay as well as the total. Relay operators will reject or rate-limit unwelcome volume.
 - **Who pays:** public relays are funded by their operators. Record whether household usage at scale would be unwelcome, and test a "household-funded paid relay" option.
 - **Photos and backups:** excluded from relays by design. Note their own storage owner.
@@ -268,9 +271,9 @@ Model **100,000 and 1,000,000 households**, separating households, registered de
 | P1 | Relays drop events, rate-limit, or ban the event kind | Multiple relays, re-publish until acknowledged, peer-served catch-up, user-selectable relays. |
 | P1 | Devices asleep, so changes arrive late | Truthful "pending sync" state; ntfy/UnifiedPush wake-ups; no instant-delivery promise. |
 | P1 | Conflict rules surprise parents (negative balance, reversed race win) | Visible "changed by" history; owner-accepted policy table; reversible actions. |
-| P1 | Clock skew or timezone edits produce duplicate occurrences | HLC ordering; occurrence IDs from the household calendar, not device time. |
+| P0 | Clock/epoch manipulation or missing membership history creates unauthorized work | Canonical parent-authorized occurrence identity, causal validation and explicit revocation policy; HLC is not trusted time. |
 | P1 | Update/distribution channel unavailable | At least two channels (F-Droid + GitHub Releases); old versions stay compatible with stored data. |
-| P2 | Locked-down Family Link mode double-grants | Single explicit executor plus per-grant dedupe key; unsupported, off by default. |
+| P0 if enabled | Family Link executor double-grants after a crash | Explicit executor plus dedupe and external reconciliation; advanced/unsupported status does not lower correctness requirements. |
 | P2 | Optional LAN accelerator costs more than it saves | Build it only if Phase 3 latency demands it. |
 
 ## Rollback and production boundaries
@@ -287,7 +290,7 @@ Model **100,000 and 1,000,000 households**, separating households, registered de
 - **Bring-your-own mode:** may it keep public relays as a fallback, or must it be own-relay-only?
 - **Conflict policies:** approve vs reject winner, negative balances, race tie-break (see the policy table).
 - **Recovery:** recovery phrase, file export, or both?
-- **Family Link:** removed entirely, or kept as a locked-down advanced toggle?
+- **Family Link:** retain, remove, or restrict automation in the public app? No change is confirmed. Any reduction in parity requires explicit owner acceptance.
 - **Browser:** full parity at launch, or after native parity?
 - **Phase 3 devices:** which physical devices and independent networks are available?
 

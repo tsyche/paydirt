@@ -20,6 +20,8 @@ import type {
   SavingsGoal,
   SpendRequest,
   TimeGrant,
+  TimeLedgerEntry,
+  TimeRedemption,
   User,
 } from "./types";
 
@@ -284,10 +286,11 @@ export class PaydirtClient {
   }
 
   /** Child marks a chore done. Optional photo proof (FormData on the platform side). */
-  markComplete(assignmentId: string, photo?: Blob): Promise<Assignment> {
+  markComplete(assignmentId: string, photo?: Blob, timeChoice: "bank" | "use" = "bank"): Promise<Assignment> {
     const data: Record<string, unknown> = {
       status: "completed",
       completed_at: new Date().toISOString(),
+      time_choice: timeChoice,
       needs_help: false,
     };
     if (photo) data.photo = photo;
@@ -697,6 +700,27 @@ export class PaydirtClient {
     }
   }
 
+  async getTimeBank(childId: string) {
+    const [ledger, grants, purchases] = await Promise.all([
+      this.pb.collection(Collections.TimeLedger).getFullList<TimeLedgerEntry>({ filter: this.pb.filter("child = {:c}", { c: childId }), sort: "-created,-id" }),
+      this.pb.collection(Collections.TimeGrants).getFullList<TimeGrant>({ filter: this.pb.filter("child = {:c} && (grant_status = 'queued' || grant_status = 'manual')", { c: childId }) }),
+      this.listSpendRequestsForChild(childId),
+    ]);
+    return { ledger, grants, purchases };
+  }
+
+  redeemSavedTime(minutes: number, requestKey: string, allowQueue = false): Promise<{ id: string }> {
+    return this.pb.send("/api/paydirt/time-bank/redeem", { method: "POST", body: { minutes, request_key: requestKey, allow_queue: allowQueue } });
+  }
+
+  cancelSavedTime(redemptionId: string): Promise<unknown> {
+    return this.pb.send(`/api/paydirt/time-bank/cancel/${encodeURIComponent(redemptionId)}`, { method: "POST" });
+  }
+
+  getTimeRedemption(id: string): Promise<TimeRedemption> {
+    return this.pb.collection(Collections.TimeRedemptions).getOne<TimeRedemption>(id);
+  }
+
   listQueuedGrantsForChild(childId: string): Promise<TimeGrant[]> {
     return this.pb.collection(Collections.TimeGrants).getFullList<TimeGrant>({
       filter: this.pb.filter("child = {:child} && grant_status = 'queued'", { child: childId }),
@@ -984,6 +1008,8 @@ export class PaydirtClient {
    */
   async subscribeToKidUpdates(childId: string, onChange: () => void): Promise<() => void> {
     const unsubs = await Promise.all([
+      this.pb.collection(Collections.TimeLedger).subscribe("*", onChange, { filter: this.pb.filter("child = {:c}", { c: childId }) }),
+      this.pb.collection(Collections.TimeRedemptions).subscribe("*", onChange, { filter: this.pb.filter("child = {:c}", { c: childId }) }),
       this.subscribeToArchives(onChange),
       this.pb.collection(Collections.Assignments).subscribe("*", onChange, {
         filter: this.pb.filter("child = {:c} || swap_to = {:c}", { c: childId }),
@@ -1019,6 +1045,8 @@ export class PaydirtClient {
   ): Promise<() => void> {
     const hhFilter = this.pb.filter("household = {:hh}", { hh: householdId });
     const unsubs = await Promise.all([
+      this.pb.collection(Collections.TimeLedger).subscribe("*", onChange),
+      this.pb.collection(Collections.TimeRedemptions).subscribe("*", onChange),
       this.subscribeToArchives(onChange),
       this.pb.collection(Collections.Assignments).subscribe("*", onChange, {
         filter: this.pb.filter("chore.household = {:hh}", { hh: householdId }),

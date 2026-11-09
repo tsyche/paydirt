@@ -228,7 +228,7 @@ onRecordAfterDeleteSuccess((e) => {
 }, "assignments", "chore_proposals", "spend_requests", "time_grants", "broadcasts");
 
 onRecordAfterUpdateSuccess((e) => {
-  if (e.record.getString("grant_status") === "manual_done" &&
+  if (["manual_done", "cancelled"].indexOf(e.record.getString("grant_status")) !== -1 &&
       e.record.original().getString("grant_status") === "manual") {
     require(`${__hooks}/lib/ntfy.js`).clearSource(e.app, e.record.collection().name + ":" + e.record.id + ":grant");
   }
