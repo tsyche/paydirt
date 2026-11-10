@@ -21,6 +21,7 @@ export function EarnedTimeBank({ childId, kidControl = false, detail = true }: {
   const [pending, setPending] = useState<Pending | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const [notice, setNotice] = useState("");
   const [ready, setReady] = useState(!kidControl);
   const running = useRef(false);
   const storageKey = `paydirt-time-redemption:${childId}`;
@@ -47,8 +48,8 @@ export function EarnedTimeBank({ childId, kidControl = false, detail = true }: {
   }, [kidControl, storageKey]);
   async function redeem() {
     if (running.current || !ready) return;
-    running.current = true; setBusy(true); setError("");
-    const request = pending || { minutes, key: `${Date.now()}-${Math.random().toString(36).slice(2)}`, allowQueue };
+    running.current = true; setBusy(true); setError(""); setNotice("");
+    const request = pending || { minutes: selected, key: `${Date.now()}-${Math.random().toString(36).slice(2)}`, allowQueue };
     try {
       // Persist before sending: a lost response or app restart retries the same debit.
       await AsyncStorage.setItem(storageKey, JSON.stringify(request));
@@ -56,6 +57,7 @@ export function EarnedTimeBank({ childId, kidControl = false, detail = true }: {
       await client.redeemSavedTime(request.minutes, request.key, request.allowQueue || allowQueue);
       await AsyncStorage.removeItem(storageKey);
       setPending(null);
+      setNotice(`${request.minutes} minutes requested. Your remaining saved time stays in your bank.`);
       await reload();
     } catch (e) {
       // A validation/auth rejection happens before the transaction commits.
@@ -69,32 +71,39 @@ export function EarnedTimeBank({ childId, kidControl = false, detail = true }: {
     finally { running.current = false; setBusy(false); }
   }
   const totals = bank ? timeBankTotals(bank.ledger, bank.grants, bank.purchases) : null;
+  const maximum = Math.min(60, Math.floor((totals?.available || 0) / 15) * 15);
+  const selected = pending?.minutes ?? Math.min(minutes, maximum || 15);
   const summary = totals ? `Banked time: ${totals.available} min` : error ? "Banked time unavailable" : "Loading banked time…";
   if (!kidControl && !detail) return <Text>{summary}</Text>;
   return <View style={{ gap: 10 }}>
     {!kidControl && <Button accessibilityLabel={expanded ? "Hide bank details" : "Show bank details"} icon={expanded ? "chevron-up" : "chevron-down"} onPress={() => setExpanded(!expanded)}>{summary}</Button>}
     {(kidControl || expanded) && <>
     <Text variant="titleMedium" accessibilityRole="header">Saved earned time</Text>
-    {totals ? <View style={{ gap: 4 }} accessibilityLabel="Earned time totals">
+    {totals && !kidControl ? <View style={{ gap: 4 }} accessibilityLabel="Earned time totals">
       <Text>{totals.available} min saved</Text>
       <Text>{totals.reserved} min reserved for review</Text>
       <Text>{totals.requested} min requested</Text>
       <Text>{totals.queued} min queued</Text>
-    </View> : <Text>Loading saved time…</Text>}
+    </View> : !kidControl ? <Text>Loading saved time…</Text> : null}
     {kidControl && <>
-      <Text>Saved until you choose to use it. No extra Grit charge.</Text>
+      <Text variant="headlineSmall">{totals ? `${totals.available} min saved` : "Loading saved time…"}</Text>
+      <Text>Choose how much to use. The rest stays saved.</Text>
+      <Text>15-minute steps · Up to 1 hour at a time · No Grit charge</Text>
+      <Text variant="titleSmall">Time to use</Text>
       <View style={{ flexDirection: "row", alignItems: "center", flexWrap: "wrap", gap: 8 }}>
-        <Button accessibilityLabel="Use 15 fewer minutes" disabled={busy || !!pending || minutes <= 15} onPress={() => setMinutes(minutes - 15)}>−15</Button>
-        <Text>{pending?.minutes || minutes} min</Text>
-        <Button accessibilityLabel="Use 15 more minutes" disabled={busy || !!pending || minutes + 15 > Math.min(120, totals?.available || 0)} onPress={() => setMinutes(minutes + 15)}>+15</Button>
+        <Button accessibilityLabel="Use 15 fewer minutes" disabled={busy || !!pending || selected <= 15} onPress={() => setMinutes(selected - 15)}>−15</Button>
+        <Text>{selected} min</Text>
+        <Button accessibilityLabel="Use 15 more minutes" disabled={busy || !!pending || selected + 15 > maximum} onPress={() => setMinutes(selected + 15)}>+15</Button>
       </View>
       <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
         <Switch accessibilityLabel="Queue for next allowed window" value={allowQueue} onValueChange={setAllowQueue} disabled={busy} />
         <Text style={{ flex: 1 }}>Queue for the next allowed window if outside allowed hours</Text>
       </View>
-      <Button mode="contained" loading={busy} disabled={busy || !ready || (!pending && minutes > (totals?.available || 0))} onPress={() => { void redeem(); }}>
-        {pending ? "Retry Use time" : "Use time"}
+      <Button mode="contained" loading={busy} disabled={busy || !ready || (!pending && selected > maximum)} onPress={() => { void redeem(); }}>
+        {pending ? `Retry Use ${selected} minutes` : `Use ${selected} minutes`}
       </Button>
+      {!!notice && <Text accessibilityRole="alert">{notice}</Text>}
+      {totals && totals.available < 15 && <Text>Save at least 15 minutes to use time.</Text>}
       {pending && <Text>A request is saved on this device. Retry to confirm its result before starting another.</Text>}
       {bank?.grants.filter(canCancelTimeGrant).map((grant) => <Button key={grant.id} disabled={busy} onPress={async () => {
         setBusy(true);
@@ -102,8 +111,14 @@ export function EarnedTimeBank({ childId, kidControl = false, detail = true }: {
         catch (e) { setError(errorMessage(e)); } finally { setBusy(false); }
       }}>Return {grant.minutes} undelivered minutes to savings</Button>)}
     </>}
+    {kidControl && detail && <Button onPress={() => setExpanded(!expanded)}>{expanded ? "Hide time details" : "Show time details"}</Button>}
+    {kidControl && expanded && totals && <View style={{ gap: 4 }}>
+      <Text>{totals.reserved} min reserved for review</Text>
+      <Text>{totals.requested} min requested</Text>
+      <Text>{totals.queued} min queued</Text>
+    </View>}
     {!!error && <Text accessibilityRole="alert">{error}</Text>}
-    {detail && bank && bank.ledger.length > 0 && <>
+    {detail && (!kidControl || expanded) && bank && bank.ledger.length > 0 && <>
       <Text variant="titleSmall">Earned-time history</Text>
       {bank.ledger.slice(0, historyLimit).map((row) => <Text key={row.id}>{householdDateTime(row.created)} · {timeBankEventLabel(row.kind)} · {row.minutes} min</Text>)}
       {bank.ledger.length > historyLimit && <Button onPress={() => setHistoryLimit(historyLimit + 10)}>Show more earned-time history</Button>}

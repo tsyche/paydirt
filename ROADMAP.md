@@ -14,6 +14,8 @@ Last audited 2026-11-06 against source, tests, headless browser journeys, and AP
 
 ## Known Issues
 
+- **Development dependency alert #83** — GitHub reports moderate minimatch glob amplification denial of service; patched in 11.0.1. Review the affected dependency path and update its tooling parent or override. [Alert](https://github.com/tsyche/paydirt/security/dependabot/83) (reported during the 2026-11-09 push).
+
 - **Native notification setup confirmation** — direct Paper Dialog children and system-default channel sound are fixed with fail-before/pass-after regression checks. Confirm warning-free setup and actual sound on the updated native app; production notification delivery remains a separate acceptance check.
 
 - **Edit-panel native acceptance** — chore and household editors now put Save/Cancel at their descriptive headers; kid delivery, summary, and Family Link controls also put actions before fields. Web household headers remain sticky. Verify native keyboard, scrolling, and cancellation before closing acceptance. Follow [the edit-panel rule](AGENTS.md#key-concepts).

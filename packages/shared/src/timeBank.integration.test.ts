@@ -320,6 +320,19 @@ describe("Earned-time bank (isolated PocketBase)", () => {
     }
   });
 
+  it("limits each new redemption to one hour without losing excess earnings", async () => {
+    await earn(120);
+    const before = (await totals()).available;
+    await expect(kid.redeemSavedTime(75, "over_one_hour_limit", true)).rejects.toThrow();
+    expect((await totals()).available).toBe(before);
+    await kid.redeemSavedTime(60, "one_hour_redemption", true);
+    expect((await totals()).available).toBe(before - 60);
+    const assignment = await earn(120, "use");
+    const bank = await kid.getTimeBank(child());
+    expect(bank.grants.find((g) => g.assignment === assignment.id)?.minutes).toBe(60);
+    expect((await totals()).available).toBe(before);
+  });
+
   it("refuses rollback when it would destroy a populated saved-minute ledger", async () => {
     const exit = new Promise<void>((done) => server!.once("exit", () => done()));
     server!.kill(); await exit;

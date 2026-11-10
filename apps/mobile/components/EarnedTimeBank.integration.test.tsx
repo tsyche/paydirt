@@ -147,15 +147,33 @@ describe("Native earned-time controls (real PocketBase)", () => {
     const view = await mount(simple);
     await settle(view, `${available} min saved`);
     const totalRows = view.root.findAllByType("span").filter((node) => /\d+ min (saved|reserved for review|requested|queued)/.test([node.props.children].flat().join("")));
-    expect(totalRows).toHaveLength(4);
+    expect(totalRows).toHaveLength(1);
     await act(async () => { view.root.findAllByType("button").find((b) => b.props.accessibilityLabel === "Use 15 more minutes")!.props.onPress(); });
-    await act(async () => { button(view, "Use time").props.onPress(); });
+    await act(async () => { button(view, "Use 30 minutes").props.onPress(); });
     await settle(view, `${available - 30} min saved`);
     const after = await kid.getTimeBank(kid.currentUser!.id);
     const grant = after.grants.find((g) => g.redemption && g.minutes === 30)!;
     expect(grant.grant_status).toBe("queued");
     await act(async () => { button(view, "Return 30 undelivered minutes to savings").props.onPress(); });
     await settle(view, `${available} min saved`);
+    await act(async () => view.unmount());
+  });
+
+  it.each([false, true])("caps the kid's 15-minute selector at one hour (simple=%s)", async (simple) => {
+    await earn(120);
+    const view = await mount(simple);
+    await settle(view, "min saved");
+    const more = () => view.root.findAllByType("button").find((b) => b.props.accessibilityLabel === "Use 15 more minutes")!;
+    for (let i = 0; i < 3; i++) await act(async () => { more().props.onPress(); });
+    expect(text(view)).toContain("60 min");
+    expect(more().props.disabled).toBe(true);
+    const before = await kid.getTimeBank(kid.currentUser!.id);
+    const available = timeBankTotals(before.ledger, before.grants, before.purchases).available;
+    await act(async () => { button(view, "Use 60 minutes").props.onPress(); });
+    await settle(view, "60 minutes requested. Your remaining saved time stays in your bank.");
+    const after = await kid.getTimeBank(kid.currentUser!.id);
+    expect(timeBankTotals(after.ledger, after.grants, after.purchases).available).toBe(available - 60);
+    expect(after.grants.filter((g) => !before.grants.some((previous) => previous.id === g.id)).map((g) => g.minutes)).toEqual([60]);
     await act(async () => view.unmount());
   });
 
@@ -173,16 +191,16 @@ describe("Native earned-time controls (real PocketBase)", () => {
       return response;
     });
     try {
-      await act(async () => { button(view, "Use time").props.onPress(); });
-      await settle(view, "Retry Use time");
+      await act(async () => { button(view, "Use 15 minutes").props.onPress(); });
+      await settle(view, "Retry Use 15 minutes");
       const pending = JSON.parse(storage.get(`paydirt-time-redemption:${kid.currentUser!.id}`)!);
       const before = await kid.getTimeBank(kid.currentUser!.id);
       const reserved = before.ledger.filter((r) => r.kind === "reserve").length;
       await act(async () => view.unmount());
       const restored = await mount(true);
-      await settle(restored, "Retry Use time");
-      await act(async () => { button(restored, "Retry Use time").props.onPress(); });
-      await settle(restored, "Use time");
+      await settle(restored, "Retry Use 15 minutes");
+      await act(async () => { button(restored, "Retry Use 15 minutes").props.onPress(); });
+      await settle(restored, "Use 15 minutes");
       const after = await kid.getTimeBank(kid.currentUser!.id);
       expect(after.ledger.filter((r) => r.kind === "reserve")).toHaveLength(reserved);
       expect(await kid.pb.collection("time_redemptions").getFullList({ filter: kid.pb.filter("request_key = {:key}", { key: pending.key }) })).toHaveLength(1);
@@ -214,7 +232,7 @@ describe("Native earned-time controls (real PocketBase)", () => {
     expect(text(view)).not.toContain("reserved for review");
     await act(async () => { view.root.findAllByType("button").find((b) => b.props.accessibilityLabel === "Show bank details")!.props.onPress(); });
     expect(text(view)).toContain("Earned-time history");
-    expect(button(view, "Use time")).toBeUndefined();
+    expect(button(view, "Use 15 minutes")).toBeUndefined();
     await act(async () => view.unmount());
   });
   it("shows only the held bank total on parent Kids cards", async () => {

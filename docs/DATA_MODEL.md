@@ -87,7 +87,7 @@ One per (chore, child). Status: `assigned` → `completed` → `approved`/`rejec
 | child | relation → users | required |
 | status | select(`assigned`,`completed`,`approved`,`rejected`,`closed`) | default `assigned` |
 | completed_at | date | set when child marks done |
-| time_choice | select(`bank`,`use`) | kid selects at submission; default Bank; frozen while awaiting approval; Use now redeems whole 15-minute blocks after approval, saving any remainder |
+| time_choice | select(`bank`,`use`) | kid selects at submission; default Bank; frozen while awaiting approval; Use now redeems whole 15-minute blocks up to 60 minutes after approval, saving any remainder |
 | due_at | date | server-computed recurring deadline, fixed at assignment creation; new rule applies to future assignments |
 | approved_at | date | set on parent approval |
 | credit_percent | number | parent-only integer 1–100 on approval; legacy 0/unset = full credit; immutable while settled. Partial approval closes the assignment |
@@ -225,7 +225,7 @@ reserves. Delivery (`redeem`) records history without charging again. An earn's
 household parents can read their kids' records. Collection writes are closed to
 clients. Authenticated kid-only routes own the transitions:
 
-- `POST /api/paydirt/time-bank/redeem`: `minutes` (15–120 in 15-minute steps),
+- `POST /api/paydirt/time-bank/redeem`: `minutes` (15–60 in 15-minute steps),
   `request_key`, optional `allow_queue`. A write transaction checks available
   funds, saves the reservation and creates one linked delivery grant. A retry
   returns the same redemption; a reused key with a different amount is rejected.

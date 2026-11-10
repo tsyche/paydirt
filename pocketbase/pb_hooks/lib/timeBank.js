@@ -15,13 +15,15 @@ function entry(app, child, kind, minutes, key, assignment, redemption) {
   app.save(row);
 }
 function redeem(app, child, minutes, key, allowQueue, assignment) {
-  if (!Number.isInteger(minutes) || minutes < 15 || minutes > 120 || minutes % 15) throw new BadRequestError("Use 15–120 minutes in 15-minute steps.");
+  if (!Number.isInteger(minutes) || minutes < 15 || minutes > 120 || minutes % 15) throw new BadRequestError("Use 15–60 minutes in 15-minute steps.");
   if (!/^[a-zA-Z0-9_-]{10,100}$/.test(key)) throw new BadRequestError("A request key is required.");
+  // Honor old larger requests on retry; apply the new cap only to new debits.
   const existing = app.findRecordsByFilter("time_redemptions", "child = {:child} && request_key = {:key}", "", 1, 0, { child, key });
   if (existing.length) {
     if (existing[0].getInt("minutes") !== minutes) throw new BadRequestError("This request key was already used for another amount.");
     return existing[0];
   }
+  if (minutes > 60) throw new BadRequestError("Use up to 60 minutes at a time in 15-minute steps.");
   if (available(app, child) < minutes) throw new BadRequestError("Not enough saved minutes.");
   const kid = app.findRecordById("users", child);
   const household = app.findRecordById("households", kid.getString("household"));
@@ -46,8 +48,8 @@ function award(app, assignment) {
   if (!pay.minutes) return;
   const child = assignment.getString("child");
   entry(app, child, "earn", pay.minutes, "earn:" + assignment.id, assignment.id);
-  // Chores can pay five-minute amounts. Keep any sub-15 remainder saved.
-  const now = Math.floor(pay.minutes / 15) * 15;
+  // Use now follows the one-hour cap; keep excess and sub-15 remainders saved.
+  const now = Math.min(60, Math.floor(pay.minutes / 15) * 15);
   if (assignment.getString("time_choice") === "use" && now) redeem(app, child, now, "assignment_" + assignment.id, true, assignment.id);
 }
 module.exports = { available, entry, redeem, award };
