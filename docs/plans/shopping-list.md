@@ -1,9 +1,9 @@
 # Household shopping list
 
+**TL;DR:** Kids and parents flag "we're out of X" in one tap; parents see one de-duplicated list, mark things Bought or Dismissed, and the requester gets a push. It reuses the request-and-approve pattern, pays no grit, and starts as a small MVP.
 **Status:** Draft
 **Fold into:** [FEATURES.md](../../FEATURES.md), [DATA_MODEL.md](../DATA_MODEL.md)
 
-**TL;DR:** Kids and parents flag "we're out of X" in one tap; parents see one de-duplicated list, mark things Bought or Dismissed, and the requester gets a push. It reuses the request-and-approve pattern, pays no grit, and starts as a small MVP.
 
 ## MVP
 
@@ -16,7 +16,7 @@
 ## Decisions
 
 - **No grit reward for requests.** It would reward spam; a parent can grant a bonus by hand.
-- Guard rails: per-kid rate limit on new requests; a kid sees only open items they or siblings asked for.
+- Guard rails: per-kid rate limit on new requests; kid list visibility remains an open question below.
 
 ## Later
 

@@ -4,7 +4,9 @@
 
 **Status:** Draft
 
-**Last updated:** 2026-11-09
+**Last updated:** 2026-11-10
+
+**Execution:** Deferred by owner while current household work and release checks take priority.
 
 **Scope:** Policy modelling, dependency screening, and isolated experiments with fake household data. Production implementation and migration are not approved.
 
@@ -41,7 +43,7 @@
 - **Production:** PocketBase on bb with an append-only `currency_transactions` ledger. [`verifyLedger`](../../packages/shared/src/ledger.ts) already derives balances by folding that ledger, and the proposed data model reuses this idea.
 - **Model spike:** four [signed-operation tests](../../packages/shared/src/serverFree.spike.test.ts) and a three-browser WebRTC experiment. They prove offline recording, catch-up, and duplicate-safe settlement with a designated settlement authority and a fixed reward. Not covered: physical devices, cross-network delivery, pairing, recovery. See the [gap matrix](../research/server-free-feasibility.md#parity-and-gap-matrix).
 - **Gate 0 (Iroh screen), done 2026-11-08:** conditional go for a LAN harness only. An untested Kotlin-version difference, a relay-only browser path, and hosted-relay economics prevent selecting it as the primary transport. The version difference is a build risk, not an observed compile failure. See the [screen](../research/server-free-feasibility.md#2026-11-08--iroh-dependency-and-cost-screen).
-- **Existing public dependencies:** ntfy.sh (push notifications) and bb (APK updates, nightly backups). A server-free design has to replace or explicitly keep each one.
+- **Existing service dependencies:** ntfy.sh (push notifications) and bb (APK updates, nightly backups). A server-free design has to replace or explicitly keep each one.
 
 ## Constraints and decisions
 
@@ -84,7 +86,7 @@ flowchart LR
 - **Shared code:** keep the candidate reducer and transport harness isolated from production exports. If selected later, reuse shared logic across web/mobile and run the same invariants on both. Do not replicate live SQLite files.
 - **Not a blockchain.** No requirement calls for global consensus or a public ledger.
 
-The pending [chore conversation and earned-time bank features](../../ROADMAP.md#backlog-unscheduled) add lifecycle requirements to the eventual parity assessment: role-scoped threaded history, held versus queued minutes, and concurrent time redemption. They are roadmap scope, not implemented features.
+The implemented [chore conversations and earned-time bank](../../FEATURES.md#implemented) add parity requirements: role-scoped threaded history, held versus queued minutes, concurrent redemption, and the 60-minute cap per new kid request. Deployment/device checks remain in the [roadmap](../../ROADMAP.md#release-checks-for-implemented-work).
 
 ## Conflict policy proposals
 

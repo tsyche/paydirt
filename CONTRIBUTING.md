@@ -1,6 +1,6 @@
 # Contributing
 
-Personal project, built for one household — not accepting external contributions. This file documents the dev workflow for future reference.
+**TL;DR:** Personal project, built for one household — not accepting external contributions. This file documents the dev workflow for future reference.
 
 ## Getting started
 
@@ -34,14 +34,14 @@ just typecheck
 
 ## CI
 
-`.github/workflows/ci.yml` runs `just lint`, `just typecheck`, and `just test`
-on every push and PR. Integration + e2e (`just test-all`, self-contained —
+[.github/workflows/ci.yml](.github/workflows/ci.yml) runs `just lint`, `just typecheck`, and `just test`
+on pushes to `main` and on PRs. Integration + e2e (`just test-all`, self-contained —
 boots its own ephemeral PocketBase, no manual setup) run via `workflow_dispatch`
 instead of on every push, since they're slower.
 
 ## Branches + commits
 
-- Work on feature branches; merge to `main` when done.
+- If `git config --get workflow.solo` is `true`, work on `main` or the current branch. Otherwise use feature branches and merge to `main`.
 - Commit messages: one concise line. No type prefixes (`feat:`, `fix:`, etc.).
 - No `Co-Authored-By` trailers.
 
@@ -49,7 +49,9 @@ instead of on every push, since they're slower.
 
 - TypeScript everywhere (extensionless imports in `packages/shared`).
 - No comments unless the *why* is non-obvious.
-- Edit `AGENTS.md`, not `CLAUDE.md` — the PostToolUse hook syncs them.
+- Edit `AGENTS.md`, not [CLAUDE.md](CLAUDE.md) — the PostToolUse hook syncs them.
+
+Documentation audit metrics are recorded in [Doc stats history](docs/ledger/DOC_STATS_HISTORY.md).
 
 ## Terminology
 

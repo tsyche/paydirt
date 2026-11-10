@@ -4,7 +4,7 @@
 
 [![CI](https://github.com/tsyche/paydirt/actions/workflows/ci.yml/badge.svg)](https://github.com/tsyche/paydirt/actions/workflows/ci.yml)
 
-A self-hosted chore and allowance tracker for a single household, built to teach real money habits. Kids get their own app to track and complete chores; parents get a dashboard with push notifications for approvals. Kids earn **parentBucks** (Grit) for chores, then redeem them for screen time, real-world purchases, or bank toward savings goals — with parent approval for earnings and purchases. Chore-earned screen minutes can stay saved until the kid chooses to use them. Private chore conversations let parents and kids ask questions before approving work. Built with Expo, Next.js, and PocketBase.
+**TL;DR:** A self-hosted chore and allowance tracker for a single household, built to teach real money habits. Kids get their own app to track and complete chores; parents get a dashboard with push notifications for approvals. Kids earn **parentBucks** (Grit) for chores, then redeem them for screen time, real-world purchases, or bank toward savings goals — with parent approval for earnings and purchases. Chore-earned screen minutes can stay saved until the kid chooses to use them. Private chore conversations let parents and kids ask questions before approving work. Built with Expo, Next.js, and PocketBase.
 
 ## Setup
 

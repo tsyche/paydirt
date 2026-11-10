@@ -1,30 +1,30 @@
 # PocketBase Backend
 
-The PocketBase binary is **not** committed (gitignored). Version-controlled here are the JS hooks (`pb_hooks/`) and schema migrations (`pb_migrations/`).
+**TL;DR:** The PocketBase binary is **not** committed (gitignored). Version-controlled here are the JS hooks ([pb_hooks/](pb_hooks)) and schema migrations ([pb_migrations/](pb_migrations)).
 
 ## Local setup
 
-1. Run `just pb-download` from the repo root (falls back to Homebrew on macOS if [GitHub Releases](https://github.com/pocketbase/pocketbase/releases) has none available — see `ROADMAP.md`'s Known Issues), or download the binary manually for your platform and place it at `pocketbase/pocketbase`.
+1. Run `just pb-download` from the repo root (falls back to Homebrew on macOS if [GitHub Releases](https://github.com/pocketbase/pocketbase/releases) has none available — see [known issues](../ROADMAP.md#known-issues)), or download the binary manually for your platform and place it at `pocketbase/pocketbase`.
 2. Run it:
 
    ```bash
    just dev-pb
    ```
 
-   This serves on `http://localhost:3111` using the local `pb_data/`, `pb_hooks/`, and `pb_migrations/` directories.
+   This serves on `http://localhost:3111` using the local `pb_data/`, [pb_hooks/](pb_hooks), and [pb_migrations/](pb_migrations) directories.
 
 3. Open the admin UI at `http://localhost:3111/_/` to create the first admin account.
 
 ## Layout
 
-- `pb_hooks/` — JavaScript business logic (currency math, threshold checks, ntfy triggers)
-- `pb_migrations/` — schema as code; commit these so the data model is reproducible
+- [pb_hooks/](pb_hooks) — JavaScript business logic (currency math, threshold checks, ntfy triggers)
+- [pb_migrations/](pb_migrations) — schema as code; commit these so the data model is reproducible
 - `pb_data/` — runtime database and files (gitignored)
 
 ## Test data
 
-With the server running, `just seed` populates a "Test Family" household (parent,
-two kids, chores, sample activity) via `seed.mjs` — idempotent, safe to re-run.
+With the server running, `just seed` populates a "Test Family" household (two parents,
+two kids, chores, sample activity) via [seed.mjs](seed.mjs) — idempotent, safe to re-run.
 For a clean slate: stop the server, `just reset-db`, restart, then `just seed`.
 All seeded logins use password `password123`.
 

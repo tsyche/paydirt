@@ -11,7 +11,7 @@ host/device timezone; blank defaults to `America/Los_Angeles`. See
 
 | Path | Owner | Contents |
 |---|---|---|
-| `/opt/paydirt/` | root | `pocketbase` binary, `pb_hooks/`, `pb_migrations/`, `pb_public/` (dashboard) |
+| `/opt/paydirt/` | root | `pocketbase` binary, [pb_hooks/](../pocketbase/pb_hooks), [pb_migrations/](../pocketbase/pb_migrations), `pb_public/` (dashboard) |
 | `/var/lib/paydirt/` | `paydirt` (750) | `pb_data`: SQLite DBs, uploaded files, `updates/` (APK + OTA) |
 | `/etc/paydirt/paydirt.env` | root (600, optional) | env overrides, e.g. `NTFY_SERVER=...` |
 | `/etc/systemd/system/paydirt.service` | root | from [`pocketbase/paydirt.service`](../pocketbase/paydirt.service) |
@@ -20,7 +20,7 @@ host/device timezone; blank defaults to `America/Los_Angeles`. See
 | `/var/lib/paydirt/familylink/queue/` | `paydirt` (700) | Pending requests, claimed jobs, and durable result receipts (600) |
 | `/etc/systemd/system/paydirt-fl.{path,service}` | root | Queue watcher and serialized grant worker, outside PocketBase's resource limits |
 
-The unit runs as the unprivileged `paydirt` user with `ProtectSystem=strict`; only `/var/lib/paydirt` is writable. It listens on `0.0.0.0:3111` (LAN only — no public exposure).
+The unit runs as the unprivileged `paydirt` user with `ProtectSystem=strict`; only `/var/lib/paydirt` is writable. It binds `0.0.0.0:3111` on all interfaces; restrict access to the trusted LAN with host/router firewall rules. The bind address itself does not enforce LAN-only access.
 
 ## First install
 
@@ -69,21 +69,22 @@ Bonus screen time is granted through the Family Link web API ([`scripts/familyli
 Each grant reads the target device's active bonus and adds only the new minutes
 that fit before the delivery window closes, accounting for bonus already
 running. A 30-minute reward at 8:15 PM with an 8:30 PM close delivers 15 minutes
-and banks 15 for the next opening. Sub-minute gaps wait for the next window;
+and queues the redeemed/purchased remainder of 15 for the next opening; held saved minutes do not enter this path. Sub-minute gaps wait for the next window;
 split remainders use whole minutes. Existing bonus is never reduced.
 
 The calculation uses Google's server time and rounds remaining seconds up.
 Failed reads, missing devices, malformed responses, or unsupported active
-overrides stop the grant without writing. Purchases are 15–60 minutes; chore
-and direct parent bonuses (`time_grants`) are 5–120 minutes in five-minute
-steps. Direct bonuses use the same delivery windows and manual fallback without
+overrides stop the grant without writing. Purchases are 15–60 minutes. New chore earnings stay held until redemption;
+Use now and later redemptions take 15–60 minutes in 15-minute steps, saving any
+remainder. Existing queued chore rewards and direct parent bonuses retain their
+5–120-minute, five-minute-step limits. Direct bonuses use the same delivery windows and manual fallback without
 changing grit. The worker and `fl-host-grant` share a host lock; do not run Mac
 grants concurrently with host grants. These limits apply to bonus delivery;
 they do not change Family Link's ordinary daily allowance.
 
 1. Mac: `just fl-login` (sign in to the co-parent account by hand, then quit that Chrome). Needs `~/.config/paydirt/familylink.env` with `FL_CHILD_ID`, `FL_DEVICE_ID`, `FL_API_KEY`.
 2. `just fl-host-setup [browsers]` (default `firefox`; `"firefox chromium"` for both). It is idempotent and:
-   - installs Node 24 from the NodeSource apt repo (pinned over the distro's `nodejs`);
+   - installs Node 24 from the NodeSource apt repo if the existing Node major is below 24; an existing Node 24+ is retained;
    - installs the script, `playwright` (the Mac's version) and Playwright's own browser builds under `/opt/paydirt/familylink/`. Stock `/usr/bin/firefox` can't be used, because Playwright drives only its patched builds;
    - copies the session to `/var/lib/paydirt/familylink/` and sets `FL_API_KEY` in `/etc/paydirt/paydirt.env`.
 3. `just fl-host-grant <seconds> [firefox|chromium]` runs a test grant as `paydirt` through `systemd-run`, outside the PocketBase unit's memory/CPU limits. Exit 2 = session rejected or expired.
@@ -92,7 +93,7 @@ After a new `fl-login`, re-run `just fl-host-setup` to copy the session again. C
 
 ### Enable automatic grants
 
-Deploy the queue implementation with `just update-service` before enabling it. The additive CLI was validated on bb on 2026-10-28: a real grant preserved 59 seconds and added 60, setting 119 seconds. Queue deployment remains a separate step.
+Deploy the queue implementation with `just update-service` before enabling it. The additive CLI was validated on bb on 2026-10-28: a real grant preserved 59 seconds and added 60, setting 119 seconds. Automatic grants were owner-confirmed in production on 2026-11-02; the steps below describe enabling them on a new host.
 
 1. Set each child's Family Link child/device IDs in PayDirt's parent settings. Seeded accounts are test data; verify the real kid-to-tablet mapping first.
 2. On bb, add `FL_AUTOMATION_ENABLED=1` to `/etc/paydirt/paydirt.env`. Leave the file root-owned, mode 600.
@@ -112,6 +113,10 @@ When disabled or a child has no IDs, approval still deducts the purchase and sho
   older clients remain usable but do not hide personally archived items. Restore
   all archives before rolling this migration back; source records and rewards
   are not removed by archiving.
+- Earned-time banking and conversations additionally require migrations `1717000044`
+  and `1717000045` before their new clients. New earnings stay in the held ledger;
+  existing queued grants are preserved. Rollbacks refuse populated minute ledgers
+  or conversations; reconcile/export their data rather than dropping history.
 - Approval commits `grant_status=queued` with the spend. The hook publishes a private JSON request; the minute cron repairs a missed publish and imports results.
 - `paydirt-fl.path` starts the worker. It claims each request atomically and processes grants serially, with a 60-second timeout per browser command.
 - Receipts stay on disk to prevent replay. Failed or interrupted grants are never retried automatically: Google may have accepted a write before the connection failed.
@@ -123,7 +128,7 @@ When disabled or a child has no IDs, approval still deducts the purchase and sho
   The old worker cannot process remainder receipt keys. Do not roll back the
   delivery-progress migration while partially delivered rewards are outstanding;
   preserve/settle their remaining balances first.
-- `grant_status` is `queued`, `granted`, `manual`, or `manual_done`; `grant_error` contains a safe recovery message. No browser responses, authenticated URLs, or credentials enter these fields or worker logs.
+- Purchase `grant_status` is `queued`, `granted`, `manual`, or `manual_done`. Saved-time grants additionally support `cancelled`, only for provably unstarted reservations; `grant_error` contains a safe recovery message. No browser responses, authenticated URLs, or credentials enter these fields or worker logs.
 - For `manual`, check Family Link before adding time, then use **Mark granted manually** in either parent app. Session expiry instructs the parent to run `fl-login` and `fl-host-setup`; refreshing auth does not replay failed purchases.
 - Updating code stops the worker. An interrupted job becomes manual review on recovery. Keep `queue/results/` receipts; do not remove the queue to retry grants.
 
@@ -133,7 +138,7 @@ To disable future automatic approvals, remove `FL_AUTOMATION_ENABLED` (or set it
 
 PocketBase's built-in scheduler (set by migration `1717000023`) writes a consistent zip of the whole data dir to `/var/lib/paydirt/backups/` at 02:30 nightly and keeps the newest 7. That covers corruption and bad writes, not losing the host, so run `just backup-pull` now and then (needs sudo; keeps the newest 30 in `./backups/host/`, gitignored). Zips include the Family Link session, so treat them as secrets.
 
-**Restore** (smoke-tested locally 2026-10-29): `sudo systemctl stop paydirt`, move the current `data.db*`/`auxiliary.db`/`storage` aside, unzip the backup into `/var/lib/paydirt` as `paydirt`, then `sudo systemctl start paydirt`. The admin UI (`/_/` → Settings → Backups) can also restore.
+**Restore** (local smoke test recorded 2026-10-29; a pulled-production-backup recovery drill remains unverified): `sudo systemctl stop paydirt`, move the current `data.db*`/`auxiliary.db`/`storage` aside, unzip the backup into `/var/lib/paydirt` as `paydirt`, then `sudo systemctl start paydirt`. The admin UI (`/_/` → Settings → Backups) can also restore.
 
 ## Publishing app updates
 

@@ -1,6 +1,6 @@
 # Physical Device Testing
 
-**TL;DR:** Pair each tablet once, list its IP in `deploy-devices` (`just conn` pins port 5555), then `just ship` (or `just push` for an adb-only install). This guide records the 2026-10-21 Pixel 8 / GrapheneOS smoke test and the 2026-11-06 API 34 emulator acceptance.
+**TL;DR:** Pair each tablet once, list its IP in `deploy-devices` (`just conn` pins port 5555), then `just ship` (or `just push-remote` for an adb-only release install). This guide records the 2026-10-21 Pixel 8 / GrapheneOS smoke test and the 2026-11-06 API 34 emulator acceptance.
 
 ## Contents
 
@@ -13,6 +13,7 @@
 - [Useful adb commands](#useful-adb-commands)
 - [Rebuilding after code changes](#rebuilding-after-code-changes)
 - [In-app updates (no adb)](#in-app-updates-no-adb)
+- [Header menu and grit dialog](#header-menu-and-grit-dialog)
 
 Guide for testing on a real Android device (GrapheneOS / LineageOS).
 
@@ -52,12 +53,12 @@ After that, every update is one command from the Mac:
 
 ```bash
 just conn          # connect every deploy-devices entry (no build/install)
-just push-remote   # connect, build the release APK, install on all (alias: just push)
+just push-remote   # connect, build the release APK, install on all
 ```
 
 Notes:
 
-- `scripts/tablet-connect.sh` tries each entry as written, then `ip:5555`, then mDNS.
+- [scripts/tablet-connect.sh](../scripts/tablet-connect.sh) tries each entry as written, then `ip:5555`, then mDNS.
 - `just conn` skips unavailable/offline devices and exits successfully, even if
   none are reachable. Missing configuration remains an error; install commands
   separately check that a device is connected.
@@ -88,7 +89,7 @@ echo "EXPO_PUBLIC_POCKETBASE_URL=http://127.0.0.1:3111" > apps/mobile/.env
 
 ### 2. Build APK
 
-`apps/mobile/android/` is committed (it has custom Kotlin), so a fresh clone
+[apps/mobile/android/](../apps/mobile/android) is committed (it has custom Kotlin), so a fresh clone
 needs no prebuild.
 
 ```bash
@@ -96,7 +97,7 @@ just build-apk   # builds the debug APK (~2-3 min first time, faster after)
 ```
 
 Requires: JDK 17+ and Android SDK. If not installed, Android Studio includes both
-(`sdkmanager` → install "Android SDK Platform 34" and "Android SDK Build-Tools").
+(`sdkmanager` → install Android SDK Platform 36 and Build-Tools 36.0.0, matching the React Native version catalog).
 
 Set `ANDROID_HOME` if Gradle can't find the SDK:
 ```bash
@@ -117,7 +118,7 @@ adb install -r apps/mobile/android/app/build/outputs/apk/debug/app-debug.apk
 ## Test checklist
 
 ### Auth
-- [ ] Login as parent → lands on ParentNotice (web dashboard is primary)
+- [ ] Login as parent → lands on ParentHome with native parent controls
 - [x] Login as kid → lands on KidHome (or SimpleKidHome for simplified_mode) — 2026-10-21, Pixel 8
 - [ ] Logout and switch roles
 - [x] App reopens to the correct screen after being killed (auth persists) — force-stop + relaunch → KidHome, no login
@@ -130,16 +131,18 @@ adb install -r apps/mobile/android/app/build/outputs/apk/debug/app-debug.apk
 - [x] Spend request dialog opens and submits — 2026-10-21: dialog opens, field + amount (Grits 10), Send creates pending request server-side; parent approve deducts exactly (177→167) and fires the "Spend approved" notification live
 - [x] Realtime: approve a chore from the web dashboard → kid screen updates without pull-to-refresh — 2026-10-21, balance + list both live, no spinner
 
-- [ ] Earned-time bank (both kid layouts): submit a time/both chore with Bank; approve before bed; open the morning delivery window and confirm saved minutes remain unchanged. Use 15 minutes; verify only that portion lands and Grit stays unchanged.
-- [ ] Confirm parent web/mobile Kids summaries and detail show matching saved, reserved/requested, and queued totals. Try Use now, a sub-15-minute reward, after-hours confirmation, and a lost-response/restart retry. Physical-device acceptance remains pending; automated component/API/browser evidence is recorded in the shipped ledger.
+- [ ] Earned-time bank (both kid layouts): submit a time/both chore with Bank; approve before bed; open the morning delivery window and confirm saved minutes remain unchanged. Choose 15/30/45/60 minutes with the stepper; confirm the Use button names that amount, only that portion is requested, the saved remainder stays, and Grit is unchanged. Verify the selector cannot exceed the saved total or one hour.
+- [ ] Confirm parent web/mobile Kids summaries and detail show matching saved, reserved/requested, and queued totals when expanded; main Kids cards show only the saved total. Try Use now, a sub-15-minute reward, after-hours confirmation, and a lost-response/restart retry. Physical-device acceptance remains pending; automated component/API/browser evidence is recorded in the shipped ledger.
 
 - [ ] Chore conversations (both kid layouts and parent web/mobile): send a question without approving, reply as the kid, then approve later. Confirm notes submit with photo/timer proof, drafts survive failure/restart, and approved/archived threads remain accessible. Check keyboard reachability and large text on-device.
 - [ ] After the updated APK is approved and installed, tap a chore-message notification from cold and warm starts in both kid layouts and as a parent; it must open the exact occurrence. Device push/tap acceptance remains pending.
 
+- [ ] Recently approved cards on parent web/mobile keep all emoji reactions in a top-right row, separate from Conversation, including long names and large text.
+
 ### Notifications (key test)
 - [x] Background: lock the screen, have parent approve a chore → notification appears from **PayDirt** (not ntfy) — channel `paydirt-alerts`; all four types confirmed
 - [x] Background: parent broadcasts a message → notification appears
-- [ ] Foreground: app open, approve a chore → UI updates silently (no duplicate notification) — fix shipped (`ForegroundTracker`, see CHANGELOG); not yet re-verified on a device
+- [ ] Foreground: app open, approve a chore → UI updates silently (no duplicate notification) — fix shipped (`ForegroundCounter`, see CHANGELOG); not yet re-verified on a device
 - [ ] Alerts bell (parent + both kid UIs) lists past pushes newest-first; ✕ removes one, "Clear all" empties it
 - [x] Notification tap opens the app and lands on the relevant screen — warm (2026-10-21: heads-up tap → KidHome, balance current) and cold (`am kill` → tap → cold start; process-confirmed cold start; landing screen inferred — user interaction stole the foreground mid-launch)
 
@@ -202,7 +205,7 @@ just build-apk    # recompile the debug APK (no need to re-run prebuild unless a
 just install-apk  # build + install the debug APK in one step
 ```
 
-`app.json` changes (new plugins, package name, icons) do not reach `android/` on their own, and `just prebuild` refuses to overwrite it (`FORCE=1` wipes the custom Kotlin; restore from git). Apply such changes to `android/` by hand or via the selective procedure in `apps/mobile/scripts/gen-icons.mjs`.
+[app.json](../apps/mobile/app.json) changes (new plugins, package name, icons) do not reach [android/](../apps/mobile/android) on their own, and `just prebuild` refuses to overwrite it (`FORCE=1` wipes the custom Kotlin; restore from git). Apply such changes to [android/](../apps/mobile/android) by hand or via the selective procedure in [apps/mobile/scripts/gen-icons.mjs](../apps/mobile/scripts/gen-icons.mjs).
 
 ## In-app updates (no adb)
 
@@ -225,8 +228,8 @@ is the APK-only part. Each tablet checks on launch, on resume, and every
   Material Files can install APKs, but its external APK handler can open the
   archive browser instead; that saved association caused the `.164` issue,
   resolved and confirmed on 2026-11-06.
-- JS-only changes can use `just update-publish` + `just push-updates` (OTA, no prompt).
-- Verified end to end on one phone 2026-10-31 (alert, download, installer, "PayDirt updated"); the other tablets need one adb install of a 2026-10-31+ build first (older builds lack the native method). `just push` stays the fallback.
+- JS-only changes can use `just update-publish` + `just push-updates` (OTA, no installer prompt); native OTA delivery/rollback acceptance remains open.
+- Verified end to end on one phone 2026-10-31 (alert, download, installer, "PayDirt updated"); the owner confirmed self-update on the remaining tablets on 2026-11-02. `just push-remote` remains the direct-install fallback.
 
 ## Header menu and grit dialog
 

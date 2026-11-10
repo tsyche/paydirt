@@ -1,20 +1,24 @@
 # Bonus minutes and kid time asks
 
-**Status:** Building. Per-chore pay mode is built locally (2026-10-31, uncommitted/undeployed); the ask button, suggestions, nudges and caps stay deferred.
+**TL;DR:** Per-chore time rewards and held earned-time banking are implemented. The kid time-ask button, suggested offers, nudges, and daily caps remain deferred proposals. New chore minutes stay saved until explicitly redeemed; the original `bonus_minutes` sketch below is historical, not the current schema.
+**Status:** Building
+
+**Current scope:** Per-chore pay mode shipped; earned-time banking is implemented with rollout checks in the roadmap. The ask button, suggestions, nudges and caps stay deferred.
 **Fold into:** [DATA_MODEL.md](../DATA_MODEL.md), [FEATURES.md](../../FEATURES.md), [DEPLOYMENT.md](../DEPLOYMENT.md#family-link-grants)
 
-**TL;DR:** Kids ask for more time constantly. Instead of a free handout, an ask becomes a trigger: the parent replies with a chore that pays bonus screen minutes on top of its normal bucks. The same `bonus_minutes` field also lets any chore carry a permanent time win. Grants reuse the Family Link queue through a new `time_grants` collection, not fake spend requests.
 
 ## Built: per-chore pay mode (2026-10-31)
 
 - `pay_mode` (`bucks`/`time`/`both`) + `reward_minutes` on `chores` and `chore_templates`; `reward` is no longer required (a time-only chore pays 0).
-- Approval pays by mode: earn transaction and/or a `time_grants` row, granted through the generalized Family Link queue (worker accepts 5-120 min in 5-min steps).
-- **No assignment snapshot** (changed from the original draft): like `reward`, the earn row and the `time_grants` row are the snapshot, so editing a chore only affects future approvals.
-- Undo now reverses the net of the assignment's own ledger rows (it used the chore's current reward, a latent bug), and is blocked once a time grant exists.
-- Time-only approvals still count toward streaks. Web + mobile forms, badges and grant lists; tests in `chorePay.test.ts`, `hooks.integration.test.ts`, `familylinkQueue*.test.ts` and the web e2e.
-- **Rollout:** don't create `time`/`both` chores on bb until the new APK is on both tablets (old builds show '+0'), and don't ship before the first real 15-minute purchase has completed on the current build.
+- Approval pays by mode: Grit earn transaction and/or a held `time_ledger` earn. An explicit Use now choice or later redemption reserves 15–60 minutes; excess stays saved. Existing legacy queued rewards and direct parent bonuses retain the worker's 5–120-minute limit.
+- **No assignment snapshot** (changed from the original draft): like `reward`, the Grit/minute earn rows are the snapshot, so editing a chore only affects future approvals.
+- Undo now reverses the net of the assignment's own ledger rows (it used the chore's current reward, a latent bug), and is blocked once a minute earn or legacy time grant exists.
+- Time-only approvals still count toward streaks. Web + mobile forms, badges and grant lists; tests in [chorePay.test.ts](../../packages/shared/src/chorePay.test.ts), [hooks.integration.test.ts](../../packages/shared/src/hooks.integration.test.ts), `familylinkQueue*.test.ts` and the web e2e.
+- **Rollout:** the owner confirmed production Family Link purchases and chore grants on 2026-11-02. Later held-bank and redemption UX changes have separate deployment/device checks in [ROADMAP.md](../../ROADMAP.md#release-checks-for-implemented-work).
 
-## Decisions (original draft; ask/offer parts still deferred)
+## Historical draft decisions (ask/offer parts still deferred)
+
+The `bonus_minutes` fields and always-bucks-plus-time model below were superseded by `pay_mode` and `reward_minutes`. They are preserved as original design rationale, not implementation instructions. Re-scope the remaining ask/offer flow against the current bank before building it.
 
 - **Ask is free and not a currency event.** The kid taps 'Ask for more time' (optional note). Parents get a push and an inbox item.
 - **Reply is one tap:** offer a chore with bonus minutes, deny with a preset reason, or give a small amount directly.
@@ -30,11 +34,15 @@
 - **Automatic nudges.** Kids learn to wait for offers and stop doing chores at normal prices.
 - **LLM suggestions.** 'Smart' means a ranked query, below.
 
-## Why not reuse the queue as-is
+## Queue integration
 
-[`lib/familylink.js`](../../pocketbase/pb_hooks/lib/familylink.js) is hard-wired to `spend_requests`: `reconcile` filters `status = 'approved' && grant_status = 'queued'`, and `prepare`, `publish` and `notifyManual` read `screen_minutes` and `description` from that record type. The worker job itself (`id`, `childId`, `deviceId`, `seconds`) is generic, and the receipt is keyed by record id, so the worker needs no change. The refactor is to make the hooks collection-agnostic and run `reconcile` over both collections.
+The existing [`lib/familylink.js`](../../pocketbase/pb_hooks/lib/familylink.js)
+already reconciles `spend_requests` and `time_grants`. A future ask/offer should
+reuse held earnings and explicit redemption, preserving immutable accounting,
+existing queue jobs, and retry-safe worker receipts; no fake zero-price purchase
+or duplicate grant path is needed.
 
-## Phases
+## Original phases (require re-scoping)
 
 | Phase | Scope | Rough effort |
 |-------|-------|--------------|
@@ -44,7 +52,7 @@
 
 Ship v1 and watch whether asking drops before building v2/v3. Estimates are unverified.
 
-## Rules to implement in v1
+## Original v1 rules (require re-scoping)
 
 - **Approval:** a bonus assignment approval writes the normal earn transaction and creates a `time_grants` row (`queued` or `manual`, same rules as purchases). Streaks count the completion either way.
 - **Undo:** Family Link grants are additive and can't be clawed back. Disable approval-undo for assignments with `bonus_minutes > 0`, or warn and reverse only the bucks. Prefer disabling.
@@ -52,7 +60,7 @@ Ship v1 and watch whether asking drops before building v2/v3. Estimates are unve
 - **Guards, all server-side:** one open ask per kid, a cooldown between asks, bonus minutes in multiples of 5, no grant when the cap would be exceeded (convert to a plain no-bonus approval).
 - **Kid UI:** the 6-year-old can read, but a denied ask still needs an icon-and-color state, not just a reason string.
 
-## Tests
+## Deferred ask/offer test outline
 
 - **Unit:** minutes rounding and cap math (shared package), suggestion ranking (v2).
 - **Integration (live PB):** snapshot immutability, approval creates exactly one `time_grants` row, cap enforcement, ask guards, undo blocked, `verify-ledger` unaffected.

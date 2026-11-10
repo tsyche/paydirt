@@ -2,14 +2,14 @@
 
 *Do. The. Thing.*
 
-A self-hosted family chore tracking app. Parents assign chores; kids complete them on Android devices and mark them done; parents approve. Rewards are virtual currency (**parentBucks**) that kids spend on screen time (manually granted), bank toward thresholds, or exchange for physical goods. Built for one household, published as a showcase — not a hosted service.
+A self-hosted family chore tracking app. Parents assign chores; kids complete them on Android devices and mark them done; parents approve. Rewards are virtual currency (**parentBucks**) that kids spend on screen time (configured Family Link automation or manual grants), bank toward thresholds, or exchange for physical goods. Built for one household, published as a showcase — not a hosted service.
 
 ## Tech Stack
 
-- **apps/web** — Next.js parent dashboard
+- **apps/web** — Next.js parent dashboard; follow the [generated Next.js guidance](apps/web/AGENTS.md) for this workspace
 - **apps/mobile** — Expo (React Native) + react-native-paper (Material Design 3); single binary, role-gated parent/kid views; no Google Play Services dependency (runs on GrapheneOS / LineageOS)
 - **packages/shared** — shared TypeScript types, API clients, business logic, validation
-- **pocketbase/** — PocketBase backend (auth, SQLite, real-time, file storage, JS hooks for business logic). Binary downloaded separately; `pb_hooks/` and `pb_migrations/` are version-controlled. Setup details: [pocketbase/README.md](./pocketbase/README.md)
+- **pocketbase/** — PocketBase backend (auth, SQLite, real-time, file storage, JS hooks for business logic). Binary downloaded separately; [pb_hooks/](pocketbase/pb_hooks) and [pb_migrations/](pocketbase/pb_migrations) are version-controlled. Setup details: [pocketbase/README.md](./pocketbase/README.md)
 - **ntfy** — all push notifications (no FCM); public ntfy.sh for now, self-hosted on VPS later
 
 ## Project Structure
@@ -66,8 +66,8 @@ ports, or file responses. For macOS watcher failures, use
 point it at production. Household calendar behavior uses the timezone in
 Household preferences (default `America/Los_Angeles`), not the host clock.
 
-CI (GitHub Actions, `.github/workflows/ci.yml`) runs `just lint`, `just
-typecheck`, and `just test` on every push and PR. Integration + e2e run via
+CI (GitHub Actions, [.github/workflows/ci.yml](.github/workflows/ci.yml)) runs `just lint`, `just
+typecheck`, and `just test` on pushes to `main` and on PRs. Integration + e2e run via
 `just test-all` (self-contained — boots its own ephemeral PocketBase) gated
 behind `workflow_dispatch`, since they're slower and don't need to run on
 every push. `just test-all` also runs `just verify-ledger` against the
@@ -79,7 +79,7 @@ API. For a clean, ledger-consistent slate: stop the server, `just reset-db`,
 start the server, then `just seed`. All seeded logins use password `password123`:
 `parent1@test.local`, `parent2@test.local`, `child1@test.local`, `child2@test.local`.
 
-PocketBase binary is not committed — run `just pb-download` (falls back to Homebrew on macOS if [GitHub Releases](https://github.com/pocketbase/pocketbase/releases) has none available — see `ROADMAP.md`'s Known Issues) into `pocketbase/`.
+PocketBase binary is not committed — run `just pb-download` (falls back to Homebrew on macOS if [GitHub Releases](https://github.com/pocketbase/pocketbase/releases) has none available — see [ROADMAP.md](ROADMAP.md)'s Known Issues) into [pocketbase/](pocketbase).
 
 ## Toolchain notes (non-obvious)
 
@@ -87,7 +87,7 @@ PocketBase binary is not committed — run `just pb-download` (falls back to Hom
 - **`node-linker=hoisted`** (in `.npmrc`) is required — React Native / Expo's Metro bundler assumes a flat `node_modules`, and pnpm's default symlinked layout breaks resolution of transitive deps (`@babel/runtime`, `expo-modules-core`).
 - **React is pinned to 19.2.3 workspace-wide** via `pnpm.overrides` (root `package.json`). Expo SDK 57 needs that exact version; without the override, hoisting mixes React versions and Next's prerender fails with a null `useContext`.
 - **`@paydirt/shared`** is consumed as TypeScript source (no build step). Imports are extensionless so vitest, Next/webpack, and Metro all resolve them. Next transpiles it via `transpilePackages`.
-- The PostToolUse hook syncs `AGENTS.md` → `CLAUDE.md`; edit **AGENTS.md**, not CLAUDE.md.
+- The PostToolUse hook syncs `AGENTS.md` → [CLAUDE.md](CLAUDE.md); edit **AGENTS.md**, not CLAUDE.md.
 
 ## Key Concepts
 
@@ -95,9 +95,9 @@ PocketBase binary is not committed — run `just pb-download` (falls back to Hom
 - **parentBucks**: Virtual currency earned on parent-approved chore completion. Configurable reward per chore. Spent via request → parent approval → deduction.
 - **Race mechanic**: a chore assignable to multiple kids; first one approved wins the reward.
 - **Simplified mode**: per-child UI toggle — larger tap targets, icon-heavy, minimal reading. Default on for the youngest (age 6); standard UI for the 11-year-old.
-- **Inline edit panels (web + mobile)**: any edit-in-place form shows a header naming what is being edited (e.g. 'Editing Kid 1's settings') with Save/Cancel pinned at the top, never only at the bottom, so the controls don't move as the panel grows. Web: use `EditHeader` in `Dashboard.tsx`.
-- **Parent parity**: every parent-facing capability ships on both web and mobile in the same change, or the gap is logged in `ROADMAP.md` (*Parent parity*). Kid surfaces are mobile-only by design.
+- **Inline edit panels (web + mobile)**: any edit-in-place form shows a header naming what is being edited (e.g. 'Editing Kid 1's settings') with Save/Cancel pinned at the top, never only at the bottom, so the controls don't move as the panel grows. Web: use `EditHeader` in [Dashboard.tsx](apps/web/app/components/Dashboard.tsx).
+- **Parent parity**: every parent-facing capability ships on both web and mobile in the same change, or the gap is logged in [ROADMAP.md](ROADMAP.md) (*Parent parity*). Kid surfaces are mobile-only by design.
 - **No Google**: Stack deliberately avoids Play Services. ntfy over FCM, PocketBase over Firebase.
-- **Family Link automation** (Phase 2, in progress): bonus time is granted through the Family Link web API from a copied Google session (`just fl-*` recipes; host setup in [docs/DEPLOYMENT.md](./docs/DEPLOYMENT.md#family-link-grants)). The Accessibility Service path is shelved; see `ROADMAP.md`.
+- **Family Link automation** (Phase 2, in progress): bonus time is granted through the Family Link web API from a copied Google session (`just fl-*` recipes; host setup in [docs/DEPLOYMENT.md](./docs/DEPLOYMENT.md#family-link-grants)). The Accessibility Service path is shelved; see [ROADMAP.md](ROADMAP.md).
 
-When a roadmap item or parity gap is finished, move it to `docs/ledger/ROADMAP_SHIPPED.md` (index line + full entry) in the same change; don't wait for an audit. `ROADMAP.md` is the authoritative source for phase and status; `FEATURES.md` tracks scope. The original design scratchpad (rationale + alternatives, archived 2026-08-10) is at `~/.claude/plans/archive/paydirt-plan.md` — codename was "choregalore".
+When a roadmap item or parity gap is finished, move it to [docs/ledger/ROADMAP_SHIPPED.md](docs/ledger/ROADMAP_SHIPPED.md) (index line + full entry) in the same change; don't wait for an audit. [ROADMAP.md](ROADMAP.md) is the authoritative source for phase and status; [FEATURES.md](FEATURES.md) tracks scope. The original design scratchpad (rationale + alternatives, archived 2026-08-10) is at `~/.claude/plans/archive/paydirt-plan.md` — codename was "choregalore".
