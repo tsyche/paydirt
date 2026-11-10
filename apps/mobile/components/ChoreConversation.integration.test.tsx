@@ -24,11 +24,13 @@ vi.mock("react-native", () => ({ AppState: {
     appStateListeners.add(listener);
     return { remove: () => appStateListeners.delete(listener) };
   },
-}, Alert: { alert: () => {} }, ScrollView: ({ children }: { children: ReactNode }) => createElement("div", null, children), View: ({ children }: { children: ReactNode }) => createElement("div", null, children), StyleSheet: { create: (s: unknown) => s } }));
+}, Animated: { View: ({ children }: { children: ReactNode }) => createElement("div", null, children), Value: class { setValue() {} }, spring: () => ({ start() {} }) }, PanResponder: { create: () => ({ panHandlers: {} }) }, Alert: { alert: () => {} }, ScrollView: ({ children, ...props }: { children: ReactNode; style?: unknown }) => createElement("div", props, children), View: ({ children, ...props }: { children: ReactNode; style?: unknown }) => createElement("div", props, children), StyleSheet: { create: (s: unknown) => s } }));
 vi.mock("react-native-paper", () => {
   const Container = ({ children }: { children: ReactNode }) => createElement("section", null, children);
   return {
     Portal: Container,
+    Menu: Object.assign(Container, { Item: Container }),
+    IconButton: (props: object) => createElement("button", props),
     Dialog: Object.assign(Container, { Title: Container, Content: Container, ScrollArea: Container, Actions: Container }),
     TextInput: Object.assign((props: object) => createElement("input", props), { Icon: () => null, Affix: () => null }),
     Card: Object.assign(Container, { Content: Container }),
@@ -224,4 +226,30 @@ describe("Native chore conversations (real PocketBase)", () => {
     expect((await parent.getConversationAssignment(a.id)).status).toBe("approved");
     await act(async () => view.unmount());
   });
+  it("keeps recently approved reactions in the top header, away from Conversation", async () => {
+    await kid.login("parent1@test.local", "password123");
+    const { RecentlyApproved } = await import("./RecentlyApproved");
+    const child = (await parent.listChildren(parent.currentUser!.household)).find((user) => user.display_name === "Kid 1")!;
+    const chore = await parent.createChore({ household: parent.currentUser!.household, name: "Reaction header regression", reward: 5,
+      type: "oneoff", created_by: parent.currentUser!.id, active: true });
+    const a = await parent.assignChore(chore.id, child.id);
+    await parent.markComplete(a.id); await parent.approveAssignment(a.id);
+    let view!: ReactTestRenderer;
+    await act(async () => { view = create(createElement(RecentlyApproved, { householdId: parent.currentUser!.household,
+      currencyName: "Grit", reloadKey: 0, onChanged: () => {}, onMessage: () => {} })); });
+    try {
+      await settle(view, chore.name);
+      const reaction = view.root.findAllByType("button").find((node) => node.props.accessibilityLabel === "React 🎉")!;
+      let group = reaction.parent;
+      while (group && group.type !== "div") group = group.parent;
+      if (!group) throw new Error("Missing reaction group");
+      let header = group.parent;
+      while (header && header.type !== "div") header = header.parent;
+      if (!header) throw new Error("Missing reaction header");
+      expect(header.findAllByType("span").some((node) => [node.props.children].flat().join("") === chore.name)).toBe(true);
+      expect(header.findAllByType("button").some((node) => node.props.children === "Conversation")).toBe(false);
+      expect(group.props.style).toMatchObject({ flexDirection: "row", flexShrink: 0 });
+    } finally { await act(async () => view.unmount()); }
+  });
+
 });

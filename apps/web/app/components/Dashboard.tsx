@@ -588,34 +588,38 @@ export function Dashboard({
           const chore = a.expand?.chore as Chore | undefined;
           const kid = a.expand?.child as User | undefined;
           return (
-            <div className="card row" key={a.id} style={{ flexWrap: "wrap", gap: 10 }}>
-              <div style={{ flex: 1, minWidth: 160 }}>
-                <div style={{ fontWeight: 600 }}>{chore?.name ?? "Chore"}</div>
-                <div className="muted">
-                  {kid?.display_name ?? "child"} ·{" "}
-                  <span className="balance" style={{ fontSize: 13 }}>
-                    +{chore ? payLabel(chore, currencyName, a.credit_percent) : "?"}
-                    {a.credit_percent && a.credit_percent < 100 ? ` (${a.credit_percent}% credit)` : ""}
-                  </span>
+            <div className="card row" key={a.id} style={{ display: "block" }}>
+              <div style={{ display: "flex", alignItems: "flex-start", gap: 8 }}>
+                <div style={{ flex: 1, minWidth: 0, overflowWrap: "anywhere" }}>
+                  <div style={{ fontWeight: 600 }}>{chore?.name ?? "Chore"}</div>
+                  <div className="muted">
+                    {kid?.display_name ?? "child"} ·{" "}
+                    <span className="balance" style={{ fontSize: 13 }}>
+                      +{chore ? payLabel(chore, currencyName, a.credit_percent) : "?"}
+                      {a.credit_percent && a.credit_percent < 100 ? ` (${a.credit_percent}% credit)` : ""}
+                    </span>
+                  </div>
+                  <div className="muted">{householdDateTime(a.approved_at || a.updated)}</div>
+                  {a.approval_comment && <p style={{ marginBottom: 0 }}>Feedback: {a.approval_comment}</p>}
                 </div>
-                <div className="muted">{householdDateTime(a.approved_at || a.updated)}</div>
-                {a.approval_comment && <p style={{ marginBottom: 0 }}>Feedback: {a.approval_comment}</p>}
+                <div style={{ display: "flex", flexShrink: 0 }}>
+                  {a.reaction ? (
+                    <span style={{ fontSize: 22 }}>{a.reaction}</span>
+                  ) : (
+                    REACTIONS.map((emoji) => (
+                      <button
+                        key={emoji}
+                        className="reaction-btn"
+                        title="Send a reaction"
+                        onClick={() => act(() => client.reactToAssignment(a.id, emoji))}
+                      >
+                        {emoji}
+                      </button>
+                    ))
+                  )}
+                </div>
               </div>
-              <div className="inline">
-                {a.reaction ? (
-                  <span style={{ fontSize: 22 }}>{a.reaction}</span>
-                ) : (
-                  REACTIONS.map((emoji) => (
-                    <button
-                      key={emoji}
-                      className="reaction-btn"
-                      title="Send a reaction"
-                      onClick={() => act(() => client.reactToAssignment(a.id, emoji))}
-                    >
-                      {emoji}
-                    </button>
-                  ))
-                )}
+              <div className="inline" style={{ marginTop: 10 }}>
                 <ConversationButton assignmentId={a.id} />
                 <ArchiveButton kind="assignment" id={a.id} label={chore?.name ?? "chore"} />
                 {(!chore || payMode(chore) === "bucks") && <button

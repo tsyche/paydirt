@@ -66,15 +66,16 @@ export function RecentlyApproved({
       {items.map((a) => (
         <ArchiveRow key={a.id} kind="assignment" id={a.id} label={a.expand?.chore?.name ?? "chore"} onChanged={() => void history.reload()}><Card style={styles.card}>
           <Card.Content>
-            <Text variant="titleSmall">{a.expand?.chore?.name ?? "Chore"}</Text>
-            <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant }}>
-              {a.expand?.child?.display_name ?? "child"} · +{a.expand?.chore ? payLabel(a.expand.chore, currencyName, a.credit_percent) : "?"}
-              {a.credit_percent && a.credit_percent < 100 ? ` (${a.credit_percent}% credit)` : ""}
-            </Text>
-            <Text variant="bodySmall">{householdDateTime(a.approved_at || a.updated)}</Text>
-            {a.approval_comment ? <Text style={{ marginTop: 8 }}>Feedback: {a.approval_comment}</Text> : null}
-            <ConversationButton assignmentId={a.id} />
-            <View style={styles.actions}>
+            <View style={styles.header}>
+              <View style={styles.info}>
+                <Text variant="titleSmall">{a.expand?.chore?.name ?? "Chore"}</Text>
+                <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant }}>
+                  {a.expand?.child?.display_name ?? "child"} · +{a.expand?.chore ? payLabel(a.expand.chore, currencyName, a.credit_percent) : "?"}
+                  {a.credit_percent && a.credit_percent < 100 ? ` (${a.credit_percent}% credit)` : ""}
+                </Text>
+                <Text variant="bodySmall">{householdDateTime(a.approved_at || a.updated)}</Text>
+                {a.approval_comment ? <Text style={{ marginTop: 8 }}>Feedback: {a.approval_comment}</Text> : null}
+              </View>
               <View style={styles.reactions}>
                 {a.reaction ? (
                   <Text style={styles.reacted}>{a.reaction}</Text>
@@ -94,6 +95,9 @@ export function RecentlyApproved({
                   ))
                 )}
               </View>
+            </View>
+            <View style={styles.actions}>
+              <ConversationButton assignmentId={a.id} />
               {(!a.expand?.chore || payMode(a.expand.chore) === "bucks") && (
                 <Button compact textColor={theme.colors.error} onPress={() => confirmUndo(a)}>
                   Undo approval
@@ -115,8 +119,10 @@ const styles = StyleSheet.create({
   label: { marginTop: 6, letterSpacing: 1, fontSize: 11 },
   card: { borderRadius: 16 },
   actions: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginTop: 4 },
-  reactions: { flexDirection: "row" },
-  emojiBtn: { minWidth: 0 },
-  emoji: { fontSize: 20 },
+  header: { flexDirection: "row", alignItems: "flex-start", gap: 8 },
+  info: { flex: 1, minWidth: 0 },
+  reactions: { flexDirection: "row", flexShrink: 0 },
+  emojiBtn: { minWidth: 0, width: 34 },
+  emoji: { fontSize: 20, marginHorizontal: 0 },
   reacted: { fontSize: 22, paddingLeft: 8 },
 });

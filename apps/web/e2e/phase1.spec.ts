@@ -61,6 +61,7 @@ test("approve a kid's chore idea at a negotiated reward", async ({ page }) => {
 });
 
 test("react to a recently approved chore", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
   const choreName = `E2E reaction ${Date.now()}`;
   const api = new PaydirtClient(PB_URL);
   await api.login("parent1@test.local", PW);
@@ -86,6 +87,16 @@ test("react to a recently approved chore", async ({ page }) => {
     .filter({ hasText: choreName })
     .filter({ has: page.getByRole("button", { name: "Undo approval", exact: true }) });
   await expect(approvedRow).toBeVisible();
+  const cardBox = (await approvedRow.boundingBox())!;
+  const emojiBoxes = await approvedRow.locator(".reaction-btn").evaluateAll((buttons) => buttons.map((button) => {
+    const box = button.getBoundingClientRect(); return { top: box.top, right: box.right, bottom: box.bottom };
+  }));
+  expect(emojiBoxes).toHaveLength(4);
+  for (const box of emojiBoxes) expect(Math.abs(box.top - cardBox.y)).toBeLessThan(24);
+  expect(new Set(emojiBoxes.map((box) => box.top)).size).toBe(1);
+  expect(Math.abs(emojiBoxes.at(-1)!.right - (cardBox.x + cardBox.width))).toBeLessThan(24);
+  const conversationBox = (await approvedRow.getByRole("button", { name: "Conversation", exact: true }).boundingBox())!;
+  expect(conversationBox.y).toBeGreaterThanOrEqual(emojiBoxes[0]!.bottom);
   await approvedRow.getByRole("button", { name: "🎉" }).click();
   await expect(approvedRow).toContainText("🎉");
 
