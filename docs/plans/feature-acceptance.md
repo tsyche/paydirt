@@ -1,6 +1,6 @@
 # Pending feature acceptance
 
-**TL;DR:** These features have implementation, but their completion evidence is incomplete or contradictory. Finish the specific checks below before moving them into the shipped index; Android typing and parent history are the current priorities.
+**TL;DR:** These features have implementation, but their completion evidence is incomplete or contradictory. Finish the specific checks below before moving them into the shipped index; Recent bank, conversation, and reaction layouts need rollout/device checks; Android typing and the basic parent walkthrough were owner-confirmed.
 
 **Status:** Building
 
@@ -26,11 +26,14 @@ Local verification on 2026-11-08: lint/typecheck, 480 workspace tests, all 79 AP
 
 | Area | Evidence already present | Remaining work |
 |---|---|---|
+| Earned-time bank and compact totals | Real-PocketBase bank/worker/retry checks; both kid component layouts; parent web/mobile totals; 60-minute cap and excess-saving integration coverage | On the updated APK: bedtime → morning balance unchanged → selected partial redemption; explicit amount button/confirmation, 15-minute steps and one-hour cap; large text and cross-device totals. Existing queued grants stay unchanged. |
+| Chore conversations | Private message/decision history, retry-safe drafts, parent web/mobile and both kid entry points; browser/API/native component checks | Native keyboard/large text, notes with camera proof, archived thread recovery and cold/warm notification taps. Deployment remains unconfirmed. |
+| Approval reactions | Phone-width browser and native component regressions for separate top-right reactions (`7efb672`) | Confirm the installed APK keeps reactions beside the title and above Conversation, including long chore names. |
 | Kudos | Schema, hook/client, parent controls, kid surfaces, unit/API checks | Verify parent award → kid notification/celebration/history and no replay on a second device. |
 | Chore notes | Parent forms, template prefill, kid/approval rendering, server length cap | Verify actual create/edit/template and both kid layouts, including long text. |
 | Partial credit | Shared/server payout logic, web/mobile controls | Verify parent percentage controls, confirmation, actual payout/history, zero-minute case, and undo restrictions. |
 | Expanded My Bank | Separated sections in both kid homes; calculation/render tests and phone/tablet browser review | Verify native standard and simplified screens against real records, scrolling, and large text. |
-| Personal archives | API tests cover owner privacy, settled-only eligibility, unchanged rewards/Kudos counts, retention, and guarded rollback; headless web Archive/Undo/Restore and catalogue-chore restore pass | Native left-to-archive, vertical scrolling, More actions → Archive, Undo/Restore, catalogue-chore restore, offline errors, tray cleanup, and cross-device refresh. Editable parent catalogue chores additionally use right-to-edit and retain visible Edit/Archive icons; verify pinned edit actions and cancellation. |
+| Personal archives | API tests cover owner privacy, settled-only eligibility, unchanged rewards/Kudos counts, retention, and guarded rollback; headless web Archive/Undo/Restore and catalogue-chore restore pass | Owner confirmed basic native archive/restore and Undo/Restore on 2026-11-08. Remaining: explicit both-layout coverage, vertical-scroll conflicts, offline errors, tray cleanup, and cross-device refresh. Editable parent catalogue chores additionally use right-to-edit and retain visible Edit/Archive icons; verify pinned edit actions and cancellation. |
 | Help cancellation | Shared control in both kid layouts; real API verifies both parent reminders clear and assignment status is unchanged | Owner confirmed request → Cancel help request and parent refresh on-device; failed request feedback and explicit coverage of both kid layouts remain open. |
 | Parent history paging | Real API traversal tests cover 5/10 paging, ties, combined grant sources, and outstanding grants; browser paging passes | Verify native Show more, errors/retry, and realtime refresh retain expanded lists. |
 | Approval feedback | Real API tests cover private delivery, validation, undo, and concurrent payout protection; browser cancel/save/error-draft checks | Verify native dialog, keyboard/large text, quick approval, and feedback discovery through both kid layouts. |

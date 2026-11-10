@@ -4,6 +4,10 @@
 
 ## Shipped index
 
+- [x] 2026-11-09 — Clear saved-time amount selection and one-hour cap (`fdb9ae7`; local implementation, rollout/device check open)
+- [x] 2026-11-09 — Top-right recent-approval reactions on web/mobile (`7efb672`; local implementation, native visual check open)
+- [x] 2026-11-09 — Launcher/favicon transparency and coin/check status icon (`9f1067d`; local implementation, installed-device check open)
+
 - [x] 2026-11-09 — Chore conversations, private decision history, and compact/expandable per-child time totals (local implementation; rollout/device acceptance remains in ROADMAP)
 
 - [x] 2026-11-09 — Kid-controlled earned-time bank, 15-minute redemptions, and parent web/mobile totals (local implementation; deployment/device acceptance remains in ROADMAP)
@@ -67,6 +71,29 @@
 - [x] 2026-06-28 — ntfy onboarding flow
 - [x] 2026-06-10 — MVP, Phase 1, and Phase 1.5 (migrated 2026-10-21)
 
+
+## Saved-time selection, reactions, and icon refresh (2026-11-09)
+
+Dates below are the implementing commit dates. These are local implementation
+records; deployment and outstanding native checks remain in the
+[roadmap](../../ROADMAP.md#release-checks-for-implemented-work).
+
+- **Saved-time amount selection (`fdb9ae7`):** both kid layouts use 15-minute
+  steps capped at the saved balance or 60 minutes per new request. The Use button
+  names its amount, success confirms the requested minutes, and extra totals and
+  history start collapsed. Use now also caps at one hour and saves excess earnings.
+  Existing larger retry keys retain their original results; queued jobs are unchanged.
+  Fail-before/pass-after UI/server regressions pass. Verification: 8 native bank
+  integrations, 15 bank API integrations, 490 workspace tests, 3 icon checks,
+  Android unit tests, lint and typecheck. Physical-device UX remains unconfirmed.
+- **Recent-approval reactions (`7efb672`):** web/mobile use a non-wrapping top-right
+  header group separate from Conversation and other actions. Phone-width Playwright
+  and native component regressions failed before the fix and passed afterward;
+  all 5 conversation component integrations, lint and typecheck passed.
+- **Launcher/status icons (`9f1067d`):** transparent launcher/favicon artwork,
+  warm adaptive backgrounds, dedicated coin/check notification drawable, native
+  version 1.0.1. Header artwork unchanged. Three icon checks and Android compilation/
+  unit tests passed; installed launcher/themed/notification appearance remains open.
 
 ## Chore conversations and compact time totals (2026-11-09)
 
@@ -152,6 +179,14 @@ Original requested scope:
 
 
 ## Archived entries
+
+### 2026-11-08 — Recurring due-day rollout reconciliation
+
+The owner confirmed this tablet/recurring batch shipped and pushed on 2026-11-08.
+The 2026-11-10 roadmap audit removes its stale deployment blocker. Original active
+entry follows unchanged; its last sentence is superseded by that owner report.
+
+- **Recurring due days** — accepted locally on API 34: both kid layouts showed yesterday's pending submission and today's actionable timed occurrence with distinct dates; starting timers persisted across app restart; approving yesterday's standard-layout item left today's assignment and timer unchanged. Eleven direct deadline-rule tests cover cadence boundaries, household zones, DST, and month-end; three live snapshot/tamper tests and existing next-day recurrence tests pass. Both kid layouts label recurring occurrence dates, including waiting cards. Headless template/prefill/create/edit/snapshot browser journey passes. Parent forms describe household time. Deployment/release confirmation remains open.
 
 ### 2026-11-06 — Tablet header actions and recurring due-day acceptance
 
