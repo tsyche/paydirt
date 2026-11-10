@@ -343,6 +343,9 @@ describe("parent history and approval feedback (isolated PocketBase)", () => {
     const binary = join(repo, "pocketbase/pocketbase");
     const args = ["--dir", join(root, "data"), "--migrationsDir", join(repo, "pocketbase/pb_migrations")];
     const down = () => execFileSync(binary, ["migrate", "down", "1", ...args], { input: "y\n", stdio: ["pipe", "ignore", "ignore"] });
+    const messagesDb = new DatabaseSync(join(root, "data/data.db"));
+    try { messagesDb.prepare("DELETE FROM chore_messages").run(); } finally { messagesDb.close(); }
+    down(); // Remove conversation storage after deleting fixture-only history.
     down(); // Remove the empty earned-time bank (migration 44).
     expect(down).toThrow(); // Archives must be restored before removing their storage.
     const archiveDb = new DatabaseSync(join(root, "data/data.db"));

@@ -133,6 +133,9 @@ adb install -r apps/mobile/android/app/build/outputs/apk/debug/app-debug.apk
 - [ ] Earned-time bank (both kid layouts): submit a time/both chore with Bank; approve before bed; open the morning delivery window and confirm saved minutes remain unchanged. Use 15 minutes; verify only that portion lands and Grit stays unchanged.
 - [ ] Confirm parent web/mobile Kids summaries and detail show matching saved, reserved/requested, and queued totals. Try Use now, a sub-15-minute reward, after-hours confirmation, and a lost-response/restart retry. Physical-device acceptance remains pending; automated component/API/browser evidence is recorded in the shipped ledger.
 
+- [ ] Chore conversations (both kid layouts and parent web/mobile): send a question without approving, reply as the kid, then approve later. Confirm notes submit with photo/timer proof, drafts survive failure/restart, and approved/archived threads remain accessible. Check keyboard reachability and large text on-device.
+- [ ] After the updated APK is approved and installed, tap a chore-message notification from cold and warm starts in both kid layouts and as a parent; it must open the exact occurrence. Device push/tap acceptance remains pending.
+
 ### Notifications (key test)
 - [x] Background: lock the screen, have parent approve a chore → notification appears from **PayDirt** (not ntfy) — channel `paydirt-alerts`; all four types confirmed
 - [x] Background: parent broadcasts a message → notification appears

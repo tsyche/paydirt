@@ -111,6 +111,7 @@ class UnifiedPushReceiver : BroadcastReceiver() {
     private fun buildContentIntent(context: Context, type: String, inboxId: String): PendingIntent {
         val uri = Uri.Builder().scheme(DEEP_LINK_SCHEME).authority(DEEP_LINK_HOST).apply {
             if (type.isNotEmpty()) appendQueryParameter("type", type)
+            if (inboxId.isNotEmpty()) appendQueryParameter("inboxId", inboxId)
         }.build()
 
         val intent = Intent(context, MainActivity::class.java).apply {

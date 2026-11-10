@@ -5,6 +5,7 @@ export const Collections = {
   Households: "households",
   Users: "users",
   Chores: "chores",
+  ChoreMessages: "chore_messages",
   Assignments: "assignments",
   CurrencyTransactions: "currency_transactions",
   SpendRequests: "spend_requests",

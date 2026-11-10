@@ -1,3 +1,4 @@
+import { DatabaseSync } from "node:sqlite";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { execFileSync, spawn, type ChildProcess } from "node:child_process";
 import { cpSync, mkdtempSync, rmSync, writeFileSync, readdirSync } from "node:fs";
@@ -322,7 +323,10 @@ describe("Earned-time bank (isolated PocketBase)", () => {
   it("refuses rollback when it would destroy a populated saved-minute ledger", async () => {
     const exit = new Promise<void>((done) => server!.once("exit", () => done()));
     server!.kill(); await exit;
+    const fixture = new DatabaseSync(join(root, "data/data.db"));
+    try { fixture.prepare("DELETE FROM chore_messages").run(); } finally { fixture.close(); }
     const binary = join(repo, "pocketbase/pocketbase");
+    execFileSync(binary, ["migrate", "down", "1", "--dir", join(root, "data"), "--migrationsDir", join(repo, "pocketbase/pb_migrations")], { input: "y\n", stdio: ["pipe", "ignore", "ignore"] });
     expect(() => execFileSync(binary, ["migrate", "down", "1", "--dir", join(root, "data"),
       "--migrationsDir", join(repo, "pocketbase/pb_migrations")], { input: "y\n", stdio: ["pipe", "ignore", "ignore"] })).toThrow();
   });

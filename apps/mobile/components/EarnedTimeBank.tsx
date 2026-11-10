@@ -13,6 +13,7 @@ type Pending = { minutes: number; key: string; allowQueue: boolean };
 export function EarnedTimeBank({ childId, kidControl = false, detail = true }: {
   childId: string; kidControl?: boolean; detail?: boolean;
 }) {
+  const [expanded, setExpanded] = useState(false);
   const [historyLimit, setHistoryLimit] = useState(5);
   const [bank, setBank] = useState<Bank | null>(null);
   const [minutes, setMinutes] = useState(15);
@@ -68,9 +69,18 @@ export function EarnedTimeBank({ childId, kidControl = false, detail = true }: {
     finally { running.current = false; setBusy(false); }
   }
   const totals = bank ? timeBankTotals(bank.ledger, bank.grants, bank.purchases) : null;
+  const summary = totals ? `Banked time: ${totals.available} min` : error ? "Banked time unavailable" : "Loading banked time…";
+  if (!kidControl && !detail) return <Text>{summary}</Text>;
   return <View style={{ gap: 10 }}>
+    {!kidControl && <Button accessibilityLabel={expanded ? "Hide bank details" : "Show bank details"} icon={expanded ? "chevron-up" : "chevron-down"} onPress={() => setExpanded(!expanded)}>{summary}</Button>}
+    {(kidControl || expanded) && <>
     <Text variant="titleMedium" accessibilityRole="header">Saved earned time</Text>
-    <Text>{totals ? `${totals.available} min saved · ${totals.reserved} min reserved for review · ${totals.requested} min requested · ${totals.queued} min queued` : "Loading saved time…"}</Text>
+    {totals ? <View style={{ gap: 4 }} accessibilityLabel="Earned time totals">
+      <Text>{totals.available} min saved</Text>
+      <Text>{totals.reserved} min reserved for review</Text>
+      <Text>{totals.requested} min requested</Text>
+      <Text>{totals.queued} min queued</Text>
+    </View> : <Text>Loading saved time…</Text>}
     {kidControl && <>
       <Text>Saved until you choose to use it. No extra Grit charge.</Text>
       <View style={{ flexDirection: "row", alignItems: "center", flexWrap: "wrap", gap: 8 }}>
@@ -97,6 +107,7 @@ export function EarnedTimeBank({ childId, kidControl = false, detail = true }: {
       <Text variant="titleSmall">Earned-time history</Text>
       {bank.ledger.slice(0, historyLimit).map((row) => <Text key={row.id}>{householdDateTime(row.created)} · {timeBankEventLabel(row.kind)} · {row.minutes} min</Text>)}
       {bank.ledger.length > historyLimit && <Button onPress={() => setHistoryLimit(historyLimit + 10)}>Show more earned-time history</Button>}
+    </>}
     </>}
   </View>;
 }

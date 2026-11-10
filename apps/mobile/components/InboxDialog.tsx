@@ -1,3 +1,4 @@
+import { ConversationLink } from "./ChoreConversation";
 import { useCallback, useEffect, useState } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { ScrollView, View } from "react-native";
@@ -44,6 +45,7 @@ export function InboxDialog({ userId, visible, onDismiss }: { userId: string; vi
           <View style={{ padding: 12, gap: 4 }}>
             <Text variant="titleSmall">{item.title}</Text>
             {!!item.body && <Text>{item.body}</Text>}
+            <ConversationLink source={item.source} onOpen={onDismiss} />
             <Text variant="labelSmall">{householdDateTime(item.created)}</Text>
           </View>
         </ArchiveRow>)}

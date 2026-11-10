@@ -1,3 +1,4 @@
+import { ConversationButton } from "../components/ChoreConversation";
 import { EarnedTimeBank } from "../components/EarnedTimeBank";
 import { chooseTimeReward } from "../lib/chooseTimeReward";
 import { OccurrenceLabel } from "../components/OccurrenceLabel";
@@ -49,6 +50,8 @@ export function SimpleKidHome({ user, onLogout }: { user: User; onLogout: () => 
   const theme = useTheme();
   const [me, setMe] = useState<User>(user);
   const [balance, setBalance] = useState(user.balance);
+  const [history, setHistory] = useState<Expanded[]>([]);
+  const [historyLimit, setHistoryLimit] = useState(5);
   const [assignments, setAssignments] = useState<Expanded[]>([]);
   const [currencyName, setCurrencyName] = useState(DEFAULT_CURRENCY_NAME);
   const [householdRate, setHouseholdRate] = useState(0);
@@ -74,7 +77,7 @@ export function SimpleKidHome({ user, onLogout }: { user: User; onLogout: () => 
   const reload = useCallback(async () => {
     setRefreshing(true);
     try {
-      const [freshMe, bal, list, household, bcs, reps, awards, goals, requests, grants] = await Promise.all([
+      const [freshMe, bal, list, household, bcs, reps, awards, goals, requests, grants, past] = await Promise.all([
         client.pb.collection("users").getOne<User>(user.id),
         client.getBalance(user.id),
         client.listActiveAssignmentsForChild(user.id),
@@ -85,6 +88,7 @@ export function SimpleKidHome({ user, onLogout }: { user: User; onLogout: () => 
         client.listGoals(user.id),
         client.listSpendRequestsForChild(user.id),
         client.listQueuedGrantsForChild(user.id),
+        client.listApprovedHistory(user.id, 50),
       ]);
       setMe(freshMe);
       setBalance(bal);
@@ -98,6 +102,7 @@ export function SimpleKidHome({ user, onLogout }: { user: User; onLogout: () => 
       setBankGoals(goals);
       setBankRequests(requests);
       setBankGrants(grants);
+      setHistory(past as Expanded[]);
       const unseen = awards.filter((award) => !award.seen_at && !acknowledgedKudos.current.has(award.id));
       if (
         unseen.length === 0 &&
@@ -303,6 +308,7 @@ export function SimpleKidHome({ user, onLogout }: { user: User; onLogout: () => 
               <ChoreNotes text={a.expand.chore.description} />
             ) : null}
             <OccurrenceLabel assignment={a} />
+                <ConversationButton assignmentId={a.id} />
             {!!a.due_at && <Text>Due {householdDateTime(a.due_at)}</Text>}
             {a.expand?.chore ? (
               <Text style={[styles.choreReward, { color: accentColor }]}>
@@ -339,6 +345,7 @@ export function SimpleKidHome({ user, onLogout }: { user: User; onLogout: () => 
               {a.expand?.chore?.name ?? "Chore"}
             </Text>
             <OccurrenceLabel assignment={a} />
+                <ConversationButton assignmentId={a.id} />
             {a.rejection_message ? (
               <Text style={[styles.waitingText, { color: theme.colors.onErrorContainer }]}>
                 {a.rejection_message}
@@ -365,11 +372,21 @@ export function SimpleKidHome({ user, onLogout }: { user: User; onLogout: () => 
               {a.expand?.chore?.name ?? "Chore"}
             </Text>
             <OccurrenceLabel assignment={a} />
+                <ConversationButton assignmentId={a.id} />
             <Text style={[styles.waitingText, { color: theme.colors.onSurfaceVariant }]}>
               Waiting for Mom/Dad…
             </Text>
           </Surface>
         ))}
+
+        {history.length > 0 && <View style={{ gap: 8 }}>
+          <Text variant="titleLarge">Past chores</Text>
+          {history.slice(0, historyLimit).map((a) => <Surface key={a.id} style={styles.choreCard}>
+            <Text style={styles.choreName}>{a.expand?.chore?.name || "Chore"}</Text>
+            <ConversationButton assignmentId={a.id} />
+          </Surface>)}
+          {history.length > historyLimit && <Button onPress={() => setHistoryLimit(historyLimit + 10)}>Show more past chores</Button>}
+        </View>}
 
         {broadcasts.map((b) => (
           <Surface

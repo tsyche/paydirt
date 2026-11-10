@@ -1,3 +1,4 @@
+import { cleanupChores } from "../../../packages/shared/src/integration.cleanup";
 import { test, expect, type Page } from "@playwright/test";
 import { PaydirtClient } from "@paydirt/shared";
 
@@ -105,8 +106,7 @@ test("react to a recently approved chore", async ({ page }) => {
   for (const t of txs) {
     await admin.pb.collection("currency_transactions").update(t.id, { related_assignment: null });
   }
-  await admin.pb.collection("assignments").delete(assignment.id);
-  await admin.pb.collection("chores").delete(chore.id);
+  await cleanupChores([chore.id]);
 });
 
 test("screen-time request is priced from the household rate set in settings", async ({ page }) => {
@@ -122,7 +122,7 @@ test("screen-time request is priced from the household rate set in settings", as
     await page.getByRole("button", { name: /Settings/ }).click();
     await page.locator(".settings-panel").getByText("Reward expiry and conversion", { exact: true }).click();
     await page.getByLabel(/per screen-time minute/).fill("2");
-    await page.getByRole("button", { name: "Save" }).click();
+    await page.getByRole("button", { name: "Save", exact: true }).click();
     await expect.poll(async () => (await parent.getHousehold(householdId)).screen_rate).toBe(2);
 
     // Kid asks for 45 minutes; the request shows up priced at 90

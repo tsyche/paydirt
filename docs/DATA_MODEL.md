@@ -1,6 +1,6 @@
 # Data Model (MVP)
 
-**TL;DR:** PocketBase collections, hooks, and cron jobs define PayDirt's business rules. Separate append-only Grit and earned-minute ledgers own balances. Only explicitly redeemed or purchased minutes feed the Family Link worker.
+**TL;DR:** PocketBase collections, hooks, and cron jobs define PayDirt's business rules. Separate append-only Grit and earned-minute ledgers own balances. Only explicitly redeemed or purchased minutes feed the Family Link worker. Private chore conversations record messages and decisions without coupling them to payment.
 
 Authoritative spec for the PocketBase collections. The TypeScript mirror lives in
 `packages/shared/src/types.ts`; the migrations that create these live in
@@ -91,7 +91,9 @@ One per (chore, child). Status: `assigned` → `completed` → `approved`/`rejec
 | due_at | date | server-computed recurring deadline, fixed at assignment creation; new rule applies to future assignments |
 | approved_at | date | set on parent approval |
 | credit_percent | number | parent-only integer 1–100 on approval; legacy 0/unset = full credit; immutable while settled. Partial approval closes the assignment |
-| approval_comment | text | optional parent feedback, trimmed, max 500 characters; set only when approving, cleared on undo; visible only to parents and the assigned child |
+| submission_note | text | owner-only completion note, up to 1,000 characters; captured atomically in the thread on submission, then cleared on later updates |
+| thread_actor | text | private server-owned API actor used for decision attribution; ignored from client input and hidden in responses |
+| approval_comment | text | optional legacy parent feedback, trimmed, max 500 characters; set only when approving, cleared on undo; visible only to parents and the assigned child |
 | timer_minutes / timer_started_at | number / date | duration fixed at creation; owner may start once using server clock; swaps clear start; completion before elapsed duration is blocked |
 | photo | file (single) | optional proof |
 | rejection_message | text | optional |
@@ -103,6 +105,44 @@ One per (chore, child). Status: `assigned` → `completed` → `approved`/`rejec
 | nudged_at | date | approval-nudge dedupe marker (cron) |
 | swap_to | relation → users | pending swap offer to a sibling |
 | needs_help | bool | kid's "I need help" flag; pings parents, cleared on mark-done/approve |
+
+### `chore_messages`
+
+An immutable timeline per assignment occurrence. New messages are plain text,
+1–1,000 characters; corrections use a follow-up reply. No attachments or message
+edit/delete API. History is retained with the occurrence; personal archives never
+delete it or affect another participant. Occurrence deletion is blocked while its
+conversation exists. Legacy feedback is backfilled without rewriting old fields;
+when the original parent author is unknown, it is labelled "Parent". Legacy
+rejection/reply times use the record's last-update date and are labelled as such;
+known submission/approval dates remain exact.
+
+| Field | Type | Notes |
+|-------|------|-------|
+| assignment / child | relations → assignments / users | occurrence and original kid audience; reassignment does not expose old messages to the new kid |
+| author / author_name / author_role | relation / text / select | server-stamped author ID plus name/role snapshots; system and unknown legacy authors are explicit |
+| kind | select | `message`, `submitted`, `approved`, `rejected`, `reopened`, `closed`, or `legacy` |
+| body | text | message, submission note, or decision feedback; older feedback is retained even if longer than the new-message limit |
+| sequence | integer | unique monotonic order within the occurrence, allocated inside the write transaction |
+| request_key | text | unique per author when set; uncertain sends retry the same key/body/occurrence |
+| created | autodate | server time, displayed in household timezone; known legacy submission/approval dates are preserved |
+
+`POST /api/paydirt/assignments/{id}/messages` accepts `body` and `request_key`.
+Only the currently assigned kid or a parent in the household may send. Kids read
+only their original-audience rows; parents read their household's conversation.
+Collection writes are closed to clients. Message sends never update assignment
+status, timers, earnings, or approvals. Assignment decisions append their own
+transactional events; completion notes use the existing proof/timer checks.
+
+Web/mobile drafts persist per user and occurrence. An uncertain send locks its
+body until retry resolves; edits cannot silently reuse its key. Parent decisions
+never send an unsent draft. New messages notify the other parents and the current
+kid without sibling fan-out. Inbox `source` links identify the occurrence;
+Android links carry an inbox ID which is fetched under the current user's access
+rules before opening the thread. Migration rollback refuses populated threads.
+Legacy `approval_comment`, `rejection_message`, `kid_response`, and submission
+notes are hidden from sibling assignment responses. Reassignment clears these
+legacy field copies while preserving the original kid's private timeline.
 
 ### `currency_transactions`
 Append-only ledger. `+` earn/kudos, `−` spend. Sum = balance. `just verify-ledger` recomputes and diffs this invariant against every user's cached `balance`.
@@ -199,7 +239,9 @@ at submission explicitly consents to queueing outside allowed hours; later Use
 time requires that confirmation. Queue expiry starts at redemption, under the
 existing household policy. Existing queued grants are left intact. Parent totals
 separate saved available, manual reservations, pending purchase requests, and queued
-remainders. Both kid layouts persist an uncertain redemption key across restarts.
+remainders in expanded details. Main Kids cards show only banked available time;
+the per-child section starts collapsed with totals stacked when expanded. Both
+kid layouts persist an uncertain redemption key across restarts.
 Delivery receipts append one history event per delivered portion; server-side
 status checks serialize cancellation and first publication. Manual tasks cannot be
 released because a parent may already be granting them externally. Time-paying

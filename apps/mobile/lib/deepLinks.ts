@@ -72,3 +72,10 @@ export function kidTabForNotificationType(type: string | null | undefined): KidT
   if (!type) return null;
   return TYPE_TO_KID_TAB[type] ?? null;
 }
+
+/** The record is fetched under the current user's inbox rules before routing. */
+export function parseNotificationInboxId(url: string | null | undefined): string | null {
+  if (!url?.startsWith(DEEP_LINK_PREFIX + "?")) return null;
+  const match = /(?:[?&])inboxId=([a-z0-9]{15})(?:&|$)/.exec(url);
+  return match?.[1] || null;
+}

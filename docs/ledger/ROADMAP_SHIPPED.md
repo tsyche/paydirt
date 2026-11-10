@@ -4,6 +4,8 @@
 
 ## Shipped index
 
+- [x] 2026-11-09 — Chore conversations, private decision history, and compact/expandable per-child time totals (local implementation; rollout/device acceptance remains in ROADMAP)
+
 - [x] 2026-11-09 — Kid-controlled earned-time bank, 15-minute redemptions, and parent web/mobile totals (local implementation; deployment/device acceptance remains in ROADMAP)
 
 - [x] 2026-11-08 — Owner confirmed Android typing fix and parent layout/archive/help walkthrough on the shipped app
@@ -64,6 +66,47 @@
 - [x] 2026-07-06 — Second parent support (co-parent)
 - [x] 2026-06-28 — ntfy onboarding flow
 - [x] 2026-06-10 — MVP, Phase 1, and Phase 1.5 (migrated 2026-10-21)
+
+
+## Chore conversations and compact time totals (2026-11-09)
+
+Implemented locally; backend/APK deployment and physical-device acceptance remain
+in ROADMAP. Further server-free work remains deferred.
+
+- Parent web/mobile and both kid layouts open a private occurrence-specific
+  conversation. Send message is separate from Approve/Reject. Kids may submit a
+  note with the existing camera/timer proof; messaging never changes payout,
+  status, timer state, or the need for parent approval.
+- Owner-approved defaults: text only, 1,000-character messages, no edit/delete,
+  corrections via follow-up replies, history retained with the occurrence, and
+  replies available before and after approval. Legacy feedback and decision
+  events remain in context. Known old submission/approval dates are preserved;
+  unknown authors and last-update dates are labelled honestly.
+- Server-owned authors/audiences, transactional event ordering, unique retry
+  keys, and persisted per-user drafts protect attribution and uncertain sends.
+  Personal archives remain independent. Alerts open the exact thread; native
+  push routing resolves an authorized inbox record. Web dialogs use native
+  keyboard/focus handling and preserve drafts on Escape/reopen.
+- Privacy regressions fail before/pass after: sibling reads of legacy feedback
+  are blocked, and reassignment clears legacy copies while preserving the old
+  kid's private timeline. A migration regression also proves Autodate no longer
+  replaces known legacy timestamps. Populated histories block rollback/deletion.
+- Main Kids cards show only banked available time. Mobile child detail and web
+  child cards start with a collapsed bank section; expanded totals stack saved,
+  reserved, requested, and queued minutes, followed by history. Both kid layouts
+  retain their Use time flow. Native and browser layout tests detect the previous
+  single wrapped line.
+- Verification: 490 unit tests, 3 icon checks, 12 Android tests/compilation,
+  102 shared API integrations, 10 native integrations, and 32 headless browser
+  journeys. Changed bank/dialog flows receive focused browser rechecks. Browser
+  verification isolates external Google font hosts; it does not prove font
+  fidelity or physical-device keyboard/notification behavior. Lint/typecheck pass.
+
+Original requested scope:
+
+- **Conversation on a chore submission (requested 2026-11-09; requested)** — replace the decision-coupled “approve with comments” interaction with a private thread attached to the individual assignment/occurrence. Kids can include details or questions with their submission and reply later. Parents can ask a question or send a message without approving or rejecting; messaging alone never changes status, payout, or timer state. Keep quick approval available and preserve existing approval/rejection feedback in context.
+  - **History and audience:** retain author, household-timezone timestamp, messages, and decision events in the item's history. Scope access to the assigned kid and authorized household parents; notification links reopen that item/thread. Personal archiving must not delete the conversation or hide it from the other participants. Specify edits/corrections, retention and attachment scope before implementation; a general family chat is outside this item.
+  - **UX and acceptance:** provide distinct Send message, Approve and Reject actions on parent web/mobile, plus submission notes/replies in both kid layouts. Preserve drafts on failure; dedupe retry sends; notify participants without exposing sibling data. Test question → kid reply → later approval, messages on pending/returned/approved items, status/payout unchanged by messages, and complete thread recovery from history. Reuse existing note/feedback/notification seams where possible, but do not cram a multi-message thread into the one approval-comment field. Include encrypted thread access/retention in server-free parity.
 
 
 ## Earned-time bank and parent totals (2026-11-09)

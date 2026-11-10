@@ -1,3 +1,4 @@
+import { ConversationButton } from "../components/ChoreConversation";
 import { EarnedTimeBank } from "../components/EarnedTimeBank";
 import { chooseTimeReward } from "../lib/chooseTimeReward";
 import { OccurrenceLabel } from "../components/OccurrenceLabel";
@@ -399,6 +400,7 @@ export function KidHome({
                   <Chip compact>{STATUS_LABEL[a.status] ?? a.status}</Chip>
                 </View>
                 <OccurrenceLabel assignment={a} />
+                <ConversationButton assignmentId={a.id} />
                 {chore ? (
                   <ChoreNotes text={chore.description} />
                 ) : null}
@@ -578,6 +580,7 @@ export function KidHome({
                       {a.credit_percent && a.credit_percent < 100 ? ` (${a.credit_percent}% credit)` : ""}
                     </Text>
                   </View>
+                  <ConversationButton assignmentId={a.id} />
                   {a.approval_comment ? (
                     <Text variant="bodyMedium" style={{ marginTop: 10 }}>Parent feedback: {a.approval_comment}</Text>
                   ) : null}

@@ -106,7 +106,14 @@ describe("Native earned-time controls (real PocketBase)", () => {
 
 
 
-  const text = (view: ReactTestRenderer) => JSON.stringify(view.toJSON());
+  const text = (view: ReactTestRenderer) => {
+    const flatten = (node: unknown): string => {
+      if (typeof node === "string" || typeof node === "number") return String(node);
+      if (Array.isArray(node)) return node.map(flatten).join(" ");
+      return node && typeof node === "object" ? flatten((node as { children?: unknown }).children) : "";
+    };
+    return flatten(view.toJSON()).replace(/\s+/g, " ");
+  };
   async function settle(view: ReactTestRenderer, expected: string) {
     for (let i = 0; i < 100; i++) {
       await act(async () => { await new Promise((done) => setTimeout(done, 20)); });
@@ -139,6 +146,8 @@ describe("Native earned-time controls (real PocketBase)", () => {
     const available = timeBankTotals(bank.ledger, bank.grants, bank.purchases).available;
     const view = await mount(simple);
     await settle(view, `${available} min saved`);
+    const totalRows = view.root.findAllByType("span").filter((node) => /\d+ min (saved|reserved for review|requested|queued)/.test([node.props.children].flat().join("")));
+    expect(totalRows).toHaveLength(4);
     await act(async () => { view.root.findAllByType("button").find((b) => b.props.accessibilityLabel === "Use 15 more minutes")!.props.onPress(); });
     await act(async () => { button(view, "Use time").props.onPress(); });
     await settle(view, `${available - 30} min saved`);
@@ -173,7 +182,7 @@ describe("Native earned-time controls (real PocketBase)", () => {
       const restored = await mount(true);
       await settle(restored, "Retry Use time");
       await act(async () => { button(restored, "Retry Use time").props.onPress(); });
-      await settle(restored, '"Use time"');
+      await settle(restored, "Use time");
       const after = await kid.getTimeBank(kid.currentUser!.id);
       expect(after.ledger.filter((r) => r.kind === "reserve")).toHaveLength(reserved);
       expect(await kid.pb.collection("time_redemptions").getFullList({ filter: kid.pb.filter("request_key = {:key}", { key: pending.key }) })).toHaveLength(1);
@@ -201,9 +210,22 @@ describe("Native earned-time controls (real PocketBase)", () => {
   it("shows parent totals and history without kid spending controls", async () => {
     let view!: ReactTestRenderer;
     await act(async () => { view = create(createElement(EarnedTimeBank, { childId: kid.currentUser!.id })); });
-    await settle(view, "min saved");
+    await settle(view, "Banked time:");
+    expect(text(view)).not.toContain("reserved for review");
+    await act(async () => { view.root.findAllByType("button").find((b) => b.props.accessibilityLabel === "Show bank details")!.props.onPress(); });
     expect(text(view)).toContain("Earned-time history");
     expect(button(view, "Use time")).toBeUndefined();
     await act(async () => view.unmount());
   });
+  it("shows only the held bank total on parent Kids cards", async () => {
+    let view!: ReactTestRenderer;
+    await act(async () => { view = create(createElement(EarnedTimeBank, { childId: kid.currentUser!.id, detail: false })); });
+    await settle(view, "Banked time:");
+    expect(text(view)).not.toContain("reserved for review");
+    expect(text(view)).not.toContain("min requested");
+    expect(text(view)).not.toContain("min queued");
+    expect(text(view)).not.toContain("Earned-time history");
+    await act(async () => view.unmount());
+  });
+
 });

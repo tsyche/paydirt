@@ -1,3 +1,4 @@
+import { ConversationProvider } from "./components/ChoreConversation";
 import { ArchiveProvider } from "./components/ArchiveActions";
 import { useEffect, useReducer, useRef, useState } from "react";
 import { Alert, AppState, Linking, NativeEventEmitter, NativeModules, View } from "react-native";
@@ -30,12 +31,12 @@ import {
   storePbUrl,
 } from "./lib/backgroundService";
 import { syncUnifiedPushEndpoint } from "./lib/unifiedpush";
-import { parseNotificationType } from "./lib/deepLinks";
+import { parseNotificationType, parseNotificationInboxId } from "./lib/deepLinks";
 import { NtfySetup } from "./components/NtfySetup";
 
 // A notification tap, tagged with a nonce so the same type/tab re-triggers navigation
 // even if it's identical to the last one (e.g. two "spend_approved" taps in a row).
-type NotificationRoute = { type: string | null; nonce: number };
+type NotificationRoute = { inboxId?: string | null; type: string | null; nonce: number };
 
 const LAST_VERSION_KEY = "paydirt-last-version-code";
 const UPDATE_POLL_MS = 15 * 60 * 1000;
@@ -158,7 +159,7 @@ function AppContent() {
   useEffect(() => {
     function handleUrl(url: string | null | undefined) {
       if (!url?.startsWith("paydirt://")) return;
-      setNotificationRoute({ type: parseNotificationType(url), nonce: Date.now() });
+      setNotificationRoute({ type: parseNotificationType(url), inboxId: parseNotificationInboxId(url), nonce: Date.now() });
     }
 
     Linking.getInitialURL().then(handleUrl).catch(() => {});
@@ -310,7 +311,7 @@ function AppContent() {
       {/* Paint the screen background: without it the native window colour (dark
           under a dark system theme) shows through behind the in-app light theme. */}
       <View style={{ flex: 1, backgroundColor: theme.colors.background }}>
-        {renderScreen()}
+        <ConversationProvider key={user?.id ?? "guest"} userId={user?.id} notificationRoute={notificationRoute}>{renderScreen()}</ConversationProvider>
       </View>
       {user && ntfySetupNeeded && ntfySetupVisible && (
         <NtfySetup

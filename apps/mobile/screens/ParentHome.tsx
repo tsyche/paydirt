@@ -33,7 +33,7 @@ import { Avatar } from "../components/Avatar";
 import { ChoreNotes } from "../components/ChoreNotes";
 import { RecurringDueFields } from "../components/RecurringDueFields";
 import { PartialCredit } from "../components/PartialCredit";
-import { ApprovalFeedback } from "../components/ApprovalFeedback";
+import { ConversationButton } from "../components/ChoreConversation";
 import { BrandTitle } from "../components/BrandTitle";
 import { AppearanceControls } from "../components/AppearanceControls";
 import { ChunkyButton } from "../components/ChunkyButton";
@@ -977,15 +977,7 @@ export function ParentHome({
                           Reject
                         </Button>
                       </View>
-                      <ApprovalFeedback choreName={chore?.name ?? "Chore"}
-                        rewardLabel={chore ? `${payLabel(chore, currencyName)}.${payMode(chore) !== "bucks" ? " Screen-time grants cannot be undone." : ""}` : "Full chore reward."}
-                        onApprove={async (comment) => {
-                          await client.approveAssignment(a.id, 100, comment);
-                          party();
-                          setSnack("Approved — feedback sent.");
-                          await reload();
-                        }}
-                      />
+                      <ConversationButton assignmentId={a.id} />
                       {chore && <PartialCredit chore={chore} currency={currencyName} onApprove={async (percent) => {
                         await client.approveAssignment(a.id, percent);
                         await reload();

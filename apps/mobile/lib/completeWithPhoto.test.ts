@@ -68,8 +68,9 @@ describe("takePhotoAndComplete", () => {
   });
 
   it("includes the kid's Use now choice in the same multipart submission", async () => {
-    await takePhotoAndComplete("assignment_1", "use");
+    await takePhotoAndComplete("assignment_1", "use", "Photo submission note");
     expect(uploadAsync.mock.calls[0]?.[2].parameters.time_choice).toBe("use");
+    expect(uploadAsync.mock.calls[0]?.[2].parameters.submission_note).toBe("Photo submission note");
   });
 
   it("throws with the server status and body on a failed upload", async () => {

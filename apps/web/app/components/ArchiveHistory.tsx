@@ -1,3 +1,4 @@
+import { ConversationButton, ConversationLink } from "./ChoreConversation";
 import { useCallback } from "react";
 import { archiveDetails, archiveLabel, householdDateTime, type ArchivedItem } from "@paydirt/shared";
 import { client } from "../lib/client";
@@ -13,6 +14,8 @@ export function ArchiveHistory() {
     {!history.busy && !history.items.length && !history.error && <p>No archived items.</p>}
     {history.items.map((item) => <div className="card row" key={item.id}>
       <div><strong>{archiveLabel(item)}</strong><p>{archiveDetails(item)}</p><div className="muted">Archived {householdDateTime(item.created)}</div></div>
+      {item.assignment && <ConversationButton assignmentId={item.assignment} />}
+      <ConversationLink source={item.expand?.inbox?.source} />
       <button disabled={working} onClick={() => void restore(item.id)}>Restore</button>
     </div>)}
     {history.error && <><p className="error" role="alert">{history.error}</p><button onClick={() => void history.reload()}>Retry</button></>}

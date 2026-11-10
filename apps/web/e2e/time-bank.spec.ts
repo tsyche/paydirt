@@ -18,14 +18,21 @@ test("parent summary and detail update when a kid earns, reserves, and delivers 
   await page.getByRole("tab", { name: /Kids/ }).click();
   const card = page.getByTestId(`kid-card-${child}`);
   const bank = card.getByRole("region", { name: "Saved earned time" });
+  const bankSummary = bank.locator("summary").first();
+  await expect(bankSummary).toHaveText(`Banked time: ${before.available} min`);
+  await expect(bank.getByText(/\d+ min reserved for review/)).not.toBeVisible();
+  await bankSummary.click();
   await expect(bank).toContainText(`${before.available} min saved`);
+  const summaryLabels = ["min saved", "min reserved for review", "min requested", "min queued"];
+  const positions = await Promise.all(summaryLabels.map((label) => bank.getByText(new RegExp(`\\d+ ${label}`)).first().evaluate((element) => element.getBoundingClientRect().top)));
+  for (let i = 1; i < positions.length; i++) expect(positions[i]!).toBeGreaterThan(positions[i - 1]!);
   const chore = await parent.createChore({ household: parent.currentUser!.household, name: "Saved-time browser proof", reward: 0,
     type: "oneoff", created_by: parent.currentUser!.id, active: true, pay_mode: "time", reward_minutes: 30 });
   const assignment = await parent.assignChore(chore.id, child);
   await kid.markComplete(assignment.id);
   await parent.approveAssignment(assignment.id);
   await expect(bank).toContainText(`${before.available + 30} min saved`);
-  await bank.locator("summary").click();
+  await expect(bank.getByText("Earned-time history", { exact: true })).toBeVisible();
   await expect(bank).toContainText("Earned");
   const redemption = await kid.redeemSavedTime(15, `browser_${Date.now()}`, true);
   await expect(bank).toContainText(`${before.available + 15} min saved`);
@@ -37,5 +44,7 @@ test("parent summary and detail update when a kid earns, reserves, and delivers 
   await expect(bank).toContainText(`${before.reserved} min reserved for review`);
   await expect(bank).toContainText("Delivered");
   await page.reload();
-  await expect(page.getByTestId(`kid-card-${child}`).getByRole("region", { name: "Saved earned time" })).toContainText(`${before.available + 15} min saved`);
+  const reloaded = page.getByTestId(`kid-card-${child}`).getByRole("region", { name: "Saved earned time" });
+  await expect(reloaded.locator("summary")).toHaveText(`Banked time: ${before.available + 15} min`);
+  await expect(reloaded.getByText(/\d+ min reserved for review/)).not.toBeVisible();
 });

@@ -1,3 +1,4 @@
+import { ConversationButton, ConversationLink } from "./ChoreConversation";
 import { useCallback } from "react";
 import { View } from "react-native";
 import { Button, Text } from "react-native-paper";
@@ -18,6 +19,8 @@ export function ArchiveHistory({ kind }: { kind?: ArchiveKind }) {
       <Text variant="titleSmall">{archiveLabel(item)}</Text>
       {!!archiveDetails(item) && <Text>{archiveDetails(item)}</Text>}
       <Text variant="bodySmall">Archived {householdDateTime(item.created)}</Text>
+      {item.assignment && <ConversationButton assignmentId={item.assignment} />}
+      <ConversationLink source={item.expand?.inbox?.source} />
       <Button icon="restore" disabled={working} onPress={() => void restore(item.id)}>Restore</Button>
     </View>)}
     {history.error && <><Text accessibilityRole="alert">{history.error}</Text><Button onPress={() => void history.reload()}>Retry</Button></>}

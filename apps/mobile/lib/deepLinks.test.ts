@@ -80,3 +80,9 @@ describe("kidTabForNotificationType", () => {
     expect(kidTabForNotificationType(undefined)).toBeNull();
   });
 });
+
+it("extracts a validated inbox ID for authorized conversation routing", async () => {
+  const { parseNotificationInboxId } = await import("./deepLinks");
+  expect(parseNotificationInboxId("paydirt://notification?type=chore_message&inboxId=abc123def456ghi")).toBe("abc123def456ghi");
+  for (const url of [null, "https://example.com/?inboxId=abc123def456ghi", "paydirt://notification?inboxId=../private", "paydirt://notification?inboxId=abc123def456ghiBAD"]) expect(parseNotificationInboxId(url)).toBeNull();
+});

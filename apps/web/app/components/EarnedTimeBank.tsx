@@ -32,14 +32,21 @@ export function EarnedTimeBank({ childId }: { childId: string }) {
   }, [childId, reload]);
   const totals = bank && timeBankTotals(bank.ledger, bank.grants, bank.purchases);
   return <section aria-label="Saved earned time">
-    <strong>Saved earned time</strong>
-    <p>{totals ? `${totals.available} min saved · ${totals.reserved} min reserved for review · ${totals.requested} min requested · ${totals.queued} min queued` : "Loading saved time…"}</p>
+    <details>
+      <summary>{totals ? `Banked time: ${totals.available} min` : error ? "Banked time unavailable" : "Loading banked time…"}</summary>
+      {totals && <div aria-label="Earned time totals" style={{ display: "grid", gap: 4, margin: "8px 0" }}>
+        <div>{totals.available} min saved</div>
+        <div>{totals.reserved} min reserved for review</div>
+        <div>{totals.requested} min requested</div>
+        <div>{totals.queued} min queued</div>
+      </div>}
     {error && <p role="alert">{error}</p>}
-    {bank && <details><summary>Earned-time detail and history</summary>
+    {bank && <div><strong>Earned-time history</strong>
       <p>Saved time stays held until the kid uses it. Queued time follows delivery windows. No extra Grit charge.</p>
       {bank.ledger.length === 0 && <p>No earned minutes yet.</p>}
       {bank.ledger.slice(0, historyLimit).map((row) => <p key={row.id}>{householdDateTime(row.created)} · {timeBankEventLabel(row.kind)} · {row.minutes} min</p>)}
       {bank.ledger.length > historyLimit && <button onClick={() => setHistoryLimit(historyLimit + 10)}>Show more earned-time history</button>}
-    </details>}
+    </div>}
+    </details>
   </section>;
 }

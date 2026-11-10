@@ -1,4 +1,5 @@
 "use client";
+import { ConversationLink } from "./ChoreConversation";
 import { useCallback, useEffect, useState } from "react";
 import { errorMessage, householdDateTime, type InboxItem } from "@paydirt/shared";
 import { client } from "../lib/client";
@@ -31,6 +32,7 @@ export function InboxView({ userId }: { userId: string }) {
       {!busy && !error && !items.length && <p>No alerts 🎉</p>}
       {items.map((item) => <div className="card row" key={item.id}>
         <div><strong>{item.title}</strong>{item.body && <div>{item.body}</div>}<div className="muted">{householdDateTime(item.created)}</div></div>
+        <ConversationLink source={item.source} />
         <ArchiveButton kind="inbox" id={item.id} label={item.title} />
       </div>)}
     </>}

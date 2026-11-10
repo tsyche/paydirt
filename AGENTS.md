@@ -51,7 +51,7 @@ just lint               # lint all workspaces
 just typecheck          # type-check all workspaces (tsc --noEmit)
 ```
 
-Native earned-time component integration tests boot a separate disposable
+Native bank and conversation component integration tests boot a separate disposable
 PocketBase and run with both integration recipes. Ordinary `just test` needs no
 running backend or PocketBase binary.
 

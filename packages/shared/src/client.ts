@@ -12,6 +12,7 @@ import type {
   BroadcastReply,
   Chore,
   ChoreProposal,
+  ChoreMessage,
   ChoreTemplate,
   CurrencyTransaction,
   Household,
@@ -286,15 +287,40 @@ export class PaydirtClient {
   }
 
   /** Child marks a chore done. Optional photo proof (FormData on the platform side). */
-  markComplete(assignmentId: string, photo?: Blob, timeChoice: "bank" | "use" = "bank"): Promise<Assignment> {
+  markComplete(assignmentId: string, photo?: Blob, timeChoice: "bank" | "use" = "bank", note = ""): Promise<Assignment> {
     const data: Record<string, unknown> = {
       status: "completed",
       completed_at: new Date().toISOString(),
       time_choice: timeChoice,
+      submission_note: note.trim(),
       needs_help: false,
     };
     if (photo) data.photo = photo;
     return this.pb.collection(Collections.Assignments).update<Assignment>(assignmentId, data);
+  }
+
+  getConversationAssignment(id: string): Promise<Assignment & { expand?: { chore?: Chore } }> {
+    return this.pb.collection(Collections.Assignments).getOne(id, { expand: "chore" });
+  }
+
+  listChoreMessages(assignmentId: string): Promise<ChoreMessage[]> {
+    return this.pb.collection(Collections.ChoreMessages).getFullList<ChoreMessage>({
+      filter: this.pb.filter("assignment = {:id}", { id: assignmentId }), sort: "sequence",
+    });
+  }
+
+  sendChoreMessage(assignmentId: string, body: string, requestKey: string): Promise<{ id: string }> {
+    return this.pb.send(`/api/paydirt/assignments/${encodeURIComponent(assignmentId)}/messages`, {
+      method: "POST", body: { body, request_key: requestKey },
+    });
+  }
+
+  async subscribeToConversation(assignmentId: string, onChange: () => void): Promise<() => void> {
+    const stops = await Promise.all([
+      this.pb.collection(Collections.ChoreMessages).subscribe("*", onChange, { filter: this.pb.filter("assignment = {:id}", { id: assignmentId }) }),
+      this.pb.collection(Collections.Assignments).subscribe(assignmentId, onChange),
+    ]);
+    return () => { for (const stop of stops) void stop(); };
   }
 
   setHelpRequested(assignmentId: string, requested: boolean): Promise<Assignment> {

@@ -1,0 +1,78 @@
+import { expect, test } from "@playwright/test";
+import { PaydirtClient } from "@paydirt/shared";
+
+const url = process.env.PB_URL || "http://127.0.0.1:3111";
+test("question → kid reply → later approval → history and archived thread recovery", async ({ page }) => {
+  const parent = new PaydirtClient(url), kid = new PaydirtClient(url);
+  await parent.login("parent1@test.local", "password123");
+  await kid.login("child1@test.local", "password123");
+  const chore = await parent.createChore({ household: parent.currentUser!.household, name: `Conversation ${Date.now()}`, reward: 5,
+    type: "oneoff", created_by: parent.currentUser!.id, active: true });
+  const a = await parent.assignChore(chore.id, kid.currentUser!.id);
+  await kid.markComplete(a.id, undefined, "bank", "I finished the shelves.");
+  const balance = await kid.getBalance(kid.currentUser!.id);
+  await page.goto("/");
+  await page.getByPlaceholder("Email").fill("parent1@test.local");
+  await page.getByPlaceholder("Password").fill("password123");
+  await page.getByRole("button", { name: "Sign in", exact: true }).click();
+  const row = page.locator(".card.row").filter({ hasText: chore.name });
+  await row.getByRole("button", { name: "Conversation", exact: true }).click();
+  const thread = page.getByRole("dialog", { name: "Chore conversation" });
+  await expect(thread).toContainText("I finished the shelves.");
+  await thread.getByRole("textbox", { name: "Message", exact: true }).fill("Did you wipe the top shelf?");
+  await thread.getByRole("button", { name: "Send message", exact: true }).click();
+  await expect(thread.getByRole("textbox", { name: "Message", exact: true })).toHaveValue("");
+  expect((await kid.getConversationAssignment(a.id)).status).toBe("completed");
+  expect(await kid.getBalance(kid.currentUser!.id)).toBe(balance);
+  await kid.sendChoreMessage(a.id, "Yes, the top shelf too.", "browser_kid_reply_" + a.id);
+  await expect(thread).toContainText("Yes, the top shelf too.");
+  await thread.getByRole("button", { name: "Approve chore", exact: true }).click();
+  await expect(thread).toContainText("Status: approved");
+  await expect(thread).toContainText("Approved");
+  expect(await kid.getBalance(kid.currentUser!.id)).toBe(balance + 5);
+  await thread.getByRole("button", { name: "Close conversation" }).click();
+  const approved = page.locator(".card.row").filter({ hasText: chore.name });
+  await approved.getByRole("button", { name: "Archive " + chore.name, exact: true }).click();
+  await page.getByRole("tab", { name: /Alerts/ }).click();
+  await page.getByRole("button", { name: "Archived", exact: true }).click();
+  const archived = page.locator(".card.row").filter({ hasText: chore.name });
+  await archived.getByRole("button", { name: "Conversation", exact: true }).click();
+  await expect(thread).toContainText("Did you wipe the top shelf?");
+  await thread.getByRole("textbox", { name: "Message", exact: true }).fill("Thanks for checking.");
+  await thread.getByRole("button", { name: "Send message", exact: true }).click();
+  await expect(thread).toContainText("Thanks for checking.");
+});
+
+test("conversation draft survives reload and an alert opens the exact occurrence", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  const parent = new PaydirtClient(url), kid = new PaydirtClient(url);
+  await parent.login("parent1@test.local", "password123"); await kid.login("child1@test.local", "password123");
+  const chore = await parent.createChore({ household: parent.currentUser!.household, name: `Draft thread ${Date.now()}`, reward: 5,
+    type: "oneoff", created_by: parent.currentUser!.id, active: true });
+  const a = await parent.assignChore(chore.id, kid.currentUser!.id); await kid.markComplete(a.id);
+  await page.goto("/"); await page.getByPlaceholder("Email").fill("parent1@test.local"); await page.getByPlaceholder("Password").fill("password123");
+  await page.getByRole("button", { name: "Sign in", exact: true }).click();
+  await page.locator(".card.row").filter({ hasText: chore.name }).getByRole("button", { name: "Conversation", exact: true }).click();
+  let thread = page.getByRole("dialog", { name: "Chore conversation" });
+  await thread.getByRole("textbox", { name: "Message", exact: true }).fill("Draft stays here");
+  await page.keyboard.press("Escape");
+  await expect(thread).not.toBeVisible();
+  await page.locator(".card.row").filter({ hasText: chore.name }).getByRole("button", { name: "Conversation", exact: true }).click();
+  await expect(thread.getByRole("textbox", { name: "Message", exact: true })).toHaveValue("Draft stays here");
+  await page.reload();
+  await page.locator(".card.row").filter({ hasText: chore.name }).getByRole("button", { name: "Conversation", exact: true }).click();
+  thread = page.getByRole("dialog", { name: "Chore conversation" });
+  await expect(thread.getByRole("textbox", { name: "Message", exact: true })).toHaveValue("Draft stays here");
+  await thread.getByRole("button", { name: "Close conversation" }).click();
+  await kid.sendChoreMessage(a.id, "Alert opens this chore", "browser_alert_" + a.id);
+  await page.getByRole("tab", { name: /Alerts/ }).click();
+  await page.locator(".card.row").filter({ hasText: "Alert opens this chore" }).filter({ hasText: chore.name }).getByRole("button", { name: "Conversation", exact: true }).click();
+  await expect(thread).toContainText(chore.name);
+  await expect(thread).toContainText("Alert opens this chore");
+  await thread.getByRole("button", { name: "Reject chore", exact: true }).click();
+  await thread.getByRole("textbox", { name: "Reason for return", exact: true }).fill("Please check the edges.");
+  await thread.getByRole("button", { name: "Confirm rejection", exact: true }).click();
+  await expect(thread).toContainText("Status: rejected");
+  await expect(thread).toContainText("Please check the edges.");
+  expect((await parent.listChoreMessages(a.id)).some((r) => r.body === "Draft stays here")).toBe(false);
+});

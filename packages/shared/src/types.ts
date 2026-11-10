@@ -178,6 +178,7 @@ export type AssignmentStatus = "assigned" | "completed" | "approved" | "rejected
  * One chore can have multiple assignments (one per child).
  */
 export interface Assignment extends BaseRecord {
+  submission_note?: string;
   time_choice?: "bank" | "use";
   /** Duration snapshotted when assigned; server clock owns the start. */
   timer_minutes?: number;
@@ -363,4 +364,11 @@ export interface TimeRedemption extends Omit<BaseRecord, "updated"> {
   minutes: number;
   request_key: string;
   cancelled: boolean;
+}
+
+export interface ChoreMessage extends Omit<BaseRecord, "updated"> {
+  assignment: string; child: string; author?: string; author_name: string;
+  author_role: "parent" | "child" | "system";
+  kind: "message" | "submitted" | "approved" | "rejected" | "reopened" | "closed" | "legacy";
+  body: string; sequence: number; request_key?: string;
 }

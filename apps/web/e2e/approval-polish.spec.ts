@@ -1,3 +1,4 @@
+import { cleanupChores } from "../../../packages/shared/src/integration.cleanup";
 import { test, expect, type Page } from "@playwright/test";
 import { PaydirtClient } from "@paydirt/shared";
 import { completionFormWithPhoto } from "../../../packages/shared/src/integration.fixtures";
@@ -53,8 +54,7 @@ test("resubmission context is labelled and partial credit opens below Approve wi
   } finally {
     const record = await parent.pb.collection("assignments").getOne(assignment.id);
     if (record.status === "approved") await parent.undoApproval(assignment.id);
-    await parent.pb.collection("assignments").delete(assignment.id);
-    await parent.pb.collection("chores").delete(chore.id);
+    await cleanupChores([chore.id]);
   }
 });
 
@@ -99,8 +99,7 @@ test("archiving a settled chore supports Undo and Restore while keeping its payo
     expect(await parent.getBalance(kid.currentUser!.id)).toBe(balance);
   } finally {
     await parent.undoApproval(assignment.id);
-    await parent.pb.collection("assignments").delete(assignment.id);
-    await parent.pb.collection("chores").delete(chore.id);
+    await cleanupChores([chore.id]);
   }
 });
 

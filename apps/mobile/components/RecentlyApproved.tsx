@@ -1,3 +1,4 @@
+import { ConversationButton } from "./ChoreConversation";
 import { ArchiveRow, useArchives } from "./ArchiveActions";
 import { useCallback } from "react";
 import { Alert, StyleSheet, View } from "react-native";
@@ -72,6 +73,7 @@ export function RecentlyApproved({
             </Text>
             <Text variant="bodySmall">{householdDateTime(a.approved_at || a.updated)}</Text>
             {a.approval_comment ? <Text style={{ marginTop: 8 }}>Feedback: {a.approval_comment}</Text> : null}
+            <ConversationButton assignmentId={a.id} />
             <View style={styles.actions}>
               <View style={styles.reactions}>
                 {a.reaction ? (

@@ -1,3 +1,4 @@
+import { ConversationButton } from "./ChoreConversation";
 import { EarnedTimeBank } from "./EarnedTimeBank";
 import { TimeField } from "./TimeField";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -315,6 +316,7 @@ export function KidDetail({
                   <View style={styles.flex}>
                     <Text variant="bodyMedium">{a.expand?.chore?.name ?? "Chore"}{a.reaction ? `  ${a.reaction}` : ""}</Text>
                     <Text variant="bodySmall">{householdDateTime(a.approved_at || a.updated)}</Text>
+                    <ConversationButton assignmentId={a.id} />
                   </View>
                   <Text variant="bodyMedium" style={{ color: theme.colors.primary, fontWeight: "700" }}>
                     +{a.expand?.chore ? payLabel(a.expand.chore, "", a.credit_percent) : "?"}
@@ -349,6 +351,7 @@ export function KidDetail({
                 <Text variant="titleSmall" style={styles.flex}>
                   {a.expand?.chore?.race ? "🏁 " : ""}{a.expand?.chore?.name ?? "Chore"}
                 </Text>
+                <ConversationButton assignmentId={a.id} />
                 <Chip compact>{STATUS_LABEL[a.status] ?? a.status}</Chip>
               </Card.Content>
             </Card>

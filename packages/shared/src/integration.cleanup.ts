@@ -32,6 +32,8 @@ export async function cleanupChores(choreIds: string[]): Promise<void> {
         filter: pb.filter("assignment = {:a}", { a: a.id }),
       });
       for (const g of grants) await pb.collection("time_grants").delete(g.id);
+      const messages = await pb.collection("chore_messages").getFullList({ filter: pb.filter("assignment = {:a}", { a: a.id }) });
+      for (const message of messages) await pb.collection("chore_messages").delete(message.id);
       await pb.collection("assignments").delete(a.id);
     }
     await pb.collection("chores").delete(choreId);

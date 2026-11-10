@@ -26,7 +26,7 @@ import { HouseholdSettings } from "./HouseholdSettings";
 import { RecurringDueFields } from "./RecurringDueFields";
 import { ResubmissionInfo } from "./ResubmissionInfo";
 import { PartialCredit } from "./PartialCredit";
-import { ApprovalFeedback } from "./ApprovalFeedback";
+import { ConversationButton } from "./ChoreConversation";
 import { PastScreenGrants } from "./PastScreenGrants";
 import { useHistoryFeed } from "../lib/useHistoryFeed";
 import { DeliveryOverrides } from "./DeliveryOverrides";
@@ -310,6 +310,7 @@ export function Dashboard({
                 )}
               </div>
             </div>
+            <EarnedTimeBank childId={kid.id} />
             <div className="inline kid-toolbar">
               <AdjustControl kid={kid} onAdjusted={reload} />
               <KudosControl
@@ -320,7 +321,6 @@ export function Dashboard({
               />
               <GoalControl kid={kid} onChanged={reload} />
             </div>
-            <EarnedTimeBank childId={kid.id} />
             <KidChores assignments={activeByKid[kid.id] ?? []} currencyName={currencyName} />
             <GoalList kid={kid} goals={goalsByKid[kid.id] ?? []} onChanged={reload} />
             <KidEarnings
@@ -466,14 +466,7 @@ export function Dashboard({
                   Approve
                 </button>
                 {a.expand?.chore && <PartialCredit chore={a.expand.chore as Chore} currency={currencyName} onApprove={(percent) => act(() => client.approveAssignment(a.id, percent))} />}
-                <ApprovalFeedback choreName={(a.expand?.chore as Chore | undefined)?.name ?? "Chore"}
-                  rewardLabel={a.expand?.chore ? `${payLabel(a.expand.chore as Chore, currencyName)}.${payMode(a.expand.chore as Chore) !== "bucks" ? " Screen-time grants cannot be undone." : ""}` : "Full chore reward."}
-                  onApprove={async (comment) => {
-                    await client.approveAssignment(a.id, 100, comment);
-                    party();
-                    await reload();
-                  }}
-                />
+                <ConversationButton assignmentId={a.id} />
 
                 <button
                   className="danger sm"
@@ -623,6 +616,7 @@ export function Dashboard({
                     </button>
                   ))
                 )}
+                <ConversationButton assignmentId={a.id} />
                 <ArchiveButton kind="assignment" id={a.id} label={chore?.name ?? "chore"} />
                 {(!chore || payMode(chore) === "bucks") && <button
                   className="danger sm"
@@ -2352,6 +2346,7 @@ function KidEarnings({ kid, currencyName, onMore }: { kid: User; currencyName: s
         return (
           <div className="goal-row" key={a.id}>
             <span className="goal-name-static">{chore?.name ?? "Chore"}{a.reaction ? ` ${a.reaction}` : ""}<small className="muted" style={{ display: "block" }}>{householdDateTime(a.approved_at || a.updated)}</small></span>
+            <ConversationButton assignmentId={a.id} />
             <span className="goal-progress muted">+{chore ? payLabel(chore, currencyName) : "?"}</span>
           </div>
         );
@@ -2382,6 +2377,7 @@ function KidChores({ assignments, currencyName }: { assignments: Expanded<Assign
                 {chore?.race ? "🏁 " : ""}
                 {chore?.name ?? "Chore"}
               </span>
+              <ConversationButton assignmentId={a.id} />
               <span className="goal-progress muted">
                 {chore ? payLabel(chore, currencyName) : ""} · {STATUS[a.status] ?? a.status}
               </span>
