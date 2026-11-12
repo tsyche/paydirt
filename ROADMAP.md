@@ -14,9 +14,9 @@ Last audited 2026-11-10 against source, recent commits, existing automated evide
 
 ## Recommended Next 3
 
-1. **Resolve dependency alert #83** — trace the affected minimatch path, update the affected parent package or narrow override, then verify install, lint, typecheck and tests. ~1–2 hrs; see [known issues](#known-issues).
-2. **Backup restore drill** — prove a pulled backup boots and its ledger balances match before relying on recovery. Implementation ~1–2 hrs; a real-backup run needs an owner-supplied backup. See [quality work](#quality--infrastructure).
-3. **Visible time-delivery outcome** — follow the amount-labelled request with a clear queued/delivered/needs-help result so kids know what happened. ~2–3 hrs; see [approved follow-ups](#approved-follow-ups).
+1. [**Resolve dependency alert #83**](#known-issues) — trace the affected minimatch path, update the affected parent package or narrow override, then verify install, lint, typecheck and tests. ~1–2 hrs.
+2. [**Backup restore drill**](#quality--infrastructure) — prove a pulled backup boots and its ledger balances match before relying on recovery. Implementation ~1–2 hrs; a real-backup run needs an owner-supplied backup.
+3. [**Visible time-delivery outcome**](#approved-follow-ups) — follow the amount-labelled request with a clear queued/delivered/needs-help result so kids know what happened. ~2–3 hrs.
 
 In parallel, finish the owner-run release/device checklist for the recent bank and conversation work. New product work waits behind these checks; the server-free spike remains deferred.
 
