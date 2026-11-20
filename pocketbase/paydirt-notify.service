@@ -1,0 +1,22 @@
+[Unit]
+Description=PayDirt push notification worker
+After=network-online.target
+Wants=network-online.target
+StartLimitIntervalSec=0
+
+[Service]
+Type=oneshot
+User=paydirt
+Group=paydirt
+Environment=NTFY_QUEUE_DIR=/var/lib/paydirt/notifications
+ExecStart=/usr/bin/flock -w 120 /var/lib/paydirt/notifications/worker.lock /usr/bin/node --experimental-strip-types /opt/paydirt/notifications/scripts/notification-worker.mts
+TimeoutStartSec=infinity
+Restart=on-failure
+RestartSec=5
+NoNewPrivileges=yes
+PrivateTmp=yes
+ProtectSystem=strict
+ProtectHome=yes
+ReadWritePaths=/var/lib/paydirt/notifications
+MemoryMax=128M
+CPUQuota=50%

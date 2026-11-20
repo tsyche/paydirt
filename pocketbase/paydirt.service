@@ -15,6 +15,7 @@ ExecStart=/opt/paydirt/pocketbase serve \
     --http 0.0.0.0:3111
 # Optional overrides (NTFY_SERVER, NTFY_DISABLED, ...); see docs/DEPLOYMENT.md.
 EnvironmentFile=-/etc/paydirt/paydirt.env
+Environment=NTFY_QUEUE_DIR=/var/lib/paydirt/notifications
 Restart=always
 RestartSec=10
 StandardOutput=journal
@@ -29,7 +30,8 @@ ProtectHome=yes
 ReadWritePaths=/var/lib/paydirt
 
 # Resource limits
-CPUQuota=50%
+# Approval hooks and realtime-triggered reads arrive in bursts.
+CPUQuota=200%
 MemoryMax=512M
 
 [Install]

@@ -1,0 +1,9 @@
+[Unit]
+Description=Watch PayDirt's pending push notifications
+
+[Path]
+DirectoryNotEmpty=/var/lib/paydirt/notifications/pending
+Unit=paydirt-notify.service
+
+[Install]
+WantedBy=multi-user.target

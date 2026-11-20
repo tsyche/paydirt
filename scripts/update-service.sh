@@ -50,6 +50,8 @@ rsync -rt \
     "$repo_dir/pocketbase/paydirt.service" "$repo_dir/scripts/host-apply.sh" \
     "$repo_dir/pocketbase/paydirt-fl.service" "$repo_dir/pocketbase/paydirt-fl.path" \
     "$repo_dir/scripts/fl-host-code.sh" \
+    "$repo_dir/pocketbase/paydirt-notify.service" "$repo_dir/pocketbase/paydirt-notify.path" \
+    "$repo_dir/scripts/notification-worker.mts" "$repo_dir/packages/shared/src/notificationQueue.ts" \
     "$repo_dir/scripts/familylink-grant.mjs" "$repo_dir/scripts/familylink-worker.mts" \
     "$repo_dir/packages/shared/src/familylink.ts" "$repo_dir/packages/shared/src/familylinkQueue.ts" \
     "$remote:$stage/"

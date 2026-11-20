@@ -1,11 +1,22 @@
 # Deployment (always-on host)
 
-**TL;DR:** PocketBase serves PayDirt's API and parent dashboard on bb:3111. Run `just install-service` once, then `just update-service`; data and saved browser auth survive updates. Family Link uses a separate queue worker, enabled explicitly after host/session setup.
+**TL;DR:** PocketBase serves PayDirt's API and parent dashboard on bb:3111. Run `just install-service` once, then `just update-service`; data and saved browser auth survive updates. Push delivery runs outside approval requests; Family Link has its own worker, enabled after host/session setup.
 
 Set the household's timezone under **Household preferences** on web or mobile.
 It governs calendar dates, chore resets, and schedules independently of the
 host/device timezone; blank defaults to `America/Los_Angeles`. See
 [calendar behavior](DATA_MODEL.md) for details.
+
+## Contents
+
+- [Layout on the host](#layout-on-the-host)
+- [First install](#first-install)
+- [Updates](#updates)
+- [Operations](#operations)
+- [Family Link grants](#family-link-grants)
+- [Backups](#backups)
+- [Publishing app updates](#publishing-app-updates)
+- [Going live with a real household](#going-live-with-a-real-household)
 
 ## Layout on the host
 
@@ -15,14 +26,20 @@ host/device timezone; blank defaults to `America/Los_Angeles`. See
 | `/var/lib/paydirt/` | `paydirt` (750) | `pb_data`: SQLite DBs, uploaded files, `updates/` (APK + OTA) |
 | `/etc/paydirt/paydirt.env` | root (600, optional) | env overrides, e.g. `NTFY_SERVER=...` |
 | `/etc/systemd/system/paydirt.service` | root | from [`pocketbase/paydirt.service`](../pocketbase/paydirt.service) |
+| `/opt/paydirt/notifications/` | root | Push worker and shared queue helper; requires `/usr/bin/node` 24+ |
+| `/var/lib/paydirt/notifications/` | `paydirt` (700) | Private pending/processing push jobs (600) and worker lock |
+| `/etc/systemd/system/paydirt-notify.{path,service}` | root | Push queue watcher and worker |
 | `/opt/paydirt/familylink/` | root | Family Link grant script, `playwright`, Playwright browsers (see [below](#family-link-grants)) |
 | `/var/lib/paydirt/familylink/` | `paydirt` (700) | Google session (`familylink-state.json`, 600) |
 | `/var/lib/paydirt/familylink/queue/` | `paydirt` (700) | Pending requests, claimed jobs, and durable result receipts (600) |
 | `/etc/systemd/system/paydirt-fl.{path,service}` | root | Queue watcher and serialized grant worker, outside PocketBase's resource limits |
 
-The unit runs as the unprivileged `paydirt` user with `ProtectSystem=strict`; only `/var/lib/paydirt` is writable. It binds `0.0.0.0:3111` on all interfaces; restrict access to the trusted LAN with host/router firewall rules. The bind address itself does not enforce LAN-only access.
+The unit runs as the unprivileged `paydirt` user with `ProtectSystem=strict`; only `/var/lib/paydirt` is writable. PocketBase is capped at two CPU cores (`CPUQuota=200%`) and 512 MB RAM; its previous half-core cap throttled approval/read bursts. It binds `0.0.0.0:3111` on all interfaces; restrict access to the trusted LAN with host/router firewall rules. The bind address itself does not enforce LAN-only access.
 
 ## First install
+
+Install Node 24+ at `/usr/bin/node` on the Linux host before deploying. The
+notification worker needs it independently of Family Link browser setup.
 
 1. `cp deploy.example.env deploy.local.env` and set `PAYDIRT_SSH_HOST` to the host's SSH alias (`bb`).
 2. Stop local PocketBase (`just stop`) so its data copies cleanly.
@@ -42,6 +59,7 @@ The unit runs as the unprivileged `paydirt` user with `ProtectSystem=strict`; on
 - installs the PocketBase version matching local `pocketbase/pocketbase --version` (override with `PB_VERSION`), verified against the release's `checksums.txt`; skipped if already current;
 - syncs `/opt/paydirt/`, reinstalls the unit, restarts, and polls `/api/health` on loopback.
 - ships Family Link scripts/helpers and units without copying browser auth or installing browsers; once host setup exists, starts the queue watcher and runs worker recovery.
+- installs/enables the push queue watcher and worker, and recovers interrupted push jobs.
 
 Migrations run automatically on restart. No commit or push is needed to deploy local changes.
 
@@ -55,6 +73,26 @@ Migrations run automatically on restart. No commit or push is needed to deploy l
 | Copy backups to this Mac | `just backup-pull` |
 | Deploy backend + publish APK + adb install (warns on uncommitted files) | `just ship` |
 | Ship APK/OTA to the host | `just push-updates` |
+
+### Push delivery
+
+The deployed PocketBase unit sets `NTFY_QUEUE_DIR=/var/lib/paydirt/notifications`.
+Hooks save inbox entries immediately and atomically publish private queue files;
+they do not wait for ntfy. The path unit wakes the worker, which sends up to four
+pushes concurrently with a ten-second timeout each. This covers chore/spend
+approvals and every other caller of the shared notification helper. Existing
+apps benefit without an APK update. Clearing an inbox source also removes its
+pending pushes; delivery already in progress may still arrive.
+
+Delivery remains best effort: failures log only a job ID, then discard the job;
+the in-app inbox remains available. Interrupted jobs are recovered on deployment
+or the next worker start; a crash after sending can replay a push. Queue files
+contain private endpoints/message text and are not world-readable. Inspect
+worker errors with `sudo journalctl -u paydirt-notify`; do not print queue bodies.
+Local development without `NTFY_QUEUE_DIR` retains direct delivery; use
+`NTFY_DISABLED=1` for tests. If opting into a local queue, run
+`NTFY_QUEUE_DIR=<same-directory> node --experimental-strip-types scripts/notification-worker.mts`
+to drain it.
 
 ## Family Link grants
 

@@ -5,19 +5,34 @@ function ntfyServer() {
   return $os.getenv("NTFY_SERVER") || "https://ntfy.sh";
 }
 
-function sendNtfy(app, topic, title, message) {
+// Production hands transport to the notification worker. Inbox/realtime updates
+// remain synchronous; an unreachable push endpoint must not hold an approval.
+function deliver(request, inboxId) {
+  const dir = $os.getenv("NTFY_QUEUE_DIR");
+  if (!dir) {
+    $http.send(request);
+    return;
+  }
+  $os.mkdirAll(dir + "/pending", 0o700);
+  const name = (inboxId || $security.randomString(15)) + $security.randomString(9) + ".json";
+  const temporary = dir + "/" + name + ".tmp";
+  $os.writeFile(temporary, JSON.stringify(request), 0o600);
+  $os.rename(temporary, dir + "/pending/" + name);
+}
+
+function sendNtfy(app, topic, title, message, inboxId) {
   if (!topic) return;
   if ($os.getenv("NTFY_DISABLED")) return;
   try {
-    $http.send({
+    deliver({
       url: ntfyServer() + "/" + encodeURIComponent(topic),
       method: "POST",
       body: message,
       headers: { Title: title },
       timeout: 10,
-    });
+    }, inboxId);
   } catch (err) {
-    app.logger().error("ntfy send failed", "topic", topic, "error", String(err));
+    app.logger().error("ntfy delivery failed", "error", "Notification transport or queue unavailable");
   }
 }
 
@@ -33,15 +48,15 @@ function sendViaEndpoint(app, endpoint, title, message, type, inboxId) {
     const payload = { title, body: message };
     if (type) payload.type = type;
     if (inboxId) payload.inboxId = inboxId;
-    $http.send({
+    deliver({
       url: endpoint,
       method: "POST",
       body: JSON.stringify(payload),
       headers: { "Content-Type": "application/json" },
       timeout: 10,
-    });
+    }, inboxId);
   } catch (err) {
-    app.logger().error("UP send failed", "endpoint", endpoint, "error", String(err));
+    app.logger().error("UP delivery failed", "error", "Notification transport or queue unavailable");
   }
 }
 
@@ -94,7 +109,7 @@ function notifyUserRecord(app, user, title, message, type, source) {
   if (endpoint) {
     sendViaEndpoint(app, endpoint, title, message, type, inboxId);
   } else {
-    sendNtfy(app, user.getString("ntfy_topic"), title, message);
+    sendNtfy(app, user.getString("ntfy_topic"), title, message, inboxId);
   }
 }
 
@@ -128,7 +143,20 @@ function clearSource(app, source, userId) {
   const rows = app.findRecordsByFilter("inbox",
     "source = {:source}" + (userId ? " && user = {:user}" : ""), "", 0, 0,
     { source, user: userId || "" });
-  for (const row of rows) app.delete(row);
+  for (const row of rows) {
+    app.delete(row);
+    // Do not deliver a queued alert after its in-app source was cleared.
+    const dir = $os.getenv("NTFY_QUEUE_DIR");
+    if (dir) {
+      try {
+        for (const file of $os.readDir(dir + "/pending")) {
+          if (file.name().startsWith(row.id)) {
+            try { $os.remove(dir + "/pending/" + file.name()); } catch (_) { /* Already claimed. */ }
+          }
+        }
+      } catch (_) { /* No queued pushes. */ }
+    }
+  }
 }
 
 module.exports = { clearSource, logToInbox, sendNtfy, sendViaEndpoint, notifyUser, notifyParents, notifyChildren, notifyUserRecord };
