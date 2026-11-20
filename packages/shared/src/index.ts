@@ -17,6 +17,7 @@ export * from "./errors";
 export * from "./starterChores";
 export * from "./choreLimit";
 export * from "./chorePay";
+export * from "./adjustBonus";
 export * from "./activity";
 export * from "./pendingCounts";
 export * from "./overview";

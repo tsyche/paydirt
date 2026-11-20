@@ -19,8 +19,9 @@ import {
 } from "react-native-paper";
 import { TextInput } from "./TextInput";
 import { SafeAreaView } from "react-native-safe-area-context";
-import type { Assignment, Chore, Household, SavingsGoal, User } from "@paydirt/shared";
-import { GOAL_NAME_MAX, GOAL_DETAILS_MAX, KUDOS_REASON_MAX, avatarUrl, currencyDisplayName, featureTip, errorMessage, kidAccent, kudosDefaultBucks, payLabel, householdDateTime, effectiveGoodsRate } from "@paydirt/shared";
+import type { Assignment, Chore, Household, SavingsGoal, User, BonusMode } from "@paydirt/shared";
+import { adjustmentToGrit, type AdjustmentUnit } from "@paydirt/shared";
+import { GOAL_NAME_MAX, GOAL_DETAILS_MAX, KUDOS_REASON_MAX, avatarUrl, currencyDisplayName, featureTip, errorMessage, kidAccent, kudosDefaultBucks, payLabel, householdDateTime, effectiveGoodsRate, validateAdjustBonus, submitAdjustBonus, partialBonusMessage } from "@paydirt/shared";
 import { client } from "../lib/client";
 import { isNetworkError } from "../lib/reachability";
 import { useReachability } from "../lib/useReachability";
@@ -66,11 +67,15 @@ export function KidDetail({
   const [tipKey, setTipKey] = useState<string | null>(null);
 
   const [adjustOpen, setAdjustOpen] = useState(false);
-  const [timeBonus, setTimeBonus] = useState(false);
+  const [adjustMode, setAdjustMode] = useState<BonusMode>("grit");
   const [bonusRequestKey, setBonusRequestKey] = useState("");
   const [adjustSign, setAdjustSign] = useState<1 | -1>(1);
   const [amount, setAmount] = useState("");
+  const [amountUnit, setAmountUnit] = useState<AdjustmentUnit>("grit");
+  const [timeAmount, setTimeAmount] = useState("");
   const [reason, setReason] = useState("");
+  // Partial success: the time half already landed; a retry must only send grit.
+  const [timeApplied, setTimeApplied] = useState(false);
   const [saving, setSaving] = useState(false);
   const [kudosOpen, setKudosOpen] = useState(false);
   const [kudosAmount, setKudosAmount] = useState("");
@@ -87,6 +92,7 @@ export function KidDetail({
 
   const currencyName = currencyDisplayName(household);
   const goodsRate = effectiveGoodsRate(kid?.goods_rate, household?.goods_rate);
+  const adjustmentGrit = adjustSign * Math.abs(adjustmentToGrit(Number(amount), amountUnit, goodsRate));
   const dollarValue =
     kid && goodsRate > 0 ? (kid.balance / goodsRate).toFixed(2) : null;
 
@@ -125,29 +131,48 @@ export function KidDetail({
   }, [reachable, reload]);
 
   function openAdjust(sign: 1 | -1) {
-    setTimeBonus(false);
+    setAdjustMode("grit");
     setBonusRequestKey(`${Date.now()}-${Math.random().toString(36).slice(2)}`);
     setAdjustSign(sign);
     setAmount("");
+    setAmountUnit("grit");
+    setTimeAmount("");
     setReason("");
+    setTimeApplied(false);
     setAdjustOpen(true);
   }
 
   async function saveAdjust() {
-    const n = Number(amount);
-    if (!(n > 0)) return;
-    setSaving(true);
-    try {
-      if (timeBonus) await client.giveBonusMinutes(kidId, n, reason, bonusRequestKey);
-      else await client.adjustBalance(kidId, adjustSign * n, reason.trim() || "Manual adjustment");
-      setAdjustOpen(false);
-      setSnack(adjustSign > 0 ? "Bonus added 🎉" : "Deducted.");
-      await reload();
-    } catch (e) {
-      setSnack(errorMessage(e));
-    } finally {
-      setSaving(false);
+    const grit = adjustmentGrit;
+    const minutes = Number(timeAmount);
+    const invalid = validateAdjustBonus({ mode: adjustMode, grit, minutes, reason });
+    if (invalid) {
+      setSnack(invalid);
+      return;
     }
+    setSaving(true);
+    const result = await submitAdjustBonus(
+      {
+        giveTime: timeApplied
+          ? async () => {}
+          : () => client.giveBonusMinutes(kidId, minutes, reason, bonusRequestKey),
+        giveGrit: () => client.adjustBalance(kidId, grit, reason.trim() || "Manual adjustment"),
+      },
+      adjustMode,
+    );
+    setSaving(false);
+    if (result.error) {
+      const detail = errorMessage(result.error);
+      const partial = partialBonusMessage(result.applied, detail);
+      if (result.applied === "time") setTimeApplied(true);
+      setSnack(partial ? `${partial}. Retry sends only the missing half.` : detail);
+      return;
+    }
+    setAdjustOpen(false);
+    if (adjustMode === "both") setSnack("Grit + time bonus sent 🎉");
+    else if (adjustMode === "time") setSnack("Bonus time sent ⏱");
+    else setSnack(adjustSign > 0 ? "Bonus added 🎉" : "Deducted.");
+    await reload();
   }
 
   function openKudos() {
@@ -467,34 +492,71 @@ export function KidDetail({
           <Dialog.Actions>
             <Button disabled={saving} onPress={() => setAdjustOpen(false)}>Cancel</Button>
             <Button onPress={() => {
-              if (timeBonus) Alert.alert("Give bonus time?", `Give ${amount} minutes? This cannot be undone.`, [
-                { text: "Cancel", style: "cancel" }, { text: "Give time", onPress: () => void saveAdjust() },
+              const confirm = () => void saveAdjust();
+              if (adjustMode === "time") Alert.alert("Give bonus time?", `Give ${timeAmount} minutes? This cannot be undone.`, [
+                { text: "Cancel", style: "cancel" }, { text: "Give time", onPress: confirm },
               ]);
-              else void saveAdjust();
-            }} disabled={saving || !(Number(amount) > 0) || (timeBonus && !(Number(amount) >= 5 && Number(amount) <= 120 && Number(amount) % 5 === 0))}>
+              else if (adjustMode === "both") Alert.alert("Give grit + time?", `Give ${timeAmount} minutes and ${adjustmentGrit} grit to ${kid?.display_name ?? "this kid"}? Time cannot be undone.`, [
+                { text: "Cancel", style: "cancel" }, { text: "Give both", onPress: confirm },
+              ]);
+              else confirm();
+            }} disabled={saving || validateAdjustBonus({ mode: adjustMode, grit: adjustmentGrit, minutes: Number(timeAmount), reason }) !== null}>
               {adjustSign > 0 ? "Add" : "Deduct"}
             </Button>
           </Dialog.Actions>
           <Dialog.Content>
-            {adjustSign > 0 && <Button disabled={saving} onPress={() => { setTimeBonus(!timeBonus); setAmount(""); }}>
-              {timeBonus ? "Switch to grit bonus" : "Switch to bonus screen minutes"}
+            {adjustSign > 0 && !timeApplied && <Button disabled={saving} onPress={() => {
+              setAdjustMode(adjustMode === "grit" ? "time" : adjustMode === "time" ? "both" : "grit");
+              setAmount("");
+              setTimeAmount("");
+            }}>
+              {adjustMode === "grit" ? "Switch to bonus screen minutes" : adjustMode === "time" ? "Switch to grit + time" : "Switch to grit bonus"}
             </Button>}
-            {timeBonus && <Text>5–120 minutes in five-minute steps. Delivery follows the time window; cannot be undone.</Text>}
+            {timeApplied && <Text>Grit + time already started — this retry only sends the grit half.</Text>}
+            {(adjustMode === "time" || adjustMode === "both") && <Text>5–120 minutes in five-minute steps. Delivery follows the time window; cannot be undone.</Text>}
+            {adjustMode !== "time" && (
+              <>
+                <Button disabled={saving || (amountUnit === "grit" && !(goodsRate > 0))} onPress={() => {
+                  setAmountUnit(amountUnit === "grit" ? "dollars" : "grit");
+                  setAmount("");
+                }}>
+                  {amountUnit === "grit" ? "Use dollars ($)" : `Use ${currencyName}`}
+                </Button>
+                <TextInput
+                  mode="outlined"
+                  label={amountUnit === "dollars" ? "Dollar amount ($)" : adjustMode === "both" ? `Grit (${currencyName})` : `Amount (${currencyName})`}
+                  value={amount}
+                  onChangeText={setAmount}
+                  keyboardType={amountUnit === "dollars" ? "decimal-pad" : "number-pad"}
+                  autoFocus={!timeApplied}
+                  disabled={saving}
+                />
+                {amountUnit === "dollars" && <Text accessibilityLiveRegion="polite">
+                  {Number.isFinite(adjustmentGrit)
+                    ? `${adjustSign > 0 ? "Add" : "Deduct"} $${Math.abs(Number(amount)).toFixed(2)} = ${Math.abs(adjustmentGrit)} ${currencyName} (${goodsRate} ${currencyName} per $1)`
+                    : "Enter a dollar amount with no more than two decimal places and a valid dollar rate."}
+                </Text>}
+              </>
+            )}
+            {adjustMode !== "grit" && (
+              <TextInput
+                mode="outlined"
+                label="Bonus minutes"
+                value={timeAmount}
+                onChangeText={setTimeAmount}
+                keyboardType="number-pad"
+                autoFocus={adjustMode === "time"}
+                disabled={timeApplied}
+              />
+            )}
             <TextInput
               mode="outlined"
-              label={timeBonus ? "Bonus minutes" : `Amount (${currencyName})`}
-              value={amount}
-              onChangeText={setAmount}
-              keyboardType="number-pad"
-              autoFocus
-            />
-            <TextInput
-              mode="outlined"
-              label="Reason (optional)"
+              label={adjustMode === "time" ? "Reason (optional)" : "Reason"}
               maxLength={500}
               value={reason}
               onChangeText={setReason}
               style={styles.reasonInput}
+              disabled={timeApplied}
             />
           </Dialog.Content>
         </Dialog>

@@ -20,7 +20,8 @@ import type {
   SpendRequest,
   User,
 } from "@paydirt/shared";
-import { kidsAtLimit, knownChoreNames, GOAL_NAME_MAX, GOAL_DETAILS_MAX, parseAssignDraft, serializeAssignDraft, AVATAR_COLORS, REACTIONS, undoApprovalPrompt, avatarUrl, currencyDisplayName, effectiveGoodsRate, kidAccent, kudosDefaultBucks, KUDOS_REASON_MAX, parseGoodsRateOverride, featureTip, bankedTimeLabel, errorMessage, limitLabel, limitUnit, payLabel, approveTimePrompt, summarizeMonthActivity, waitingActionCount, payMode, validatePay, MINUTES_STEP, MAX_REWARD_MINUTES } from "@paydirt/shared";
+import { kidsAtLimit, knownChoreNames, GOAL_NAME_MAX, GOAL_DETAILS_MAX, parseAssignDraft, serializeAssignDraft, AVATAR_COLORS, REACTIONS, undoApprovalPrompt, avatarUrl, currencyDisplayName, effectiveGoodsRate, kidAccent, kudosDefaultBucks, KUDOS_REASON_MAX, parseGoodsRateOverride, featureTip, bankedTimeLabel, errorMessage, limitLabel, limitUnit, payLabel, approveTimePrompt, summarizeMonthActivity, waitingActionCount, payMode, validatePay, MINUTES_STEP, MAX_REWARD_MINUTES, validateAdjustBonus, submitAdjustBonus, partialBonusMessage } from "@paydirt/shared";
+import { adjustmentToGrit, type AdjustmentUnit, type BonusMode } from "@paydirt/shared";
 import { client } from "../lib/client";
 import { HouseholdSettings } from "./HouseholdSettings";
 import { RecurringDueFields } from "./RecurringDueFields";
@@ -312,7 +313,7 @@ export function Dashboard({
             </div>
             <EarnedTimeBank childId={kid.id} />
             <div className="inline kid-toolbar">
-              <AdjustControl kid={kid} onAdjusted={reload} />
+              <AdjustControl kid={kid} goodsRate={kidRate(kid)} onAdjusted={reload} />
               <KudosControl
                 kid={kid}
                 household={household}
@@ -1169,39 +1170,69 @@ function CoParentsPanel({ householdId, selfId }: { householdId: string; selfId: 
   );
 }
 
-function AdjustControl({ kid, onAdjusted }: { kid: User; onAdjusted: () => void }) {
+function AdjustControl({ kid, goodsRate, onAdjusted }: { kid: User; goodsRate: number; onAdjusted: () => void }) {
   const [open, setOpen] = useState(false);
-  const [timeBonus, setTimeBonus] = useState(false);
+  const [mode, setMode] = useState<BonusMode>("grit");
   const [requestKey, setRequestKey] = useState("");
   const [amount, setAmount] = useState(0);
+  const [amountUnit, setAmountUnit] = useState<AdjustmentUnit>("grit");
+  const [minutes, setMinutes] = useState(0);
   const [reason, setReason] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  // Partial success: the time half already landed; a retry must only send grit.
+  const [timeApplied, setTimeApplied] = useState(false);
+
+  const grit = adjustmentToGrit(amount, amountUnit, goodsRate);
+  const invalid = validateAdjustBonus({ mode, grit, minutes, reason }) !== null;
+
+  function resetForm() {
+    setMode("grit");
+    setAmount(0);
+    setAmountUnit("grit");
+    setMinutes(0);
+    setReason("");
+    setError("");
+    setTimeApplied(false);
+    setRequestKey(`${Date.now()}-${Math.random().toString(36).slice(2)}`);
+  }
 
   async function submit() {
-    if (timeBonus ? !(amount >= 5 && amount <= 120 && amount % 5 === 0) : amount === 0 || !reason.trim()) return;
-    if (timeBonus && !window.confirm(`Give ${amount} bonus minutes to ${kid.display_name}? Delivery follows their time window. This cannot be undone.`)) return;
+    if (invalid) return;
+    if (mode !== "grit" && !timeApplied) {
+      const what = mode === "both"
+        ? `${minutes} bonus minutes and ${grit} grit`
+        : `${minutes} bonus minutes`;
+      if (!window.confirm(`Give ${what} to ${kid.display_name}? Delivery of time follows their time window and cannot be undone.`)) return;
+    }
     setBusy(true);
     setError("");
-    try {
-      if (timeBonus) await client.giveBonusMinutes(kid.id, amount, reason, requestKey);
-      else await client.adjustBalance(kid.id, amount, reason.trim());
-      setAmount(0);
-      setReason("");
-      setOpen(false);
-      onAdjusted();
-    } catch (e) {
-      setError(errorMessage(e));
-    } finally {
-      setBusy(false);
+    const result = await submitAdjustBonus(
+      {
+        giveTime: timeApplied
+          ? async () => {}
+          : () => client.giveBonusMinutes(kid.id, minutes, reason, requestKey),
+        giveGrit: () => client.adjustBalance(kid.id, grit, reason.trim()),
+      },
+      mode,
+    );
+    setBusy(false);
+    if (result.error) {
+      const detail = errorMessage(result.error);
+      const partial = partialBonusMessage(result.applied, detail);
+      if (result.applied === "time") setTimeApplied(true);
+      setError(partial ? `${partial}. Retry to send only the missing half.` : detail);
+      return;
     }
+    resetForm();
+    setOpen(false);
+    onAdjusted();
   }
 
   if (!open) {
     return (
       <button className="sm" onClick={() => {
-        setRequestKey(`${Date.now()}-${Math.random().toString(36).slice(2)}`);
-        setTimeBonus(false);
+        resetForm();
         setOpen(true);
       }}>
         Bonus / deduct
@@ -1209,44 +1240,91 @@ function AdjustControl({ kid, onAdjusted }: { kid: User; onAdjusted: () => void 
     );
   }
 
+  const showGrit = mode !== "time";
+  const showTime = mode !== "grit";
+
   return (
     <div className="stack panel-full">
       <div className="inline">
-        <select aria-label="Bonus type" value={timeBonus ? "time" : "grit"} disabled={busy} onChange={(e) => { setTimeBonus(e.target.value === "time"); setAmount(0); }}>
+        <select
+          aria-label="Bonus type"
+          value={mode}
+          disabled={busy || timeApplied}
+          onChange={(e) => { setMode(e.target.value as BonusMode); setAmount(0); setMinutes(0); setError(""); }}
+        >
           <option value="grit">Grit bonus / deduction</option>
           <option value="time">Bonus screen minutes</option>
+          <option value="both">Grit + screen minutes</option>
         </select>
+        {showGrit && (
+          <>
+            <select
+              aria-label="Amount unit"
+              value={amountUnit}
+              disabled={busy}
+              onChange={(e) => { setAmountUnit(e.target.value as AdjustmentUnit); setAmount(0); }}
+            >
+              <option value="grit">Grit</option>
+              <option value="dollars" disabled={!(goodsRate > 0)}>Dollars ($)</option>
+            </select>
+            <input
+              type="number"
+              aria-label={amountUnit === "dollars" ? "Dollar amount" : "Grit amount"}
+              step={amountUnit === "dollars" ? "0.01" : "any"}
+              value={amount}
+              onChange={(e) => setAmount(Number(e.target.value))}
+              style={{ width: 100 }}
+              placeholder={amountUnit === "dollars" ? "Dollars (±)" : mode === "both" ? "Grit (±)" : "Amount (±)"}
+              disabled={busy}
+            />
+          </>
+        )}
+        {showTime && (
+          <input
+            type="number"
+            value={minutes}
+            onChange={(e) => setMinutes(Number(e.target.value))}
+            style={{ width: 100 }}
+            placeholder="Minutes (5–120)"
+            disabled={busy || timeApplied}
+          />
+        )}
         <input
-          type="number"
-          value={amount}
-          onChange={(e) => setAmount(Number(e.target.value))}
-          style={{ width: 100 }}
-          placeholder={timeBonus ? "Minutes (5–120)" : "Amount (±)"}
-        />
-        <input
-          placeholder={timeBonus ? "Reason (optional)" : "Reason"}
+          placeholder={mode === "time" ? "Reason (optional)" : "Reason"}
           maxLength={500}
           value={reason}
           onChange={(e) => setReason(e.target.value)}
           style={{ flex: 1 }}
+          disabled={busy || timeApplied}
         />
         <button
           className="primary sm"
           onClick={submit}
-          disabled={busy || (timeBonus ? !(amount >= 5 && amount <= 120 && amount % 5 === 0) : amount === 0 || !reason.trim())}
+          disabled={busy || invalid}
         >
           Apply
         </button>
         <button
           className="sm"
           disabled={busy}
-          onClick={() => { setOpen(false); setError(""); }}
+          onClick={() => { resetForm(); setOpen(false); }}
         >
           Cancel
         </button>
       </div>
+      {showGrit && amountUnit === "dollars" && (
+        <p role="status" className="muted" style={{ margin: 0 }}>
+          {Number.isFinite(grit)
+            ? `${amount < 0 ? "Deduct" : "Add"} $${Math.abs(amount).toFixed(2)} = ${Math.abs(grit)} grit (${goodsRate} grit per $1)`
+            : "Enter a dollar amount with no more than two decimal places and a valid dollar rate."}
+        </p>
+      )}
       <p style={{ fontSize: 12, color: "var(--md-on-surface-variant)", margin: 0 }}>
-        Positive = bonus · Negative = deduction
+        {mode === "time"
+          ? "Delivery follows the time window; cannot be undone"
+          : mode === "both"
+            ? "Positive = bonus · negative = deduction · one note covers both records"
+            : "Positive = bonus · Negative = deduction"}
       </p>
       {error && <p className="error">{error}</p>}
     </div>
