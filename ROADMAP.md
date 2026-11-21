@@ -2,7 +2,7 @@
 
 ## TL;DR
 
-PayDirt is live on bb. Earned-time banking, chore conversations, compact parent totals, top-right approval reactions, and the one-hour redemption UX are implemented; rollout and remaining device checks stay active below. Prioritize dependency remediation, backup recovery, and clear kid delivery outcomes. Further server-free spike work is deferred; its plan remains Draft and no architecture migration is approved.
+PayDirt is live on bb. Earned-time banking, chore conversations, compact parent totals, top-right approval reactions, and the one-hour redemption UX are implemented; rollout and remaining device checks stay active below. Dependency remediation is verified locally; prioritize backup recovery, clear kid delivery outcomes, and ledger monitoring. Further server-free spike work is deferred; its plan remains Draft and no architecture migration is approved.
 
 Scope checklist: [FEATURES.md](./FEATURES.md). **This file is the authoritative
 status tracker.**
@@ -14,17 +14,15 @@ Last audited 2026-11-10 against source, recent commits, existing automated evide
 
 ## Recommended Next 3
 
-1. [**Resolve dependency alert #83**](#known-issues) — trace the affected minimatch path, update the affected parent package or narrow override, then verify install, lint, typecheck and tests. ~1–2 hrs.
-2. [**Backup restore drill**](#quality--infrastructure) — prove a pulled backup boots and its ledger balances match before relying on recovery. Implementation ~1–2 hrs; a real-backup run needs an owner-supplied backup.
-3. [**Visible time-delivery outcome**](#approved-follow-ups) — follow the amount-labelled request with a clear queued/delivered/needs-help result so kids know what happened. ~2–3 hrs.
+1. [**Backup restore drill**](#quality--infrastructure) — prove a pulled backup boots and its ledger balances match before relying on recovery. Implementation ~1–2 hrs; a real-backup run needs an owner-supplied backup.
+2. [**Visible time-delivery outcome**](#approved-follow-ups) — follow the amount-labelled request with a clear queued/delivered/needs-help result so kids know what happened. ~2–3 hrs.
+3. [**Nightly ledger-verify alert**](#quality--infrastructure) — report cached-balance drift without changing accounting data. ~1–2 hrs; owner deployment required.
 
 In parallel, finish the owner-run release/device checklist for the recent bank and conversation work. New product work waits behind these checks; the server-free spike remains deferred.
 
 ## Known Issues
 
-- **Open dependency alerts (2026-11-20 push)** — GitHub reports 12 open alerts: seven moderate Next.js alerts (#88–94), four node-forge alerts (#84–87; three moderate, one low), and the minimatch alert #83 below. Review affected versions and reachability, then update dependencies/overrides and verify. Alert IDs are recorded here for follow-up; no remediation is claimed.
-
-- **Minimatch dependency alert #83** — GitHub reports moderate glob amplification denial of service (affected range 7.0.0–<11.0.1; patched in 11.0.1) and classifies the lockfile dependency as runtime. Trace actual application/tooling reachability before calling it development-only; update affected parent packages or a compatible narrow override. [Alert](https://github.com/tsyche/paydirt/security/dependabot/83) (reported during the 2026-11-09 push).
+- **Toolchain peer-range warnings (2026-11-20)** — Expo's optional DOM-webview peer resolves 56.0.5 while the SDK 57 log box requests 57.x; Expo's ESLint plugins still advertise support only through ESLint 9 while this repo uses 10. Security audit, lint, typecheck, and Android export pass. Align these through supported upstream updates; do not treat peer warnings as security findings.
 
 - **Native notification setup confirmation** — direct Paper Dialog children and system-default channel sound are fixed with fail-before/pass-after regression checks. Confirm warning-free setup and actual sound on the updated native app; production notification delivery remains a separate acceptance check.
 
@@ -44,6 +42,8 @@ The owner reports regularly shipping the app and confirmed the device walkthroug
 Kid-controlled earned-time banking and the chore-submission conversation redesign are committed; deployment and remaining physical-device checks are not established. The latest bank UX uses explicit amount labels, 15-minute steps, and a 60-minute cap per new request; excess earnings stay saved. Further server-free spike work remains deferred. No architecture migration is approved. Checks not included in that walkthrough (cross-device/offline behavior, large text, Bank and approval-feedback details, and external grant recovery) remain explicit below.
 
 ## Release checks for implemented work
+
+Security dependency updates are verified locally (zero audit findings); commit/push and a new release are still pending. The owner completed `just ship` for the preceding work on 2026-11-20: backend updated and APK 210 published, with no devices reachable for direct installation. Device acceptance below remains open.
 
 These are verification/deployment tasks, not features to implement again. Specific missing evidence and the returned original records are in the [acceptance plan](docs/plans/feature-acceptance.md). Budget ~1–2 hrs for the recent bank/conversation/reaction device walkthrough; older external-delivery and offline checks need separate sessions.
 

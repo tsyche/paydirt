@@ -4,6 +4,8 @@
 
 ## Shipped index
 
+- [x] 2026-11-20 — Security dependency remediation: Next.js, Forge, minimatch, and Expo CLI/Zod (local verification; release pending)
+
 - [x] 2026-11-09 — Clear saved-time amount selection and one-hour cap (`fdb9ae7`; local implementation, rollout/device check open)
 - [x] 2026-11-09 — Top-right recent-approval reactions on web/mobile (`7efb672`; local implementation, native visual check open)
 - [x] 2026-11-09 — Launcher/favicon transparency and coin/check status icon (`9f1067d`; local implementation, installed-device check open)
@@ -447,3 +449,13 @@ The owner reported shipping and pushing the tablet-header and recurring-deadline
 ### 2026-11-08 — Owner device walkthrough
 
 The owner confirmed the installed Android app passes the supplied walkthrough: middle-of-field typing, backspace and keyboard suggestions, correct saved text, pending sections and empty messages, collapsed past grants above expanded history, household-timezone dates/times, catalogue edit/cancel/archive/restore, personal-history Undo/Restore, and help request/cancellation with parent refresh. The cursor bug no longer occurs. The owner also confirmed regular shipping. This report does not establish offline failures, cross-device behavior, large text, every kid layout, or external Google grant recovery.
+
+### 2026-11-20 — Security dependency remediation
+
+Next.js 16.4.6, node-forge 1.4.3, and minimatch 11.0.5 replace the affected versions. Expo stays on SDK 57, updated to 57.0.33 with Metro runtime 57.0.18 and CLI 57.0.34; the newer CLI removes the additional vulnerable Zod 3 dependency without overriding it to an incompatible major. `pnpm audit` reports zero vulnerabilities. Focused dependency regressions fail before the update and pass after it; lint, typecheck, the full test suite (including Android unit tests), the Android export, and the production web build also pass. Existing Expo DOM-webview and ESLint peer-range warnings are separate tooling follow-ups. GitHub alert closure awaits commit/push; production installation is not claimed.
+
+Original roadmap entries:
+
+- **Open dependency alerts (2026-11-20 push)** — GitHub reports 12 open alerts: seven moderate Next.js alerts (#88–94), four node-forge alerts (#84–87; three moderate, one low), and the minimatch alert #83 below. Review affected versions and reachability, then update dependencies/overrides and verify. Alert IDs are recorded here for follow-up; no remediation is claimed.
+
+- **Minimatch dependency alert #83** — GitHub reports moderate glob amplification denial of service (affected range 7.0.0–<11.0.1; patched in 11.0.1) and classifies the lockfile dependency as runtime. Trace actual application/tooling reachability before calling it development-only; update affected parent packages or a compatible narrow override. [Alert](https://github.com/tsyche/paydirt/security/dependabot/83) (reported during the 2026-11-09 push).
