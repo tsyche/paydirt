@@ -47,7 +47,7 @@ Security dependency updates are verified locally (zero audit findings) and pushe
 
 These are verification/deployment tasks, not features to implement again. Specific missing evidence and the returned original records are in the [acceptance plan](docs/plans/feature-acceptance.md). Budget ~1–2 hrs for the recent bank/conversation/reaction device walkthrough; older external-delivery and offline checks need separate sessions.
 
-- **Backup version metadata (2026-11-21)** — the local drill passed against the November 21 household backup (4 users, 116 transactions). Deploy [the backup hook](pocketbase/pb_hooks/backups.pb.js) with `just update-service` and confirm future archives include `paydirt-backup.json`, removing the need to establish legacy versions manually. 🧑 needs-human: backend deployment and the next backup check.
+- **Backup version metadata (2026-11-21)** — the local drill passed against the November 21 household backup (4 users, 116 transactions). The [backup hook](pocketbase/pb_hooks/backups.pb.js) was deployed on November 21 and its deployed hash matches the source; the backend restarted successfully. Confirm the next archive includes `paydirt-backup.json`, removing the need to establish legacy versions manually. 🧑 needs-human: pull the next backup for its metadata check.
 
 - **Dollar bonuses and deductions (2026-11-20)** — parent web/mobile Bonus/deduct controls accept dollars as well as grit, including the currency half of combined bonuses. Preview uses the kid's override or household grit-per-dollar rate, accepts cents, and preserves fractional grit. No schema change. Requires a web deploy and updated mobile app; confirm decimal keyboard, preview, bonus/deduction signs, and refreshed balance on-device.
 

@@ -196,7 +196,9 @@ removed on success or failure; source archives stay unchanged. Logs report
 aggregate counts, not account names, credentials, or session contents.
 
 New backups include `paydirt-backup.json` with the creating binary's version
-after deploying [the backup hook](../pocketbase/pb_hooks/backups.pb.js).
+after deploying [the backup hook](../pocketbase/pb_hooks/backups.pb.js). The hook
+was deployed and hash-verified on 2026-11-21; checking the next scheduled ZIP
+for metadata remains pending.
 For a legacy archive, supply its **known** version, for example:
 `just restore-drill "backups/host/example.zip" --backup-version 0.40.5`.
 Do not infer the old version from today's server or guess to bypass the check.
