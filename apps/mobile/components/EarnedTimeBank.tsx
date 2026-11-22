@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { View } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Button, Switch, Text } from "react-native-paper";
-import { canCancelTimeGrant, errorMessage, householdDateTime, timeBankEventLabel, timeBankTotals } from "@paydirt/shared";
+import { canCancelTimeGrant, errorMessage, householdDateTime, timeBankEventLabel, timeBankTotals, timeDeliveryOutcome } from "@paydirt/shared";
 import { client } from "../lib/client";
 import { useRealtimeResume } from "../lib/useRealtimeResume";
 
@@ -15,6 +15,7 @@ export function EarnedTimeBank({ childId, kidControl = false, detail = true }: {
 }) {
   const [expanded, setExpanded] = useState(false);
   const [historyLimit, setHistoryLimit] = useState(5);
+  const [deliveryLimit, setDeliveryLimit] = useState(5);
   const [bank, setBank] = useState<Bank | null>(null);
   const [minutes, setMinutes] = useState(15);
   const [allowQueue, setAllowQueue] = useState(false);
@@ -111,6 +112,18 @@ export function EarnedTimeBank({ childId, kidControl = false, detail = true }: {
         catch (e) { setError(errorMessage(e)); } finally { setBusy(false); }
       }}>Return {grant.minutes} undelivered minutes to savings</Button>)}
     </>}
+    {bank && bank.grants.length > 0 && <View style={{ gap: 8 }} accessibilityLabel="Time delivery results">
+      <Text variant="titleSmall" accessibilityRole="header">Time delivery</Text>
+      {bank.grants.slice(0, deliveryLimit).map((grant) => {
+        const outcome = timeDeliveryOutcome(grant);
+        return <View key={grant.id} style={{ gap: 2 }}>
+          <Text>{grant.minutes} minutes requested · {outcome.title}</Text>
+          <Text>{outcome.detail}</Text>
+          <Text>{householdDateTime(grant.created)}</Text>
+        </View>;
+      })}
+      {bank.grants.length > deliveryLimit && <Button onPress={() => setDeliveryLimit(deliveryLimit + 10)}>Show more time deliveries</Button>}
+    </View>}
     {kidControl && detail && <Button onPress={() => setExpanded(!expanded)}>{expanded ? "Hide time details" : "Show time details"}</Button>}
     {kidControl && expanded && totals && <View style={{ gap: 4 }}>
       <Text>{totals.reserved} min reserved for review</Text>

@@ -729,7 +729,7 @@ export class PaydirtClient {
   async getTimeBank(childId: string) {
     const [ledger, grants, purchases] = await Promise.all([
       this.pb.collection(Collections.TimeLedger).getFullList<TimeLedgerEntry>({ filter: this.pb.filter("child = {:c}", { c: childId }), sort: "-created,-id" }),
-      this.pb.collection(Collections.TimeGrants).getFullList<TimeGrant>({ filter: this.pb.filter("child = {:c} && (grant_status = 'queued' || grant_status = 'manual')", { c: childId }) }),
+      this.pb.collection(Collections.TimeGrants).getFullList<TimeGrant>({ filter: this.pb.filter("child = {:c}", { c: childId }), sort: "-created,-id" }),
       this.listSpendRequestsForChild(childId),
     ]);
     return { ledger, grants, purchases };

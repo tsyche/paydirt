@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { canCancelTimeGrant, timeBankTotals } from "./timeBank";
+import { canCancelTimeGrant, timeBankTotals, timeDeliveryOutcome } from "./timeBank";
 import type { SpendRequest, TimeGrant, TimeLedgerEntry } from "./types";
 
 describe("earned-time accounting", () => {
@@ -32,5 +32,18 @@ describe("earned-time accounting", () => {
     expect(canCancelTimeGrant({ ...grant, grant_dispatch_started: true })).toBe(false);
     expect(canCancelTimeGrant({ ...grant, grant_status: "manual" })).toBe(false);
     expect(canCancelTimeGrant({ ...grant, redemption: "" })).toBe(false);
+  });
+});
+
+describe("time delivery wording", () => {
+  it.each(["queued", "manual", "granted", "manual_done", "cancelled", ""] as const)("describes %s without exposing worker errors", (status) => {
+    const result = timeDeliveryOutcome({ minutes: 30, grant_status: status, grant_delivered_seconds: 600, grant_error: "private worker details" } as TimeGrant);
+    expect(JSON.stringify(result)).not.toContain("private worker details");
+    if (status === "queued" || status === "manual") expect(result.detail).toContain("10 of 30 minutes delivered");
+    if (status === "queued") expect(result.title).toBe("Queued");
+    if (status === "manual") expect(result.title).toBe("Needs parent help");
+    if (status === "granted" || status === "manual_done") expect(result.title).toBe("Delivered");
+    if (status === "cancelled") expect(result.title).toBe("Returned to savings");
+    if (!status) expect(result.title).toBe("Awaiting confirmation");
   });
 });

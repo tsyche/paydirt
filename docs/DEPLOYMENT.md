@@ -74,6 +74,17 @@ Migrations run automatically on restart. No commit or push is needed to deploy l
 | Deploy backend + publish APK + adb install (warns on uncommitted files) | `just ship` |
 | Ship APK/OTA to the host | `just push-updates` |
 
+### Nightly ledger check
+
+The PocketBase scheduler checks cached Grit balances against the currency ledger
+at 03:15 in the configured household timezone. Clean checks send nothing; drift
+creates one parent alert per affected household, listing each affected user and
+its cached balance, ledger total, and difference. It never changes balances or
+transactions. Existing quiet hours apply: alerts remain in the inbox when push
+is suppressed. Deploy with `just update-service`; no new unit or credentials
+are needed. A superuser can run the same check with
+`POST /api/paydirt/cron/ledger` for diagnosis.
+
 ### Push delivery
 
 The deployed PocketBase unit sets `NTFY_QUEUE_DIR=/var/lib/paydirt/notifications`.

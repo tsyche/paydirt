@@ -1,13 +1,14 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { errorMessage, householdDateTime, timeBankEventLabel, timeBankTotals } from "@paydirt/shared";
+import { errorMessage, householdDateTime, timeBankEventLabel, timeBankTotals, timeDeliveryOutcome } from "@paydirt/shared";
 import { client } from "../lib/client";
 
 type Bank = Awaited<ReturnType<typeof client.getTimeBank>>;
 
 export function EarnedTimeBank({ childId }: { childId: string }) {
   const [historyLimit, setHistoryLimit] = useState(5);
+  const [deliveryLimit, setDeliveryLimit] = useState(5);
   const [bank, setBank] = useState<Bank | null>(null);
   const [error, setError] = useState("");
   const reload = useCallback(async () => {
@@ -40,6 +41,18 @@ export function EarnedTimeBank({ childId }: { childId: string }) {
         <div>{totals.requested} min requested</div>
         <div>{totals.queued} min queued</div>
       </div>}
+    {bank && bank.grants.length > 0 && <div aria-label="Time delivery results">
+      <strong>Time delivery</strong>
+      {bank.grants.slice(0, deliveryLimit).map((grant) => {
+        const outcome = timeDeliveryOutcome(grant);
+        return <div key={grant.id}>
+          <p>{grant.minutes} minutes requested · {outcome.title}</p>
+          <p>{outcome.detail}</p>
+          <p>{householdDateTime(grant.created)}</p>
+        </div>;
+      })}
+      {bank.grants.length > deliveryLimit && <button onClick={() => setDeliveryLimit(deliveryLimit + 10)}>Show more time deliveries</button>}
+    </div>}
     {error && <p role="alert">{error}</p>}
     {bank && <div><strong>Earned-time history</strong>
       <p>Saved time stays held until the kid uses it. Queued time follows delivery windows. No extra Grit charge.</p>

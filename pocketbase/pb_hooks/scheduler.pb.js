@@ -33,6 +33,11 @@ cronAdd("paydirt_allowance", "0 6 * * *", () => {
   runScheduledAllowance($app);
 });
 
+// After daily maintenance. Existing quiet hours suppress push, not the inbox.
+cronAdd("paydirt_ledger", "15 3 * * *", () => {
+  require(`${__hooks}/lib/ledgerAudit.js`).runLedgerAudit($app);
+});
+
 // Superuser-only manual triggers so the cron bodies are testable (and
 // debuggable) without waiting for the schedule.
 routerAdd(
@@ -46,6 +51,7 @@ routerAdd(
     else if (job === "digest") runWeeklyDigest(e.app);
     else if (job === "kid-recap") runKidWeeklyRecap(e.app);
     else if (job === "allowance") runScheduledAllowance(e.app);
+    else if (job === "ledger") require(`${__hooks}/lib/ledgerAudit.js`).runLedgerAudit(e.app);
     else throw new ApiError(404, "Unknown job: " + job);
     return e.json(200, { ran: job });
   },

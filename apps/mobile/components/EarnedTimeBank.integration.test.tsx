@@ -1,9 +1,10 @@
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { execFileSync, spawn, type ChildProcess } from "node:child_process";
-import { cpSync, mkdtempSync, rmSync } from "node:fs";
+import { cpSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { createServer } from "node:net";
+import PocketBase from "pocketbase";
 import { PaydirtClient } from "@paydirt/shared";
 import { timeBankTotals } from "@paydirt/shared";
 
@@ -46,6 +47,7 @@ describe("Native earned-time controls (real PocketBase)", () => {
   const root = mkdtempSync(join(tmpdir(), "paydirt-fl-test-"));
   const queue = join(root, "familylink");
   let server: ChildProcess | undefined;
+  let admin: PocketBase;
   let parent: PaydirtClient;
   let kid: PaydirtClient;
   let url: string;
@@ -61,6 +63,16 @@ describe("Native earned-time controls (real PocketBase)", () => {
     url = `http://127.0.0.1:${port}`;
     const hooks = join(root, "hooks");
     cpSync(join(repo, "pocketbase/pb_hooks"), hooks, { recursive: true });
+    writeFileSync(join(hooks, "test-delivery.pb.js"), `
+      routerAdd("POST", "/test/delivery/{id}", (e) => {
+        const row = e.app.findRecordById("time_grants", e.request.pathValue("id"));
+        const body = e.requestInfo().body;
+        row.set("grant_status", body.status);
+        if (body.seconds !== undefined) row.set("grant_delivered_seconds", body.seconds);
+        e.app.save(row);
+        return e.json(200, {});
+      }, $apis.requireSuperuserAuth());
+    `);
     const binary = join(repo, "pocketbase/pocketbase");
     const args = ["--dir", join(root, "data"), "--migrationsDir", join(repo, "pocketbase/pb_migrations")];
     execFileSync(binary, ["migrate", "up", ...args], { stdio: "ignore" });
@@ -79,6 +91,8 @@ describe("Native earned-time controls (real PocketBase)", () => {
     execFileSync(process.execPath, [join(repo, "pocketbase/seed.mjs")], {
       stdio: "ignore", env: { ...process.env, PB_URL: url },
     });
+    admin = new PocketBase(url);
+    await admin.collection("_superusers").authWithPassword("admin@paydirt.local", "password123");
     parent = new PaydirtClient(url);
     vi.stubEnv("EXPO_PUBLIC_POCKETBASE_URL", url);
     const mobile = await import("../lib/client");
@@ -156,6 +170,7 @@ describe("Native earned-time controls (real PocketBase)", () => {
     expect(grant.grant_status).toBe("queued");
     await act(async () => { button(view, "Return 30 undelivered minutes to savings").props.onPress(); });
     await settle(view, `${available} min saved`);
+    await settle(view, "30 minutes requested · Returned to savings");
     await act(async () => view.unmount());
   });
 
@@ -175,6 +190,36 @@ describe("Native earned-time controls (real PocketBase)", () => {
     expect(timeBankTotals(after.ledger, after.grants, after.purchases).available).toBe(available - 60);
     expect(after.grants.filter((g) => !before.grants.some((previous) => previous.id === g.id)).map((g) => g.minutes)).toEqual([60]);
     await act(async () => view.unmount());
+  });
+
+  it.each([false, true])("shows queued, partial, needs-help and confirmed delivery across remount (simple=%s)", async (simple) => {
+    await earn(60);
+    const before = await kid.getTimeBank(kid.currentUser!.id);
+    const available = timeBankTotals(before.ledger, before.grants, before.purchases).available;
+    const view = await mount(simple);
+    await settle(view, `${available} min saved`);
+    await act(async () => { button(view, "Use 15 minutes").props.onPress(); });
+    await settle(view, "15 minutes requested · Queued");
+    expect(text(view)).toContain("delivery is not yet complete");
+    const after = await kid.getTimeBank(kid.currentUser!.id);
+    const grant = after.grants.find((g) => !before.grants.some((old) => old.id === g.id))!;
+    // The external worker is the network boundary. Persist its result on the real DB.
+    await admin.send(`/test/delivery/${grant.id}`, { method: "POST", body: { status: "queued", seconds: 300 } });
+    await settle(view, "5 of 15 minutes delivered");
+    await admin.send(`/test/delivery/${grant.id}`, { method: "POST", body: { status: "manual" } });
+    await settle(view, "15 minutes requested · Needs parent help");
+    expect(text(view)).toContain("Do not request it again");
+    await parent.confirmBonusGrant(grant.id);
+    await settle(view, "15 minutes requested · Delivered");
+    expect(text(view)).toContain(`${available - 15} min saved`);
+    await act(async () => view.unmount());
+    const restored = await mount(simple);
+    await settle(restored, "15 minutes requested · Delivered");
+    expect(text(restored)).toContain(`${available - 15} min saved`);
+    await act(async () => restored.unmount());
+    const final = await kid.getTimeBank(kid.currentUser!.id);
+    expect(final.ledger.filter((r) => r.redemption === grant.redemption && r.kind === "reserve")).toHaveLength(1);
+    expect(final.ledger.filter((r) => r.redemption === grant.redemption && r.kind === "redeem").reduce((sum, r) => sum + r.minutes, 0)).toBe(15);
   });
 
   it("persists a lost-response request across remount and retries the same reservation", async () => {
@@ -232,6 +277,7 @@ describe("Native earned-time controls (real PocketBase)", () => {
     expect(text(view)).not.toContain("reserved for review");
     await act(async () => { view.root.findAllByType("button").find((b) => b.props.accessibilityLabel === "Show bank details")!.props.onPress(); });
     expect(text(view)).toContain("Earned-time history");
+    expect(text(view)).toContain("15 minutes requested · Delivered");
     expect(button(view, "Use 15 minutes")).toBeUndefined();
     await act(async () => view.unmount());
   });

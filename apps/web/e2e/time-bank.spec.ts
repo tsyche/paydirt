@@ -39,12 +39,15 @@ test("parent summary and detail update when a kid earns, reserves, and delivers 
   // This fixture disables automation; a parent can confirm manual delivery.
   await expect(bank).toContainText(`${before.reserved + 15} min reserved for review`);
   const grant = (await kid.getTimeBank(child)).grants.find((g) => g.redemption === redemption.id)!;
+  await expect(bank).toContainText("15 minutes requested · Needs parent help");
   await parent.confirmBonusGrant(grant.id);
   await expect(bank).toContainText(`${before.available + 15} min saved`);
   await expect(bank).toContainText(`${before.reserved} min reserved for review`);
-  await expect(bank).toContainText("Delivered");
+  await expect(bank).toContainText("15 minutes requested · Delivered");
   await page.reload();
   const reloaded = page.getByTestId(`kid-card-${child}`).getByRole("region", { name: "Saved earned time" });
   await expect(reloaded.locator("summary")).toHaveText(`Banked time: ${before.available + 15} min`);
   await expect(reloaded.getByText(/\d+ min reserved for review/)).not.toBeVisible();
+  await reloaded.locator("summary").click();
+  await expect(reloaded).toContainText("15 minutes requested · Delivered");
 });

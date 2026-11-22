@@ -4,6 +4,8 @@
 
 ## Shipped index
 
+- [x] 2026-11-21 — Visible time-delivery outcomes and nightly read-only ledger monitoring (local implementation; rollout/device acceptance pending)
+
 - [x] 2026-11-21 — Local backup restore drill: real household backup boots and all 116 ledger transactions reconcile
 
 - [x] 2026-11-20 — Security dependency remediation: Next.js, Forge, minimatch, and Expo CLI/Zod (local verification; release pending)
@@ -484,3 +486,40 @@ Original roadmap entry:
 
 1. **Backup restore drill** (2026-11-01) — nightly PocketBase zips and `backup-pull` exist, but no one has restored one. Add `just restore-drill`: unzip the newest pulled backup into an ephemeral PocketBase on a free port, boot it, run `just verify-ledger` against it, and report pass/fail; document the manual restore steps in [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md). Never touches bb. ~1-2 hrs. Implementation can use a disposable fixture; 🧑 needs-human: supply a pulled production backup for the real recovery check. **Gotchas:** use the port block (3110-3119), not bb's port; pulled backups contain real household data, so keep the unzip dir under `$TMPDIR` and delete it after; the PocketBase binary version must match the one that wrote the backup.
    - **Implemented locally (2026-11-20):** [restore-drill.mts](scripts/restore-drill.mts) and the version-stamping [backup hook](pocketbase/pb_hooks/backups.pb.js). Real-PocketBase fixture tests cover successful recovery, drift, version guards, unsafe archives, busy ports, filenames with spaces, and cleanup. The newest existing local archive (2026-10-31) passes offline ZIP/SQLite/ledger checks but has four users and no transactions, with no recorded binary version. 🧑 needs-human: pull a recent backup and establish its creating version before claiming real-data recovery; deploy the hook for version metadata in future backups.
+
+## Time-delivery outcomes and nightly ledger monitoring (2026-11-21)
+
+Original roadmap entries:
+
+1. **Visible time-delivery outcome** — after a kid redeems saved time, show the requested amount and a plain-language state: waiting for the allowed window, delivered, or needs parent help. Both kid layouts must distinguish request acceptance from actual device delivery, update from the existing grant state, and preserve the saved remainder. Parent web/mobile continue to show matching totals/statuses; add parity UI only where missing. ~2–3 hrs.
+
+1. **Nightly ledger-verify alert** (2026-11-02) — `just verify-ledger` only runs by hand and in `test-all`, so a balance that drifts from `currency_transactions` on bb goes unnoticed. Run the same recompute daily on bb (a systemd timer or a `pb_hooks` cron calling the check) and send a parent ntfy only on a mismatch, naming the kid and the difference. ~1-2 hrs. 🧑 needs-human: deploy to bb. **Gotchas:** read-only; never auto-correct a balance; quiet when clean so it can't become noise.
+
+Implementation:
+
+- Bank queries retain completed/cancelled grants. Shared wording distinguishes
+  queued acceptance, partial delivery, automatic delivery, parent confirmation,
+  needs-parent-help, and return to savings without exposing worker errors.
+  Both kid layouts and parent web/mobile bank details show recent results.
+- The existing PocketBase scheduler runs a 03:15 snapshot check with the ledger
+  verifier's summation and tolerance. Only mismatches notify household parents;
+  quiet hours suppress push but retain inbox alerts. Accounting is never changed.
+  A superuser-only manual trigger exercises the same handler.
+- New native delivery and ledger-monitor regressions fail against the previous
+  implementation and pass with the changes. Physical devices were unavailable
+  over ADB; rollout and device acceptance stay in the active roadmap.
+
+Verification for this batch: `just lint`, `just typecheck`, and `just test`
+passed (517 TypeScript/component tests, icon checks, and Android unit tests).
+The disposable PocketBase run passed 111 shared API/hook tests and 16 native
+integration tests; its 4 users and 39 ledger transactions reconciled. All 33
+Playwright journeys passed headlessly in Docker, including dollar adjustments,
+conversation/approval flows, and saved-time delivery across page reload. The
+release APK and static web build completed successfully. A focused native rerun also verified cancelled
+minutes and parent delivery details (10 passing tests).
+
+Read-only production checks confirmed a healthy API, active backend/notification/
+Family Link path units, a two-core CPU quota, and matching deployed notification
+helper/worker hashes. No production accounting was changed. All four configured
+ADB devices were unavailable; no installed-device or new-release acceptance is
+claimed. The next scheduled backup's version metadata remains unverified.
