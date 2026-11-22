@@ -176,7 +176,53 @@ To disable future automatic approvals, remove `FL_AUTOMATION_ENABLED` (or set it
 
 PocketBase's built-in scheduler (set by migration `1717000023`) writes a consistent zip of the whole data dir to `/var/lib/paydirt/backups/` at 02:30 nightly and keeps the newest 7. That covers corruption and bad writes, not losing the host, so run `just backup-pull` now and then (needs sudo; keeps the newest 30 in `./backups/host/`, gitignored). Zips include the Family Link session, so treat them as secrets.
 
-**Restore** (local smoke test recorded 2026-10-29; a pulled-production-backup recovery drill remains unverified): `sudo systemctl stop paydirt`, move the current `data.db*`/`auxiliary.db`/`storage` aside, unzip the backup into `/var/lib/paydirt` as `paydirt`, then `sudo systemctl start paydirt`. The admin UI (`/_/` → Settings → Backups) can also restore.
+### Local recovery drill
+
+Verified 2026-11-21 against the pulled November 21 household backup with
+PocketBase 0.40.5: four users, 116 transactions, all balances match. The
+temporary server and restored data were removed; no production restore occurred.
+
+After pulling backups, run `just restore-drill`. It selects the newest ZIP by
+modification time, checks ZIP/SQLite integrity and the creating PocketBase
+version, then boots a private copy on a free loopback port in 3113–3119 and runs
+the existing ledger verifier. It requires Python 3, Node 24+, and the matching
+local PocketBase binary. An optional first argument selects a specific ZIP.
+
+The drill never connects to bb or uses `PB_URL`. It creates a temporary superuser
+only in the copy, excludes application hooks and migrations, and disables
+scheduled backups, backup S3 delivery, and SMTP there. No Family Link or push
+worker starts. Temporary files (mode 600, directories 700) and the server are
+removed on success or failure; source archives stay unchanged. Logs report
+aggregate counts, not account names, credentials, or session contents.
+
+New backups include `paydirt-backup.json` with the creating binary's version
+after deploying [the backup hook](../pocketbase/pb_hooks/backups.pb.js).
+For a legacy archive, supply its **known** version, for example:
+`just restore-drill "backups/host/example.zip" --backup-version 0.40.5`.
+Do not infer the old version from today's server or guess to bypass the check.
+A mismatch or unrecorded version fails before the restored server starts.
+
+Passing proves the snapshot boots and cached grit balances match its immutable
+ledger. It does not establish that the backup is recent, test forward schema
+migrations, or reconcile external time grants.
+
+### Real recovery on bb
+
+1. Record which workers were enabled, then stop `paydirt`, `paydirt-fl.path` /
+   `paydirt-fl.service`, and `paydirt-notify.path` / `paydirt-notify.service`.
+2. Preserve the entire current `/var/lib/paydirt` directory and select a backup
+   that passed the local drill. Keep the latest Family Link delivery receipts.
+3. With the matching PocketBase binary, restore into a fresh
+   `/var/lib/paydirt` owned by `paydirt`, retaining private file permissions.
+   The admin UI (`/_/` → Settings → Backups) is another restore mechanism;
+   the same worker precautions apply.
+4. Start the backend and verify household records and balances. Reconcile
+   queued/in-flight grants against the preserved receipts and Family Link
+   before re-enabling the previously enabled workers. A snapshot can predate
+   an external grant that already happened; replaying its queue can grant time
+   twice. Never assume restoring SQLite revokes or rolls back Google time.
+
+A real production recovery is not claimed by the disposable drill.
 
 ## Publishing app updates
 

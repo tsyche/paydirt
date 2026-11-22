@@ -30,6 +30,7 @@ default:
     printf '  just install-service       first install (imports local pb_data once)\n'
     printf '  just update-service        deploy hooks/migrations/dashboard + restart\n'
     printf '  just backup-pull           copy the host nightly backups here   (push-updates: ship APK/OTA)\n'
+    printf '  just restore-drill         test a pulled backup locally, then remove the temporary copy\n'
     printf '  just host-reset / go-live  wipe host DB, then onboard the real household\n'
     printf '  just service-status        also: service-logs [N], service-restart\n'
     printf '  just fl-host-setup         Family Link grants: Node, browsers, session (re-run after fl-login)\n'
@@ -701,6 +702,14 @@ backup:
 [group('service')]
 backup-pull:
     ./scripts/service-remote.sh backup-pull
+
+# Restore a pulled ZIP into a disposable local server and verify its ledger.
+[group('maintenance')]
+[positional-arguments]
+restore-drill *args:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    node --experimental-strip-types scripts/restore-drill.mts "$@"
 
 # Go-live step 1: back up, then WIPE the host DB (confirms first); prints a new superuser password
 [group('service')]

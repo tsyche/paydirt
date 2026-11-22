@@ -2,7 +2,7 @@
 
 ## TL;DR
 
-PayDirt is live on bb. Earned-time banking, chore conversations, compact parent totals, top-right approval reactions, and the one-hour redemption UX are implemented; rollout and remaining device checks stay active below. Dependency remediation is verified locally; prioritize backup recovery, clear kid delivery outcomes, and ledger monitoring. Further server-free spike work is deferred; its plan remains Draft and no architecture migration is approved.
+PayDirt is live on bb. Earned-time banking, chore conversations, compact parent totals, top-right approval reactions, and the one-hour redemption UX are implemented; rollout and remaining device checks stay active below. Security dependencies are patched and a pulled-backup restore drill passes; prioritize clear kid delivery outcomes, ledger monitoring, and remaining release/device acceptance. Further server-free spike work is deferred; its plan remains Draft and no architecture migration is approved.
 
 Scope checklist: [FEATURES.md](./FEATURES.md). **This file is the authoritative
 status tracker.**
@@ -14,9 +14,9 @@ Last audited 2026-11-10 against source, recent commits, existing automated evide
 
 ## Recommended Next 3
 
-1. [**Backup restore drill**](#quality--infrastructure) — prove a pulled backup boots and its ledger balances match before relying on recovery. Implementation ~1–2 hrs; a real-backup run needs an owner-supplied backup.
-2. [**Visible time-delivery outcome**](#approved-follow-ups) — follow the amount-labelled request with a clear queued/delivered/needs-help result so kids know what happened. ~2–3 hrs.
-3. [**Nightly ledger-verify alert**](#quality--infrastructure) — report cached-balance drift without changing accounting data. ~1–2 hrs; owner deployment required.
+1. [**Visible time-delivery outcome**](#approved-follow-ups) — show the requested amount and a clear queued/delivered/needs-help result so kids know what happened. ~2–3 hrs.
+2. [**Nightly ledger-verify alert**](#quality--infrastructure) — report cached-balance drift without changing accounting data. ~1–2 hrs; 🧑 needs-human: deployment to bb.
+3. [**Release/device verification**](#release-checks-for-implemented-work) — close the pending approval-speed, dollar-control, bank/conversation and backup-metadata acceptance checks. 🧑 needs-human: deployment and installed-device testing.
 
 In parallel, finish the owner-run release/device checklist for the recent bank and conversation work. New product work waits behind these checks; the server-free spike remains deferred.
 
@@ -43,9 +43,11 @@ Kid-controlled earned-time banking and the chore-submission conversation redesig
 
 ## Release checks for implemented work
 
-Security dependency updates are verified locally (zero audit findings); commit/push and a new release are still pending. The owner completed `just ship` for the preceding work on 2026-11-20: backend updated and APK 210 published, with no devices reachable for direct installation. Device acceptance below remains open.
+Security dependency updates are verified locally (zero audit findings) and pushed in `1b0afa3`; a new release is still pending. The owner completed `just ship` for the preceding work on 2026-11-20: backend updated and APK 210 published, with no devices reachable for direct installation. Device acceptance below remains open.
 
 These are verification/deployment tasks, not features to implement again. Specific missing evidence and the returned original records are in the [acceptance plan](docs/plans/feature-acceptance.md). Budget ~1–2 hrs for the recent bank/conversation/reaction device walkthrough; older external-delivery and offline checks need separate sessions.
+
+- **Backup version metadata (2026-11-21)** — the local drill passed against the November 21 household backup (4 users, 116 transactions). Deploy [the backup hook](pocketbase/pb_hooks/backups.pb.js) with `just update-service` and confirm future archives include `paydirt-backup.json`, removing the need to establish legacy versions manually. 🧑 needs-human: backend deployment and the next backup check.
 
 - **Dollar bonuses and deductions (2026-11-20)** — parent web/mobile Bonus/deduct controls accept dollars as well as grit, including the currency half of combined bonuses. Preview uses the kid's override or household grit-per-dollar rate, accepts cents, and preserves fractional grit. No schema change. Requires a web deploy and updated mobile app; confirm decimal keyboard, preview, bonus/deduction signs, and refreshed balance on-device.
 
@@ -107,9 +109,7 @@ The API grant path and manual fallback are implemented; historical milestones ar
 
 Remaining operational work; deployment observations belong in the shipped ledger, not this list.
 
-1. **Backup restore drill** (2026-11-01) — nightly PocketBase zips and `backup-pull` exist, but no one has restored one. Add `just restore-drill`: unzip the newest pulled backup into an ephemeral PocketBase on a free port, boot it, run `just verify-ledger` against it, and report pass/fail; document the manual restore steps in [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md). Never touches bb. ~1-2 hrs. Implementation can use a disposable fixture; 🧑 needs-human: supply a pulled production backup for the real recovery check. **Gotchas:** use the port block (3110-3119), not bb's port; pulled backups contain real household data, so keep the unzip dir under `$TMPDIR` and delete it after; the PocketBase binary version must match the one that wrote the backup.
-
-2. **Nightly ledger-verify alert** (2026-11-02) — `just verify-ledger` only runs by hand and in `test-all`, so a balance that drifts from `currency_transactions` on bb goes unnoticed. Run the same recompute daily on bb (a systemd timer or a `pb_hooks` cron calling the check) and send a parent ntfy only on a mismatch, naming the kid and the difference. ~1-2 hrs. 🧑 needs-human: deploy to bb. **Gotchas:** read-only; never auto-correct a balance; quiet when clean so it can't become noise.
+1. **Nightly ledger-verify alert** (2026-11-02) — `just verify-ledger` only runs by hand and in `test-all`, so a balance that drifts from `currency_transactions` on bb goes unnoticed. Run the same recompute daily on bb (a systemd timer or a `pb_hooks` cron calling the check) and send a parent ntfy only on a mismatch, naming the kid and the difference. ~1-2 hrs. 🧑 needs-human: deploy to bb. **Gotchas:** read-only; never auto-correct a balance; quiet when clean so it can't become noise.
 
 ## Parent parity (web ↔ mobile)
 

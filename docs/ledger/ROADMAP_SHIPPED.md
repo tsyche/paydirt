@@ -4,6 +4,8 @@
 
 ## Shipped index
 
+- [x] 2026-11-21 — Local backup restore drill: real household backup boots and all 116 ledger transactions reconcile
+
 - [x] 2026-11-20 — Security dependency remediation: Next.js, Forge, minimatch, and Expo CLI/Zod (local verification; release pending)
 
 - [x] 2026-11-09 — Clear saved-time amount selection and one-hour cap (`fdb9ae7`; local implementation, rollout/device check open)
@@ -459,3 +461,26 @@ Original roadmap entries:
 - **Open dependency alerts (2026-11-20 push)** — GitHub reports 12 open alerts: seven moderate Next.js alerts (#88–94), four node-forge alerts (#84–87; three moderate, one low), and the minimatch alert #83 below. Review affected versions and reachability, then update dependencies/overrides and verify. Alert IDs are recorded here for follow-up; no remediation is claimed.
 
 - **Minimatch dependency alert #83** — GitHub reports moderate glob amplification denial of service (affected range 7.0.0–<11.0.1; patched in 11.0.1) and classifies the lockfile dependency as runtime. Trace actual application/tooling reachability before calling it development-only; update affected parent packages or a compatible narrow override. [Alert](https://github.com/tsyche/paydirt/security/dependabot/83) (reported during the 2026-11-09 push).
+
+### 2026-11-21 — Backup restore drill
+
+`just restore-drill` passed against `@auto_pb_backup_paydirt_20261121103000.zip`
+with PocketBase 0.40.5: four users, 116 transactions, all cached balances match.
+The fresh ZIP passed its integrity check. The creating version was established
+from bb's unchanged binary (installed October 23) and the running service,
+started November 20 before this snapshot. The temporary server used loopback
+3113, then stopped; restored data was removed and the source ZIP stayed unchanged.
+No production restore or worker replay was performed.
+
+Six automated cases cover newest-backup selection, real-PocketBase restore,
+ledger drift, version guards, unsafe/corrupt archives, occupied/released ports,
+paths with spaces, source preservation, and temporary-data cleanup. Lint,
+typecheck, the full unit suite, and the focused integration tests pass.
+The new version-stamping hook is tested locally; production rollout remains
+an active release check. Recovery instructions are in
+[Deployment](../DEPLOYMENT.md#local-recovery-drill).
+
+Original roadmap entry:
+
+1. **Backup restore drill** (2026-11-01) — nightly PocketBase zips and `backup-pull` exist, but no one has restored one. Add `just restore-drill`: unzip the newest pulled backup into an ephemeral PocketBase on a free port, boot it, run `just verify-ledger` against it, and report pass/fail; document the manual restore steps in [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md). Never touches bb. ~1-2 hrs. Implementation can use a disposable fixture; 🧑 needs-human: supply a pulled production backup for the real recovery check. **Gotchas:** use the port block (3110-3119), not bb's port; pulled backups contain real household data, so keep the unzip dir under `$TMPDIR` and delete it after; the PocketBase binary version must match the one that wrote the backup.
+   - **Implemented locally (2026-11-20):** [restore-drill.mts](scripts/restore-drill.mts) and the version-stamping [backup hook](pocketbase/pb_hooks/backups.pb.js). Real-PocketBase fixture tests cover successful recovery, drift, version guards, unsafe archives, busy ports, filenames with spaces, and cleanup. The newest existing local archive (2026-10-31) passes offline ZIP/SQLite/ledger checks but has four users and no transactions, with no recorded binary version. 🧑 needs-human: pull a recent backup and establish its creating version before claiming real-data recovery; deploy the hook for version metadata in future backups.
