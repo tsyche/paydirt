@@ -28,7 +28,7 @@ import {
   screenRate,
   shouldCelebrate, errorMessage, kidAccent, payLabel, effectiveGoodsRate } from "@paydirt/shared";
 import { client } from "../lib/client";
-import { takePhotoAndComplete } from "../lib/completeWithPhoto";
+import { completeWithoutPhoto, takePhotoAndComplete } from "../lib/completeWithPhoto";
 import { useCountUp } from "../lib/useCountUp";
 import { useRealtimeResume } from "../lib/useRealtimeResume";
 import { Avatar } from "../components/Avatar";
@@ -179,11 +179,11 @@ export function SimpleKidHome({ user, onLogout }: { user: User; onLogout: () => 
     }
   }
 
-  async function markDone(id: string) {
+  async function markDone(id: string, note = "") {
     const choice = await chooseTimeReward(assignments.find((a) => a.id === id)?.expand?.chore);
     if (!choice) return;
     try {
-      await client.markComplete(id, undefined, choice);
+      await completeWithoutPhoto(id, choice, note);
       setSnack("Woohoo! Waiting for Mom/Dad to check!");
       await reload();
     } catch (e) {
@@ -191,11 +191,11 @@ export function SimpleKidHome({ user, onLogout }: { user: User; onLogout: () => 
     }
   }
 
-  async function markDoneWithPhoto(id: string) {
+  async function markDoneWithPhoto(id: string, note = "") {
     try {
       const choice = await chooseTimeReward(assignments.find((a) => a.id === id)?.expand?.chore);
       if (!choice) return;
-      const result = await takePhotoAndComplete(id, choice);
+      const result = await takePhotoAndComplete(id, choice, note);
       if (result === "no-permission") {
         setSnack("Need camera permission for this chore!");
         return;
@@ -315,9 +315,9 @@ export function SimpleKidHome({ user, onLogout }: { user: User; onLogout: () => 
                 +{payLabel(a.expand.chore, user.avatar_emoji || "💰")}
               </Text>
             ) : null}
-            {a.timer_minutes ? <ChoreTimer assignment={a} onStarted={reload} onComplete={() => {
-              if (a.expand?.chore?.photo_required) void markDoneWithPhoto(a.id);
-              else void markDone(a.id);
+            {a.timer_minutes ? <ChoreTimer assignment={a} onStarted={reload} onComplete={async (note) => {
+              if (a.expand?.chore?.photo_required) await markDoneWithPhoto(a.id, note);
+              else await markDone(a.id, note);
             }} /> : <Button
               mode="contained"
               style={styles.doneButton}
@@ -351,7 +351,9 @@ export function SimpleKidHome({ user, onLogout }: { user: User; onLogout: () => 
                 {a.rejection_message}
               </Text>
             ) : null}
-            <Button
+            {a.timer_minutes ? <ChoreTimer assignment={a} onStarted={reload} onComplete={async (note) => {
+              await markDoneWithPhoto(a.id, note);
+            }} /> : <Button
               mode="contained"
               buttonColor={theme.colors.error}
               style={styles.doneButton}
@@ -361,7 +363,7 @@ export function SimpleKidHome({ user, onLogout }: { user: User; onLogout: () => 
               onPress={() => markDoneWithPhoto(a.id)}
             >
               Try again! 📷
-            </Button>
+            </Button>}
           </Surface>
         ))}
 

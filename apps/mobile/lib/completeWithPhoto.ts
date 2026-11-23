@@ -1,7 +1,19 @@
+import * as Notifications from "expo-notifications";
 import * as ImagePicker from "expo-image-picker";
 import * as FileSystem from "expo-file-system/legacy";
 import { Collections } from "@paydirt/shared";
 import { client, pbUrl } from "./client";
+
+async function cancelTimerReminder(assignmentId: string) {
+  try { await Notifications.cancelScheduledNotificationAsync(`chore-timer-${assignmentId}`); }
+  catch { /* Notification cleanup must not undo a successful submission. */ }
+}
+
+export async function completeWithoutPhoto(assignmentId: string, timeChoice: "bank" | "use" = "bank", note = "") {
+  const assignment = await client.markComplete(assignmentId, undefined, timeChoice, note);
+  await cancelTimerReminder(assignmentId);
+  return assignment;
+}
 
 export type PhotoCompleteResult = "done" | "cancelled" | "no-permission";
 
@@ -47,5 +59,6 @@ export async function takePhotoAndComplete(assignmentId: string, timeChoice: "ba
     throw new Error(`Photo upload failed (${res.status}): ${res.body}`);
   }
 
+  await cancelTimerReminder(assignmentId);
   return "done";
 }

@@ -1,3 +1,5 @@
+import { DeliverNowButton } from "../components/DeliverNowButton";
+import { timerEvidence } from "@paydirt/shared";
 import { EarnedTimeBank } from "../components/EarnedTimeBank";
 import { SwipeActionsRow } from "../components/SwipeActionsRow";
 import { TimeField } from "../components/TimeField";
@@ -916,7 +918,8 @@ export function ParentHome({
                         </Text>
                         <ChoreNotes text={chore?.description} />
                         {chore && payMode(chore) !== "bucks" && <Text variant="bodySmall">{a.time_choice === "use" ? "Use now in 15-minute blocks; remainder saved" : "Bank earned minutes"}</Text>}
-                        {!!a.timer_minutes && <Text variant="bodySmall">⏱ {a.timer_minutes} min · {a.timer_started_at ? `started ${householdDateTime(a.timer_started_at)}` : "not started"}</Text>}
+                        {!!a.timer_minutes && !!a.submission_note && <Text>Kid explanation: {a.submission_note}</Text>}
+                        {!!a.timer_minutes && <Text variant="bodySmall">⏱ {a.timer_minutes} min · {timerEvidence(a)}</Text>}
                         {!!a.due_at && <Text variant="bodySmall">Due {householdDateTime(a.due_at)}</Text>}
                         <View style={styles.approvalMeta}>
                           {child && (
@@ -1116,6 +1119,7 @@ export function ParentHome({
                 <Text variant="titleMedium">{grant.expand?.child?.display_name ?? "Child"} — {grant.description}</Text>
                 <Text>{bankedTimeLabel(grant)}</Text>
                 {!!grant.grant_error && <Text>{grant.grant_error}</Text>}
+                {group === "queued" && <DeliverNowButton id={grant.id} collection={grant.bonus ? "time_grants" : "spend_requests"} overridden={grant.grant_window_override} onQueued={reload} />}
                 {group === "manual" && <Button onPress={() =>
                   Alert.alert("Confirm manual grant", "Check Family Link first. Has this time been granted manually?", [
                     { text: "Cancel", style: "cancel" },

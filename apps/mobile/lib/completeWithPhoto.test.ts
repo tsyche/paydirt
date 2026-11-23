@@ -14,6 +14,7 @@ vi.mock("./client", () => ({
   client: { pb: { authStore } },
   pbUrl: "http://pb.test:3111",
 }));
+vi.mock("expo-notifications", () => ({ cancelScheduledNotificationAsync: vi.fn(async () => {}) }));
 vi.mock("expo-image-picker", () => ({
   requestCameraPermissionsAsync,
   launchCameraAsync,
@@ -23,6 +24,7 @@ vi.mock("expo-file-system/legacy", () => ({
   uploadAsync,
 }));
 
+import { cancelScheduledNotificationAsync } from "expo-notifications";
 import { takePhotoAndComplete } from "./completeWithPhoto";
 
 describe("takePhotoAndComplete", () => {
@@ -46,6 +48,7 @@ describe("takePhotoAndComplete", () => {
     const result = await takePhotoAndComplete("assignment_1");
 
     expect(result).toBe("done");
+    expect(cancelScheduledNotificationAsync).toHaveBeenCalledWith("chore-timer-assignment_1");
     expect(uploadAsync).toHaveBeenCalledTimes(1);
 
     const [url, fileUri, options] = uploadAsync.mock.calls[0] as [
@@ -81,6 +84,11 @@ describe("takePhotoAndComplete", () => {
     );
   });
 
+  it("does not report a failed submission when only reminder cleanup fails", async () => {
+    vi.mocked(cancelScheduledNotificationAsync).mockRejectedValueOnce(new Error("Notification service unavailable"));
+    await expect(takePhotoAndComplete("assignment_1")).resolves.toBe("done");
+  });
+
   it("returns no-permission and uploads nothing without camera access", async () => {
     requestCameraPermissionsAsync.mockResolvedValue({ status: "denied" });
 
@@ -97,6 +105,7 @@ describe("takePhotoAndComplete", () => {
     const result = await takePhotoAndComplete("assignment_1");
 
     expect(result).toBe("cancelled");
+    expect(cancelScheduledNotificationAsync).not.toHaveBeenCalled();
     expect(uploadAsync).not.toHaveBeenCalled();
   });
 });

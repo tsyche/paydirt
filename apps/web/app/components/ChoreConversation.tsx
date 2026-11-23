@@ -65,7 +65,7 @@ function Thread({ id, userId, close }: { id: string; userId: string; close: () =
       await client.sendChoreMessage(id, request.body, request.key);
       localStorage.removeItem(storageKey); setDraft({ body: "", key: "" }); await load();
     } catch (e) {
-      if ([400, 401, 403].includes((e as { status?: number }).status || 0)) save({ ...request, pending: false });
+      if ([400, 401, 403, 429].includes((e as { status?: number }).status || 0)) save({ ...request, pending: false });
       setError(errorMessage(e));
     } finally { working.current = false; setBusy(false); }
   }

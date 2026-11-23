@@ -1,5 +1,8 @@
 "use client";
 
+import { DeliverNowButton } from "./DeliverNowButton";
+import { timerEvidence } from "@paydirt/shared";
+
 import { EarnedTimeBank } from "./EarnedTimeBank";
 import { ArchiveButton, useArchives } from "./ArchiveActions";
 
@@ -426,7 +429,8 @@ export function Dashboard({
                   )}
                   {a.expand?.chore && payMode(a.expand.chore as Chore) !== "bucks" && <div className="muted">{a.time_choice === "use" ? "Use now in 15-minute blocks; remainder saved" : "Bank earned minutes"}</div>}
                   {a.due_at && <div className="muted">Due {householdDateTime(a.due_at)}</div>}
-                  {!!a.timer_minutes && <div className="muted">⏱ {a.timer_minutes} min · {a.timer_started_at ? `started ${householdDateTime(a.timer_started_at)}` : "not started"}</div>}
+                  {!!a.timer_minutes && !!a.submission_note && <p>Kid explanation: {a.submission_note}</p>}
+                  {!!a.timer_minutes && <div className="muted">⏱ {a.timer_minutes} min · {timerEvidence(a)}</div>}
                   <div className="muted">
                     {(a.expand?.child as User | undefined)?.display_name ?? "child"}
                     {a.expand?.chore && (
@@ -555,6 +559,7 @@ export function Dashboard({
                 <div>{bankedTimeLabel(g)}</div>
                 {g.grant_error && <div role="status" className="muted">{g.grant_error}</div>}
               </div>
+              {g.grant_status === "queued" && <DeliverNowButton id={g.id} collection="time_grants" overridden={g.grant_window_override} onQueued={reload} />}
               {g.grant_status === "manual" && <button className="sm" onClick={() => {
                 if (window.confirm("Check Family Link first. Confirm this bonus time has been granted manually?")) {
                   void act(() => client.confirmBonusGrant(g.id));
@@ -571,6 +576,7 @@ export function Dashboard({
                 <div>{bankedTimeLabel(s)}</div>
                 {s.grant_error && <div role="status" className="muted">{s.grant_error}</div>}
               </div>
+              {s.grant_status === "queued" && <DeliverNowButton id={s.id} collection="spend_requests" overridden={s.grant_window_override} onQueued={reload} />}
               {s.grant_status === "manual" && <button className="sm" onClick={() => {
                 if (window.confirm("Check Family Link first. Confirm this purchased time has been granted manually?")) {
                   void act(() => client.confirmManualGrant(s.id));

@@ -20,7 +20,7 @@ vi.mock("react-native", () => {
   return {
     AppState: { currentState: "active", addEventListener: () => ({ remove() {} }) },
     AccessibilityInfo: { isReduceMotionEnabled: async () => true },
-    Animated: { Value: class { setValue() {} } }, Easing: {}, Alert: { alert() {} },
+    Animated: { Value: class { setValue() {} } }, Easing: {}, Alert: { alert: vi.fn() },
     Image: Container, View: Container, ScrollView: Container, RefreshControl: Container,
     Pressable: ({ children, ...props }: { children: ReactNode | ((state: { pressed: boolean }) => ReactNode) }) =>
       createElement("button", props, typeof children === "function" ? children({ pressed: false }) : children),
@@ -31,6 +31,7 @@ vi.mock("react-native", () => {
 vi.mock("react-native-safe-area-context", () => ({ SafeAreaView: ({ children }: { children: ReactNode }) => createElement("div", null, children) }));
 vi.mock("@expo/vector-icons", () => ({ MaterialCommunityIcons: () => null }));
 vi.mock("@react-native-community/datetimepicker", () => ({ DateTimePickerAndroid: { open() {} } }));
+vi.mock("expo-notifications", () => ({ cancelScheduledNotificationAsync: vi.fn(async () => {}) }));
 vi.mock("expo-image-picker", () => ({}));
 vi.mock("expo-file-system/legacy", () => ({}));
 vi.mock("react-native-paper", () => {
@@ -61,6 +62,7 @@ describe("Native dollar bonuses and deductions", () => {
   let url: string;
   let target: string;
   let stopReachability: () => void;
+  let DeliverNowButton: typeof import("./DeliverNowButton").DeliverNowButton;
   let KidDetail: typeof import("./KidDetail").KidDetail;
   beforeAll(async () => {
     const reservation = createServer();
@@ -93,6 +95,7 @@ describe("Native dollar bonuses and deductions", () => {
     const mobile = await import("../lib/client");
     stopReachability = mobile.reachability.stop;
     kid = mobile.client;
+    DeliverNowButton = (await import("./DeliverNowButton")).DeliverNowButton;
     KidDetail = (await import("./KidDetail")).KidDetail;
     await parent.login("parent1@test.local", "password123");
     await kid.login("parent1@test.local", "password123");
@@ -127,6 +130,28 @@ describe("Native dollar bonuses and deductions", () => {
     expect(text(view)).toContain(value);
   }
   const button = (view: ReactTestRenderer, label: string) => view.root.findAllByType("button").find((node) => node.props.children === label)!;
+
+  it("confirms and queues a parent override from the native button", async () => {
+    await parent.pb.collection("users").update(target, { fl_child_id: "123456789012", fl_device_id: "a".repeat(30) });
+    const grant = await parent.giveBonusMinutes(target, 15, "Holiday native override", "native_holiday_override");
+    const balance = await parent.getBalance(target);
+    let refreshed = 0;
+    let view!: ReactTestRenderer;
+    await act(async () => { view = create(createElement(DeliverNowButton, { id: grant.id, collection: "time_grants", onQueued: () => { refreshed++; } })); });
+    try {
+      await act(async () => button(view, "Deliver now").props.onPress());
+      const alert = (await import("react-native")).Alert.alert;
+      const buttons = vi.mocked(alert).mock.calls.at(-1)![2]!;
+      expect(vi.mocked(alert).mock.calls.at(-1)![1]).toContain("regular schedule stays the same");
+      await act(async () => { buttons.find((b) => b.text === "Deliver now")!.onPress!(); });
+      await settle(view, "Delivery override enabled");
+      const actual = await parent.pb.collection("time_grants").getOne(grant.id);
+      expect(actual.grant_window_override).toBe(true);
+      expect(actual.grant_status).toBe("queued");
+      expect(refreshed).toBe(1);
+      expect(await parent.getBalance(target)).toBe(balance);
+    } finally { await act(async () => view.unmount()); }
+  });
 
   it("saves dollar bonuses and deductions through the actual dialog and refreshes the kid's balance", async () => {
     const household = await parent.getHousehold(parent.currentUser!.household);

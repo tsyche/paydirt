@@ -44,7 +44,7 @@ import { client } from "../lib/client";
 import { kidTabForNotificationType } from "../lib/deepLinks";
 import { isNetworkError } from "../lib/reachability";
 import { useRealtimeResume } from "../lib/useRealtimeResume";
-import { takePhotoAndComplete } from "../lib/completeWithPhoto";
+import { completeWithoutPhoto, takePhotoAndComplete } from "../lib/completeWithPhoto";
 import { Avatar } from "../components/Avatar";
 import { BadgeShelf } from "../components/BadgeShelf";
 import { KudosHistory } from "../components/KudosHistory";
@@ -268,17 +268,17 @@ export function KidHome({
     }
   }
 
-  async function markDone(id: string) {
+  async function markDone(id: string, note = "") {
     const choice = await chooseTimeReward(assignments.find((a) => a.id === id)?.expand?.chore);
     if (!choice) return;
-    await act(() => client.markComplete(id, undefined, choice), "Marked done — waiting for approval!")();
+    await act(() => completeWithoutPhoto(id, choice, note), "Marked done — waiting for approval!")();
   }
 
-  async function markDoneWithPhoto(id: string, resubmit = false) {
+  async function markDoneWithPhoto(id: string, resubmit = false, note = "") {
     try {
       const choice = await chooseTimeReward(assignments.find((a) => a.id === id)?.expand?.chore);
       if (!choice) return;
-      const result = await takePhotoAndComplete(id, choice);
+      const result = await takePhotoAndComplete(id, choice, note);
       if (result === "no-permission") {
         setSnack("Camera permission needed to submit this chore.");
         return;
@@ -424,17 +424,19 @@ export function KidHome({
                       <Button mode="outlined" icon="reply" onPress={() => setReplyFor(a)}>
                         Reply
                       </Button>
-                      <Button mode="contained" icon="camera" onPress={() => markDoneWithPhoto(a.id, true)}>
+                      {a.timer_minutes ? <ChoreTimer assignment={a} onStarted={reload} onComplete={async (note) => {
+                        await markDoneWithPhoto(a.id, true, note);
+                      }} /> : <Button mode="contained" icon="camera" onPress={() => markDoneWithPhoto(a.id, true)}>
                         Redo with photo
-                      </Button>
+                      </Button>}
                     </View>
                   </>
                 ) : null}
                 {a.status === "assigned" ? (
                   <>
-                    {a.timer_minutes ? <ChoreTimer assignment={a} onStarted={reload} onComplete={() => {
-                      if (chore?.photo_required) void markDoneWithPhoto(a.id);
-                      else void markDone(a.id);
+                    {a.timer_minutes ? <ChoreTimer assignment={a} onStarted={reload} onComplete={async (note) => {
+                      if (chore?.photo_required) await markDoneWithPhoto(a.id, false, note);
+                      else await markDone(a.id, note);
                     }} /> : chore?.photo_required ? (
                       <ChunkyButton
                         label="Take photo & mark done"

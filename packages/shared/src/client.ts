@@ -698,6 +698,10 @@ export class PaydirtClient {
     return [...outstanding, ...recent.items];
   }
 
+  deliverGrantNow(collection: "time_grants" | "spend_requests", id: string): Promise<{ id: string }> {
+    return this.pb.send(`/api/paydirt/grants/${collection}/${encodeURIComponent(id)}/deliver-now`, { method: "POST" });
+  }
+
   confirmBonusGrant(id: string): Promise<TimeGrant> {
     return this.pb.collection(Collections.TimeGrants).update<TimeGrant>(id, { grant_status: "manual_done" });
   }

@@ -564,6 +564,17 @@ function runKidWeeklyRecap(app) {
         0,
         { u: kid.id, since: weekAgo },
       );
+      // Count earning events, not the current bank or delivery activity. Using,
+      // cancelling, or later delivering the same minutes must not earn them twice.
+      const minuteEarnings = app.findRecordsByFilter("time_ledger",
+        "child = {:u} && kind = 'earn' && created >= {:since}", "", 0, 0,
+        { u: kid.id, since: weekAgo });
+      const earnedMinutes = minuteEarnings.reduce((total, row) => total + row.getInt("minutes"), 0);
+      // Mirrors effectiveGoodsRate/toDollars in packages/shared/src/overview.ts.
+      const rate = kid.getFloat("goods_rate") > 0 ? kid.getFloat("goods_rate") : hh.getFloat("goods_rate");
+      const dollarValue = rate > 0
+        ? " (about $" + (earned / rate).toFixed(2) + " at your current rate)"
+        : " (dollar value unavailable)";
       // Nearest unachieved goal.
       const goals = app.findRecordsByFilter(
         "savings_goals",
@@ -582,7 +593,8 @@ function runKidWeeklyRecap(app) {
         goalLine = "\nGoal '" + g.getString("name") + "': " + pct + "% (" + bal + "/" + target + ")";
       }
       const title = "Your week 🌟";
-      const msg = "You earned " + earned + " " + currency + " and completed " + done.length +
+      const msg = "You earned " + earned + " " + currency + dollarValue + ", " + earnedMinutes +
+        " screen-time minutes from chores, and completed " + done.length +
         " chore" + (done.length === 1 ? "" : "s") + "!" + goalLine;
       notifyUser(app, kid.id, title, msg);
     }

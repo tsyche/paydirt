@@ -7,6 +7,7 @@ import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { createServer } from "node:net";
 import PocketBase from "pocketbase";
+import { timerEvidence } from "./choreTimer";
 import { PaydirtClient } from "./client";
 import { EventSource } from "eventsource";
 
@@ -68,11 +69,75 @@ describe("Chore conversations (isolated PocketBase)", () => {
 
 
 
-  async function assignment() {
+  async function assignment(extra: object = {}) {
     const chore = await parent.createChore({ household: parent.currentUser!.household, name: "Conversation fixture", reward: 10,
-      type: "oneoff", created_by: parent.currentUser!.id, active: true });
+      type: "oneoff", created_by: parent.currentUser!.id, active: true, ...extra });
     return parent.assignChore(chore.id, kid.currentUser!.id);
   }
+  it.each([false, true])("accepts explained timed work without completed timer proof (started=%s)", async (started) => {
+    const a = await assignment({ timer_minutes: 30, photo_required: started });
+    if (started) await kid.startChoreTimer(a.id);
+    const balance = await kid.getBalance(kid.currentUser!.id);
+    await expect(kid.markComplete(a.id)).rejects.toThrow();
+    const form = started ? completionFormWithPhoto() : new FormData();
+    form.set("status", "completed");
+    form.set("submission_note", "I practiced soccer outside and forgot the timer.");
+    form.set("completed_at", "2099-01-01T00:00:00Z");
+    await kid.pb.collection("assignments").update(a.id, form);
+    const submitted = await parent.getConversationAssignment(a.id);
+    expect(submitted.status).toBe("completed");
+    expect(timerEvidence(submitted)).toBe(started ? "Timer incomplete" : "Timer not used");
+    expect(new Date(submitted.completed_at!.replace(" ", "T")).getTime()).toBeLessThanOrEqual(Date.now());
+    expect(submitted.submission_note).toContain("practiced soccer");
+    expect(!!submitted.photo).toBe(started);
+    expect(await kid.getBalance(kid.currentUser!.id)).toBe(balance);
+    await expect(kid.pb.collection("assignments").update(a.id, { completed_at: "2099-01-01T00:00:00Z" })).rejects.toThrow();
+    await expect(kid.pb.collection("assignments").update(a.id, { timer_minutes: 1 })).rejects.toThrow();
+    await parent.rejectAssignment(a.id, "Please add one more detail.");
+    const retry = completionFormWithPhoto();
+    retry.set("submission_note", "I practiced soccer again and included a photo.");
+    await kid.pb.collection("assignments").update(a.id, retry);
+    expect(timerEvidence(await parent.getConversationAssignment(a.id))).toBe(started ? "Timer incomplete" : "Timer not used");
+    await parent.approveAssignment(a.id);
+    expect(await kid.getBalance(kid.currentUser!.id)).toBe(balance + 10);
+    expect((await parent.listChoreMessages(a.id))[0]?.body).toContain("practiced soccer");
+  });
+
+  it("keeps the normal completed timer path free of extra explanation", async () => {
+    const a = await assignment({ timer_minutes: 1 });
+    await kid.startChoreTimer(a.id);
+    const db = new DatabaseSync(join(root, "data/data.db"));
+    try { db.prepare("UPDATE assignments SET timer_started_at = ? WHERE id = ?").run(new Date(Date.now() - 120000).toISOString().replace("T", " "), a.id); }
+    finally { db.close(); }
+    await kid.markComplete(a.id);
+    expect(timerEvidence(await parent.getConversationAssignment(a.id))).toBe("Timer completed");
+  });
+
+  it("limits new messages per participant/thread, permits retries and decisions, and recovers after the window", async () => {
+    const a = await assignment();
+    const first = await kid.sendChoreMessage(a.id, "Message 0", "rate_limit_child_000");
+    for (let i = 1; i < 20; i++) await kid.sendChoreMessage(a.id, `Message ${i}`, `rate_limit_child_${String(i).padStart(3, "0")}`);
+    await expect(kid.sendChoreMessage(a.id, "Message 20", "rate_limit_child_020")).rejects.toMatchObject({ status: 429 });
+    expect(await kid.sendChoreMessage(a.id, "Message 0", "rate_limit_child_000")).toEqual(first);
+    await parent.sendChoreMessage(a.id, "A parent can still reply", "rate_limit_parent_reply");
+    const other = await assignment();
+    await kid.sendChoreMessage(other.id, "Another thread is independent", "rate_limit_other_thread");
+    const sibling = new PaydirtClient(url);
+    await sibling.login("child2@test.local", "password123");
+    const siblingTask = await parent.assignChore(other.chore, sibling.currentUser!.id);
+    await sibling.sendChoreMessage(siblingTask.id, "My thread is independent", "rate_limit_sibling_thread");
+    await kid.markComplete(a.id);
+    await parent.rejectAssignment(a.id, "Please check the corner.");
+    await kid.pb.collection("assignments").update(a.id, completionFormWithPhoto());
+    await parent.approveAssignment(a.id);
+    expect((await kid.getConversationAssignment(a.id)).status).toBe("approved");
+    const db = new DatabaseSync(join(root, "data/data.db"));
+    try { db.prepare("UPDATE chore_messages SET created = ? WHERE assignment = ? AND author = ? AND kind = 'message'").run(new Date(Date.now() - 11 * 60000).toISOString().replace("T", " "), a.id, kid.currentUser!.id); }
+    finally { db.close(); }
+    await kid.sendChoreMessage(a.id, "The window has passed", "rate_limit_after_window");
+    expect((await kid.listChoreMessages(a.id)).filter((m) => m.body === "Message 0")).toHaveLength(1);
+  });
+
   it("separates questions and replies from approval, preserves decision history, and permits later replies", async () => {
     const a = await assignment();
     await kid.markComplete(a.id, undefined, "bank", "I cleaned the corners too.");
@@ -204,7 +269,8 @@ describe("Chore conversations (isolated PocketBase)", () => {
     try { fixture.prepare("DELETE FROM chore_messages").run(); } finally { fixture.close(); }
     const binary = join(repo, "pocketbase/pocketbase");
     const args = ["--dir", join(root, "data"), "--migrationsDir", join(repo, "pocketbase/pb_migrations")];
-    execFileSync(binary, ["migrate", "down", "1", ...args], { input: "y\n", stdio: ["pipe", "ignore", "ignore"] });
+    // Remove optional grant metadata (46), then conversation storage (45).
+    execFileSync(binary, ["migrate", "down", "2", ...args], { input: "y\n", stdio: ["pipe", "ignore", "ignore"] });
     execFileSync(binary, ["migrate", "up", ...args], { stdio: "ignore" });
     const db = new DatabaseSync(dbPath);
     try {
@@ -215,7 +281,7 @@ describe("Chore conversations (isolated PocketBase)", () => {
       expect(rows[3]?.created).toBe(legacyDates.approved_at);
       expect(db.prepare("SELECT approval_comment, kid_response FROM assignments WHERE id = ?").get(a.id)).toMatchObject({ approval_comment: "Earlier approval praise", kid_response: "Earlier kid reply" });
     } finally { db.close(); }
-    expect(() => execFileSync(binary, ["migrate", "down", "1", ...args], { input: "y\n", stdio: ["pipe", "ignore", "ignore"] })).toThrow();
+    expect(() => execFileSync(binary, ["migrate", "down", "2", ...args], { input: "y\n", stdio: ["pipe", "ignore", "ignore"] })).toThrow();
   });
 
 });

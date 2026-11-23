@@ -2,7 +2,7 @@
 
 ## TL;DR
 
-PayDirt is live on bb. Earned-time banking, chore conversations, compact parent totals, top-right approval reactions, and the one-hour redemption UX are implemented; rollout and remaining device checks stay active below. Security dependencies are patched and a pulled-backup restore drill passes. Time-delivery outcomes and nightly ledger monitoring are implemented locally; prioritize their rollout and remaining device acceptance. Further server-free spike work is deferred; its plan remains Draft and no architecture migration is approved.
+PayDirt is live on bb; the delivery-outcome dashboard and nightly ledger hook are deployed, while physical-device acceptance remains open. Per-grant delivery overrides, richer kid recaps, optional timer proof and conversation send limits are implemented locally, and legacy saved-time retries are covered; prioritize this release and the remaining approval-speed, bank/conversation and backup-metadata checks. The server-free spike remains deferred with no architecture migration approved.
 
 Scope checklist: [FEATURES.md](./FEATURES.md). **This file is the authoritative
 status tracker.**
@@ -14,9 +14,9 @@ Last audited 2026-11-10 against source, recent commits, existing automated evide
 
 ## Recommended Next 3
 
-1. [**Release/device verification**](#release-checks-for-implemented-work) — deploy delivery outcomes and nightly ledger monitoring, then finish approval-speed, dollar-control, bank/conversation and backup-metadata acceptance. 🧑 needs-human: sudo deployment and installed-device testing.
-2. [**Legacy bank retry compatibility test**](#approved-follow-ups) — prove an older 75–120-minute request remains safe to retry after the one-hour cap. ~1 hr.
-3. [**Conversation send limits**](#approved-follow-ups) — bound repeated new messages while preserving drafts, idempotent retries, and private-thread isolation. ~2–3 hrs.
+1. [**Release/device verification**](#release-checks-for-implemented-work) — deploy Deliver now, richer recaps, optional timer proof and message limits, then finish approval-speed, dollar-control, bank/conversation and backup-metadata acceptance. 🧑 needs-human: sudo deployment and installed-device testing.
+2. [**Parent parity pass**](#parent-parity-web--mobile) — compare actual parent controls, fix cheap field/validation gaps, and record remaining differences. ~2 hrs.
+3. [**Expiry dry-run preview**](#backlog-unscheduled) — show each kid's pending expiry loss before a parent changes the setting. ~1–2 hrs.
 
 In parallel, finish the owner-run release/device checklist for the recent bank and conversation work. New product work waits behind these checks; the server-free spike remains deferred.
 
@@ -39,26 +39,32 @@ In parallel, finish the owner-run release/device checklist for the recent bank a
 
 The owner reports regularly shipping the app and confirmed the device walkthrough on 2026-11-08: Android editing no longer jumps or duplicates text; saved text is correct; pending sections, collapsed past grants, expanded history, and household timestamps look correct; chore edit/cancel/archive/restore, history Undo/Restore, and help cancellation work. See the [shipped ledger](docs/ledger/ROADMAP_SHIPPED.md).
 
-Kid-controlled earned-time banking and the chore-submission conversation redesign are committed; deployment and remaining physical-device checks are not established. The latest bank UX uses explicit amount labels, 15-minute steps, and a 60-minute cap per new request; excess earnings stay saved. Further server-free spike work remains deferred. No architecture migration is approved. Checks not included in that walkthrough (cross-device/offline behavior, large text, Bank and approval-feedback details, and external grant recovery) remain explicit below.
+Kid-controlled earned-time banking and the chore-submission conversation redesign are committed; backend/dashboard rollout was verified November 22, while physical-device checks remain open. The latest bank UX uses explicit amount labels, 15-minute steps, and a 60-minute cap per new request; excess earnings stay saved. Further server-free spike work remains deferred. No architecture migration is approved. Checks not included in that walkthrough (cross-device/offline behavior, large text, Bank and approval-feedback details, and external grant recovery) remain explicit below.
 
 ## Release checks for implemented work
 
-Security dependency updates are verified locally (zero audit findings) and pushed in `1b0afa3`; a new release is still pending. The owner completed `just ship` for the preceding work on 2026-11-20: backend updated and APK 210 published, with no devices reachable for direct installation. Device acceptance below remains open.
+Security dependency updates passed local verification (zero audit findings) and are pushed in `1b0afa3`. The previous backend/dashboard release was hash-verified on November 22; APK 214 is published, but installation and device acceptance remain unverified. The new timer/message-limit changes still need shipping.
 
 These are verification/deployment tasks, not features to implement again. Specific missing evidence and the returned original records are in the [acceptance plan](docs/plans/feature-acceptance.md). Budget ~1–2 hrs for the recent bank/conversation/reaction device walkthrough; older external-delivery and offline checks need separate sessions.
 
-- **Time-delivery outcomes and nightly ledger monitoring (2026-11-21)** — implemented locally. Both kid layouts and parent bank details retain queued, partial, delivered, needs-help and cancelled results. The 03:15 ledger check is read-only and quiet when clean; existing notification quiet hours apply. Deploy backend/web and an updated APK with `just ship`, then confirm status updates and parent alerts on-device. 🧑 needs-human: deployment requires an interactive sudo terminal; all four configured ADB devices were unavailable during the November 21 verification run.
+- **Time-delivery outcomes and nightly ledger monitoring (2026-11-21)** — backend and dashboard deployment verified on November 22: deployed helper/scheduler/dashboard hashes match the previous release, the API and workers are healthy, and APK 214 is published. Installed-device acceptance and a scheduled ledger-check observation remain pending. 🧑 needs-human: all four configured ADB devices were unavailable on November 22; verify real approvals/delivery and the scheduled check without corrupting production data.
+
+- **Per-grant Deliver now (2026-11-23)** — locally implemented on parent web/mobile for holiday exceptions. Queued bonuses, purchases and redeemed savings can bypass PayDirt windows once without changing the regular schedule; expiry, live claims and uncertain-result protections remain. Migration `1717000046` and a new release are required. A stale purchase-record publisher loop is also fixed, with exactly-one-deduction coverage. 🧑 needs-human: deploy and verify a real queued grant on-device; confirm Family Link restrictions separately.
+
+- **Kid weekly recap earnings (2026-11-23)** — local backend change adds chore-earned screen minutes and the current-rate dollar equivalent of Grit earned. Real-PocketBase checks cover historical/used/cancelled time, rate overrides and missing rates. 🧑 needs-human: deploy with the pending batch and confirm the recap on a kid device; this addition needs no APK update.
+
+- **Optional timer proof and conversation limits (2026-11-22)** — both kid layouts offer “I already did this” with an explanation for unused/incomplete timers, including returned chores; photo requirements and parent approval remain. Parent web/mobile show the explanation and server-timed proof. New messages are limited to 20 per author/thread per 10 minutes, with safe retries and saved editable drafts. 🧑 needs-human: deploy backend/web/APK with `just ship`, then check the new controls, reminders and native keyboard on-device.
 
 - **Backup version metadata (2026-11-21)** — the local drill passed against the November 21 household backup (4 users, 116 transactions). The [backup hook](pocketbase/pb_hooks/backups.pb.js) was deployed on November 21 and its deployed hash matches the source; the backend restarted successfully. Confirm the next archive includes `paydirt-backup.json`, removing the need to establish legacy versions manually. 🧑 needs-human: pull the next backup for its metadata check.
 
-- **Dollar bonuses and deductions (2026-11-20)** — parent web/mobile Bonus/deduct controls accept dollars as well as grit, including the currency half of combined bonuses. Preview uses the kid's override or household grit-per-dollar rate, accepts cents, and preserves fractional grit. No schema change. Requires a web deploy and updated mobile app; confirm decimal keyboard, preview, bonus/deduction signs, and refreshed balance on-device.
+- **Dollar bonuses and deductions (2026-11-20)** — parent web/mobile Bonus/deduct controls accept dollars as well as grit, including the currency half of combined bonuses. Preview uses the kid's override or household grit-per-dollar rate, accepts cents, and preserves fractional grit. No schema change. Web deployment was verified November 22; confirm the installed mobile app, decimal keyboard, preview, bonus/deduction signs, and refreshed balance on-device.
 
 - **Chore conversations (2026-11-09)** — implemented locally on parent web/mobile and both kid layouts, with private message/decision history and archived-thread recovery. Requires an approved backend/APK release. Verify native keyboard/large text, submission notes with camera proof, and notification taps from cold/warm starts; see [device checks](docs/DEVICE_TESTING.md#kid-flow). Automated evidence is in the [shipped ledger](docs/ledger/ROADMAP_SHIPPED.md#chore-conversations-and-compact-time-totals-2026-11-09).
 - **Compact bank totals (2026-11-09)** — main Kids cards show only banked available minutes. The parent per-child bank section starts collapsed at the top; expanding it shows separate saved/reserved/requested/queued rows and history. Both kid layouts show the saved total, a 15-minute selector capped at the balance or 60 minutes, an amount-labelled Use button, and a confirmation. Kid accounting/history starts collapsed. Verify the mobile child-detail layout on-device after release.
 
 - **Approval reactions (2026-11-09)** — committed in `7efb672`; web/mobile reactions occupy a non-wrapping top-right header, separate from Conversation and other actions. Phone-width browser and real-PocketBase native component regressions pass. Verify the installed APK layout. ~10 min.
 
-- **Earned-time bank (2026-11-09)** — implemented locally on both kid layouts and parent web/mobile; automated acceptance is recorded in the [shipped ledger](docs/ledger/ROADMAP_SHIPPED.md#earned-time-bank-and-parent-totals-2026-11-09). Backend/APK deployment needs owner approval; the kid selector/server cap is committed in `fdb9ae7`. After release, verify bedtime → morning held balance → partial redemption on a real kid device, plus Bank/Use now, large-text layout, and cross-device totals. Existing queued jobs must remain untouched.
+- **Earned-time bank (2026-11-09)** — implemented locally on both kid layouts and parent web/mobile; automated acceptance is recorded in the [shipped ledger](docs/ledger/ROADMAP_SHIPPED.md#earned-time-bank-and-parent-totals-2026-11-09). Backend/dashboard rollout was verified November 22 and APK 214 is published; installed-device acceptance remains open. The kid selector/server cap is committed in `fdb9ae7`. After release, verify bedtime → morning held balance → partial redemption on a real kid device, plus Bank/Use now, large-text layout, and cross-device totals. Existing queued jobs must remain untouched.
 
 - **Launcher and status icon refresh (2026-11-09)** — standard launcher/favicon artwork now has transparency; Android adaptive launchers use a warm neutral background. Existing header artwork is unchanged. UnifiedPush and Expo notifications use a dedicated coin/check status drawable instead of the launcher silhouette. Native runtime/app version is 1.0.1; requires a new APK, not a JS-only update. Asset/resource regression checks pass; verify the installed launcher, themed mode, and real notification on-device after the next approved release.
 
@@ -74,13 +80,6 @@ These are verification/deployment tasks, not features to implement again. Specif
 - **Latest mobile fixes** — verify invalid bonus-minute feedback and Approvals → suggested chore → editable modal → Create and approve / Cancel on the new APK. Rendered-component checks pass; native tap-through is not yet recorded.
 - **Combined grit + time bonus (2026-11-20)** — implemented locally on parent web and mobile: the Bonus/deduct control gains a "Grit + screen minutes" mode with one shared required note; time is sent first (retry-safe via `requestKey`), then grit, and a partial failure names the half that landed and lets the retry send only the missing half. Shared validation/ordering lives in [adjustBonus.ts](packages/shared/src/adjustBonus.ts) with unit coverage; deduction stays grit-only. Needs a web deploy + APK/OTA. Verify on-device: combined submit, partial-failure retry, note required, existing grit-only and time-only flows unchanged. ~15 min.
 - 🧑 needs-human: deployment and real-device confirmation for any unverified release above. Native browser launch is blocked in this runner; browser checks run headlessly in the existing Playwright Docker image.
-
-## Approved follow-ups
-
-Approved during the 2026-11-10 audit; implementation is not part of this documentation pass.
-
-1. **Legacy bank retry compatibility test** — create a pre-cap 75–120-minute redemption in an isolated fixture, retry its original key after the cap, and verify the same redemption/grant returns with no extra reservation or delivery. A new request over 60 minutes must still fail. Cover an uncertain persisted mobile request after restart. ~1 hr.
-2. **Conversation send limits** — bound repeated new text messages per participant/thread on the server, while allowing idempotent retries of an already accepted send. Show actionable feedback, preserve unsent drafts on web/mobile, and verify one child cannot throttle another child's private thread. Choose a modest threshold before implementation; never throttle Approve/Reject or replay a payout. ~2–3 hrs.
 
 ## Phase 2 — Family Link Automation
 

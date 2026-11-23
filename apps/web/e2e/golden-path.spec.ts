@@ -35,7 +35,7 @@ test("approve screen time, see the manual fallback, and confirm the grant", asyn
     const row = page.locator(".card.row").filter({ hasText: request.description });
     await row.getByRole("button", { name: "Approve", exact: true }).click();
     await expect(row).toContainText(/needs manual review/i);
-    await expect(row).toContainText("Automatic grants are disabled");
+    await expect(row).toContainText("Family Link target is missing");
     // The server result remains visible after a reload.
     await page.reload();
     await expect(row).toContainText(/needs manual review/i);

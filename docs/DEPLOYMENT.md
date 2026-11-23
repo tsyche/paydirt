@@ -166,6 +166,14 @@ When disabled or a child has no IDs, approval still deducts the purchase and sho
   and `1717000045` before their new clients. New earnings stay in the held ledger;
   existing queued grants are preserved. Rollbacks refuse populated minute ledgers
   or conversations; reconcile/export their data rather than dropping history.
+- Migration `1717000046` adds per-grant delivery overrides. Apply it before the
+  updated web/APK clients; existing clients and workers remain compatible. Its
+  rollback refuses active queued overrides; finish or reconcile them first.
+- Parent Approvals has **Deliver now** for each queued grant. Confirm to bypass
+  PayDirt's delivery hours for its remaining minutes only; this does not edit
+  weekday/weekend schedules or bypass Family Link restrictions. It does not
+  retry uncertain/manual grants. Web access needs `just update-service`; mobile
+  controls also need the updated APK (`just ship` handles both).
 - Approval commits `grant_status=queued` with the spend. The hook publishes a private JSON request; the minute cron repairs a missed publish and imports results.
 - `paydirt-fl.path` starts the worker. It claims each request atomically and processes grants serially, with a 60-second timeout per browser command.
 - Receipts stay on disk to prevent replay. Failed or interrupted grants are never retried automatically: Google may have accepted a write before the connection failed.

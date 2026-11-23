@@ -36,7 +36,7 @@ test("parent summary and detail update when a kid earns, reserves, and delivers 
   await expect(bank).toContainText("Earned");
   const redemption = await kid.redeemSavedTime(15, `browser_${Date.now()}`, true);
   await expect(bank).toContainText(`${before.available + 15} min saved`);
-  // This fixture disables automation; a parent can confirm manual delivery.
+  // This fixture kid has no Family Link target; a parent can confirm manual delivery.
   await expect(bank).toContainText(`${before.reserved + 15} min reserved for review`);
   const grant = (await kid.getTimeBank(child)).grants.find((g) => g.redemption === redemption.id)!;
   await expect(bank).toContainText("15 minutes requested · Needs parent help");

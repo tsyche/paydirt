@@ -1,3 +1,4 @@
+import { DatabaseSync } from "node:sqlite";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { execFileSync, spawn, type ChildProcess } from "node:child_process";
 import { cpSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
@@ -220,6 +221,33 @@ describe("Native earned-time controls (real PocketBase)", () => {
     const final = await kid.getTimeBank(kid.currentUser!.id);
     expect(final.ledger.filter((r) => r.redemption === grant.redemption && r.kind === "reserve")).toHaveLength(1);
     expect(final.ledger.filter((r) => r.redemption === grant.redemption && r.kind === "redeem").reduce((sum, r) => sum + r.minutes, 0)).toBe(15);
+  });
+
+  it("retries an uncertain pre-cap 120-minute request after a restart without another debit", async () => {
+    await earn(120);
+    const key = "native_legacy_120_request";
+    const request = await kid.redeemSavedTime(60, key, true);
+    const db = new DatabaseSync(join(root, "data/data.db"));
+    try {
+      db.exec("BEGIN");
+      db.prepare("UPDATE time_redemptions SET minutes = 120 WHERE id = ?").run(request.id);
+      db.prepare("UPDATE time_grants SET minutes = 120 WHERE redemption = ?").run(request.id);
+      db.prepare("UPDATE time_ledger SET minutes = 120 WHERE redemption = ? AND kind = 'reserve'").run(request.id);
+      db.exec("COMMIT");
+    } finally { db.close(); }
+    storage.set(`paydirt-time-redemption:${kid.currentUser!.id}`, JSON.stringify({ minutes: 120, key, allowQueue: true }));
+    const before = await kid.getTimeBank(kid.currentUser!.id);
+    const available = timeBankTotals(before.ledger, before.grants, before.purchases).available;
+    const view = await mount(true);
+    await settle(view, "Retry Use 120 minutes");
+    await act(async () => { button(view, "Retry Use 120 minutes").props.onPress(); });
+    await settle(view, "120 minutes requested. Your remaining saved time stays in your bank.");
+    const after = await kid.getTimeBank(kid.currentUser!.id);
+    expect(timeBankTotals(after.ledger, after.grants, after.purchases).available).toBe(available);
+    expect(after.ledger.filter((r) => r.redemption === request.id && r.kind === "reserve")).toHaveLength(1);
+    expect(after.grants.filter((g) => g.redemption === request.id)).toHaveLength(1);
+    expect(storage.has(`paydirt-time-redemption:${kid.currentUser!.id}`)).toBe(false);
+    await act(async () => view.unmount());
   });
 
   it("persists a lost-response request across remount and retries the same reservation", async () => {

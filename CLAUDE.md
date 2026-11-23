@@ -71,7 +71,9 @@ typecheck`, and `just test` on pushes to `main` and on PRs. Integration + e2e ru
 `just test-all` (self-contained — boots its own ephemeral PocketBase) gated
 behind `workflow_dispatch`, since they're slower and don't need to run on
 every push. `just test-all` also runs `just verify-ledger` against the
-ephemeral instance.
+ephemeral instance. Delivery-override browser checks use its queue-enabled
+disposable backend; no Google worker runs. Standalone E2E setup must enable
+`FL_AUTOMATION_ENABLED` with a private `FL_QUEUE_DIR` and leave the worker stopped.
 
 Test data: `just seed` (idempotent) populates a "Test Family" household with two
 parents, two kids, chores, and sample activity. It talks to the running server's

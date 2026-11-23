@@ -4,7 +4,7 @@ import { cpSync, mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { createServer } from "node:net";
-import { PaydirtClient } from "@paydirt/shared";
+import { timerEvidence, PaydirtClient } from "@paydirt/shared";
 
 
 import { createElement, type ReactNode } from "react";
@@ -18,7 +18,7 @@ vi.mock("@react-native-async-storage/async-storage", () => ({ default: {
   removeItem: async (key: string) => { storage.delete(key); },
 } }));
 vi.mock("react-native-sse", async () => ({ default: (await import("eventsource")).EventSource }));
-vi.mock("react-native", () => ({ AppState: {
+vi.mock("react-native", () => ({ Platform: { OS: "android" }, AppState: {
   currentState: "active",
   addEventListener: (_event: string, listener: (state: string) => void) => {
     appStateListeners.add(listener);
@@ -31,7 +31,7 @@ vi.mock("react-native-paper", () => {
     Portal: Container,
     Menu: Object.assign(Container, { Item: Container }),
     IconButton: (props: object) => createElement("button", props),
-    Dialog: Object.assign(Container, { Title: Container, Content: Container, ScrollArea: Container, Actions: Container }),
+    Dialog: Object.assign(({ visible, children }: { visible?: boolean; children: ReactNode }) => visible === false ? null : createElement("section", null, children), { Title: Container, Content: Container, ScrollArea: Container, Actions: Container }),
     TextInput: Object.assign((props: object) => createElement("input", props), { Icon: () => null, Affix: () => null }),
     Card: Object.assign(Container, { Content: Container }),
     Text: ({ children }: { children: ReactNode }) => createElement("span", null, children),
@@ -41,6 +41,10 @@ vi.mock("react-native-paper", () => {
     useTheme: () => ({ colors: {} }),
   };
 });
+vi.mock("expo-notifications", () => ({
+  scheduleNotificationAsync: vi.fn(async () => "timer"), cancelScheduledNotificationAsync: vi.fn(async () => {}),
+  SchedulableTriggerInputTypes: { DATE: "date" },
+}));
 vi.mock("expo-image-picker", () => ({ requestCameraPermissionsAsync: async () => ({ status: "granted" }), launchCameraAsync: async () => ({ canceled: true }) }));
 vi.mock("expo-file-system/legacy", () => ({ uploadAsync: async () => ({ status: 200 }), FileSystemUploadType: { MULTIPART: 1 } }));
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
@@ -56,6 +60,7 @@ describe("Native chore conversations (real PocketBase)", () => {
   let kid: PaydirtClient;
   let url: string;
   let stopReachability: () => void;
+  let ChoreTimer: typeof import("./ChoreTimer").ChoreTimer;
   let ConversationProvider: typeof import("./ChoreConversation").ConversationProvider;
   let ConversationButton: typeof import("./ChoreConversation").ConversationButton;
 
@@ -90,6 +95,7 @@ describe("Native chore conversations (real PocketBase)", () => {
     const mobile = await import("../lib/client");
     stopReachability = mobile.reachability.stop;
     kid = mobile.client;
+    ChoreTimer = (await import("./ChoreTimer")).ChoreTimer;
     ({ ConversationProvider, ConversationButton } = await import("./ChoreConversation"));
     await parent.login("parent1@test.local", "password123");
     await kid.login("child1@test.local", "password123");
@@ -137,14 +143,43 @@ describe("Native chore conversations (real PocketBase)", () => {
     await settle(view, "No messages yet");
     return view;
   }
-  async function assignment() {
+  async function assignment(extra: object = {}) {
     const c = await parent.createChore({ household: parent.currentUser!.household, name: "Native conversation", reward: 10,
-      type: "oneoff", created_by: parent.currentUser!.id, active: true });
+      type: "oneoff", created_by: parent.currentUser!.id, active: true, ...extra });
     return parent.assignChore(c.id, kid.currentUser!.id);
   }
   async function write(view: ReactTestRenderer, body: string) {
     await act(async () => { input(view).props.onChangeText(body); await new Promise((done) => setTimeout(done, 20)); });
   }
+  it.each([false, true])("submits explained timer work for review, not payment (started=%s)", async (started) => {
+    let a = await assignment({ timer_minutes: 30 });
+    if (started) a = await kid.startChoreTimer(a.id);
+    const balance = await kid.getBalance(kid.currentUser!.id);
+    let view!: ReactTestRenderer;
+    await act(async () => { view = create(createElement(ChoreTimer, { assignment: a, onStarted: async () => {},
+      onComplete: async (note) => { await (await import("../lib/completeWithPhoto")).completeWithoutPhoto(a.id, "bank", note); },
+    })); });
+    if (started) {
+      await act(async () => view.unmount());
+      expect((await import("expo-notifications")).cancelScheduledNotificationAsync).not.toHaveBeenCalledWith(`chore-timer-${a.id}`);
+      await act(async () => { view = create(createElement(ChoreTimer, { assignment: a, onStarted: async () => {},
+        onComplete: async (note) => { await (await import("../lib/completeWithPhoto")).completeWithoutPhoto(a.id, "bank", note); },
+      })); });
+    }
+    await act(async () => button(view, "I already did this").props.onPress());
+    expect(button(view, "Submit for review").props.disabled).toBe(true);
+    await act(async () => { view.root.findAllByType("input").find((i) => i.props.label === "What did you do?")!.props.onChangeText("I played soccer outside without checking the app."); });
+    expect(button(view, "Submit for review").props.disabled).toBe(false);
+    await act(async () => button(view, "Submit for review").props.onPress());
+    const result = await parent.getConversationAssignment(a.id);
+    expect(result.status).toBe("completed");
+    expect(result.submission_note).toContain("played soccer outside");
+    expect(timerEvidence(result)).toBe(started ? "Timer incomplete" : "Timer not used");
+    expect(await kid.getBalance(kid.currentUser!.id)).toBe(balance);
+    await act(async () => view.unmount());
+    if (started) expect((await import("expo-notifications")).cancelScheduledNotificationAsync).toHaveBeenCalledWith(`chore-timer-${a.id}`);
+  });
+
   it("submits the kid's note atomically, then sends a reply without changing approval or money", async () => {
     const a = await assignment(); const view = await mount(a.id);
     await write(view, "I cleaned all the shelves.");
@@ -164,6 +199,29 @@ describe("Native chore conversations (real PocketBase)", () => {
     expect(button(view, "Send message")).toBeDefined();
     await act(async () => view.unmount());
   });
+  it("preserves an editable throttled draft across restart", async () => {
+    const a = await assignment();
+    for (let i = 0; i < 20; i++) await kid.sendChoreMessage(a.id, `Earlier ${i}`, `native_rate_limit_${String(i).padStart(3, "0")}`);
+    let view = await mountWithHistory(a.id);
+    await write(view, "Please check my soccer practice.");
+    await act(async () => button(view, "Send message").props.onPress());
+    await settle(view, "Wait up to 10 minutes");
+    expect(input(view).props.value).toBe("Please check my soccer practice.");
+    expect(input(view).props.disabled).toBe(false);
+    await act(async () => view.unmount());
+    view = await mountWithHistory(a.id);
+    expect(input(view).props.value).toBe("Please check my soccer practice.");
+    await act(async () => view.unmount());
+  });
+  async function mountWithHistory(id: string) {
+    let view!: ReactTestRenderer;
+    await act(async () => { view = create(createElement(ConversationProvider, { userId: kid.currentUser!.id,
+      children: createElement(ConversationButton, { assignmentId: id }) })); });
+    await act(async () => button(view, "Conversation").props.onPress());
+    await settle(view, "Earlier 0");
+    return view;
+  }
+
   it("persists a lost-response draft across restart and retries without duplicate messages", async () => {
     const a = await assignment(); const view = await mount(a.id);
     await write(view, "Please check my work.");

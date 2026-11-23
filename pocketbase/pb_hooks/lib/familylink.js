@@ -34,7 +34,9 @@ function deliveryId(record) {
 
 function publish(app, record, at) {
   if (record.getString("grant_status") !== "queued") return;
-  if (record.getString("redemption")) record = app.findRecordById("time_grants", record.id);
+  // After-success hooks can retain the pre-approval original record. Reload
+  // before saving queue status, or a purchase can re-enter approval side effects.
+  record = app.findRecordById(record.collection().name, record.id);
   if (record.getString("grant_status") === "queued") publishReady(app, record, at);
 }
 
@@ -42,6 +44,14 @@ function publishReady(app, record, at) {
   const dir = queueDir();
   for (const part of ["pending", "processing", "results"]) $os.mkdirAll(dir + "/" + part, 0o700);
   const name = deliveryId(record) + ".json";
+  // A deferred receipt proves no time was granted. An explicit override may
+  // retry it immediately, but must not touch a live claim or an uncertain result.
+  if (record.getBool("grant_window_override") &&
+      !exists(dir + "/pending/" + name) && !exists(dir + "/processing/" + name) &&
+      exists(dir + "/results/" + name)) {
+    const result = JSON.parse(toString($os.readFile(dir + "/results/" + name)));
+    if (result.id === deliveryId(record) && result.status === "deferred") $os.remove(dir + "/results/" + name);
+  }
   // Never publish a second copy while a worker owns this request.
   for (const part of ["pending", "processing", "results"]) {
     if (exists(dir + "/" + part + "/" + name)) return;
@@ -56,7 +66,9 @@ function publishReady(app, record, at) {
     record.set("grant_error", "Queued time expired without delivery. Review the purchase or chore reward manually.");
     app.save(record); notifyManual(app, record); return;
   }
-  const state = require(__hooks + "/lib/grantWindows.js").windowState(household, now, child);
+  const state = record.getBool("grant_window_override")
+    ? { open: true, message: "Parent delivery override enabled.", validUntil: "" }
+    : require(__hooks + "/lib/grantWindows.js").windowState(household, now, child);
   if (record.getString("grant_error") !== state.message) {
     record.set("grant_error", state.message);
     app.save(record);
@@ -107,7 +119,7 @@ function reconcile(app, at) {
         throw new Error("Invalid grant result");
       }
       if (result.status === "deferred") {
-        if (result.retryAfter && now < new Date(result.retryAfter)) continue;
+        if (result.retryAfter && now < new Date(result.retryAfter) && !record.getBool("grant_window_override")) continue;
         // Worker never contacted Google. Safe to retry in the next window.
         $os.remove(file);
         publish(app, record, now);

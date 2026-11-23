@@ -1,7 +1,7 @@
 import { DatabaseSync } from "node:sqlite";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { execFileSync, spawn, type ChildProcess } from "node:child_process";
-import { cpSync, mkdtempSync, rmSync, writeFileSync, readdirSync } from "node:fs";
+import { cpSync, mkdtempSync, rmSync, writeFileSync, readdirSync, existsSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { createServer } from "node:net";
@@ -320,6 +320,34 @@ describe("Earned-time bank (isolated PocketBase)", () => {
     }
   });
 
+  it.each([75, 120])("retries an original pre-cap %s-minute redemption without reserving or delivering again", async (minutes) => {
+    await earn(120);
+    await parent.pb.collection("households").update(hh(), { grant_weekday_window: "none", grant_weekend_window: "none" });
+    const before = (await totals()).available;
+    const key = `legacy_${minutes}_redemption_key`;
+    const request = await kid.redeemSavedTime(60, key, true);
+    // Reconstruct a pre-cap record only inside this disposable database.
+    const db = new DatabaseSync(join(root, "data/data.db"));
+    try {
+      db.exec("BEGIN");
+      db.prepare("UPDATE time_redemptions SET minutes = ? WHERE id = ?").run(minutes, request.id);
+      db.prepare("UPDATE time_grants SET minutes = ? WHERE redemption = ?").run(minutes, request.id);
+      db.prepare("UPDATE time_ledger SET minutes = ? WHERE redemption = ? AND kind = 'reserve'").run(minutes, request.id);
+      db.exec("COMMIT");
+    } finally { db.close(); }
+    const original = (await kid.getTimeBank(child())).grants.find((g) => g.redemption === request.id)!;
+    expect(await kid.redeemSavedTime(minutes, key, true)).toEqual(request);
+    expect(await kid.redeemSavedTime(minutes, key, true)).toEqual(request);
+    await expect(kid.redeemSavedTime(minutes, `new_${minutes}_request_key`, true)).rejects.toThrow();
+    await expect(kid.redeemSavedTime(60, key, true)).rejects.toThrow();
+    const after = await kid.getTimeBank(child());
+    expect(timeBankTotals(after.ledger, after.grants, after.purchases).available).toBe(before - minutes);
+    expect(after.grants.filter((g) => g.redemption === request.id).map((g) => g.id)).toEqual([original.id]);
+    expect(after.ledger.filter((r) => r.redemption === request.id && r.kind === "reserve")).toHaveLength(1);
+    expect(after.ledger.filter((r) => r.redemption === request.id && r.kind === "redeem")).toHaveLength(0);
+    expect((existsSync(join(queue, "pending")) ? readdirSync(join(queue, "pending")) : []).filter((file) => file.startsWith(original.id))).toHaveLength(0);
+  });
+
   it("limits each new redemption to one hour without losing excess earnings", async () => {
     await earn(120);
     const before = (await totals()).available;
@@ -339,7 +367,7 @@ describe("Earned-time bank (isolated PocketBase)", () => {
     const fixture = new DatabaseSync(join(root, "data/data.db"));
     try { fixture.prepare("DELETE FROM chore_messages").run(); } finally { fixture.close(); }
     const binary = join(repo, "pocketbase/pocketbase");
-    execFileSync(binary, ["migrate", "down", "1", "--dir", join(root, "data"), "--migrationsDir", join(repo, "pocketbase/pb_migrations")], { input: "y\n", stdio: ["pipe", "ignore", "ignore"] });
+    execFileSync(binary, ["migrate", "down", "2", "--dir", join(root, "data"), "--migrationsDir", join(repo, "pocketbase/pb_migrations")], { input: "y\n", stdio: ["pipe", "ignore", "ignore"] });
     expect(() => execFileSync(binary, ["migrate", "down", "1", "--dir", join(root, "data"),
       "--migrationsDir", join(repo, "pocketbase/pb_migrations")], { input: "y\n", stdio: ["pipe", "ignore", "ignore"] })).toThrow();
   });

@@ -315,6 +315,8 @@ export interface InboxItem extends BaseRecord {
 
 /** Delivery of redeemed chore earnings, a legacy chore reward, or a parent bonus. */
 export interface TimeGrant extends BaseRecord {
+  /** Parent-authorized bypass for this grant only; never resets the regular schedule. */
+  grant_window_override?: boolean;
   /** Already delivered; the remainder stays queued for automatic delivery. */
   grant_delivered_seconds?: number;
   redemption?: string;
@@ -334,6 +336,7 @@ export interface TimeGrant extends BaseRecord {
 export type SpendRequestStatus = "pending" | "approved" | "denied";
 
 export interface SpendRequest extends BaseRecord {
+  grant_window_override?: boolean;
   grant_delivered_seconds?: number;
   child: string; // -> users.id
   /** parentBucks to deduct on approval. */

@@ -7,7 +7,7 @@ import { TextInput } from "./TextInput";
 import { client } from "../lib/client";
 import { useRealtimeResume } from "../lib/useRealtimeResume";
 import { chooseTimeReward } from "../lib/chooseTimeReward";
-import { takePhotoAndComplete } from "../lib/completeWithPhoto";
+import { completeWithoutPhoto, takePhotoAndComplete } from "../lib/completeWithPhoto";
 
 type Chore = Awaited<ReturnType<typeof client.getConversationAssignment>>;
 type Draft = { body: string; key: string; pending?: boolean };
@@ -72,11 +72,11 @@ function Thread({ id, userId, close }: { id: string; userId: string; close: () =
           const result = await takePhotoAndComplete(id, choice, request.body);
           if (result === "no-permission") throw new Error("Camera permission is needed for this chore.");
           if (result === "cancelled") return;
-        } else await client.markComplete(id, undefined, choice, request.body);
+        } else await completeWithoutPhoto(id, choice, request.body);
       } else await client.sendChoreMessage(id, request.body, request.key);
       await AsyncStorage.removeItem(storageKey); setDraft({ body: "", key: "" }); await load();
     } catch (e) {
-      if ([400, 401, 403].includes((e as { status?: number }).status || 0)) await save({ ...request, pending: false });
+      if ([400, 401, 403, 429].includes((e as { status?: number }).status || 0)) await save({ ...request, pending: false });
       setError(errorMessage(e));
     } finally { working.current = false; setBusy(false); }
   }

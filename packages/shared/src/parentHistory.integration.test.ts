@@ -345,6 +345,7 @@ describe("parent history and approval feedback (isolated PocketBase)", () => {
     const down = () => execFileSync(binary, ["migrate", "down", "1", ...args], { input: "y\n", stdio: ["pipe", "ignore", "ignore"] });
     const messagesDb = new DatabaseSync(join(root, "data/data.db"));
     try { messagesDb.prepare("DELETE FROM chore_messages").run(); } finally { messagesDb.close(); }
+    down(); // Remove optional delivery-override metadata (migration 46).
     down(); // Remove conversation storage after deleting fixture-only history.
     down(); // Remove the empty earned-time bank (migration 44).
     expect(down).toThrow(); // Archives must be restored before removing their storage.

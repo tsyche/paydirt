@@ -4,6 +4,14 @@
 
 ## Shipped index
 
+- [x] 2026-11-23 — Parent Deliver now controls and stale purchase publisher fix (implementation)
+
+- [x] 2026-11-23 — Kid weekly recap formatting includes chore-earned screen minutes and current-rate dollar value
+
+- [x] 2026-11-22 — Optional timer proof with explanation and parent review (local implementation; rollout/device checks pending)
+- [x] 2026-11-22 — Legacy 75/120-minute bank retry compatibility and persisted native retry coverage
+- [x] 2026-11-22 — Conversation send limits with retry-safe, editable drafts on web/mobile (local implementation; rollout pending)
+
 - [x] 2026-11-21 — Visible time-delivery outcomes and nightly read-only ledger monitoring (local implementation; rollout/device acceptance pending)
 
 - [x] 2026-11-21 — Local backup restore drill: real household backup boots and all 116 ledger transactions reconcile
@@ -523,3 +531,90 @@ Family Link path units, a two-core CPU quota, and matching deployed notification
 helper/worker hashes. No production accounting was changed. All four configured
 ADB devices were unavailable; no installed-device or new-release acceptance is
 claimed. The next scheduled backup's version metadata remains unverified.
+
+## Optional timer proof, legacy retries, and conversation limits (2026-11-22)
+
+- **Optional timer proof:** both kid layouts accept explained work through
+  “I already did this” when a timer was unused or incomplete, including returned
+  chores. Required photos and parent approval remain. Timed submissions use
+  immutable server timestamps; parent web/mobile show the explanation and proof
+  at submission. Reminders survive navigation and stop after successful submission.
+  API regressions reproduce the previous rejection, then pass with the fix.
+- **Legacy bank retries:** isolated fixtures reconstruct 75/120-minute reservations
+  from before the cap. The original key returns the same grant without another
+  reservation, delivery, or queued job. New over-cap requests still fail. A native
+  restart fixture retries a persisted 120-minute request without another debit.
+- **Conversation limits:** the existing send transaction permits 20 new messages
+  per author/thread in 10 minutes. Existing retries resolve before the limit;
+  other participants/threads and decisions remain available. Rejected drafts stay
+  editable across web reload and native restart. API and native regressions show
+  fail-before/pass-after behavior for the limit and draft handling.
+
+Original roadmap entries:
+
+1. **Legacy bank retry compatibility test** — create a pre-cap 75–120-minute redemption in an isolated fixture, retry its original key after the cap, and verify the same redemption/grant returns with no extra reservation or delivery. A new request over 60 minutes must still fail. Cover an uncertain persisted mobile request after restart. ~1 hr.
+
+2. **Conversation send limits** — bound repeated new text messages per participant/thread on the server, while allowing idempotent retries of an already accepted send. Show actionable feedback, preserve unsent drafts on web/mobile, and verify one child cannot throttle another child's private thread. Choose a modest threshold before implementation; never throttle Approve/Reject or replay a payout. ~2–3 hrs.
+
+Read-only rollout verification: the prior ledger helper/scheduler and static
+web dashboard hashes match bb on November 22; the service restarted November 21,
+its API and path units are healthy, and APK 214 is published. No device is
+reachable through the four configured ADB endpoints. The newest pulled backup
+is still the pre-metadata November 21 ZIP; a fresh pull is required to close
+metadata acceptance. No new timer/message-limit deployment is claimed.
+
+Verification: `just lint`, `just typecheck`, and `just test` pass (519
+TypeScript/component tests plus icon checks and Android unit tests). All 117
+shared API/hook integration tests, 20 native integration tests, and 35 headless
+Playwright journeys pass. The disposable database reconciles, and release APK
+and production static web builds succeed. Browser checks exercise both timer
+warnings with parent approval and throttled draft preservation across reload.
+Physical-device acceptance remains open; no production mutations were performed.
+
+## Kid weekly recap earnings (2026-11-23)
+
+Kids' Sunday 10 AM recap now includes screen minutes earned from chores and the
+approximate dollar equivalent of Grit earned at their current effective goods
+rate. A kid override wins over the household rate; no configured rate shows
+unavailable. Values describe earnings, not cash paid or current saved balances.
+Only recent time-ledger earning rows count: old earnings, reservations, use,
+delivery and cancellation cannot inflate the week's total. Chore counts, goal
+progress, zero-activity recaps, privacy and vacation mode remain supported.
+
+Real-PocketBase regression checks fail before the change and pass afterward,
+covering time-only/both rewards, historical earnings, used/cancelled time,
+dollar override/fallback/missing rates, goals, zero activity and paused delivery.
+Deploy the updated backend hook with the pending batch; no APK or schema change
+is required for this recap addition. Installed-device push acceptance is pending.
+
+## Parent Deliver now and purchase publishing (2026-11-23)
+
+Parent web/mobile Approvals offer a confirmed per-grant override for queued
+bonuses, purchases and redeemed saved time. It delivers only the remaining
+minutes outside PayDirt's windows; regular schedules, accounting, expiry,
+Family Link restrictions and uncertain-result protections remain. A persisted
+server-owned flag survives restart. Existing workers already support jobs with
+no window limit; no new worker protocol is introduced. Children see delivery
+requested now rather than a misleading allowed-window wait.
+
+The purchased-time test reproduced an existing approval hang before the override
+endpoint ran. Publishing now reloads every committed grant before saving queue
+status, preventing a stale approval record from re-entering approval side effects.
+Tests assert exactly one original purchase deduction and no further override debit.
+
+Migration `1717000046` defaults existing rows to normal scheduling. Tests cover
+all three grant sources, duplicate actions, child/cross-household denial, direct
+field protection, partial delivery, deferred and uncertain receipts, expiry,
+and down/up data preservation. Rollback blocks while queued overrides remain.
+The real native button and browser journey cover parent confirmation and refresh.
+No production override or deployment was performed; release/device acceptance
+remains active in the roadmap.
+
+Validation: lint/typecheck and `just test` pass (520 TypeScript/component tests,
+icon checks and Android unit tests). All 126 shared API/hook and 21 native
+integration tests pass. Headless browser checks verify the new override
+confirmation/cancel/reload journey and the existing journeys (35 full-run
+passes plus the manual-fallback focused rerun after updating its expected
+queue-enabled fixture message). Release APK and static web builds pass.
+A final focused API run also confirms immediate override status for an already
+published job. No production grants or balances were changed.

@@ -22,6 +22,13 @@ function send(app, auth, id, body, key) {
     if (previous[0].getString("body") !== body || previous[0].getString("assignment") !== id) throw new BadRequestError("This retry key belongs to another message.");
     return previous[0];
   }
+  // Retry lookup stays above the limit: a lost response never consumes another slot.
+  const recent = app.findRecordsByFilter("chore_messages",
+    "assignment = {:id} && author = {:author} && kind = 'message' && request_key != '' && created >= {:since}",
+    "", 20, 0, { id, author: auth.id, since: new Date(Date.now() - 10 * 60000).toISOString().replace("T", " ") });
+  if (recent.length >= 20) {
+    throw new ApiError(429, "Too many messages in this chore. Wait up to 10 minutes, then try again. Limit: 20 new messages per person per 10 minutes.");
+  }
   return append(app, assignment, "message", body, auth, key);
 }
 module.exports = { append, send };

@@ -1,3 +1,4 @@
+import { bankedTimeLabel } from "./screenTime";
 import { describe, expect, it } from "vitest";
 import { canCancelTimeGrant, timeBankTotals, timeDeliveryOutcome } from "./timeBank";
 import type { SpendRequest, TimeGrant, TimeLedgerEntry } from "./types";
@@ -46,4 +47,10 @@ describe("time delivery wording", () => {
     if (status === "cancelled") expect(result.title).toBe("Returned to savings");
     if (!status) expect(result.title).toBe("Awaiting confirmation");
   });
+});
+
+it("shows an override as requested now, without claiming delivery or an allowed-window wait", () => {
+  const grant = { minutes: 30, grant_status: "queued", grant_delivered_seconds: 600, grant_window_override: true } as TimeGrant;
+  expect(timeDeliveryOutcome(grant).detail).toBe("10 of 30 minutes delivered. Your parent requested delivery now. Waiting for your device to confirm.");
+  expect(bankedTimeLabel(grant)).toBe("20 min queued — parent requested delivery now");
 });

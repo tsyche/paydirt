@@ -71,7 +71,7 @@ declare them in their own creation migration. Omitting them previously caused
 | created_by | relation → users | parent |
 | active | bool | default true |
 | due_at | date | optional deadline; cron escalates reminders 24h → 2h → overdue |
-| timer_minutes | number | 0 disables; integer 1–480 requires a continuous timer; also on templates |
+| timer_minutes | number | 0 disables; integer 1–480 sets an optional proof timer; also on templates |
 | due_time / due_day | text / number | recurring deadline: HH:MM household time; weekly day 0 Sunday–6 Saturday, monthly day 1–31 clamped to month end; also on templates |
 | race | bool | first approval wins; other assignments auto-close |
 | reminder_time | text | "HH:MM" household time; cron reminds assigned kids daily |
@@ -89,7 +89,7 @@ One per assigned chore occurrence and child; recurring chores can have multiple 
 | child | relation → users | required |
 | status | select(`assigned`,`completed`,`approved`,`rejected`,`closed`) | default `assigned` |
 | auto_created | bool | scheduler-owned recurring assignment; suppresses individual assignment push |
-| completed_at | date | set when child marks done |
+| completed_at | date | set when child marks done; timed submissions use immutable server time |
 | time_choice | select(`bank`,`use`) | kid selects at submission; default Bank; frozen while awaiting approval; Use now redeems whole 15-minute blocks up to 60 minutes after approval, saving any remainder |
 | due_at | date | server-computed recurring deadline, fixed at assignment creation; new rule applies to future assignments |
 | approved_at | date | set on parent approval |
@@ -97,7 +97,7 @@ One per assigned chore occurrence and child; recurring chores can have multiple 
 | submission_note | text | owner-only completion note, up to 1,000 characters; captured atomically in the thread on submission, then cleared on later updates |
 | thread_actor | text | private server-owned API actor used for decision attribution; ignored from client input and hidden in responses |
 | approval_comment | text | optional legacy parent feedback, trimmed, max 500 characters; set only when approving, cleared on undo; visible only to parents and the assigned child |
-| timer_minutes / timer_started_at | number / date | duration fixed at creation; owner may start once using server clock; swaps clear start; completion before elapsed duration is blocked |
+| timer_minutes / timer_started_at | number / date | duration fixed at creation; owner may start once using server clock; swaps clear start; unused/incomplete timers require a submission explanation, not a completed countdown. Parent review compares start with server-recorded submission time |
 | photo | file (single) | optional proof |
 | rejection_message | text | optional |
 | kid_response | text | kid's reply to a rejection; parents notified |
@@ -131,6 +131,11 @@ known submission/approval dates remain exact.
 | created | autodate | server time, displayed in household timezone; known legacy submission/approval dates are preserved |
 
 `POST /api/paydirt/assignments/{id}/messages` accepts `body` and `request_key`.
+New messages are limited to 20 per author per occurrence in a rolling 10-minute
+window, checked inside the send transaction. Existing-key retries are resolved
+first; a throttled new send returns 429 with retry guidance. Limits do not apply
+to submission notes, Approve, or Reject. Web/mobile keep rejected drafts editable
+and saved across restart/reload.
 Only the currently assigned kid or a parent in the household may send. Kids read
 only their original-audience rows; parents read their household's conversation.
 Collection writes are closed to clients. Message sends never update assignment
@@ -215,6 +220,15 @@ Delivery jobs for purchased/redeemed chore time, legacy queued chore rewards, or
 | grant_error | text | optional, max 300 |
 | grant_delivered_seconds | number | server-owned successful delivery total; never changes the original reward |
 | grant_dispatch_started | bool | permanent first-publication marker for redemptions; committed before any worker file is written |
+
+Both `time_grants` and `spend_requests` have a server-owned
+`grant_window_override` boolean (default false). A household parent may call
+`POST /api/paydirt/grants/{time_grants|spend_requests}/{id}/deliver-now` to
+persist the override on queued, approved time. Repeating an accepted action does
+not replay delivery. Direct field edits and child/cross-household actions are
+rejected. Only this grant's remaining delivery bypasses PayDirt's windows;
+expiry and external Family Link restrictions still apply. Deferred results may
+be retried safely, while live claims and uncertain receipts remain untouched.
 
 ### `time_ledger` and `time_redemptions`
 
@@ -348,7 +362,7 @@ Migration rollback refuses while preferences remain; restore them first.
 Live in [pocketbase/pb_hooks/](../pocketbase/pb_hooks). PocketBase runs each handler in an isolated VM, so shared helpers are `require()`'d **inside** each handler (see [lib/ntfy.js](../pocketbase/pb_hooks/lib/ntfy.js)).
 
 1. **transaction → balance** ([currency.pb.js](../pocketbase/pb_hooks/currency.pb.js)): on `currency_transactions` create, increment `users.balance` by `amount`. Single point that maintains the cached balance.
-2. **assignment approval → pay** ([currency.pb.js](../pocketbase/pb_hooks/currency.pb.js)): on `assignments` update to `approved`, pay by the chore's `pay_mode` ([lib/chorePay.js](../pocketbase/pb_hooks/lib/chorePay.js)): an `earn` transaction for `reward` (`bucks`/`both`) and/or an immutable `time_ledger` earn for `reward_minutes` (`time`/`both`). The assignment write transaction owns minute earning and any explicit Use now reservation. A `time`-only approval has no earn row, so the streak is refreshed directly (`computeStreak` counts minute-earn days and legacy chore-grant days, excluding later redemptions and direct parent bonuses). Known gap: weekly recaps, `ActivityReport` and ledger views total bucks from `currency_transactions`, so minutes don't appear there (chore counts, streaks and badges do count time chores).
+2. **assignment approval → pay** ([currency.pb.js](../pocketbase/pb_hooks/currency.pb.js)): on `assignments` update to `approved`, pay by the chore's `pay_mode` ([lib/chorePay.js](../pocketbase/pb_hooks/lib/chorePay.js)): an `earn` transaction for `reward` (`bucks`/`both`) and/or an immutable `time_ledger` earn for `reward_minutes` (`time`/`both`). The assignment write transaction owns minute earning and any explicit Use now reservation. A `time`-only approval has no earn row, so the streak is refreshed directly (`computeStreak` counts minute-earn days and legacy chore-grant days, excluding later redemptions and direct parent bonuses). Kid weekly recaps include chore-earned minutes from `time_ledger` earn rows and the approximate dollar value of positive Grit credits at the current effective goods rate. Known gap: the parent digest, `ActivityReport` and currency ledger views still total bucks only (chore counts, streaks and badges do count time chores).
 3. **spend approval → spend** ([currency.pb.js](../pocketbase/pb_hooks/currency.pb.js)): on `spend_requests` update to `approved`, guard the balance first, then create a `spend` transaction for `−amount`. On API create, a request is forced `pending` with a positive `amount`; screen-time requests are priced server-side (client `amount` ignored).
 4. **approval undo → reversal** ([currency.pb.js](../pocketbase/pb_hooks/currency.pb.js)): on `assignments` update *out of* `approved`, create a compensating `manual_adjustment` for the net of that assignment's own ledger rows (not the chore's current reward, which may have been edited). Undo is therefore a single status change; the ledger can't drift from the status. An assignment with a minute-earn ledger row or legacy `time_grants` row can't be undone (Family Link grants are additive); [guards.pb.js](../pocketbase/pb_hooks/guards.pb.js) blocks it by recorded earnings, not by the chore's current mode.
 5. **kudos award → credit + notify** ([kudos.pb.js](../pocketbase/pb_hooks/kudos.pb.js)): a parent-only, household-scoped award is normalized by the server, writes one linked `kudos` credit, and sends the recipient "Great work" push. A child may only mark their own unseen award as seen; all other fields stay immutable.
@@ -375,7 +389,7 @@ The separate Family Link reconciliation job lives in [familylink.pb.js](../pocke
 | paydirt_recurring | every minute | create due recurring assignments, including the new daily occurrence after household midnight; preserve previous pending approvals |
 | paydirt_daily | 03:00 | currency expiry (`expiry_days`, per-kid ledger replay oldest-first via `expiryLapse`, one compensating negative adjustment capped at balance), streak refresh (zeroes broken streaks), recurring chore auto-assignment (silent: `assignments.auto_created`, no per-chore push; re-creates assignments for recurring chores when no open one exists per kid) |
 | paydirt_digest | Sun 18:00 | weekly per-kid summary (chores, earned/spent, balances, pending count) to parents |
-| paydirt_kid_recap | Sun 10:00 | per-kid weekly ntfy recap (earnings, chores, nearest goal); skips `paused` households |
+| paydirt_kid_recap | Sun 10:00 | per-kid weekly recap (Grit earned + current-rate dollar equivalent, chore-earned minutes, approved chores, nearest goal); skips `paused` households |
 | paydirt_allowance | daily 06:00 | pays the scheduled allowance when due (`allowance_*`), notifies kids |
 | paydirt_familylink | every minute | repair missed queue publication and import grant receipts; notify parents of manual recovery |
 
