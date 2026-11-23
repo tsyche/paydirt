@@ -316,6 +316,37 @@ describe("Phase 1 features (live)", () => {
     }
   });
 
+  it.skipIf(!process.env.PB_TEST_DB)("recurring daily chore: a rejection from a previous day no longer blocks today's occurrence", async () => {
+    const admin = new PaydirtClient(PB_URL);
+    await admin.pb.collection("_superusers").authWithPassword(ADMIN_EMAIL, ADMIN_PASSWORD);
+    const chore = await newChore(`Stale reject ${Date.now()}`, { type: "recurring", cadence: "daily" });
+    const stamp = yesterdayEvening().toISOString().replace("T", " ");
+    const backdate = (id: string, fields: string[]) => {
+      const db = new DatabaseSync(process.env.PB_TEST_DB!);
+      try { for (const f of fields) db.prepare(`UPDATE assignments SET ${f} = ? WHERE id = ?`).run(stamp, id); }
+      finally { db.close(); }
+    };
+    // Rejected yesterday and untouched since: abandoned, must not freeze the chore.
+    const stale = await parent.assignChore(chore.id, kid1User.id);
+    await kid1.markComplete(stale.id);
+    await parent.rejectAssignment(stale.id, "use the timer");
+    backdate(stale.id, ["created", "completed_at", "updated"]);
+    // Rejected today (assignment created yesterday): same-occurrence resubmission stays valid.
+    const live = await parent.assignChore(chore.id, kid2User.id);
+    await kid2.markComplete(live.id);
+    await parent.rejectAssignment(live.id, "again");
+    backdate(live.id, ["created", "completed_at"]);
+
+    await admin.pb.send("/api/paydirt/cron/daily", { method: "POST" });
+
+    const rows = (child: string) => admin.pb.collection("assignments").getFullList({ filter: `chore = "${chore.id}" && child = "${child}"`, sort: "created" });
+    const kid1Rows = await rows(kid1User.id);
+    expect(kid1Rows.map((r) => r.status).sort()).toEqual(["assigned", "closed"]);
+    expect(kid1Rows.find((r) => r.status === "closed")!.id).toBe(stale.id);
+    const kid2Rows = await rows(kid2User.id);
+    expect(kid2Rows.map((r) => r.status)).toEqual(["rejected"]);
+  });
+
   it("kid chore summary: fires once per day at the kid's configured time, then stays quiet", async () => {
     const admin = new PaydirtClient(PB_URL);
     await admin.pb.collection("_superusers").authWithPassword(ADMIN_EMAIL, ADMIN_PASSWORD);

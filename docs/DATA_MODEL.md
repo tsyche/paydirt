@@ -386,7 +386,7 @@ The separate Family Link reconciliation job lives in [familylink.pb.js](../pocke
 | Job | Schedule | Does |
 |-----|----------|------|
 | paydirt_tick | every 10 min | approval nudges (`nudge_hours`), daily chore reminders (`reminder_time`), deadline escalation (`due_at`: 24h → 2h → overdue, parents pinged on overdue), kid one-shot reminders, per-kid chore summary (`digest_*`) |
-| paydirt_recurring | every minute | create due recurring assignments, including the new daily occurrence after household midnight; preserve previous pending approvals |
+| paydirt_recurring | every minute | create due recurring assignments, including the new daily occurrence after household midnight; preserve previous pending approvals; close daily occurrences left `assigned`, or `rejected` and untouched, since before household midnight so they cannot freeze the chore (history stays in the timeline) |
 | paydirt_daily | 03:00 | currency expiry (`expiry_days`, per-kid ledger replay oldest-first via `expiryLapse`, one compensating negative adjustment capped at balance), streak refresh (zeroes broken streaks), recurring chore auto-assignment (silent: `assignments.auto_created`, no per-chore push; re-creates assignments for recurring chores when no open one exists per kid) |
 | paydirt_digest | Sun 18:00 | weekly per-kid summary (chores, earned/spent, balances, pending count) to parents |
 | paydirt_kid_recap | Sun 10:00 | per-kid weekly recap (Grit earned + current-rate dollar equivalent, chore-earned minutes, approved chores, nearest goal); skips `paused` households |

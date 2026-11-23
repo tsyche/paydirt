@@ -1,4 +1,5 @@
 import { createRefreshQueue } from "@paydirt/shared";
+import { confirmApprove } from "../lib/confirmApprove";
 import { DeliverNowButton } from "../components/DeliverNowButton";
 import { timerEvidence } from "@paydirt/shared";
 import { EarnedTimeBank } from "../components/EarnedTimeBank";
@@ -69,6 +70,7 @@ const PARENT_TABS = [
 ];
 
 type ExpandedAssignment = Assignment & { expand?: { chore?: Chore; child?: User } };
+const approvalItem = (a: ExpandedAssignment) => ({ chore: a.expand?.chore, kidName: a.expand?.child?.display_name, timeChoice: a.time_choice });
 type ExpandedSpend = SpendRequest & { expand?: { child?: User } };
 type ExpandedGrant = TimeGrant & { expand?: { child?: User } };
 type ExpandedProposal = ChoreProposal & { expand?: { child?: User } };
@@ -896,11 +898,14 @@ export function ParentHome({
                 icon="check-all"
                 style={styles.approveAllBtn}
                 onPress={() => {
-                  party();
-                  void act(
-                    () => Promise.all(approvals.map((a) => client.approveAssignment(a.id))).then(() => {}),
-                    `Approved all ${approvals.length}! 🎉`
-                  );
+                  void (async () => {
+                    if (!await confirmApprove(approvals.map(approvalItem))) return;
+                    party();
+                    await act(
+                      () => Promise.all(approvals.map((a) => client.approveAssignment(a.id))).then(() => {}),
+                      `Approved all ${approvals.length}! 🎉`
+                    );
+                  })();
                 }}
               >
                 Approve all ({approvals.length})
@@ -965,8 +970,11 @@ export function ParentHome({
                           label="Approve"
                           icon="check"
                           onPress={() => {
-                            party();
-                            void act(() => client.approveAssignment(a.id), "Approved! 🎉");
+                            void (async () => {
+                              if (!await confirmApprove([approvalItem(a)])) return;
+                              party();
+                              await act(() => client.approveAssignment(a.id), "Approved! 🎉");
+                            })();
                           }}
                           style={styles.approveBtn}
                         />
@@ -983,6 +991,7 @@ export function ParentHome({
                       </View>
                       <ConversationButton assignmentId={a.id} />
                       {chore && <PartialCredit chore={chore} currency={currencyName} onApprove={async (percent) => {
+                        if (!await confirmApprove([approvalItem(a)])) return;
                         await client.approveAssignment(a.id, percent);
                         await reload();
                       }} />}

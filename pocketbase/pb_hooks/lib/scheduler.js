@@ -342,6 +342,20 @@ function assignRecurring(app, now) {
         const daily = cadence === "daily";
         if (daily) limitCutoff.setTime(today.getTime());
         for (const childId in lastByChild) {
+          // A daily occurrence nobody touched today (never started, or rejected
+          // and abandoned) must not freeze the chore. Close it; the timeline
+          // keeps its history. Same-day rejections stay open for resubmission.
+          if (daily) {
+            for (const stale of history) {
+              if (stale.getString("child") !== childId) continue;
+              const status = stale.getString("status");
+              const touched = new Date(stale.getString(status === "rejected" ? "updated" : "created").replace(" ", "T"));
+              if ((status === "rejected" || status === "assigned") && touched < today) {
+                stale.set("status", "closed");
+                app.save(stale);
+              }
+            }
+          }
           // Skip if the kid already has an open assignment for this chore.
           const open = app.findRecordsByFilter(
             "assignments",
