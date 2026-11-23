@@ -34,7 +34,13 @@ host/device timezone; blank defaults to `America/Los_Angeles`. See
 | `/var/lib/paydirt/familylink/queue/` | `paydirt` (700) | Pending requests, claimed jobs, and durable result receipts (600) |
 | `/etc/systemd/system/paydirt-fl.{path,service}` | root | Queue watcher and serialized grant worker, outside PocketBase's resource limits |
 
-The unit runs as the unprivileged `paydirt` user with `ProtectSystem=strict`; only `/var/lib/paydirt` is writable. PocketBase is capped at two CPU cores (`CPUQuota=200%`) and 512 MB RAM; its previous half-core cap throttled approval/read bursts. It binds `0.0.0.0:3111` on all interfaces; restrict access to the trusted LAN with host/router firewall rules. The bind address itself does not enforce LAN-only access.
+The unit runs as the unprivileged `paydirt` user with `ProtectSystem=strict`; only `/var/lib/paydirt` is writable.
+
+PocketBase is capped at two CPU cores (`CPUQuota=200%`) and 768 MB RAM, with `GOMEMLIMIT=512MiB` to collect Go heaps before the hard limit forces reclaim/swap. `CPUWeight=200` gives the service extra weight under host contention.
+
+On hosts with System76 Scheduler, deployment installs a [PayDirt-only exception](../pocketbase/paydirt-scheduler.kdl) and reloads the scheduler so it preserves the unit’s nice 0 and best-effort I/O priorities instead of assigning nice 12 and idle I/O. Other services retain their existing scheduling policies. These settings address the 2026-11-23 memory-limit stalls; they do not reserve CPU or RAM. See the [Go memory-limit guidance](https://go.dev/doc/gc-guide#Memory_limit).
+
+It binds `0.0.0.0:3111` on all interfaces; restrict access to the trusted LAN with host/router firewall rules. The bind address itself does not enforce LAN-only access.
 
 ## First install
 
@@ -197,8 +203,9 @@ PocketBase's built-in scheduler (set by migration `1717000023`) writes a consist
 
 ### Local recovery drill
 
-Verified 2026-11-21 against the pulled November 21 household backup with
-PocketBase 0.40.5: four users, 116 transactions, all balances match. The
+Verified 2026-11-23 against the pulled November 23 household backup with
+PocketBase 0.40.5: four users, 126 transactions, all balances match. The archive
+includes creating-version metadata; no legacy version override was needed. The
 temporary server and restored data were removed; no production restore occurred.
 
 After pulling backups, run `just restore-drill`. It selects the newest ZIP by
@@ -216,8 +223,8 @@ aggregate counts, not account names, credentials, or session contents.
 
 New backups include `paydirt-backup.json` with the creating binary's version
 after deploying [the backup hook](../pocketbase/pb_hooks/backups.pb.js). The hook
-was deployed and hash-verified on 2026-11-21; checking the next scheduled ZIP
-for metadata remains pending.
+was deployed and hash-verified on 2026-11-21. The November 23 scheduled ZIP
+contains the version and creation timestamp, verified by `just restore-drill`.
 For a legacy archive, supply its **known** version, for example:
 `just restore-drill "backups/host/example.zip" --backup-version 0.40.5`.
 Do not infer the old version from today's server or guess to bypass the check.

@@ -1,0 +1,5 @@
+// Keep the backend's systemd priorities; desktop background policies otherwise
+// assign every system service nice 12 and idle disk I/O on Pop!_OS.
+exceptions {
+    include cgroup="/system.slice/paydirt.service"
+}

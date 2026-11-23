@@ -8,6 +8,7 @@ import { createServer } from "node:net";
 import PocketBase from "pocketbase";
 import { PaydirtClient } from "./client";
 import { EventSource } from "eventsource";
+import { createRefreshQueue } from "./realtime";
 import { timeBankTotals } from "./timeBank";
 import { processFamilyLinkQueue } from "./familylinkQueue";
 
@@ -264,18 +265,45 @@ describe("Earned-time bank (isolated PocketBase)", () => {
     expect((await totals()).available).toBe(before.available);
   });
 
-  it("refreshes parent and owning-kid totals over realtime ledger updates", async () => {
+  it("coalesces parent and kid realtime bursts without losing the latest bank totals", async () => {
     let parentEvents = 0, kidEvents = 0;
-    const stopParent = await parent.subscribeToDashboardUpdates(hh(), () => { parentEvents++; });
-    const stopKid = await kid.subscribeToKidUpdates(child(), () => { kidEvents++; });
+    let parentReads = 0, kidReads = 0;
+    let release!: () => void;
+    const gate = new Promise<void>((resolve) => { release = resolve; });
+    let parentBank: Awaited<ReturnType<PaydirtClient["getTimeBank"]>>;
+    let kidBank: typeof parentBank;
+    const refreshParent = createRefreshQueue(async () => {
+      parentReads++;
+      parentBank = await parent.getTimeBank(child());
+      await gate;
+    });
+    const refreshKid = createRefreshQueue(async () => {
+      kidReads++;
+      kidBank = await kid.getTimeBank(child());
+      await gate;
+    });
+    const stopParent = await parent.subscribeToDashboardUpdates(hh(), () => { parentEvents++; void refreshParent(); });
+    const stopKid = await kid.subscribeToKidUpdates(child(), () => { kidEvents++; void refreshKid(); });
+    const initial = Promise.all([refreshParent(), refreshKid()]);
     try {
+      // Hold the first reads open while real approval hooks publish multiple events.
+      for (let i = 0; i < 50 && (!parentReads || !kidReads); i++) await new Promise((done) => setTimeout(done, 10));
       await earn(15);
       for (let i = 0; i < 50 && (!parentEvents || !kidEvents); i++) await new Promise((done) => setTimeout(done, 20));
       expect(parentEvents).toBeGreaterThan(0); expect(kidEvents).toBeGreaterThan(0);
+      // Manual completion refreshes share the same queue as realtime events.
+      const completed = Promise.all([refreshParent(), refreshKid()]);
+      expect(parentReads).toBe(1); expect(kidReads).toBe(1);
+      release();
+      await Promise.all([initial, completed]);
+      expect(parentReads).toBe(2); expect(kidReads).toBe(2);
       const own = await totals();
-      const bank = await parent.getTimeBank(child());
-      expect(timeBankTotals(bank.ledger, bank.grants, bank.purchases)).toEqual(own);
-    } finally { stopParent(); stopKid(); }
+      expect(timeBankTotals(parentBank!.ledger, parentBank!.grants, parentBank!.purchases)).toEqual(own);
+      expect(timeBankTotals(kidBank!.ledger, kidBank!.grants, kidBank!.purchases)).toEqual(own);
+    } finally {
+      stopParent(); stopKid(); release();
+      await initial;
+    }
   });
 
   it("does not treat standalone parent bonuses as chore-earning streak days", async () => {

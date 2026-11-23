@@ -2,7 +2,7 @@
 
 ## TL;DR
 
-PayDirt is live on bb; the delivery-outcome dashboard and nightly ledger hook are deployed, while physical-device acceptance remains open. Per-grant delivery overrides, richer kid recaps, optional timer proof and conversation send limits are implemented locally, and legacy saved-time retries are covered; prioritize this release and the remaining approval-speed, bank/conversation and backup-metadata checks. The server-free spike remains deferred with no architecture migration approved.
+PayDirt is live on bb; the owner accepted the latest release on November 23 and confirmed Deliver now from a parent device. The November 23 scheduled backup includes version metadata and passes an isolated restore/ledger check; the roughly one-minute delivery-status lag remains a follow-up. The server-free spike remains deferred with no architecture migration approved.
 
 Scope checklist: [FEATURES.md](./FEATURES.md). **This file is the authoritative
 status tracker.**
@@ -10,17 +10,19 @@ status tracker.**
 **Doability tags:** items an agent can't start on its own are marked
 `🧑 needs-human:` with the reason. No tag means agent-doable. Effort estimates are working ranges, not delivery commitments.
 
-Last audited 2026-11-10 against source, recent commits, existing automated evidence, project decisions, and the dev-port inventory. No new device or production acceptance is claimed. Development ports remain 3110–3119.
+Last audited 2026-11-10 against source, recent commits, existing automated evidence, project decisions, and the dev-port inventory. Release and backup acceptance were updated 2026-11-23 below. Development ports remain 3110–3119.
 
 ## Recommended Next 3
 
-1. [**Release/device verification**](#release-checks-for-implemented-work) — deploy Deliver now, richer recaps, optional timer proof and message limits, then finish approval-speed, dollar-control, bank/conversation and backup-metadata acceptance. 🧑 needs-human: sudo deployment and installed-device testing.
-2. [**Parent parity pass**](#parent-parity-web--mobile) — compare actual parent controls, fix cheap field/validation gaps, and record remaining differences. ~2 hrs.
-3. [**Expiry dry-run preview**](#backlog-unscheduled) — show each kid's pending expiry loss before a parent changes the setting. ~1–2 hrs.
+1. [**Parent parity pass**](#parent-parity-web--mobile) — compare actual parent controls, fix cheap field/validation gaps, and record remaining differences. ~2 hrs.
+2. [**Expiry dry-run preview**](#backlog-unscheduled) — show each kid's pending expiry loss before a parent changes the setting. ~1–2 hrs.
+3. [**Grant-delivery status freshness**](#known-issues) — shorten the roughly one-minute gap between Family Link receiving time and PayDirt showing delivery; preserve receipt safety.
 
-In parallel, finish the owner-run release/device checklist for the recent bank and conversation work. New product work waits behind these checks; the server-free spike remains deferred.
+The owner accepted the current release on November 23. Older scenario-level coverage notes remain in the acceptance plan; they are not claims of separately repeated device tests. The server-free spike remains deferred.
 
 ## Known Issues
+
+- **Grant-delivery status freshness (2026-11-23)** — owner confirmed the parent-device override works, but Family Link receives the time about a minute before PayDirt shows Delivered. The backend currently imports worker receipts once per minute in [familylink.pb.js](pocketbase/pb_hooks/familylink.pb.js). Tighten receipt reconciliation/status propagation while retaining the cron recovery path and exactly-once delivery/accounting. Accepted as a follow-up, not a blocker for the shipped release.
 
 - **Toolchain peer-range warnings (2026-11-20)** — Expo's optional DOM-webview peer resolves 56.0.5 while the SDK 57 log box requests 57.x; Expo's ESLint plugins still advertise support only through ESLint 9 while this repo uses 10. Security audit, lint, typecheck, and Android export pass. Align these through supported upstream updates; do not treat peer warnings as security findings.
 
@@ -29,7 +31,7 @@ In parallel, finish the owner-run release/device checklist for the recent bank a
 - **Edit-panel native acceptance** — chore and household editors now put Save/Cancel at their descriptive headers; kid delivery, summary, and Family Link controls also put actions before fields. Web household headers remain sticky. Verify native keyboard, scrolling, and cancellation before closing acceptance. Follow [the edit-panel rule](AGENTS.md#key-concepts).
 - **`just test-all` seed step fails intermittently (found 2026-11-02, unexplained)** — [pocketbase/seed.mjs](pocketbase/seed.mjs) dies with a generic 'Something went wrong' while creating `child2`, in about half of 8 runs on 2026-11-02, then passed on retry; 67 runs in a loop (idle, CPU-loaded, recipe-exact setup) never reproduced it. The failures clustered around concurrent `just ship` builds and hand-edited [scheduler.js](pocketbase/pb_hooks/lib/scheduler.js) swaps. Diagnostics added 2026-11-02: `test-all` now runs PocketBase with `--dev` and dumps the last 40 log lines on any failure, and the seeder prints the failing status and URL. Disposable test runs now disable hook watching after a 2026-11-08 run captured automatic restarts and connection refusals. The original seed failure was not reproduced. Next time it fails, read that output and fix the cause; if it never recurs in a few weeks, drop this entry.
 - **PocketBase download fallback on non-macOS** — when upstream tags have no Release assets, non-macOS setup still requires manual installation. Add a supported fallback or document the manual path; preserve the existing macOS fallback. Entry point: [justfile](justfile).
-- **Slow submits/refresh on bb (investigated 2026-11-20)** — LAN path itself is fine (`/api/health` 1–7 ms from the client; ntfy.sh round trip from bb ~310 ms). Ranked causes, measured on bb: (1) **host saturation** — load ~5.7 on 6 cores with 12–41% iowait and ~8.6 GB active swap; the box also runs a VPN VM, Firefox, Syncthing, Jellyfin, yt-dlp and NTFS mounts, so paydirt competes for CPU/IO with all of it; (2) **`CPUQuota=50%`** ([paydirt.service](pocketbase/paydirt.service):32) caps PocketBase at half a core on top of that (service itself uses little CPU — ~0.3%, peak 438 MB of its 512 M max); (3) **sync ntfy in request hooks** — every notifying submit blocks ~310 ms per recipient on the response path ([ntfy.js](pocketbase/pb_hooks/lib/ntfy.js):12-18, serial per parent at :105-121, 10 s timeout, public ntfy.sh); (4) **no compression** — ~820 KB dashboard bundle served uncompressed, largest chunk 230 KB in ~40 ms on LAN (more under load); (5) **full fan-out reload** — every mutation + realtime event refires ~16–18 list requests ([Dashboard.tsx](apps/web/app/components/Dashboard.tsx):151-153,191,207; mobile same in ParentHome.tsx), double-triggered on approve. Not the cause: network latency, PocketBase errors (journal clean since 2026-11-09), service restarts. Fix order: raise/remove CPUQuota, move ntfy off the request path, debounce/coalesce reload, enable gzip. ~2–4 hrs total. 🧑 needs-human: systemd unit change + deploy to bb.
+- **Slow submits/refresh on bb (live capture 2026-11-23)** — host load ~20 on 6 cores, active swapping, and no idle CPU. PocketBase hit its 512 MB cgroup limit (7,783 limit events), had ~94 MB swapped, and spent ~11% of the recent minute fully stalled on memory; health still responded in ~10 ms. System76 Scheduler’s system-services profile also forced PocketBase to nice 12 and idle disk I/O; both were confirmed on the live process. Every parent/kid realtime event also launched an overlapping full-screen fetch (11–12 initial requests per screen). Local fix serializes and coalesces mutation/realtime refreshes on parent web, parent mobile and kid mobile, preserving a trailing refresh for newer events; unit regression failed before and passes after, with real PocketBase/SSE approval coverage. Prepared unit changes: `GOMEMLIMIT=512MiB`, `MemoryMax=768M`, `CPUWeight=200` (two-core quota retained), plus a PayDirt-only System76 Scheduler exception preserving nice 0 and best-effort I/O. Existing notification queue already keeps ntfy transport off the production response path. **Remaining:** owner deploys with `just ship`, repeats concurrent parent/kid actions, and checks cgroup pressure/latency; verify nice 0/best-effort I/O survives the scheduler’s 60-second sweep, and reduce competing host work if needed. Compression and narrower screen reads remain optional follow-ups. Do not close until live acceptance.
 
   - **Local fixes (2026-11-20):** approvals now queue push transport for a separate worker; the service CPU cap is raised to two cores. A real-PocketBase regression reproduces the blocked approval before the fix, then verifies chore/spend approval responses and fresh state without waiting for a stalled push endpoint. Queue delivery/recovery is covered separately. Deployment verified on November 21: the deployed notification helper matches source, `paydirt-notify.path` is active, and the CPU quota is two cores. 🧑 needs-human: time a real approval plus notification delivery on the installed app. Reload coalescing and dashboard compression remain profiling follow-ups if delays persist after rollout; no app-side performance change is claimed.
 
@@ -43,19 +45,9 @@ Kid-controlled earned-time banking and the chore-submission conversation redesig
 
 ## Release checks for implemented work
 
-Security dependency updates passed local verification (zero audit findings) and are pushed in `1b0afa3`. The previous backend/dashboard release was hash-verified on November 22; APK 214 is published, but installation and device acceptance remain unverified. The new timer/message-limit changes still need shipping.
+The owner completed `just ship` and accepted release `99b42de` on 2026-11-23, specifically confirming the override from a parent device. The deployed override/backup hooks match source and the backend/workers are active. The latest pulled November 23 backup includes PocketBase 0.40.5 metadata and passes an isolated restore with four users and 126 matching ledger transactions.
 
 These are verification/deployment tasks, not features to implement again. Specific missing evidence and the returned original records are in the [acceptance plan](docs/plans/feature-acceptance.md). Budget ~1–2 hrs for the recent bank/conversation/reaction device walkthrough; older external-delivery and offline checks need separate sessions.
-
-- **Time-delivery outcomes and nightly ledger monitoring (2026-11-21)** — backend and dashboard deployment verified on November 22: deployed helper/scheduler/dashboard hashes match the previous release, the API and workers are healthy, and APK 214 is published. Installed-device acceptance and a scheduled ledger-check observation remain pending. 🧑 needs-human: all four configured ADB devices were unavailable on November 22; verify real approvals/delivery and the scheduled check without corrupting production data.
-
-- **Per-grant Deliver now (2026-11-23)** — locally implemented on parent web/mobile for holiday exceptions. Queued bonuses, purchases and redeemed savings can bypass PayDirt windows once without changing the regular schedule; expiry, live claims and uncertain-result protections remain. Migration `1717000046` and a new release are required. A stale purchase-record publisher loop is also fixed, with exactly-one-deduction coverage. 🧑 needs-human: deploy and verify a real queued grant on-device; confirm Family Link restrictions separately.
-
-- **Kid weekly recap earnings (2026-11-23)** — local backend change adds chore-earned screen minutes and the current-rate dollar equivalent of Grit earned. Real-PocketBase checks cover historical/used/cancelled time, rate overrides and missing rates. 🧑 needs-human: deploy with the pending batch and confirm the recap on a kid device; this addition needs no APK update.
-
-- **Optional timer proof and conversation limits (2026-11-22)** — both kid layouts offer “I already did this” with an explanation for unused/incomplete timers, including returned chores; photo requirements and parent approval remain. Parent web/mobile show the explanation and server-timed proof. New messages are limited to 20 per author/thread per 10 minutes, with safe retries and saved editable drafts. 🧑 needs-human: deploy backend/web/APK with `just ship`, then check the new controls, reminders and native keyboard on-device.
-
-- **Backup version metadata (2026-11-21)** — the local drill passed against the November 21 household backup (4 users, 116 transactions). The [backup hook](pocketbase/pb_hooks/backups.pb.js) was deployed on November 21 and its deployed hash matches the source; the backend restarted successfully. Confirm the next archive includes `paydirt-backup.json`, removing the need to establish legacy versions manually. 🧑 needs-human: pull the next backup for its metadata check.
 
 - **Dollar bonuses and deductions (2026-11-20)** — parent web/mobile Bonus/deduct controls accept dollars as well as grit, including the currency half of combined bonuses. Preview uses the kid's override or household grit-per-dollar rate, accepts cents, and preserves fractional grit. No schema change. Web deployment was verified November 22; confirm the installed mobile app, decimal keyboard, preview, bonus/deduction signs, and refreshed balance on-device.
 
@@ -112,8 +104,12 @@ The API grant path and manual fallback are implemented; historical milestones ar
 Verify parent capabilities on both surfaces; pending checks are listed in the [acceptance plan](docs/plans/feature-acceptance.md).
 
 - **Screen-by-screen parity pass (2026-11-02)** — compare web and mobile directly rather than by keyword: create/edit chore, templates, thresholds, household settings, kid detail. List every field, validation and confirmation that differs, fix the cheap gaps in the same change, and log the rest here. Include the new settings menu item and grit dialog. ~2 hrs.
+  - Inspection on 2026-11-23 found matching main fields in chore/template forms, household thresholds/settings, header navigation and Grit dialogs. Fixes remain open: mobile chore editing loses the existing deadline time; web household/kid settings retain cancelled drafts; native avatar/rate controls lack top Save/Cancel; web proposal prefills retain unrelated draft restrictions; applying a template on either platform retains a prior absolute due date. Paused for the live performance investigation before editing these controls.
+
 
 ## Backlog (unscheduled)
+
+- **Configurable compound interest (idea, 2026-11-23)** — let parents configure an interest-earning rate on eligible Grit balances so kids can see interest earn interest. Include settings on parent web/mobile and kid-visible interest history plus a simple growth example. Define the rate period, compounding frequency, eligible balance and rounding before implementation; credits must use the ledger and be retry-safe. 🧑 needs-human: settle those earning rules before implementation.
 
 Reviewed 2026-11-10. Reliability and release acceptance come first; the server-free spike is explicitly deferred. Shipped items live in the ledger, not here.
 

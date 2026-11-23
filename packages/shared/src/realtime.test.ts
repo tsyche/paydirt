@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   createResumeScheduler,
+  createRefreshQueue,
   resumeRealtime,
   type PbLike,
   type RealtimeLike,
@@ -141,5 +142,50 @@ describe("createResumeScheduler", () => {
     s.notifyAppState("active");
     vi.runAllTimers();
     expect(onResume).not.toHaveBeenCalled();
+  });
+});
+
+
+describe("screen refresh bursts", () => {
+  it("runs one refresh at a time and preserves changes received during a refresh", async () => {
+    const releases: Array<() => void> = [];
+    let active = 0;
+    let peak = 0;
+    let calls = 0;
+    const refresh = createRefreshQueue(async () => {
+      calls++;
+      peak = Math.max(peak, ++active);
+      await new Promise<void>((resolve) => releases.push(resolve));
+      active--;
+    });
+    const first = refresh();
+    await Promise.resolve();
+    const burst = Array.from({ length: 30 }, () => refresh());
+    expect(calls).toBe(1);
+    releases.shift()!();
+    await vi.waitFor(() => expect(calls).toBe(2));
+    // A mutation during the trailing read still needs a subsequent read.
+    const last = refresh();
+    releases.shift()!();
+    await Promise.all([first, ...burst]);
+    await vi.waitFor(() => expect(calls).toBe(3));
+    releases.shift()!();
+    await Promise.all([first, ...burst, last]);
+    expect(peak).toBe(1);
+    expect(calls).toBe(3);
+  });
+
+  it("recovers after a failed read without dropping the queued refresh", async () => {
+    let fail!: (error: Error) => void;
+    const load = vi.fn().mockImplementationOnce(() => new Promise<void>((_, reject) => { fail = reject; })).mockResolvedValue(undefined);
+    const refresh = createRefreshQueue(load);
+    const first = refresh();
+    await Promise.resolve();
+    const second = refresh();
+    const results = Promise.allSettled([first, second]);
+    fail(new Error("offline"));
+    expect((await results).map((r) => r.status)).toEqual(["rejected", "fulfilled"]);
+    await refresh();
+    expect(load).toHaveBeenCalledTimes(3);
   });
 });

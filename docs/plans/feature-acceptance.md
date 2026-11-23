@@ -22,6 +22,15 @@ Web/mobile history and ledger entries show household-timezone timestamps. Pendin
 
 Local verification on 2026-11-08: lint/typecheck, 480 workspace tests, all 79 API tests, and all 29 headless browser journeys passed (the starter-picker selector was corrected and rerun). Ledger verification matched every balance. Native typing and the device walkthrough were subsequently confirmed by the owner; untested cases below remain open.
 
+## Owner acceptance (2026-11-23)
+
+The owner shipped and accepted release `99b42de`, explicitly confirming Deliver
+now from a parent device. This closes the current batch release gate; older
+scenario notes below remain coverage history, not claims of individually repeated
+tests. Delivery-status freshness is a follow-up in the active roadmap. The fresh
+November 23 backup includes version metadata and passes the isolated restore
+check with four users and 126 matching transactions.
+
 ## Remaining acceptance
 
 | Area | Evidence already present | Remaining work |
@@ -39,7 +48,6 @@ Local verification on 2026-11-08: lint/typecheck, 480 workspace tests, all 79 AP
 | Help cancellation | Shared control in both kid layouts; real API verifies both parent reminders clear and assignment status is unchanged | Owner confirmed request → Cancel help request and parent refresh on-device; failed request feedback and explicit coverage of both kid layouts remain open. |
 | Parent history paging | Real API traversal tests cover 5/10 paging, ties, combined grant sources, and outstanding grants; browser paging passes | Verify native Show more, errors/retry, and realtime refresh retain expanded lists. |
 | Approval feedback | Real API tests cover private delivery, validation, undo, and concurrent payout protection; browser cancel/save/error-draft checks | Verify native dialog, keyboard/large text, quick approval, and feedback discovery through both kid layouts. |
-| Deliver now | Real-PocketBase checks cover purchase/bonus/savings, authorization, exact-once accounting, partial/deferred/uncertain delivery, expiry and migration rollback; native/browser button checks | Apply migration `1717000046`, deploy web/APK, then confirm a real holiday override without changing normal schedules. Family Link restrictions remain separate. |
 | Delivery windows | Multi-range/day overrides and backend checks; real API regression covers 5:30–9 AM plus 4:30–8:30 PM with a Wednesday exception on household and child settings | Verify saved weekday/weekend/day exceptions on both parent surfaces, reopening, queued release, and school-time/downtime interaction. |
 | Banked window remainders | API boundary tests and isolated PocketBase/disk-worker tests cover split delivery, overnight carry, and replay protection | Deploy backend/worker together; verify a 30-minute reward at 8:15 PM delivers 15 before an 8:30 PM close, then 15 at the next opening. Repeat with active bonus. |
 | Resolved action alerts | Real PocketBase tests cover exact-record cleanup for both parents, preserved pending alerts, and failed decisions | Updated APK: approve/reject, suggestion/spend decision, and broadcast reply clear linked in-app/tray alerts; preserve unrelated notifications and the service indicator. Legacy unlinked alerts require manual dismissal. |

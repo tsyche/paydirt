@@ -60,6 +60,15 @@ sudo install -d -o paydirt -g paydirt -m 700 /var/lib/paydirt/notifications \
     /var/lib/paydirt/notifications/pending /var/lib/paydirt/notifications/processing
 sudo install -o root -g root -m 644 paydirt-notify.service paydirt-notify.path /etc/systemd/system/
 sudo install -o root -g root -m 644 paydirt.service /etc/systemd/system/paydirt.service
+# Pop!_OS otherwise demotes system services to nice 12 and idle disk I/O.
+# Add only our exception; preserve all host and distribution assignments.
+if command -v system76-scheduler >/dev/null 2>&1; then
+    sudo install -d -o root -g root -m 755 /etc/system76-scheduler/process-scheduler
+    sudo install -o root -g root -m 644 paydirt-scheduler.kdl /etc/system76-scheduler/process-scheduler/paydirt.kdl
+    if systemctl is-active --quiet com.system76.Scheduler.service; then
+        sudo systemctl reload com.system76.Scheduler.service
+    fi
+fi
 sudo systemctl daemon-reload
 sudo systemctl enable --now paydirt-notify.path
 # Recover interrupted jobs even if pending/ is empty.

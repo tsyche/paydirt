@@ -107,3 +107,26 @@ export function createResumeScheduler(
     },
   };
 }
+
+/** Serialize full-screen refreshes triggered by mutations and realtime events. */
+export function createRefreshQueue(load: () => Promise<void>): () => Promise<void> {
+  let running: Promise<void> | null = null;
+  let pending: Promise<void> | null = null;
+  function refresh(): Promise<void> {
+    if (pending) return pending;
+    if (running) {
+      // Events during a read need one fresh read, after this transaction's burst.
+      pending = running.catch(() => {}).then(() =>
+        new Promise<void>((resolve) => setTimeout(resolve, 100)),
+      ).then(() => {
+        pending = null;
+        return refresh();
+      });
+      return pending;
+    }
+    // Each caller waits for its own fresh read, not all future realtime events.
+    running = Promise.resolve().then(load).finally(() => { running = null; });
+    return running;
+  }
+  return refresh;
+}

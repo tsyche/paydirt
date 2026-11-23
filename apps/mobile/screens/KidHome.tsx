@@ -1,10 +1,11 @@
+import { createRefreshQueue } from "@paydirt/shared";
 import { ConversationButton } from "../components/ChoreConversation";
 import { EarnedTimeBank } from "../components/EarnedTimeBank";
 import { chooseTimeReward } from "../lib/chooseTimeReward";
 import { OccurrenceLabel } from "../components/OccurrenceLabel";
 import { HelpRequestButton } from "../components/HelpRequestButton";
 import { ArchiveRow } from "../components/ArchiveActions";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Alert, View, ScrollView, StyleSheet, RefreshControl } from "react-native";
 import {
   Appbar,
@@ -132,7 +133,7 @@ export function KidHome({
   const bank = bankView(me.balance, goodsRate, screenRate(household));
   const dollarValue = bank.dollars === null ? null : bank.dollars.toFixed(2);
 
-  const reload = useCallback(async () => {
+  const reload = useMemo(() => createRefreshQueue(async () => {
     setRefreshing(true);
     try {
       const [freshMe, list, hist, gs, awards, swaps, kids, hh, bcs, reps, requests, grants] = await Promise.all([
@@ -183,7 +184,7 @@ export function KidHome({
     } finally {
       setRefreshing(false);
     }
-  }, [user.id, user.household]);
+  }), [user.id, user.household]);
 
   useEffect(() => {
     void reload();

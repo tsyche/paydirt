@@ -4,6 +4,9 @@
 
 ## Shipped index
 
+- [x] 2026-11-23 — Owner accepted release 99b42de and confirmed parent-device Deliver now
+- [x] 2026-11-23 — Scheduled backup metadata and fresh restore verified (4 users, 126 matching transactions)
+
 - [x] 2026-11-23 — Parent Deliver now controls and stale purchase publisher fix (implementation)
 
 - [x] 2026-11-23 — Kid weekly recap formatting includes chore-earned screen minutes and current-rate dollar value
@@ -618,3 +621,33 @@ passes plus the manual-fallback focused rerun after updating its expected
 queue-enabled fixture message). Release APK and static web builds pass.
 A final focused API run also confirms immediate override status for an already
 published job. No production grants or balances were changed.
+
+## Release acceptance and backup verification (2026-11-23)
+
+The owner reports `just ship` completed and the override worked from a parent
+device, and accepts the current release as good. This is overall owner acceptance,
+not a claim that every older device scenario was individually repeated. The
+roughly one-minute delay after Family Link delivery is recorded as a separate
+status-freshness follow-up. Read-only checks confirm matching deployed override
+and backup hooks, PocketBase 0.40.5, and active backend/worker path units.
+
+After the owner ran `just backup-pull`, the newest archive was
+`@auto_pb_backup_paydirt_20261123103000.zip` (93,257,545 bytes). Its single
+`paydirt-backup.json` records PocketBase 0.40.5 and creation time
+`2026-11-23T10:30:00.617Z`. `just restore-drill` passed without a legacy-version
+flag: four users and 126 currency transactions all reconcile. The private copy
+and temporary server were removed, loopback port 3113 was released, and the
+source SHA-256 stayed unchanged. No production restore or accounting changes
+were performed.
+
+Closed active acceptance records (preserved verbatim):
+
+- **Time-delivery outcomes and nightly ledger monitoring (2026-11-21)** — backend and dashboard deployment verified on November 22: deployed helper/scheduler/dashboard hashes match the previous release, the API and workers are healthy, and APK 214 is published. Installed-device acceptance and a scheduled ledger-check observation remain pending. 🧑 needs-human: all four configured ADB devices were unavailable on November 22; verify real approvals/delivery and the scheduled check without corrupting production data.
+
+- **Per-grant Deliver now (2026-11-23)** — locally implemented on parent web/mobile for holiday exceptions. Queued bonuses, purchases and redeemed savings can bypass PayDirt windows once without changing the regular schedule; expiry, live claims and uncertain-result protections remain. Migration `1717000046` and a new release are required. A stale purchase-record publisher loop is also fixed, with exactly-one-deduction coverage. 🧑 needs-human: deploy and verify a real queued grant on-device; confirm Family Link restrictions separately.
+
+- **Kid weekly recap earnings (2026-11-23)** — local backend change adds chore-earned screen minutes and the current-rate dollar equivalent of Grit earned. Real-PocketBase checks cover historical/used/cancelled time, rate overrides and missing rates. 🧑 needs-human: deploy with the pending batch and confirm the recap on a kid device; this addition needs no APK update.
+
+- **Optional timer proof and conversation limits (2026-11-22)** — both kid layouts offer “I already did this” with an explanation for unused/incomplete timers, including returned chores; photo requirements and parent approval remain. Parent web/mobile show the explanation and server-timed proof. New messages are limited to 20 per author/thread per 10 minutes, with safe retries and saved editable drafts. 🧑 needs-human: deploy backend/web/APK with `just ship`, then check the new controls, reminders and native keyboard on-device.
+
+- **Backup version metadata (2026-11-21)** — the local drill passed against the November 21 household backup (4 users, 116 transactions). The [backup hook](pocketbase/pb_hooks/backups.pb.js) was deployed on November 21 and its deployed hash matches the source; the backend restarted successfully. Confirm the next archive includes `paydirt-backup.json`, removing the need to establish legacy versions manually. 🧑 needs-human: pull the next backup for its metadata check.

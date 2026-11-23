@@ -1,10 +1,11 @@
+import { createRefreshQueue } from "@paydirt/shared";
 import { DeliverNowButton } from "../components/DeliverNowButton";
 import { timerEvidence } from "@paydirt/shared";
 import { EarnedTimeBank } from "../components/EarnedTimeBank";
 import { SwipeActionsRow } from "../components/SwipeActionsRow";
 import { TimeField } from "../components/TimeField";
 import { localDateKey, localDateInstant, householdDateTime } from "@paydirt/shared";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { View, ScrollView, StyleSheet, RefreshControl, Alert, Image, Modal, TouchableOpacity } from "react-native";
 import {
@@ -223,7 +224,7 @@ export function ParentHome({
   const currencyName = currencyDisplayName(household);
   const goodsRate = household?.goods_rate ?? 0;
 
-  const reload = useCallback(async () => {
+  const reload = useMemo(() => createRefreshQueue(async () => {
     setRefreshing(true);
     setApprovedKey((k) => k + 1);
     try {
@@ -258,7 +259,7 @@ export function ParentHome({
     } finally {
       setRefreshing(false);
     }
-  }, [user.household]);
+  }), [user.household]);
 
   useEffect(() => {
     void reload();

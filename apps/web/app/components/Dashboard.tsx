@@ -1,12 +1,14 @@
 "use client";
 
+import { createRefreshQueue } from "@paydirt/shared";
+
 import { DeliverNowButton } from "./DeliverNowButton";
 import { timerEvidence } from "@paydirt/shared";
 
 import { EarnedTimeBank } from "./EarnedTimeBank";
 import { ArchiveButton, useArchives } from "./ArchiveActions";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { localDateKey, householdDateTime, householdDateTimeInput, localDateInstant, householdWallDate } from "@paydirt/shared";
 import type {
   TimeGrant,
@@ -152,7 +154,7 @@ export function Dashboard({
   const goodsRate = household?.goods_rate ?? 0;
   const kidRate = (kid: User) => effectiveGoodsRate(kid.goods_rate, goodsRate);
 
-  const reload = useCallback(async () => {
+  const reload = useMemo(() => createRefreshQueue(async () => {
     try {
       const [hh, k, c, archived, a, s, p, grants, bonus, active, recent] = await Promise.all([
         client.getHousehold(householdId),
@@ -185,7 +187,7 @@ export function Dashboard({
     } catch (e) {
       setError(errorMessage(e));
     }
-  }, [householdId]);
+  }), [householdId]);
 
   useEffect(() => {
     void reload();
