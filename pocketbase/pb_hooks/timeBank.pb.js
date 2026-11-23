@@ -59,6 +59,9 @@ onRecordUpdateRequest((e) => {
       throw new ForbiddenError("Choose Bank or Use now before submitting your chore.");
     }
   }
+  // Bank-first policy: kids spend from the bank themselves. Old APKs still send "use".
+  // Only coerce a new value; legacy stored "use" rows must survive later updates.
+  if (e.record.getString("time_choice") === "use" && e.record.original().getString("time_choice") !== "use") e.record.set("time_choice", "bank");
   e.next();
 }, "assignments");
 

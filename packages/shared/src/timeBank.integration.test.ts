@@ -99,6 +99,13 @@ describe("Earned-time bank (isolated PocketBase)", () => {
 
   const child = () => kid.currentUser!.id;
   const hh = () => parent.currentUser!.household;
+  /** Simulates a legacy stored choice: the API now coerces "use" to "bank", so write it directly. */
+  const legacyUse = (id: string) => {
+    const db = new DatabaseSync(join(root, "data/data.db"));
+    db.exec("PRAGMA busy_timeout = 5000");
+    db.prepare("UPDATE assignments SET time_choice = 'use' WHERE id = ?").run(id);
+    db.close();
+  };
   async function totals() {
     const bank = await kid.getTimeBank(child());
     return timeBankTotals(bank.ledger, bank.grants, bank.purchases);
@@ -107,7 +114,8 @@ describe("Earned-time bank (isolated PocketBase)", () => {
     const chore = await parent.createChore({ household: hh(), name: "Bank test chore", reward: mode === "both" ? 10 : 0,
       type: "oneoff", created_by: parent.currentUser!.id, active: true, pay_mode: mode, reward_minutes: minutes });
     const assignment = await parent.assignChore(chore.id, child());
-    await kid.markComplete(assignment.id, undefined, choice);
+    await kid.markComplete(assignment.id);
+    if (choice === "use") legacyUse(assignment.id);
     await parent.approveAssignment(assignment.id);
     return assignment;
   }
@@ -237,11 +245,22 @@ describe("Earned-time bank (isolated PocketBase)", () => {
     await kid.markComplete(rejected.id); await parent.rejectAssignment(rejected.id);
     expect((await kid.getTimeBank(child())).ledger.some((r) => r.assignment === rejected.id)).toBe(false);
   });
+  it("banks the minutes even when an old client submits time_choice 'use'", async () => {
+    const chore = await parent.createChore({ household: hh(), name: "Old APK dialog", reward: 0, type: "oneoff",
+      created_by: parent.currentUser!.id, active: true, pay_mode: "time", reward_minutes: 30 });
+    const a = await parent.assignChore(chore.id, child());
+    await kid.markComplete(a.id, undefined, "use");
+    expect((await parent.pb.collection("assignments").getOne(a.id)).time_choice).toBe("bank");
+    await parent.approveAssignment(a.id);
+    const bank = await kid.getTimeBank(child());
+    expect(bank.ledger.some((r) => r.assignment === a.id && r.kind === "earn" && r.minutes === 30)).toBe(true);
+    expect(bank.grants.some((g) => g.assignment === a.id)).toBe(false);
+  });
   it("rolls approval, earnings, reservation and outbox back together on failure", async () => {
     const chore = await parent.createChore({ household: hh(), name: "Atomic bank rollback", reward: 0, type: "oneoff",
       created_by: parent.currentUser!.id, active: true, pay_mode: "time", reward_minutes: 30 });
     const a = await parent.assignChore(chore.id, child());
-    await kid.markComplete(a.id, undefined, "use");
+    await kid.markComplete(a.id); legacyUse(a.id);
     const before = readdirSync(join(queue, "pending")).sort();
     const response = await fetch(`${url}/test/rollback/${a.id}`, { method: "POST" });
     expect(response.status).toBe(400);

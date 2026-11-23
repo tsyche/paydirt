@@ -1,6 +1,6 @@
 import { bankedTimeLabel } from "./screenTime";
 import { describe, expect, it } from "vitest";
-import { canCancelTimeGrant, timeBankTotals, timeDeliveryOutcome } from "./timeBank";
+import { canCancelTimeGrant, deliveryWindowLabel, timeBankTotals, timeDeliveryOutcome } from "./timeBank";
 import type { SpendRequest, TimeGrant, TimeLedgerEntry } from "./types";
 
 describe("earned-time accounting", () => {
@@ -53,4 +53,19 @@ it("shows an override as requested now, without claiming delivery or an allowed-
   const grant = { minutes: 30, grant_status: "queued", grant_delivered_seconds: 600, grant_window_override: true } as TimeGrant;
   expect(timeDeliveryOutcome(grant).detail).toBe("10 of 30 minutes delivered. Your parent requested delivery now. Waiting for your device to confirm.");
   expect(bankedTimeLabel(grant)).toBe("20 min queued — parent requested delivery now");
+});
+
+describe("deliveryWindowLabel", () => {
+  const closed = { open: false, window: "05:30-08:50", next: "Banked — next delivery Tue, Nov 24 at 5:30 AM PST" };
+  it("shows hours and queue with next delivery when closed", () => {
+    expect(deliveryWindowLabel(closed, 2)).toBe("Allowed 05:30–08:50 · 2 queued, next delivery Tue, Nov 24 at 5:30 AM PST");
+  });
+  it("omits the queue part when nothing is queued", () => {
+    expect(deliveryWindowLabel(closed, 0)).toBe("Allowed 05:30–08:50");
+  });
+  it("handles open, unrestricted and blocked days", () => {
+    expect(deliveryWindowLabel({ open: true, window: "14:30-20:30,21:00-22:00", next: "" }, 1)).toBe("Allowed 14:30–20:30, 21:00–22:00 · 1 queued");
+    expect(deliveryWindowLabel({ open: true, window: "", next: "" }, 0)).toBe("Allowed any time");
+    expect(deliveryWindowLabel({ open: false, window: "none", next: "" }, 0)).toBe("No delivery today");
+  });
 });

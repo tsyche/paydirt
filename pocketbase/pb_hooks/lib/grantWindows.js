@@ -1,5 +1,19 @@
 // Same server-local wall clock as recurring deadlines and quiet hours.
 // Blank means unrestricted; windows may cross midnight.
+// The effective window text for one instant: kid day > kid weekday/weekend > household day > household weekday/weekend.
+function windowFor(household, child, at, local) {
+  const day = local ? Number(local.weekday()) : at.getDay();
+  const field = day === 0 || day === 6 ? "grant_weekend_window" : "grant_weekday_window";
+  const householdDays = JSON.parse(household.getString("grant_day_windows") || "{}");
+  const childDays = JSON.parse(child ? child.getString("grant_day_windows") || "{}" : "{}");
+  const override = childDays[day] || (child ? child.getString(field) : "");
+  return override || householdDays[day] || household.getString(field);
+}
+// Today's window text for display; blank or "all" means unrestricted.
+function todayWindow(household, now, child) {
+  const zone = household.getString("grant_timezone") || "America/Los_Angeles";
+  return windowFor(household, child, now, new DateTime(now.toISOString()).time().in(new Timezone(zone))) || "";
+}
 function windowState(household, now, child) {
   const zone = household.getString("grant_timezone") || "America/Los_Angeles";
   const fields = ["grant_weekday_window", "grant_weekend_window"];
@@ -9,13 +23,7 @@ function windowState(household, now, child) {
   })) return { open: true, message: "", validUntil: "" };
   function allowed(at) {
     const local = zone ? new DateTime(at.toISOString()).time().in(new Timezone(zone)) : null;
-    const day = local ? Number(local.weekday()) : at.getDay();
-    const weekend = day === 0 || day === 6;
-    const field = weekend ? "grant_weekend_window" : "grant_weekday_window";
-    const householdDays = JSON.parse(household.getString("grant_day_windows") || "{}");
-    const childDays = JSON.parse(child ? child.getString("grant_day_windows") || "{}" : "{}");
-    const override = childDays[day] || (child ? child.getString(field) : "");
-    const window = override || householdDays[day] || household.getString(field);
+    const window = windowFor(household, child, at, local);
     if (!window || window === "all") return true;
     if (window === "none") return false;
     const minute = local ? Number(local.format("15")) * 60 + Number(local.format("04")) : at.getHours() * 60 + at.getMinutes();
@@ -73,4 +81,4 @@ function validate(record) {
   const zone = record.getString("grant_timezone");
   if (zone) { try { new Timezone(zone); } catch (_) { throw new BadRequestError("Choose a valid timezone, such as America/Los_Angeles."); } }
 }
-module.exports = { windowState, validate };
+module.exports = { windowState, todayWindow, validate };

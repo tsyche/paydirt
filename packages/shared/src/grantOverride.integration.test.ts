@@ -78,6 +78,13 @@ describe("Parent delivery override (isolated PocketBase)", () => {
 
   const child = () => kid.currentUser!.id;
   const hh = () => parent.currentUser!.household;
+  /** Simulates a legacy stored choice: the API now coerces "use" to "bank", so write it directly. */
+  const legacyUse = (id: string) => {
+    const db = new DatabaseSync(join(root, "data/data.db"));
+    db.exec("PRAGMA busy_timeout = 5000");
+    db.prepare("UPDATE assignments SET time_choice = 'use' WHERE id = ?").run(id);
+    db.close();
+  };
   async function totals() {
     const bank = await kid.getTimeBank(child());
     return timeBankTotals(bank.ledger, bank.grants, bank.purchases);
@@ -86,7 +93,8 @@ describe("Parent delivery override (isolated PocketBase)", () => {
     const chore = await parent.createChore({ household: hh(), name: "Bank test chore", reward: mode === "both" ? 10 : 0,
       type: "oneoff", created_by: parent.currentUser!.id, active: true, pay_mode: mode, reward_minutes: minutes });
     const assignment = await parent.assignChore(chore.id, child());
-    await kid.markComplete(assignment.id, undefined, choice);
+    await kid.markComplete(assignment.id);
+    if (choice === "use") legacyUse(assignment.id);
     await parent.approveAssignment(assignment.id);
     return assignment;
   }
@@ -174,6 +182,23 @@ describe("Parent delivery override (isolated PocketBase)", () => {
     await processFamilyLinkQueue(queue, async () => { replayed = true; return 0; }, true);
     expect(replayed).toBe(false);
     expect((await record(g)).grant_delivered_seconds).toBe(600);
+  });
+
+  it("serves today's delivery window to the kid and household parents only", async () => {
+    await parent.pb.collection("households").update(hh(), { grant_weekday_window: "05:30-08:50", grant_weekend_window: "05:30-08:50", grant_day_windows: "{}" });
+    await parent.pb.collection("users").update(child(), { grant_weekday_window: "", grant_weekend_window: "", grant_day_windows: "{}" });
+    const seen = await kid.getDeliveryWindow(child());
+    expect(seen.window).toBe("05:30-08:50");
+    expect(typeof seen.open).toBe("boolean");
+    if (!seen.open) expect(seen.next).toContain("next delivery");
+    expect(await parent.getDeliveryWindow(child())).toEqual(seen);
+    await parent.pb.collection("users").update(child(), { grant_weekday_window: "all", grant_weekend_window: "all" });
+    expect(await kid.getDeliveryWindow(child())).toMatchObject({ open: true, window: "all", next: "" });
+    const household = await admin.collection("households").create({ name: "Window outsiders" });
+    await admin.collection("users").create({ email: "window-outside@test.local", password: "password123", passwordConfirm: "password123", role: "parent", household: household.id, display_name: "Window outsider" });
+    const outside = new PaydirtClient(url); await outside.login("window-outside@test.local", "password123");
+    await expect(outside.getDeliveryWindow(child())).rejects.toMatchObject({ status: 403 });
+    await parent.pb.collection("users").update(child(), { grant_weekday_window: "", grant_weekend_window: "" });
   });
 
   it("enforces household/parent authority, protected fields, and existing expiry", async () => {

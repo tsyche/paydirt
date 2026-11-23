@@ -40,3 +40,22 @@ routerAdd("POST", "/api/paydirt/grants/{collection}/{id}/deliver-now", (e) => {
   catch (_) { e.app.logger().error("Delivery override publish deferred", "grant", id); }
   return e.json(200, { id });
 }, $apis.requireAuth());
+
+// Read-only delivery window for one kid, so clients show the same rules the server enforces.
+routerAdd("GET", "/api/paydirt/grants/window/{kid}", (e) => {
+  const kid = e.app.findRecordById("users", e.request.pathValue("kid"));
+  const self = e.auth.id === kid.id;
+  if (!self && !(e.auth.getString("role") === "parent" && e.auth.getString("household") === kid.getString("household"))) {
+    throw new ForbiddenError("This kid belongs to another household.");
+  }
+  const household = e.app.findRecordById("households", kid.getString("household"));
+  const windows = require(__hooks + "/lib/grantWindows.js");
+  const now = new Date();
+  const state = windows.windowState(household, now, kid);
+  return e.json(200, {
+    open: state.open,
+    window: windows.todayWindow(household, now, kid),
+    next: state.open ? "" : state.message,
+    validUntil: state.validUntil || "",
+  });
+}, $apis.requireAuth());

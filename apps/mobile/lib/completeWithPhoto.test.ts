@@ -1,12 +1,14 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { uploadAsync, requestCameraPermissionsAsync, launchCameraAsync, authStore } = vi.hoisted(
+const { uploadAsync, requestCameraPermissionsAsync, launchCameraAsync, getPendingResultAsync, authStore, storage } = vi.hoisted(
   () => {
+    const getPendingResultAsync = vi.fn();
+    const storage = new Map<string, string>();
     const uploadAsync = vi.fn();
     const requestCameraPermissionsAsync = vi.fn();
     const launchCameraAsync = vi.fn();
     const authStore = { token: "test-token" };
-    return { uploadAsync, requestCameraPermissionsAsync, launchCameraAsync, authStore };
+    return { uploadAsync, requestCameraPermissionsAsync, launchCameraAsync, getPendingResultAsync, authStore, storage };
   },
 );
 
@@ -18,6 +20,14 @@ vi.mock("expo-notifications", () => ({ cancelScheduledNotificationAsync: vi.fn(a
 vi.mock("expo-image-picker", () => ({
   requestCameraPermissionsAsync,
   launchCameraAsync,
+  getPendingResultAsync,
+}));
+vi.mock("@react-native-async-storage/async-storage", () => ({
+  default: {
+    getItem: vi.fn(async (k: string) => storage.get(k) ?? null),
+    setItem: vi.fn(async (k: string, v: string) => { storage.set(k, v); }),
+    removeItem: vi.fn(async (k: string) => { storage.delete(k); }),
+  },
 }));
 vi.mock("expo-file-system/legacy", () => ({
   FileSystemUploadType: { MULTIPART: 1 },
@@ -25,11 +35,12 @@ vi.mock("expo-file-system/legacy", () => ({
 }));
 
 import { cancelScheduledNotificationAsync } from "expo-notifications";
-import { takePhotoAndComplete } from "./completeWithPhoto";
+import { recoverPendingPhoto, takePhotoAndComplete } from "./completeWithPhoto";
 
 describe("takePhotoAndComplete", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    storage.clear();
     uploadAsync.mockResolvedValue({ status: 200, body: '{"id":"assignment_1"}' });
     requestCameraPermissionsAsync.mockResolvedValue({ status: "granted" });
     launchCameraAsync.mockResolvedValue({
@@ -106,6 +117,61 @@ describe("takePhotoAndComplete", () => {
 
     expect(result).toBe("cancelled");
     expect(cancelScheduledNotificationAsync).not.toHaveBeenCalled();
+    expect(uploadAsync).not.toHaveBeenCalled();
+  });
+});
+
+describe("recoverPendingPhoto (Android killed the app while the camera was open)", () => {
+  const asset = { uri: "content://media/external/images/media/77", mimeType: "image/jpeg" };
+  beforeEach(() => {
+    vi.clearAllMocks();
+    storage.clear();
+    uploadAsync.mockResolvedValue({ status: 200, body: "{}" });
+    requestCameraPermissionsAsync.mockResolvedValue({ status: "granted" });
+  });
+  // Simulates the kill: the camera call never returns, so the saved context survives.
+  async function startAndGetKilled() {
+    launchCameraAsync.mockReturnValue(new Promise(() => {}));
+    void takePhotoAndComplete("assignment_9", "bank", "Done!");
+    await new Promise((r) => setTimeout(r, 0));
+  }
+
+  it("uploads the lost photo once with the original assignment, choice and note", async () => {
+    await startAndGetKilled();
+    getPendingResultAsync.mockResolvedValue({ canceled: false, assets: [asset] });
+    expect(await recoverPendingPhoto()).toBe(true);
+    expect(uploadAsync).toHaveBeenCalledTimes(1);
+    expect(uploadAsync.mock.calls[0]?.[0]).toBe("http://pb.test:3111/api/collections/assignments/records/assignment_9");
+    expect(uploadAsync.mock.calls[0]?.[1]).toBe(asset.uri);
+    expect(uploadAsync.mock.calls[0]?.[2].parameters).toMatchObject({ status: "completed", time_choice: "bank", submission_note: "Done!" });
+    expect(await recoverPendingPhoto()).toBe(false);
+    expect(uploadAsync).toHaveBeenCalledTimes(1);
+  });
+
+  it("does nothing after a normal capture, cancel, or error", async () => {
+    launchCameraAsync.mockResolvedValue({ canceled: true, assets: null });
+    await takePhotoAndComplete("assignment_9");
+    launchCameraAsync.mockRejectedValue(new Error("camera failed"));
+    await expect(takePhotoAndComplete("assignment_9")).rejects.toThrow();
+    expect(await recoverPendingPhoto()).toBe(false);
+    expect(getPendingResultAsync).not.toHaveBeenCalled();
+    expect(uploadAsync).not.toHaveBeenCalled();
+  });
+
+  it("drops the saved context when Android has no pending result, a cancel, or an error", async () => {
+    for (const pending of [null, { canceled: true, assets: null }, { code: "ERR", message: "x" }]) {
+      await startAndGetKilled();
+      getPendingResultAsync.mockResolvedValue(pending);
+      expect(await recoverPendingPhoto()).toBe(false);
+      expect(storage.size).toBe(0);
+    }
+    expect(uploadAsync).not.toHaveBeenCalled();
+  });
+
+  it("ignores a stale saved context", async () => {
+    storage.set("paydirt-pending-photo", JSON.stringify({ assignmentId: "assignment_9", timeChoice: "bank", note: "", at: Date.now() - 2 * 60 * 60 * 1000 }));
+    getPendingResultAsync.mockResolvedValue({ canceled: false, assets: [asset] });
+    expect(await recoverPendingPhoto()).toBe(false);
     expect(uploadAsync).not.toHaveBeenCalled();
   });
 });

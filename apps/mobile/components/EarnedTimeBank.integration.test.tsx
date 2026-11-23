@@ -186,7 +186,7 @@ describe("Native earned-time controls (real PocketBase)", () => {
     const before = await kid.getTimeBank(kid.currentUser!.id);
     const available = timeBankTotals(before.ledger, before.grants, before.purchases).available;
     await act(async () => { button(view, "Use 60 minutes").props.onPress(); });
-    await settle(view, "60 minutes requested. Your remaining saved time stays in your bank.");
+    await settle(view, "60 minutes: Queued.");
     const after = await kid.getTimeBank(kid.currentUser!.id);
     expect(timeBankTotals(after.ledger, after.grants, after.purchases).available).toBe(available - 60);
     expect(after.grants.filter((g) => !before.grants.some((previous) => previous.id === g.id)).map((g) => g.minutes)).toEqual([60]);
@@ -241,7 +241,7 @@ describe("Native earned-time controls (real PocketBase)", () => {
     const view = await mount(true);
     await settle(view, "Retry Use 120 minutes");
     await act(async () => { button(view, "Retry Use 120 minutes").props.onPress(); });
-    await settle(view, "120 minutes requested. Your remaining saved time stays in your bank.");
+    await settle(view, "120 minutes: Queued.");
     const after = await kid.getTimeBank(kid.currentUser!.id);
     expect(timeBankTotals(after.ledger, after.grants, after.purchases).available).toBe(available);
     expect(after.ledger.filter((r) => r.redemption === request.id && r.kind === "reserve")).toHaveLength(1);
@@ -305,6 +305,7 @@ describe("Native earned-time controls (real PocketBase)", () => {
     expect(text(view)).not.toContain("reserved for review");
     await act(async () => { view.root.findAllByType("button").find((b) => b.props.accessibilityLabel === "Show bank details")!.props.onPress(); });
     expect(text(view)).toContain("Earned-time history");
+    await settle(view, "No delivery today · ");
     expect(text(view)).toContain("15 minutes requested · Delivered");
     expect(button(view, "Use 15 minutes")).toBeUndefined();
     await act(async () => view.unmount());

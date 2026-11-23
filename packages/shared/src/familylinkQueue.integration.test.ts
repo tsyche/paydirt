@@ -1,3 +1,4 @@
+import { DatabaseSync } from "node:sqlite";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { execFileSync, spawn, type ChildProcess } from "node:child_process";
 import { cpSync, mkdtempSync, rmSync, writeFileSync, readdirSync, readFileSync } from "node:fs";
@@ -13,6 +14,13 @@ import { processFamilyLinkQueue } from "./familylinkQueue";
 describe("Family Link approval queue (isolated PocketBase)", () => {
   const repo = resolve(import.meta.dirname, "../../..");
   const root = mkdtempSync(join(tmpdir(), "paydirt-fl-test-"));
+  /** Simulates a legacy stored choice: the API now coerces "use" to "bank", so write it directly. */
+  const legacyUse = (id: string) => {
+    const db = new DatabaseSync(join(root, "data/data.db"));
+    db.exec("PRAGMA busy_timeout = 5000");
+    db.prepare("UPDATE assignments SET time_choice = 'use' WHERE id = ?").run(id);
+    db.close();
+  };
   const queue = join(root, "familylink");
   let server: ChildProcess | undefined;
   let parent: PaydirtClient;
@@ -233,7 +241,7 @@ describe("Family Link approval queue (isolated PocketBase)", () => {
       created_by: parent.currentUser!.id, active: true, pay_mode: "time", reward_minutes: 15,
     });
     const assignment = await parent.assignChore(chore.id, kid.currentUser!.id);
-    await kid.markComplete(assignment.id, undefined, "use");
+    await kid.markComplete(assignment.id); legacyUse(assignment.id);
     await parent.approveAssignment(assignment.id);
 
     const grant = (await parent.listBonusGrants(parent.currentUser!.household)).find((g) => g.assignment === assignment.id)!;
@@ -281,7 +289,7 @@ describe("Family Link approval queue (isolated PocketBase)", () => {
       created_by: parent.currentUser!.id, active: true, pay_mode: "both", reward_minutes: 15,
     });
     const assignment = await parent.assignChore(chore.id, kid.currentUser!.id);
-    await kid.markComplete(assignment.id, undefined, "use");
+    await kid.markComplete(assignment.id); legacyUse(assignment.id);
     await parent.approveAssignment(assignment.id);
     const grant = (await parent.listBonusGrants(parent.currentUser!.household)).find((g) => g.assignment === assignment.id)!;
     expect(grant.grant_status).toBe("manual");
@@ -302,7 +310,7 @@ describe("Family Link approval queue (isolated PocketBase)", () => {
         created_by: parent.currentUser!.id, active: true, pay_mode: "time", reward_minutes: 15,
       });
       const assignment = await parent.assignChore(chore.id, kid.currentUser!.id);
-      await kid.markComplete(assignment.id, undefined, "use");
+      await kid.markComplete(assignment.id); legacyUse(assignment.id);
       await parent.approveAssignment(assignment.id);
       const grant = (await parent.listBonusGrants(parent.currentUser!.household)).find((g) => g.assignment === assignment.id)!;
       expect(grant.grant_status).toBe("queued");
@@ -338,7 +346,7 @@ describe("Family Link approval queue (isolated PocketBase)", () => {
         created_by: parent.currentUser!.id, active: true, pay_mode: "time", reward_minutes: 30,
       });
       const assignment = await parent.assignChore(chore.id, childId);
-      await kid.markComplete(assignment.id, undefined, "use");
+      await kid.markComplete(assignment.id); legacyUse(assignment.id);
       await parent.approveAssignment(assignment.id);
       const grant = (await parent.listBonusGrants(hh)).find((g) => g.assignment === assignment.id)!;
       expect(readdirSync(join(queue, "pending"))).not.toContain(`${grant.id}.json`);

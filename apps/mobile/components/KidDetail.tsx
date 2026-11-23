@@ -21,6 +21,7 @@ import { TextInput } from "./TextInput";
 import { SafeAreaView } from "react-native-safe-area-context";
 import type { Assignment, Chore, Household, SavingsGoal, User, BonusMode } from "@paydirt/shared";
 import { adjustmentToGrit, type AdjustmentUnit } from "@paydirt/shared";
+import { GoalTargetInput } from "./GoalTargetInput";
 import { GOAL_NAME_MAX, GOAL_DETAILS_MAX, KUDOS_REASON_MAX, avatarUrl, currencyDisplayName, featureTip, errorMessage, kidAccent, kudosDefaultBucks, payLabel, householdDateTime, effectiveGoodsRate, validateAdjustBonus, submitAdjustBonus, partialBonusMessage } from "@paydirt/shared";
 import { client } from "../lib/client";
 import { isNetworkError } from "../lib/reachability";
@@ -604,14 +605,7 @@ export function KidDetail({
           </Dialog.Actions>
           <Dialog.Content>
             <TextInput mode="outlined" label="What are they saving for?" value={goalName} onChangeText={setGoalName} maxLength={GOAL_NAME_MAX} autoFocus />
-            <TextInput
-              mode="outlined"
-              label={`Target (${currencyName})`}
-              value={goalTarget}
-              onChangeText={setGoalTarget}
-              keyboardType="number-pad"
-              style={styles.reasonInput}
-            />
+            <GoalTargetInput key={String(goalOpen)} mode="outlined" currencyName={currencyName} goodsRate={goodsRate} onChange={(g) => setGoalTarget(Number.isFinite(g) ? String(g) : "")} style={[styles.reasonInput, { flex: 1 }]} />
             <TextInput
               mode="outlined"
               label="Details (optional)"

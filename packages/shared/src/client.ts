@@ -702,6 +702,11 @@ export class PaydirtClient {
     return this.pb.send(`/api/paydirt/grants/${collection}/${encodeURIComponent(id)}/deliver-now`, { method: "POST" });
   }
 
+  /** Server-computed delivery window for today; "" or "all" means unrestricted. */
+  getDeliveryWindow(childId: string): Promise<{ open: boolean; window: string; next: string; validUntil: string }> {
+    return this.pb.send(`/api/paydirt/grants/window/${encodeURIComponent(childId)}`, { method: "GET" });
+  }
+
   confirmBonusGrant(id: string): Promise<TimeGrant> {
     return this.pb.collection(Collections.TimeGrants).update<TimeGrant>(id, { grant_status: "manual_done" });
   }

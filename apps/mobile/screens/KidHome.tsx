@@ -1,6 +1,7 @@
 import { createRefreshQueue } from "@paydirt/shared";
 import { ConversationButton } from "../components/ChoreConversation";
 import { EarnedTimeBank } from "../components/EarnedTimeBank";
+import { GoalTargetInput } from "../components/GoalTargetInput";
 import { chooseTimeReward } from "../lib/chooseTimeReward";
 import { OccurrenceLabel } from "../components/OccurrenceLabel";
 import { HelpRequestButton } from "../components/HelpRequestButton";
@@ -481,6 +482,7 @@ export function KidHome({
           goals={goals}
           balance={me.balance}
           currencyName={currencyName}
+          goodsRate={goodsRate}
           onCreate={(name, target) => act(() => client.createGoal(user.id, name, target), "Goal added!")()}
           onDelete={(g) =>
             Alert.alert("Delete goal", `Delete the "${g.name}" goal?`, [
@@ -715,18 +717,20 @@ function GoalList({
   goals,
   balance,
   currencyName,
+  goodsRate,
   onCreate,
   onDelete,
 }: {
   goals: SavingsGoal[];
   balance: number;
   currencyName: string;
-  onCreate: (name: string, target: number, autoSavePercent?: number) => void;
+  goodsRate: number;
+  onCreate: (name: string, target: number) => void;
   onDelete: (goal: SavingsGoal) => void;
 }) {
   const [name, setName] = useState("");
-  const [target, setTarget] = useState("");
-  const [autoSave, setAutoSave] = useState("");
+  const [target, setTarget] = useState(NaN);
+  const [resetKey, setResetKey] = useState(0);
   const [open, setOpen] = useState<string | null>(null);
 
   return (
@@ -772,31 +776,16 @@ function GoalList({
           maxLength={GOAL_NAME_MAX}
           style={styles.goalNameInput}
         />
-        <TextInput
-          dense
-          placeholder="Cost"
-          value={target}
-          onChangeText={setTarget}
-          keyboardType="number-pad"
-          style={styles.goalTargetInput}
-        />
-        <TextInput
-          dense
-          placeholder="Auto-save %"
-          value={autoSave}
-          onChangeText={setAutoSave}
-          keyboardType="number-pad"
-          style={styles.goalTargetInput}
-        />
+        <GoalTargetInput key={resetKey} currencyName={currencyName} goodsRate={goodsRate} onChange={setTarget} style={styles.goalTargetInput} />
         <Button
           compact
           mode="contained-tonal"
-          disabled={!name.trim() || !(Number(target) > 0)}
+          disabled={!name.trim() || !(target > 0)}
           onPress={() => {
-            onCreate(name.trim(), Number(target), Number(autoSave) || 0);
+            onCreate(name.trim(), target);
             setName("");
-            setTarget("");
-            setAutoSave("");
+            setTarget(NaN);
+            setResetKey(resetKey + 1);
           }}
         >
           Add

@@ -12,7 +12,8 @@ import {
   Fredoka_600SemiBold,
   Fredoka_700Bold,
 } from "@expo-google-fonts/fredoka";
-import type { User } from "@paydirt/shared";
+import { errorMessage, type User } from "@paydirt/shared";
+import { recoverPendingPhoto } from "./lib/completeWithPhoto";
 import { client, pbUrl } from "./lib/client";
 import { describeDownloadFailure, takeUpdateFailure, fetchLatestVersion, getInstalledVersionCode, hasReadyUpdate, installDownloadedUpdate, justUpdated, shouldUpdate, startUpdateDownload, takeInstallPending } from "./lib/appUpdate";
 import { IDLE, dialogVisible, updateReducer } from "./lib/updateFlow";
@@ -150,6 +151,14 @@ function AppContent() {
 
   useEffect(() => {
     if (user) void requestNotificationPermissions();
+  }, [user?.id]);
+
+  // Android can kill the app while the camera is open; finish that photo submission.
+  useEffect(() => {
+    if (user?.role !== "child") return;
+    recoverPendingPhoto()
+      .then((sent) => { if (sent) Alert.alert("Photo sent", "Your photo was submitted. It is waiting for a parent to check."); })
+      .catch((e) => Alert.alert("Photo not sent", `${errorMessage(e)} Please take the photo again.`));
   }, [user?.id]);
 
   // Notification deep links: UnifiedPushReceiver.kt attaches a paydirt://notification

@@ -37,3 +37,11 @@ export function timeDeliveryOutcome(grant: TimeGrant): { title: string; detail: 
     default: return { title: "Awaiting confirmation", detail: "Ask a parent to check delivery. Do not request it again." };
   }
 }
+
+/** One line for a kid's delivery window today, from the server's getDeliveryWindow. */
+export function deliveryWindowLabel(w: { open: boolean; window: string; next: string }, queuedGrants: number): string {
+  const hours = !w.window || w.window === "all" ? "Allowed any time" : w.window === "none" ? "No delivery today"
+    : `Allowed ${w.window.split(",").map((r) => r.trim().replace("-", "–")).join(", ")}`;
+  const queue = queuedGrants ? ` · ${queuedGrants} queued${w.open ? "" : w.next ? `, ${w.next.replace(/^Banked — /, "")}` : ""}` : "";
+  return hours + queue;
+}

@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { View } from "react-native";
+import { Alert, View } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Button, Switch, Text } from "react-native-paper";
-import { canCancelTimeGrant, errorMessage, householdDateTime, timeBankEventLabel, timeBankTotals, timeDeliveryOutcome } from "@paydirt/shared";
+import { canCancelTimeGrant, deliveryWindowLabel, errorMessage, householdDateTime, timeBankEventLabel, timeBankTotals, timeDeliveryOutcome } from "@paydirt/shared";
 import { client } from "../lib/client";
 import { useRealtimeResume } from "../lib/useRealtimeResume";
 
@@ -17,6 +17,7 @@ export function EarnedTimeBank({ childId, kidControl = false, detail = true }: {
   const [historyLimit, setHistoryLimit] = useState(5);
   const [deliveryLimit, setDeliveryLimit] = useState(5);
   const [bank, setBank] = useState<Bank | null>(null);
+  const [deliveryWindow, setDeliveryWindow] = useState<Awaited<ReturnType<typeof client.getDeliveryWindow>> | null>(null);
   const [minutes, setMinutes] = useState(15);
   const [allowQueue, setAllowQueue] = useState(false);
   const [pending, setPending] = useState<Pending | null>(null);
@@ -28,6 +29,8 @@ export function EarnedTimeBank({ childId, kidControl = false, detail = true }: {
   const storageKey = `paydirt-time-redemption:${childId}`;
   const reload = useCallback(async () => {
     try { setBank(await client.getTimeBank(childId)); } catch (e) { setError(errorMessage(e)); }
+    // Display-only; a failure here must not block the bank.
+    try { setDeliveryWindow(await client.getDeliveryWindow(childId)); } catch { setDeliveryWindow(null); }
   }, [childId]);
   // The enclosing screen rebuilds SSE; this independent detail catches up too.
   useRealtimeResume(reload, false);
@@ -55,11 +58,15 @@ export function EarnedTimeBank({ childId, kidControl = false, detail = true }: {
       // Persist before sending: a lost response or app restart retries the same debit.
       await AsyncStorage.setItem(storageKey, JSON.stringify(request));
       setPending(request);
-      await client.redeemSavedTime(request.minutes, request.key, request.allowQueue || allowQueue);
+      const { id } = await client.redeemSavedTime(request.minutes, request.key, request.allowQueue || allowQueue);
       await AsyncStorage.removeItem(storageKey);
       setPending(null);
-      setNotice(`${request.minutes} minutes requested. Your remaining saved time stays in your bank.`);
-      await reload();
+      const fresh = await client.getTimeBank(childId);
+      setBank(fresh);
+      const grant = fresh.grants.find((g) => g.redemption === id);
+      setNotice(grant
+        ? `${request.minutes} minutes: ${timeDeliveryOutcome(grant).title}. ${timeDeliveryOutcome(grant).detail}${grant.grant_error ? ` ${grant.grant_error}` : ""}`
+        : `${request.minutes} minutes requested. Your remaining saved time stays in your bank.`);
     } catch (e) {
       // A validation/auth rejection happens before the transaction commits.
       // Keep uncertain network results, but let a rejected request be corrected.
@@ -71,6 +78,19 @@ export function EarnedTimeBank({ childId, kidControl = false, detail = true }: {
     }
     finally { running.current = false; setBusy(false); }
   }
+  const waiting = bank?.grants.filter((g) => g.grant_status === "queued" && !g.grant_window_override) ?? [];
+  const queuedCount = bank?.grants.filter((g) => g.grant_status === "queued").length ?? 0;
+  function deliverAll() {
+    Alert.alert("Deliver all queued now", `Deliver ${waiting.length} queued grant${waiting.length === 1 ? "" : "s"} now, outside allowed hours? Your regular schedule stays the same. Family Link restrictions still apply.`, [
+      { text: "Cancel", style: "cancel" },
+      { text: "Deliver all", onPress: () => { void (async () => {
+        setBusy(true); setError("");
+        try { for (const grant of waiting) await client.deliverGrantNow("time_grants", grant.id); }
+        catch (e) { setError(errorMessage(e)); }
+        finally { setBusy(false); await reload(); }
+      })(); } },
+    ]);
+  }
   const totals = bank ? timeBankTotals(bank.ledger, bank.grants, bank.purchases) : null;
   const maximum = Math.min(60, Math.floor((totals?.available || 0) / 15) * 15);
   const selected = pending?.minutes ?? Math.min(minutes, maximum || 15);
@@ -80,6 +100,8 @@ export function EarnedTimeBank({ childId, kidControl = false, detail = true }: {
     {!kidControl && <Button accessibilityLabel={expanded ? "Hide bank details" : "Show bank details"} icon={expanded ? "chevron-up" : "chevron-down"} onPress={() => setExpanded(!expanded)}>{summary}</Button>}
     {(kidControl || expanded) && <>
     <Text variant="titleMedium" accessibilityRole="header">Saved earned time</Text>
+    {!!deliveryWindow && <Text accessibilityLabel="Delivery window">{deliveryWindowLabel(deliveryWindow, queuedCount)}</Text>}
+    {!kidControl && waiting.length > 0 && <Button mode="outlined" disabled={busy} loading={busy} onPress={deliverAll}>Deliver all queued now</Button>}
     {totals && !kidControl ? <View style={{ gap: 4 }} accessibilityLabel="Earned time totals">
       <Text>{totals.available} min saved</Text>
       <Text>{totals.reserved} min reserved for review</Text>
@@ -103,6 +125,7 @@ export function EarnedTimeBank({ childId, kidControl = false, detail = true }: {
       <Button mode="contained" loading={busy} disabled={busy || !ready || (!pending && selected > maximum)} onPress={() => { void redeem(); }}>
         {pending ? `Retry Use ${selected} minutes` : `Use ${selected} minutes`}
       </Button>
+      {!!error && <Text accessibilityRole="alert" style={{ color: "#b3261e" }}>{error}</Text>}
       {!!notice && <Text accessibilityRole="alert">{notice}</Text>}
       {totals && totals.available < 15 && <Text>Save at least 15 minutes to use time.</Text>}
       {pending && <Text>A request is saved on this device. Retry to confirm its result before starting another.</Text>}
@@ -130,7 +153,7 @@ export function EarnedTimeBank({ childId, kidControl = false, detail = true }: {
       <Text>{totals.requested} min requested</Text>
       <Text>{totals.queued} min queued</Text>
     </View>}
-    {!!error && <Text accessibilityRole="alert">{error}</Text>}
+    {!kidControl && !!error && <Text accessibilityRole="alert">{error}</Text>}
     {detail && (!kidControl || expanded) && bank && bank.ledger.length > 0 && <>
       <Text variant="titleSmall">Earned-time history</Text>
       {bank.ledger.slice(0, historyLimit).map((row) => <Text key={row.id}>{householdDateTime(row.created)} · {timeBankEventLabel(row.kind)} · {row.minutes} min</Text>)}

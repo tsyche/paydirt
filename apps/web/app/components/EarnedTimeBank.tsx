@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { errorMessage, householdDateTime, timeBankEventLabel, timeBankTotals, timeDeliveryOutcome } from "@paydirt/shared";
+import { deliveryWindowLabel, errorMessage, householdDateTime, timeBankEventLabel, timeBankTotals, timeDeliveryOutcome } from "@paydirt/shared";
 import { client } from "../lib/client";
 
 type Bank = Awaited<ReturnType<typeof client.getTimeBank>>;
@@ -10,10 +10,14 @@ export function EarnedTimeBank({ childId }: { childId: string }) {
   const [historyLimit, setHistoryLimit] = useState(5);
   const [deliveryLimit, setDeliveryLimit] = useState(5);
   const [bank, setBank] = useState<Bank | null>(null);
+  const [deliveryWindow, setDeliveryWindow] = useState<Awaited<ReturnType<typeof client.getDeliveryWindow>> | null>(null);
+  const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const reload = useCallback(async () => {
     try { setBank(await client.getTimeBank(childId)); setError(""); }
     catch (e) { setError(errorMessage(e)); }
+    // Display-only; a failure here must not block the bank.
+    try { setDeliveryWindow(await client.getDeliveryWindow(childId)); } catch { setDeliveryWindow(null); }
   }, [childId]);
   useEffect(() => {
     void reload();
@@ -32,9 +36,20 @@ export function EarnedTimeBank({ childId }: { childId: string }) {
     };
   }, [childId, reload]);
   const totals = bank && timeBankTotals(bank.ledger, bank.grants, bank.purchases);
+  const waiting = bank?.grants.filter((g) => g.grant_status === "queued" && !g.grant_window_override) ?? [];
+  const queuedCount = bank?.grants.filter((g) => g.grant_status === "queued").length ?? 0;
+  async function deliverAll() {
+    if (!window.confirm(`Deliver ${waiting.length} queued grant${waiting.length === 1 ? "" : "s"} now, outside allowed hours? Your regular schedule stays the same. Family Link restrictions still apply.`)) return;
+    setBusy(true); setError("");
+    try { for (const grant of waiting) await client.deliverGrantNow("time_grants", grant.id); }
+    catch (e) { setError(errorMessage(e)); }
+    finally { setBusy(false); await reload(); }
+  }
   return <section aria-label="Saved earned time">
     <details>
       <summary>{totals ? `Banked time: ${totals.available} min` : error ? "Banked time unavailable" : "Loading banked time…"}</summary>
+      {deliveryWindow && <p aria-label="Delivery window">{deliveryWindowLabel(deliveryWindow, queuedCount)}</p>}
+      {waiting.length > 0 && <button className="sm" disabled={busy} onClick={() => void deliverAll()}>{busy ? "Queueing delivery…" : "Deliver all queued now"}</button>}
       {totals && <div aria-label="Earned time totals" style={{ display: "grid", gap: 4, margin: "8px 0" }}>
         <div>{totals.available} min saved</div>
         <div>{totals.reserved} min reserved for review</div>
