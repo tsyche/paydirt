@@ -6,6 +6,15 @@
 
 **Fold into:** [FEATURES.md](../../FEATURES.md), [DEVICE_TESTING.md](../DEVICE_TESTING.md)
 
+## Contents
+
+- [Completion rule](#completion-rule)
+- [Current priority fixes](#current-priority-fixes)
+- [Owner acceptance (2026-11-23)](#owner-acceptance-2026-11-23)
+- [Owner acceptance (2026-11-24)](#owner-acceptance-2026-11-24)
+- [Remaining acceptance](#remaining-acceptance)
+- [Returned records](#returned-records)
+
 ## Completion rule
 
 The active [roadmap](../../ROADMAP.md) owns priorities. Passing API/unit tests
@@ -31,11 +40,29 @@ tests. Delivery-status freshness is a follow-up in the active roadmap. The fresh
 November 23 backup includes version metadata and passes the isolated restore
 check with four users and 126 matching transactions.
 
+## Owner acceptance (2026-11-24)
+
+After shipping `e41a9e2`, the owner confirmed camera submission/recovery,
+bank-first rewards, and parent delivery-window/queued-count visibility work
+on devices. This accepts those reported flows; it does not establish that the
+forced activity-destruction scenario, the web browser controls, or Deliver all
+queued now were individually tested. Browser verification and an automated
+Deliver all regression remain open. Legacy stored `use` handling remains
+intentionally deferred until old APKs are retired.
+
 ## Remaining acceptance
+
+The November 24 local batch adds parity fixes, a read-only per-kid expiry
+preview and foreground receipt import. Browser/native/API regressions pass;
+owner rollout and physical keyboard/scroll behavior for this batch remain open.
+The bulk Deliver all button still needs its own multi-grant/failure test.
+Legacy stored Use now cleanup remains deferred until installed APK versions
+are confirmed; bank-first acceptance alone does not establish that condition.
+
 
 | Area | Evidence already present | Remaining work |
 |---|---|---|
-| Earned-time bank and compact totals | Real-PocketBase bank/worker/retry checks; both kid component layouts; parent web/mobile totals; 60-minute cap and excess-saving integration coverage; November 21 native/browser checks cover queued, partial, needs-help, delivered and cancelled outcomes plus restart/reload | On the updated APK: bedtime → morning balance unchanged → selected partial redemption; explicit amount button/confirmation, 15-minute steps and one-hour cap; large text and cross-device totals. Existing queued grants stay unchanged. Verify the requested amount and delivery state on the installed app; acceptance alone must not say delivered. |
+| Earned-time bank and compact totals | Real-PocketBase bank/worker/retry checks; both kid component layouts; parent web/mobile totals; 60-minute cap and excess-saving integration coverage; November 21 native/browser checks cover queued, partial, needs-help, delivered and cancelled outcomes plus restart/reload | Owner accepted bank-first behavior and delivery visibility on 2026-11-24. Still verify: bedtime → morning balance unchanged → selected partial redemption; explicit amount button/confirmation, 15-minute steps and one-hour cap; large text and cross-device totals. Existing queued grants stay unchanged. Verify the requested amount and delivery state on the installed app; acceptance alone must not say delivered. |
 | Nightly ledger monitoring | November 21 isolated-PocketBase checks cover clean silence, parent-only drift alerts, read-only accounting, and superuser trigger authorization | The helper/scheduler deployment was hash-verified November 22; confirm a scheduled 03:15 run; quiet hours retain the inbox alert while suppressing push. Do not corrupt production balances to test it. |
 | Chore conversations | Private message/decision history, retry-safe drafts, parent web/mobile and both kid entry points; server-side 20-message/10-minute participant/thread limit with editable throttled drafts; browser/API/native checks | The prior backend/dashboard release was verified November 22; deploy the new send limit and confirm throttled drafts remain editable on-device. Native keyboard/large text, notes with camera proof, archived thread recovery and cold/warm notification taps remain pending. |
 | Approval reactions | Phone-width browser and native component regressions for separate top-right reactions (`7efb672`) | Confirm the installed APK keeps reactions beside the title and above Conversation, including long chore names. |

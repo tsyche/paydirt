@@ -130,3 +130,17 @@ export function createRefreshQueue(load: () => Promise<void>): () => Promise<voi
   }
   return refresh;
 }
+
+/** Poll only while a visible screen has queued delivery; never overlap requests. */
+export function pollGrantResults(refresh: () => Promise<void>, isActive: () => boolean): () => void {
+  let running = false;
+  let stopped = false;
+  const tick = () => {
+    if (stopped || running || !isActive()) return;
+    running = true;
+    void refresh().catch(() => {}).finally(() => { running = false; });
+  };
+  const timer = setInterval(tick, 5000);
+  tick();
+  return () => { stopped = true; clearInterval(timer); };
+}

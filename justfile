@@ -565,9 +565,10 @@ test-all:
     head -c 3145728 /dev/urandom > "${EDIR}/pb_data/updates/app-release.apk"
     printf '{"versionCode":1,"versionName":"test","downloadUrl":"/api/updates/apk"}' > "${EDIR}/pb_data/updates/version.json"
 
+    bash scripts/prepare-test-hooks.sh "${EDIR}/pb_hooks"
     NTFY_DISABLED=1 FL_AUTOMATION_ENABLED=1 FL_QUEUE_DIR="${EDIR}/familylink" {{pb}} serve --dev --hooksWatch=false \
         --dir "${EDIR}/pb_data" \
-        --hooksDir pocketbase/pb_hooks \
+        --hooksDir "${EDIR}/pb_hooks" \
         --migrationsDir pocketbase/pb_migrations \
         --http "127.0.0.1:${TEST_PORT}" \
         > "${EDIR}/pb.log" 2>&1 &

@@ -74,6 +74,9 @@ every push. `just test-all` also runs `just verify-ledger` against the
 ephemeral instance. Delivery-override browser checks use its queue-enabled
 disposable backend; no Google worker runs. Standalone E2E setup must enable
 `FL_AUTOMATION_ENABLED` with a private `FL_QUEUE_DIR` and leave the worker stopped.
+Use `bash scripts/prepare-test-hooks.sh NEW_DIRECTORY` for the disposable hooks:
+it adds the superuser-only receipt fixture and disables periodic receipt import
+so the browser proves foreground refresh. Never load `pocketbase/test_hooks` in production.
 
 Test data: `just seed` (idempotent) populates a "Test Family" household with two
 parents, two kids, chores, and sample activity. It talks to the running server's

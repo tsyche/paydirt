@@ -90,7 +90,7 @@ One per assigned chore occurrence and child; recurring chores can have multiple 
 | status | select(`assigned`,`completed`,`approved`,`rejected`,`closed`) | default `assigned` |
 | auto_created | bool | scheduler-owned recurring assignment; suppresses individual assignment push |
 | completed_at | date | set when child marks done; timed submissions use immutable server time |
-| time_choice | select(`bank`,`use`) | kid selects at submission; default Bank; frozen while awaiting approval; Use now redeems whole 15-minute blocks up to 60 minutes after approval, saving any remainder |
+| time_choice | select(`bank`,`use`) | new submissions are forced to Bank, including old-APK requests; stored legacy Use now rows remain honored and frozen while awaiting approval |
 | due_at | date | server-computed recurring deadline, fixed at assignment creation; new rule applies to future assignments |
 | approved_at | date | set on parent approval |
 | credit_percent | number | parent-only integer 1–100 on approval; legacy 0/unset = full credit; immutable while settled. Partial approval closes the assignment |
@@ -166,6 +166,11 @@ Append-only ledger. `+` earn/kudos, `−` spend. Sum = balance. `just verify-led
 | related_kudos | relation → kudos | optional |
 | expiry_processed | bool | set by daily cron once an earn row is past `expiry_days` (dedupe guard; processed lots count as gone for later spends) |
 
+Parent settings use the shared `expiryLapse` against each child’s complete
+current ledger and balance to preview a proposed expiry period. Spent and
+already-processed earn lots are excluded; non-earn credits do not expire.
+This reads records only and does not mark lots processed or write adjustments.
+
 ### `kudos`
 An immutable parent-to-child "Great work" award. The parent creates it; its
 after-create hook writes one linked `kudos` ledger credit and notifies the kid.
@@ -201,7 +206,9 @@ Kids can read only their own requests; household parents can read their kids' re
 Submitted spending terms and settled approval decisions are immutable. Screen-time
 approval queues a grant only when automation is enabled and the child has target
 IDs; otherwise it becomes a manual task. Goods requests have no grant state.
-The separate worker writes receipts, and a minute cron imports results; see
+The separate worker writes receipts. Foreground clients import completed results
+every five seconds while queued grants are visible; the minute cron remains the
+publication/recovery path. See
 [deployment](DEPLOYMENT.md#queue-and-failure-handling). Neither Google credentials
 nor browser responses are stored in these records.
 
@@ -211,7 +218,7 @@ Delivery jobs for purchased/redeemed chore time, legacy queued chore rewards, or
 | Field | Type | Notes |
 |-------|------|-------|
 | child | relation → users | required |
-| assignment | relation → assignments | unique when set; legacy rewards and new Use now redemptions |
+| assignment | relation → assignments | unique when set; legacy rewards and preserved Use now redemptions |
 | redemption | relation → time_redemptions | unique when set; server-created redemption delivery |
 | given_by / request_key | relation → users / text | direct bonus giver (server-owned) and retry key; unique together when key is set |
 | minutes | number | required; chore reward snapshot or direct parent bonus; 5–120 in steps of 5 |
@@ -252,9 +259,9 @@ clients. Authenticated kid-only routes own the transitions:
   Manual, dispatched, partial, delivered, and uncertain outcomes cannot be cancelled.
 
 Held minutes never expire or enter the worker queue on a window opening. Parent
-approval awards them without another redemption approval or Grit charge. Use now
-at submission explicitly consents to queueing outside allowed hours; later Use
-time requires that confirmation. Queue expiry starts at redemption, under the
+approval awards them without another redemption approval or Grit charge. New
+submissions always bank; only stored legacy Use now choices may auto-reserve at
+approval. A kid’s redemption outside allowed hours requires queue confirmation. Queue expiry starts at redemption, under the
 existing household policy. Existing queued grants are left intact. Parent totals
 separate saved available, manual reservations, pending purchase requests, and queued
 remainders in expanded details. Main Kids cards show only banked available time;
@@ -265,6 +272,13 @@ status checks serialize cancellation and first publication. Manual tasks cannot 
 released because a parent may already be granting them externally. Time-paying
 approvals retain the existing undo prohibition, including held-only earnings.
 Rollback refuses to remove a populated minute ledger.
+
+`POST /api/paydirt/grants/refresh` imports existing receipts only: parents are
+scoped to their household and kids to their own jobs. It never dispatches or
+replays a grant. Imports serialize with the cron in a write transaction, and
+return changed/queued counts so foreground screens reload only when needed.
+Cron publishes remaining/new jobs only after the receipt transaction commits.
+The server rejects client-written delivery outcomes as before.
 
 ### `savings_goals`
 Kid-owned targets; a hook marks them achieved + notifies when the balance
@@ -362,7 +376,7 @@ Migration rollback refuses while preferences remain; restore them first.
 Live in [pocketbase/pb_hooks/](../pocketbase/pb_hooks). PocketBase runs each handler in an isolated VM, so shared helpers are `require()`'d **inside** each handler (see [lib/ntfy.js](../pocketbase/pb_hooks/lib/ntfy.js)).
 
 1. **transaction → balance** ([currency.pb.js](../pocketbase/pb_hooks/currency.pb.js)): on `currency_transactions` create, increment `users.balance` by `amount`. Single point that maintains the cached balance.
-2. **assignment approval → pay** ([currency.pb.js](../pocketbase/pb_hooks/currency.pb.js)): on `assignments` update to `approved`, pay by the chore's `pay_mode` ([lib/chorePay.js](../pocketbase/pb_hooks/lib/chorePay.js)): an `earn` transaction for `reward` (`bucks`/`both`) and/or an immutable `time_ledger` earn for `reward_minutes` (`time`/`both`). The assignment write transaction owns minute earning and any explicit Use now reservation. A `time`-only approval has no earn row, so the streak is refreshed directly (`computeStreak` counts minute-earn days and legacy chore-grant days, excluding later redemptions and direct parent bonuses). Kid weekly recaps include chore-earned minutes from `time_ledger` earn rows and the approximate dollar value of positive Grit credits at the current effective goods rate. Known gap: the parent digest, `ActivityReport` and currency ledger views still total bucks only (chore counts, streaks and badges do count time chores).
+2. **assignment approval → pay** ([currency.pb.js](../pocketbase/pb_hooks/currency.pb.js)): on `assignments` update to `approved`, pay by the chore's `pay_mode` ([lib/chorePay.js](../pocketbase/pb_hooks/lib/chorePay.js)): an `earn` transaction for `reward` (`bucks`/`both`) and/or an immutable `time_ledger` earn for `reward_minutes` (`time`/`both`). The assignment write transaction owns minute earning and reservations for stored legacy Use now choices; new API submissions are bank-only. A `time`-only approval has no earn row, so the streak is refreshed directly (`computeStreak` counts minute-earn days and legacy chore-grant days, excluding later redemptions and direct parent bonuses). Kid weekly recaps include chore-earned minutes from `time_ledger` earn rows and the approximate dollar value of positive Grit credits at the current effective goods rate. Known gap: the parent digest, `ActivityReport` and currency ledger views still total bucks only (chore counts, streaks and badges do count time chores).
 3. **spend approval → spend** ([currency.pb.js](../pocketbase/pb_hooks/currency.pb.js)): on `spend_requests` update to `approved`, guard the balance first, then create a `spend` transaction for `−amount`. On API create, a request is forced `pending` with a positive `amount`; screen-time requests are priced server-side (client `amount` ignored).
 4. **approval undo → reversal** ([currency.pb.js](../pocketbase/pb_hooks/currency.pb.js)): on `assignments` update *out of* `approved`, create a compensating `manual_adjustment` for the net of that assignment's own ledger rows (not the chore's current reward, which may have been edited). Undo is therefore a single status change; the ledger can't drift from the status. An assignment with a minute-earn ledger row or legacy `time_grants` row can't be undone (Family Link grants are additive); [guards.pb.js](../pocketbase/pb_hooks/guards.pb.js) blocks it by recorded earnings, not by the chore's current mode.
 5. **kudos award → credit + notify** ([kudos.pb.js](../pocketbase/pb_hooks/kudos.pb.js)): a parent-only, household-scoped award is normalized by the server, writes one linked `kudos` credit, and sends the recipient "Great work" push. A child may only mark their own unseen award as seen; all other fields stay immutable.

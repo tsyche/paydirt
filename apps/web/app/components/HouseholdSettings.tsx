@@ -1,5 +1,6 @@
 "use client";
 
+import { ExpiryPreview } from "./ExpiryPreview";
 import { DeliverySchedule } from "./DeliverySchedule";
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
@@ -76,7 +77,8 @@ export function HouseholdSettings({
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
-  const [form, setForm] = useState({
+  const [previewedDays, setPreviewedDays] = useState<number | null>(null);
+  const savedForm = () => ({
     currency_name: household.currency_name ?? "",
     bank_threshold: household.bank_threshold ?? 0,
     kudos_default_bucks: kudosDefaultBucks(household),
@@ -100,10 +102,14 @@ export function HouseholdSettings({
     allowance_amount: household.allowance_amount ?? 0,
     allowance_cadence: household.allowance_cadence ?? "weekly",
   });
+  const [form, setForm] = useState(savedForm);
   // Labels follow the currency name as it is typed, not the saved one.
   const cur = currencyDisplayName({ currency_name: form.currency_name });
 
+  const needsPreview = form.expiry_days > 0 && form.expiry_days !== (household.expiry_days ?? 0);
+
   async function save() {
+    if (needsPreview && previewedDays !== form.expiry_days) { setError("Wait for the expiry preview before saving."); return; }
     setBusy(true);
     setError("");
     try {
@@ -122,7 +128,7 @@ export function HouseholdSettings({
 
   if (!open) {
     return (
-      <button className="outlined sm" onClick={() => setOpen(true)}>
+      <button className="outlined sm" onClick={() => { setForm(savedForm()); setError(""); setOpen(true); }}>
         ⚙️ Settings{household.paused ? " · 🏖️ paused" : ""}
       </button>
     );
@@ -138,7 +144,7 @@ export function HouseholdSettings({
         <div className="edit-header-bar">
           <strong>Editing household settings</strong>
           <span className="edit-header-actions">
-            <button className="primary sm" onClick={save} disabled={busy}>{busy ? "Saving…" : "Save"}</button>
+            <button className="primary sm" onClick={save} disabled={busy || (needsPreview && previewedDays !== form.expiry_days)}>{busy ? "Saving…" : "Save"}</button>
             <button className="sm" disabled={busy} onClick={() => { setOpen(false); setError(""); }}>Cancel</button>
           </span>
         </div>
@@ -210,6 +216,7 @@ export function HouseholdSettings({
         <div className="settings-row">
           <label>Rewards expire after days <Tip k="expiry_days" /> <span className="muted">(0 = off)</span></label>
           <input
+            aria-label="Rewards expire after days"
             type="number"
             min={0}
             value={form.expiry_days}
@@ -217,6 +224,7 @@ export function HouseholdSettings({
             style={{ width: 90 }}
           />
         </div>
+        <ExpiryPreview householdId={household.id} days={form.expiry_days} currency={cur} paused={form.paused} onReady={setPreviewedDays} />
         <div className="settings-row">
           <label>{cur} per $1 <Tip k="goods_rate" /> <span className="muted">(0 = off)</span></label>
           <input

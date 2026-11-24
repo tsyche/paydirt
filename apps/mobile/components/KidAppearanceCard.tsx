@@ -22,6 +22,12 @@ export function KidAppearanceCard({
   const [rate, setRate] = useState(kid.goods_rate ? String(kid.goods_rate) : "");
   const [busy, setBusy] = useState(false);
 
+  function cancel() {
+    setEmoji(kid.avatar_emoji ?? "");
+    setColor(kidAccent(kid.color, AVATAR_COLORS[0]));
+    setRate(kid.goods_rate ? String(kid.goods_rate) : "");
+  }
+
   async function save() {
     setBusy(true);
     try {
@@ -42,7 +48,11 @@ export function KidAppearanceCard({
   return (
     <Card style={styles.card}>
       <Card.Content>
-        <Text variant="titleSmall">Avatar &amp; rate</Text>
+        <Text variant="titleSmall">Editing {kid.display_name}'s avatar &amp; rate</Text>
+        <View style={styles.actions}>
+          <Button mode="contained-tonal" onPress={() => void save()} disabled={busy}>Save</Button>
+          <Button onPress={cancel} disabled={busy}>Cancel</Button>
+        </View>
         <TextInput dense label="Emoji (e.g. 🦊) — tap the picture above to use a photo" value={emoji} onChangeText={setEmoji} style={styles.field} />
         <View style={styles.swatches}>
           {AVATAR_COLORS.map((c) => (
@@ -72,11 +82,6 @@ export function KidAppearanceCard({
             size={16}
             onPress={() => onMessage(featureTip("goods_rate_kid") ?? "")}
           />
-        </View>
-        <View style={styles.actions}>
-          <Button mode="contained-tonal" onPress={() => void save()} disabled={busy}>
-            Save
-          </Button>
         </View>
       </Card.Content>
     </Card>

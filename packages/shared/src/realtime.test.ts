@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   createResumeScheduler,
   createRefreshQueue,
+  pollGrantResults,
   resumeRealtime,
   type PbLike,
   type RealtimeLike,
@@ -187,5 +188,33 @@ describe("screen refresh bursts", () => {
     expect((await results).map((r) => r.status)).toEqual(["rejected", "fulfilled"]);
     await refresh();
     expect(load).toHaveBeenCalledTimes(3);
+  });
+});
+
+describe("queued grant polling", () => {
+  it("polls in foreground, avoids overlapping work, recovers errors and stops", async () => {
+    vi.useFakeTimers();
+    let active = false;
+    let release!: () => void;
+    const refresh = vi.fn().mockImplementationOnce(() => new Promise<void>((resolve) => { release = resolve; })).mockRejectedValueOnce(new Error("offline")).mockResolvedValue(undefined);
+    const stop = pollGrantResults(refresh, () => active);
+    try {
+      await vi.advanceTimersByTimeAsync(5000);
+      expect(refresh).not.toHaveBeenCalled();
+      active = true;
+      await vi.advanceTimersByTimeAsync(5000);
+      expect(refresh).toHaveBeenCalledTimes(1);
+      await vi.advanceTimersByTimeAsync(15000);
+      expect(refresh).toHaveBeenCalledTimes(1);
+      release();
+      await vi.advanceTimersByTimeAsync(10000);
+      expect(refresh).toHaveBeenCalledTimes(3);
+      active = false;
+      await vi.advanceTimersByTimeAsync(5000);
+      expect(refresh).toHaveBeenCalledTimes(3);
+      stop(); active = true;
+      await vi.advanceTimersByTimeAsync(10000);
+      expect(refresh).toHaveBeenCalledTimes(3);
+    } finally { stop(); vi.useRealTimers(); }
   });
 });

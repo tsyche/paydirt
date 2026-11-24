@@ -1,5 +1,8 @@
 "use client";
 
+import { useGrantStatusRefresh } from "../lib/useGrantStatusRefresh";
+
+
 import { createRefreshQueue } from "@paydirt/shared";
 
 import { DeliverNowButton } from "./DeliverNowButton";
@@ -26,7 +29,7 @@ import type {
   User,
 } from "@paydirt/shared";
 import { kidsAtLimit, knownChoreNames, GOAL_NAME_MAX, GOAL_DETAILS_MAX, parseAssignDraft, serializeAssignDraft, AVATAR_COLORS, REACTIONS, undoApprovalPrompt, avatarUrl, currencyDisplayName, effectiveGoodsRate, kidAccent, kudosDefaultBucks, KUDOS_REASON_MAX, parseGoodsRateOverride, featureTip, bankedTimeLabel, errorMessage, limitLabel, limitUnit, payLabel, approveTimePrompt, summarizeMonthActivity, waitingActionCount, payMode, validatePay, MINUTES_STEP, MAX_REWARD_MINUTES, validateAdjustBonus, submitAdjustBonus, partialBonusMessage } from "@paydirt/shared";
-import { adjustmentToGrit, type AdjustmentUnit, type BonusMode } from "@paydirt/shared";
+import { adjustmentToGrit, goalTargetToGrit, type AdjustmentUnit, type BonusMode } from "@paydirt/shared";
 import { client } from "../lib/client";
 import { HouseholdSettings } from "./HouseholdSettings";
 import { RecurringDueFields } from "./RecurringDueFields";
@@ -189,6 +192,8 @@ export function Dashboard({
     }
   }), [householdId]);
 
+  useGrantStatusRefresh(screenGrants.filter((grant) => grant.grant_status === "queued").length + bonusGrants.filter((grant) => grant.grant_status === "queued").length, reload);
+
   useEffect(() => {
     void reload();
     let unsub: (() => void) | undefined;
@@ -325,7 +330,7 @@ export function Dashboard({
                 currencyName={currencyName}
                 onGiven={reload}
               />
-              <GoalControl kid={kid} onChanged={reload} />
+              <GoalControl kid={kid} goodsRate={kidRate(kid)} currencyName={currencyName} onChanged={reload} />
             </div>
             <KidChores assignments={activeByKid[kid.id] ?? []} currencyName={currencyName} />
             <GoalList kid={kid} goals={goalsByKid[kid.id] ?? []} onChanged={reload} />
@@ -543,6 +548,7 @@ export function Dashboard({
                 onApproveToForm={(p2) => {
                   setTemplateFill(null);
                   setProposalFill(p2);
+                  setTab("chores");
                 }}
               />
             ))}
@@ -1017,14 +1023,15 @@ function GoalList({
   );
 }
 
-function GoalControl({ kid, onChanged }: { kid: User; onChanged: () => void }) {
+function GoalControl({ kid, goodsRate, currencyName, onChanged }: { kid: User; goodsRate: number; currencyName: string; onChanged: () => void }) {
   const [open, setOpen] = useState(false);
   const [name, setName] = useState("");
   const [target, setTarget] = useState("");
+  const [unit, setUnit] = useState<AdjustmentUnit>("grit");
   const [details, setDetails] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
-  const targetNum = Math.floor(Number(target));
+  const targetNum = goalTargetToGrit(Number(target), unit, goodsRate);
 
   async function save() {
     if (!name.trim() || !(targetNum > 0)) return;
@@ -1047,7 +1054,7 @@ function GoalControl({ kid, onChanged }: { kid: User; onChanged: () => void }) {
   return (
     <>
       {!open && (
-        <button className="sm" onClick={() => setOpen(true)}>
+        <button className="sm" onClick={() => { setName(""); setTarget(""); setDetails(""); setUnit("grit"); setError(""); setOpen(true); }}>
           Set a goal
         </button>
       )}
@@ -1063,12 +1070,19 @@ function GoalControl({ kid, onChanged }: { kid: User; onChanged: () => void }) {
             />
             <input
               type="number"
-              min={1}
+              min={unit === "dollars" ? 0.01 : 1}
+              step={unit === "dollars" ? 0.01 : 1}
               value={target}
               onChange={(e) => setTarget(e.target.value)}
               style={{ width: 110 }}
-              placeholder="Target"
+              placeholder={unit === "dollars" ? "Target ($)" : "Target"}
+              aria-label={unit === "dollars" ? "Goal target ($)" : `Goal target (${currencyName})`}
             />
+            <button className="sm" disabled={unit === "grit" && !(goodsRate > 0)}
+              aria-label={unit === "grit" ? "Enter target in dollars" : `Enter target in ${currencyName}`}
+              onClick={() => { setTarget(""); setUnit(unit === "grit" ? "dollars" : "grit"); }}>
+              {unit === "grit" ? "$" : currencyName}
+            </button>
             <button
               className="primary sm"
               onClick={save}
@@ -1080,6 +1094,7 @@ function GoalControl({ kid, onChanged }: { kid: User; onChanged: () => void }) {
               Cancel
             </button>
           </div>
+          {unit === "dollars" && Number.isFinite(targetNum) && <p role="status">≈ {targetNum} {currencyName} ({goodsRate} per $1)</p>}
           <textarea
             placeholder="Details (optional)"
             maxLength={GOAL_DETAILS_MAX}
@@ -1723,7 +1738,9 @@ function CreateChore({
   useEffect(() => {
     if (!template) return;
     setOpen(true);
-    if (template.reminder_time || template.max_per_period) setAdvanced(true);
+    setAdvanced(!!(template.reminder_time || template.max_per_period));
+    setDueAt("");
+    setCadence("weekly");
     setName(template.name);
     setNotes(template.description ?? "");
     setTimerMinutes(template.timer_minutes ?? 0);
@@ -2143,6 +2160,20 @@ function AvatarControl({ kid, onSaved }: { kid: User; onSaved: () => void }) {
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
 
+  function openEditor() {
+    setAvatar(kid.avatar_emoji ?? "");
+    setColor(kidAccent(kid.color, AVATAR_COLORS[0]));
+    setGoodsRateOverride(String(kid.goods_rate ?? ""));
+    setCalmMode(!!kid.calm_mode);
+    setSimplified(!!kid.simplified_mode);
+    setFlChildId(kid.fl_child_id ?? "");
+    setFlDeviceId(kid.fl_device_id ?? "");
+    setDigestWeekday(kid.digest_weekday ?? "");
+    setDigestWeekend(kid.digest_weekend ?? "");
+    setError("");
+    setOpen(true);
+  }
+
   async function save() {
     setBusy(true);
     setError("");
@@ -2169,7 +2200,7 @@ function AvatarControl({ kid, onSaved }: { kid: User; onSaved: () => void }) {
 
   if (!open) {
     return (
-      <button className="sm" style={{ fontSize: 13 }} onClick={() => setOpen(true)}>
+      <button className="sm" style={{ fontSize: 13 }} onClick={openEditor}>
         ⚙️ Edit avatar & settings
       </button>
     );

@@ -1,9 +1,11 @@
+import { createRefreshQueue } from "@paydirt/shared";
+import { useGrantStatusRefresh } from "../lib/useGrantStatusRefresh";
 import { ConversationButton } from "../components/ChoreConversation";
 import { EarnedTimeBank } from "../components/EarnedTimeBank";
 import { chooseTimeReward } from "../lib/chooseTimeReward";
 import { OccurrenceLabel } from "../components/OccurrenceLabel";
 import { HelpRequestButton } from "../components/HelpRequestButton";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { householdDateTime } from "@paydirt/shared";
 import { View, ScrollView, StyleSheet, RefreshControl, TouchableOpacity } from "react-native";
 import {
@@ -74,7 +76,7 @@ export function SimpleKidHome({ user, onLogout }: { user: User; onLogout: () => 
   const shownBalance = useCountUp(balance, !calm);
   const bank = bankView(balance, goodsRate, rate);
 
-  const reload = useCallback(async () => {
+  const reload = useMemo(() => createRefreshQueue(async () => {
     setRefreshing(true);
     try {
       const [freshMe, bal, list, household, bcs, reps, awards, goals, requests, grants, past] = await Promise.all([
@@ -123,7 +125,9 @@ export function SimpleKidHome({ user, onLogout }: { user: User; onLogout: () => 
     } finally {
       setRefreshing(false);
     }
-  }, [user.id, user.household]);
+  }), [user.id, user.household]);
+
+  useGrantStatusRefresh(bankRequests.filter((grant) => grant.grant_status === "queued").length + bankGrants.filter((grant) => grant.grant_status === "queued").length, reload);
 
   useEffect(() => {
     void reload();

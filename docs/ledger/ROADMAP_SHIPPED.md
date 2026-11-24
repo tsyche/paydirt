@@ -4,6 +4,12 @@
 
 ## Shipped index
 
+- [x] 2026-11-24 — Parent field/action parity verified on web and native components
+- [x] 2026-11-24 — Read-only expiry previews verified on parent web/mobile
+- [x] 2026-11-24 — Foreground delivery receipt refresh verified with cron recovery retained
+
+- [x] 2026-11-24 — Owner verified camera recovery, bank-first rewards and delivery visibility on devices
+
 - [x] 2026-11-23 — Owner accepted release 99b42de and confirmed parent-device Deliver now
 - [x] 2026-11-23 — Scheduled backup metadata and fresh restore verified (4 users, 126 matching transactions)
 
@@ -495,8 +501,8 @@ an active release check. Recovery instructions are in
 
 Original roadmap entry:
 
-1. **Backup restore drill** (2026-11-01) — nightly PocketBase zips and `backup-pull` exist, but no one has restored one. Add `just restore-drill`: unzip the newest pulled backup into an ephemeral PocketBase on a free port, boot it, run `just verify-ledger` against it, and report pass/fail; document the manual restore steps in [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md). Never touches bb. ~1-2 hrs. Implementation can use a disposable fixture; 🧑 needs-human: supply a pulled production backup for the real recovery check. **Gotchas:** use the port block (3110-3119), not bb's port; pulled backups contain real household data, so keep the unzip dir under `$TMPDIR` and delete it after; the PocketBase binary version must match the one that wrote the backup.
-   - **Implemented locally (2026-11-20):** [restore-drill.mts](scripts/restore-drill.mts) and the version-stamping [backup hook](pocketbase/pb_hooks/backups.pb.js). Real-PocketBase fixture tests cover successful recovery, drift, version guards, unsafe archives, busy ports, filenames with spaces, and cleanup. The newest existing local archive (2026-10-31) passes offline ZIP/SQLite/ledger checks but has four users and no transactions, with no recorded binary version. 🧑 needs-human: pull a recent backup and establish its creating version before claiming real-data recovery; deploy the hook for version metadata in future backups.
+1. **Backup restore drill** (2026-11-01) — nightly PocketBase zips and `backup-pull` exist, but no one has restored one. Add `just restore-drill`: unzip the newest pulled backup into an ephemeral PocketBase on a free port, boot it, run `just verify-ledger` against it, and report pass/fail; document the manual restore steps in [docs/DEPLOYMENT.md](../DEPLOYMENT.md). Never touches bb. ~1-2 hrs. Implementation can use a disposable fixture; 🧑 needs-human: supply a pulled production backup for the real recovery check. **Gotchas:** use the port block (3110-3119), not bb's port; pulled backups contain real household data, so keep the unzip dir under `$TMPDIR` and delete it after; the PocketBase binary version must match the one that wrote the backup.
+   - **Implemented locally (2026-11-20):** [restore-drill.mts](../../scripts/restore-drill.mts) and the version-stamping [backup hook](../../pocketbase/pb_hooks/backups.pb.js). Real-PocketBase fixture tests cover successful recovery, drift, version guards, unsafe archives, busy ports, filenames with spaces, and cleanup. The newest existing local archive (2026-10-31) passes offline ZIP/SQLite/ledger checks but has four users and no transactions, with no recorded binary version. 🧑 needs-human: pull a recent backup and establish its creating version before claiming real-data recovery; deploy the hook for version metadata in future backups.
 
 ## Time-delivery outcomes and nightly ledger monitoring (2026-11-21)
 
@@ -650,4 +656,70 @@ Closed active acceptance records (preserved verbatim):
 
 - **Optional timer proof and conversation limits (2026-11-22)** — both kid layouts offer “I already did this” with an explanation for unused/incomplete timers, including returned chores; photo requirements and parent approval remain. Parent web/mobile show the explanation and server-timed proof. New messages are limited to 20 per author/thread per 10 minutes, with safe retries and saved editable drafts. 🧑 needs-human: deploy backend/web/APK with `just ship`, then check the new controls, reminders and native keyboard on-device.
 
-- **Backup version metadata (2026-11-21)** — the local drill passed against the November 21 household backup (4 users, 116 transactions). The [backup hook](pocketbase/pb_hooks/backups.pb.js) was deployed on November 21 and its deployed hash matches the source; the backend restarted successfully. Confirm the next archive includes `paydirt-backup.json`, removing the need to establish legacy versions manually. 🧑 needs-human: pull the next backup for its metadata check.
+- **Backup version metadata (2026-11-21)** — the local drill passed against the November 21 household backup (4 users, 116 transactions). The [backup hook](../../pocketbase/pb_hooks/backups.pb.js) was deployed on November 21 and its deployed hash matches the source; the backend restarted successfully. Confirm the next archive includes `paydirt-backup.json`, removing the need to establish legacy versions manually. 🧑 needs-human: pull the next backup for its metadata check.
+
+## Bank-first release device acceptance (2026-11-24)
+
+The owner confirmed the camera issue is resolved and accepted bank-first
+rewards and delivery visibility after shipping `e41a9e2`. These are owner-reported
+device results. They do not claim separate forced activity-destruction testing,
+web browser verification, or execution of Deliver all queued now; those gaps
+remain in the [acceptance plan](../plans/feature-acceptance.md). No additional
+code changes or production actions were performed for this acceptance update.
+
+## Parent parity pass (2026-11-24)
+
+- **Screen-by-screen parity pass (2026-11-02)** — compare web and mobile directly rather than by keyword: create/edit chore, templates, thresholds, household settings, kid detail. List every field, validation and confirmation that differs, fix the cheap gaps in the same change, and log the rest here. Include the new settings menu item and grit dialog. ~2 hrs.
+  - Inspection on 2026-11-23 found matching main fields in chore/template forms, household thresholds/settings, header navigation and Grit dialogs. Fixes remain open: mobile chore editing loses the existing deadline time; web household/kid settings retain cancelled drafts; native avatar/rate controls lack top Save/Cancel; web proposal prefills retain unrelated draft restrictions; applying a template on either platform retains a prior absolute due date. Paused for the live performance investigation before editing these controls.
+
+Verified implementation: mobile edit preserves household-local date/time; both
+template prefills clear draft absolute deadlines; cancelled web household/kid
+editors reload current saved values; native avatar/rate actions are at the named
+header and Cancel resets the draft. Kid-idea approval now navigates to the web
+review form. Parent goal targets accept dollars on both surfaces, use the kid’s
+effective rate and round up through the shared conversion; reopening a cancelled
+native goal no longer enables Add with an invisible old target.
+
+The initial inspection’s proposal-draft diagnosis above was provisional: browser
+execution found missing navigation; tab remount already supplies clean defaults.
+The regression locks in navigation and clean defaults together.
+
+Comparison covered chore/template reward, schedule, proof, reminder and limit
+fields; household thresholds, rates, windows, expiry and pause; kid appearance,
+mode, digest and Family Link controls; goals, co-parents, navigation and Grit
+summaries. Native pickers/split panels and web combined panels retain different
+layouts while exposing the same capabilities. Browser/native checks cover the
+changed fields and cancellation. Physical keyboard/scroll and deployment checks
+remain in the acceptance plan; no production update is claimed.
+
+## Expiry dry-run preview (2026-11-24)
+
+- **Expiry dry-run preview (2026-11-02)** — before a parent turns `expiry_days` on (or changes it), settings shows 'N grit would lapse today' per kid, computed with the shared `expiryLapse` against the live ledger, so the first cron run is never a surprise. Read-only; web and mobile together. ~1-2 hrs.
+
+Parent web/mobile use the shared oldest-first expiry replay against each kid’s
+current full ledger and balance. They show the estimated loss, disabled/paused
+wording, and block a changed positive expiry period until its preview succeeds.
+Neither preview nor settings Save writes expiry adjustments. Real PocketBase
+checks cover spent, fresh, non-earn and already-processed lots, authorization and
+unchanged accounting; native and browser form checks pass. The browser also
+verifies Save waits for a delayed preview. Owner rollout remains separate.
+
+## Grant-delivery status freshness (2026-11-24)
+
+- **Grant-delivery status freshness (2026-11-23)** — owner confirmed the parent-device override works, but Family Link receives the time about a minute before PayDirt shows Delivered. The backend currently imports worker receipts once per minute in [familylink.pb.js](../../pocketbase/pb_hooks/familylink.pb.js). Tighten receipt reconciliation/status propagation while retaining the cron recovery path and exactly-once delivery/accounting. Accepted as a follow-up, not a blocker for the shipped release.
+
+Visible parent web/mobile and both kid layouts poll completed receipts every
+five seconds only while queued. Polls do not overlap or run in the background.
+The authenticated endpoint scopes parents to their household and kids to their
+own rows; receipt import serializes with cron and never creates or replays jobs.
+Changed/queued counts drive refreshes. Cron still repairs publication and handles
+windows, deferred work and remaining portions, publishing jobs only after the
+receipt transaction commits. A fail-before/pass-after probe verifies that ordering.
+
+Isolated API checks cover simultaneous imports, household isolation, partial and
+uncertain outcomes, replay protection and immutable accounting. A real native
+screen and a browser with periodic import disabled prove the foreground path.
+The browser-only fixture is copied into disposable hooks by the test runner and
+is never part of production deployment. Google’s grant-call duration is unchanged;
+this removes the status-import wait after a worker receipt exists. Owner rollout
+and actual device/Family Link timing remain separate.

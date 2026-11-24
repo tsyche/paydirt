@@ -259,6 +259,8 @@ export type TransactionType = "earn" | "spend" | "manual_adjustment" | "kudos";
  * User.balance is maintained by a hook so the ledger stays the source of truth.
  */
 export interface CurrencyTransaction extends BaseRecord {
+  /** Earn lot already handled by scheduled expiry. */
+  expiry_processed?: boolean;
   user: string; // -> users.id (child)
   amount: number;
   type: TransactionType;

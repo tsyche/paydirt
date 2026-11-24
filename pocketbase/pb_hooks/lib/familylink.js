@@ -101,17 +101,36 @@ function notifyManual(app, record) {
     record.getString("grant_error"), "grant_manual", record.collection().name + ":" + record.id + ":grant");
 }
 
-function reconcile(app, at) {
+function reconcile(app, at, scope) {
+  // Cron and foreground refreshes may import the same receipt concurrently.
+  // Reload/query under one write transaction so every receipt advances once.
+  if (app.isTransactional()) throw new Error("Reconcile receipts from the root app so publication follows commit.");
+  let changed = 0;
+  const pending = [];
+  app.runInTransaction((tx) => { changed = reconcileQueued(tx, at, scope || {}, pending); });
+  // File jobs can start immediately. Publish only after the import transaction
+  // commits, preserving the dispatch marker's commit-before-publication rule.
+  for (const item of pending) {
+    try { publish(app, app.findRecordById(item.collection, item.id), at); }
+    catch (_) { app.logger().error("Family Link publication deferred", "grant", item.id); }
+  }
+  return changed;
+}
+
+function reconcileQueued(app, at, scope, pending) {
+  let changed = 0;
+  const filter = (scope.household ? " && child.household = {:hh}" : "") + (scope.child ? " && child = {:kid}" : "");
+  const params = { hh: scope.household || "", kid: scope.child || "" };
   const now = at || new Date();
   const rows = app.findRecordsByFilter("spend_requests",
-    "status = 'approved' && grant_status = 'queued'", "created", 0, 0)
-    .concat(app.findRecordsByFilter("time_grants", "grant_status = 'queued'", "created", 0, 0))
+    "status = 'approved' && grant_status = 'queued'" + filter, "created", 0, 0, params)
+    .concat(app.findRecordsByFilter("time_grants", "grant_status = 'queued'" + filter, "created", 0, 0, params))
     .sort((a, b) => a.getString("created").localeCompare(b.getString("created")));
   for (const record of rows) {
     try {
       const file = queueDir() + "/results/" + deliveryId(record) + ".json";
       if (!exists(file)) {
-        publish(app, record, now);
+        if (!scope.receiptsOnly) pending.push({ collection: record.collection().name, id: record.id });
         continue;
       }
       const result = JSON.parse(toString($os.readFile(file)));
@@ -119,10 +138,11 @@ function reconcile(app, at) {
         throw new Error("Invalid grant result");
       }
       if (result.status === "deferred") {
+        if (scope.receiptsOnly) continue;
         if (result.retryAfter && now < new Date(result.retryAfter) && !record.getBool("grant_window_override")) continue;
         // Worker never contacted Google. Safe to retry in the next window.
         $os.remove(file);
-        publish(app, record, now);
+        pending.push({ collection: record.collection().name, id: record.id });
         continue;
       }
       const errors = {
@@ -147,12 +167,13 @@ function reconcile(app, at) {
       record.set("grant_status", partial ? "queued" : result.status);
       record.set("grant_error", result.status === "manual" ? errors[result.error] || errors.failed : "");
       app.save(record);
+      changed++;
       if (result.status === "granted") {
         require(__hooks + "/lib/ntfy.js").notifyUser(app, record.getString("child"),
           "Screen time delivered 📱", delivered / 60 + " minutes have landed." +
           (partial ? " The rest is queued for an allowed window." : ""), "time_granted");
       }
-      if (partial) publish(app, record, now);
+      if (partial && !scope.receiptsOnly) pending.push({ collection: record.collection().name, id: record.id });
       // Keep the receipt on disk: a repeated publish can never replay it.
       if (result.status === "manual") notifyManual(app, record);
     } catch (_) {
@@ -160,6 +181,7 @@ function reconcile(app, at) {
       app.logger().error("Family Link queue reconciliation failed", "spend", record.id);
     }
   }
+  return changed;
 }
 
 module.exports = { prepare, publish, reconcile, notifyManual };

@@ -1,4 +1,5 @@
 import PocketBase from "pocketbase";
+import { expiryLapse } from "./scheduling";
 import { Collections } from "./collections";
 import { resumeRealtime as forceRealtimeResume, type RealtimeLike } from "./realtime";
 import { choreLimit, limitWindowDays, limitWindowStart, type LimitWarning, type RecentAssignmentRow } from "./choreLimit";
@@ -34,6 +35,7 @@ import type {
 export class PaydirtClient {
   readonly pb: PocketBase;
   private sessionRefresh: Promise<void> | null = null;
+  private grantRefresh: Promise<{ changed: number; queued: number }> | null = null;
 
   constructor(urlOrClient: string | PocketBase) {
     this.pb =
@@ -107,6 +109,19 @@ export class PaydirtClient {
     const household = await this.pb.collection(Collections.Households).getOne<Household>(id);
     setHouseholdTimeZone(household.grant_timezone);
     return household;
+  }
+
+  /** Read-only estimate using the same oldest-first replay as scheduled expiry. */
+  async previewExpiry(householdId: string, days: number) {
+    if (!this.isParent || this.currentUser?.household !== householdId) throw new Error("Only household parents can preview expiry.");
+    if (!Number.isFinite(days) || days < 0) throw new Error("Expiry days must be zero or greater.");
+    const kids = await this.listChildren(householdId);
+    const ledgers = await Promise.all(kids.map((kid) => days > 0 ? this.listTransactions(kid.id) : Promise.resolve([])));
+    const now = new Date();
+    return { days, asOf: now.toISOString(), children: kids.map((kid, i) => ({
+      id: kid.id, display_name: kid.display_name,
+      lapse: expiryLapse(ledgers[i]!.map((row) => ({ ...row, created: new Date(row.created.replace(" ", "T")) })), now, days, kid.balance).lapse,
+    })) };
   }
 
   async updateHousehold(id: string, data: Partial<Household>): Promise<Household> {
@@ -733,6 +748,15 @@ export class PaydirtClient {
       }
       throw error;
     }
+  }
+
+  /** Import only this household/member's completed receipts; never dispatch jobs. */
+  refreshGrantResults(): Promise<{ changed: number; queued: number }> {
+    if (!this.grantRefresh) {
+      this.grantRefresh = this.pb.send<{ changed: number; queued: number }>("/api/paydirt/grants/refresh", { method: "POST" })
+        .finally(() => { this.grantRefresh = null; });
+    }
+    return this.grantRefresh;
   }
 
   async getTimeBank(childId: string) {

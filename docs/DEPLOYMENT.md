@@ -130,7 +130,7 @@ split remainders use whole minutes. Existing bonus is never reduced.
 The calculation uses Google's server time and rounds remaining seconds up.
 Failed reads, missing devices, malformed responses, or unsupported active
 overrides stop the grant without writing. Purchases are 15–60 minutes. New chore earnings stay held until redemption;
-Use now and later redemptions take 15–60 minutes in 15-minute steps, saving any
+Stored legacy Use now choices and kid redemptions take 15–60 minutes in 15-minute steps, saving any
 remainder. Existing queued chore rewards and direct parent bonuses retain their
 5–120-minute, five-minute-step limits. Direct bonuses use the same delivery windows and manual fallback without
 changing grit. The worker and `fl-host-grant` share a host lock; do not run Mac
@@ -153,7 +153,7 @@ Deploy the queue implementation with `just update-service` before enabling it. T
 1. Set each child's Family Link child/device IDs in PayDirt's parent settings. Seeded accounts are test data; verify the real kid-to-tablet mapping first.
 2. On bb, add `FL_AUTOMATION_ENABLED=1` to `/etc/paydirt/paydirt.env`. Leave the file root-owned, mode 600.
 3. Restart `paydirt` on bb so the approval hook reads the flag. Each worker invocation reads the same environment file.
-4. Approve one new screen-time purchase. Check the web/mobile parent Approvals view and `systemctl status paydirt-fl.path paydirt-fl.service`. The worker is a oneshot service, so inactive after a successful run is normal. The cron imports completed results once per minute.
+4. Approve one new screen-time purchase. Check the web/mobile parent Approvals view and `systemctl status paydirt-fl.path paydirt-fl.service`. The worker is a oneshot service, so inactive after a successful run is normal. Foreground apps check for completed receipts every five seconds while queued; the minute cron remains recovery.
 
 When disabled or a child has no IDs, approval still deducts the purchase and shows a manual grant task. Existing approved purchases are never queued retroactively.
 
@@ -180,7 +180,7 @@ When disabled or a child has no IDs, approval still deducts the purchase and sho
   weekday/weekend schedules or bypass Family Link restrictions. It does not
   retry uncertain/manual grants. Web access needs `just update-service`; mobile
   controls also need the updated APK (`just ship` handles both).
-- Approval commits `grant_status=queued` with the spend. The hook publishes a private JSON request; the minute cron repairs a missed publish and imports results.
+- Approval commits `grant_status=queued` with the spend. The hook publishes a private JSON request; the minute cron repairs a missed publish and imports results. Foreground web/mobile screens also call the authenticated receipt-refresh endpoint every five seconds while grants are queued. It imports only existing receipts for the caller’s household/child and never dispatches jobs.
 - `paydirt-fl.path` starts the worker. It claims each request atomically and processes grants serially, with a 60-second timeout per browser command.
 - Receipts stay on disk to prevent replay. Failed or interrupted grants are never retried automatically: Google may have accepted a write before the connection failed.
 - Partial receipts record actual delivered seconds. The row stays queued until

@@ -82,3 +82,18 @@ onRecordUpdateRequest((e) => {
   if (manualDone) r.set("grant_error", "");
   e.next();
 }, "time_grants");
+
+// Foreground clients import completed receipts without waiting for the minute
+// cron. They cannot create/replay jobs or reconcile another household's grants.
+routerAdd("POST", "/api/paydirt/grants/refresh", (e) => {
+  const role = e.auth.getString("role");
+  if (role !== "parent" && role !== "child") throw new ForbiddenError("Household members only.");
+  if (!e.auth.getString("household")) throw new ForbiddenError("A household is required.");
+  const scope = { household: e.auth.getString("household"), child: role === "child" ? e.auth.id : "", receiptsOnly: true };
+  const changed = require(__hooks + "/lib/familylink.js").reconcile(e.app, undefined, scope);
+  const filter = "grant_status = 'queued' && child.household = {:hh}" + (scope.child ? " && child = {:kid}" : "");
+  const params = { hh: scope.household, kid: scope.child };
+  const queued = e.app.findRecordsByFilter("time_grants", filter, "", 0, 0, params).length +
+    e.app.findRecordsByFilter("spend_requests", "status = 'approved' && " + filter, "", 0, 0, params).length;
+  return e.json(200, { changed, queued });
+}, $apis.requireAuth());

@@ -280,7 +280,7 @@ export function KidDetail({
         >
           {goalsOpen ? "▾" : "▸"} GOALS {goals.length > 0 ? `(${goals.length})` : ""}
         </Text>
-        {goalsOpen && (<Button mode="outlined" icon="flag-plus" onPress={() => setGoalOpen(true)} style={{ alignSelf: "flex-start" }}>
+        {goalsOpen && (<Button mode="outlined" icon="flag-plus" onPress={() => { setGoalName(""); setGoalTarget(""); setGoalDetails(""); setGoalOpen(true); }} style={{ alignSelf: "flex-start" }}>
           Set a goal
         </Button>)}
         {!goalsOpen ? null : goals.length === 0 ? (

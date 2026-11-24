@@ -1,3 +1,4 @@
+import { useGrantStatusRefresh } from "../lib/useGrantStatusRefresh";
 import { createRefreshQueue } from "@paydirt/shared";
 import { ConversationButton } from "../components/ChoreConversation";
 import { EarnedTimeBank } from "../components/EarnedTimeBank";
@@ -186,6 +187,8 @@ export function KidHome({
       setRefreshing(false);
     }
   }), [user.id, user.household]);
+
+  useGrantStatusRefresh(bankRequests.filter((grant) => grant.grant_status === "queued").length + bankGrants.filter((grant) => grant.grant_status === "queued").length, reload);
 
   useEffect(() => {
     void reload();

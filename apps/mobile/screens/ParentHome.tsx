@@ -1,11 +1,13 @@
+import { useGrantStatusRefresh } from "../lib/useGrantStatusRefresh";
 import { createRefreshQueue } from "@paydirt/shared";
 import { confirmApprove } from "../lib/confirmApprove";
 import { DeliverNowButton } from "../components/DeliverNowButton";
 import { timerEvidence } from "@paydirt/shared";
 import { EarnedTimeBank } from "../components/EarnedTimeBank";
 import { SwipeActionsRow } from "../components/SwipeActionsRow";
+import { DueDateField } from "../components/DueDateField";
 import { TimeField } from "../components/TimeField";
-import { localDateKey, localDateInstant, householdDateTime } from "@paydirt/shared";
+import { localDateKey, localDateInstant, householdDateTimeInput, householdDateTime } from "@paydirt/shared";
 import { useEffect, useMemo, useRef, useState } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { View, ScrollView, StyleSheet, RefreshControl, Alert, Image, Modal, TouchableOpacity } from "react-native";
@@ -263,6 +265,8 @@ export function ParentHome({
     }
   }), [user.household]);
 
+  useGrantStatusRefresh(screenGrants.filter((grant) => grant.grant_status === "queued").length + bonusGrants.filter((grant) => grant.grant_status === "queued").length, reload);
+
   useEffect(() => {
     void reload();
     let unsub: (() => void) | undefined;
@@ -465,6 +469,8 @@ export function ParentHome({
     setChorePayMode(payMode(t));
     setChoreMinutes(t.reward_minutes ? String(t.reward_minutes) : "");
     setChoreType(t.type);
+    setChoreDueAt("");
+    setChoreCadence("weekly");
     if (t.cadence === "daily" || t.cadence === "weekly" || t.cadence === "monthly") {
       setChoreCadence(t.cadence);
     }
@@ -472,7 +478,7 @@ export function ParentHome({
     setChoreRace(t.race ?? false);
     setChoreReminder(t.reminder_time ?? "");
     setChoreLimit(t.max_per_period ? String(t.max_per_period) : "");
-    if (t.reminder_time || t.max_per_period) setShowAdvancedChore(true);
+    setShowAdvancedChore(!!(t.reminder_time || t.max_per_period));
     setShowTemplates(false);
   }
 
@@ -538,7 +544,7 @@ export function ParentHome({
     setEditPhoto(chore.photo_required ?? false);
     setEditRace(chore.race ?? false);
     setEditReminder(chore.reminder_time ?? "");
-    setEditDueAt(chore.due_at ? localDateKey(chore.due_at) : "");
+    setEditDueAt(chore.due_at ? householdDateTimeInput(chore.due_at) : "");
     setEditLimit(chore.max_per_period ? String(chore.max_per_period) : "");
     setEditAdvanced(Boolean(chore.reminder_time || chore.due_at || chore.max_per_period));
   }
@@ -1326,16 +1332,7 @@ export function ParentHome({
                 dense
                 style={{ marginTop: 4 }}
               />
-              <TextInput
-                mode="outlined"
-                label="Due date (optional)"
-                value={choreDueAt}
-                onChangeText={setChoreDueAt}
-                keyboardType="numbers-and-punctuation"
-                placeholder="YYYY-MM-DD"
-                dense
-                style={{ marginTop: 4 }}
-              />
+              <DueDateField value={choreDueAt} onChange={setChoreDueAt} />
                 </>
               )}
               <Button
@@ -1427,7 +1424,7 @@ export function ParentHome({
                       <>
                       <TimeField label="Reminder time (optional)" value={editReminder} onChange={setEditReminder} />
                       <TextInput mode="outlined" label={`Max per ${limitUnit({ type: editType, cadence: editCadence })} (optional)`} value={editLimit} onChangeText={setEditLimit} keyboardType="number-pad" placeholder="no limit" dense style={{ marginTop: 4 }} />
-                      <TextInput mode="outlined" label="Due date (optional)" value={editDueAt} onChangeText={setEditDueAt} keyboardType="numbers-and-punctuation" placeholder="YYYY-MM-DD" dense style={{ marginTop: 4 }} />
+                      <DueDateField value={editDueAt} onChange={setEditDueAt} />
                       </>
                     )}
 

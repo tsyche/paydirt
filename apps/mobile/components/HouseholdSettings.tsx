@@ -1,3 +1,4 @@
+import { ExpiryPreview } from "./ExpiryPreview";
 import { DeliverySchedule } from "./DeliverySchedule";
 import { useState, type ReactNode } from "react";
 import { ScrollView, View } from "react-native";
@@ -62,6 +63,7 @@ export function HouseholdSettings({
 }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const [previewedDays, setPreviewedDays] = useState<number | null>(null);
   const [form, setForm] = useState({
     currency_name: household.currency_name ?? "",
     bank_threshold: String(household.bank_threshold ?? 0),
@@ -91,7 +93,11 @@ export function HouseholdSettings({
 
   const num = (v: string) => (Number(v) >= 0 ? Number(v) : 0);
 
+  const expiryDays = num(form.expiry_days);
+  const needsPreview = expiryDays > 0 && expiryDays !== (household.expiry_days ?? 0);
+
   async function save() {
+    if (needsPreview && previewedDays !== expiryDays) { setError("Wait for the expiry preview before saving."); return; }
     setBusy(true);
     setError("");
     try {
@@ -136,7 +142,7 @@ export function HouseholdSettings({
           <Button onPress={onDismiss} disabled={busy}>
             Cancel
           </Button>
-          <Button onPress={save} disabled={busy} loading={busy}>
+          <Button onPress={save} disabled={busy || (needsPreview && previewedDays !== expiryDays)} loading={busy}>
             Save
           </Button>
         </Dialog.Actions>
@@ -187,11 +193,13 @@ export function HouseholdSettings({
             />
             <SettingLabel label="Rewards expire after days (0 = off)" tip="expiry_days" />
             <TextInput
+              label="Rewards expire after days (0 = off)"
               keyboardType="numeric"
               value={form.expiry_days}
               onChangeText={(v) => setForm((current) => ({ ...current, expiry_days: v }))}
               style={{ marginBottom: 8 }}
             />
+            <ExpiryPreview householdId={household.id} days={expiryDays} currency={cur} paused={form.paused} onReady={setPreviewedDays} />
             <SettingLabel label={`${cur} per $1 (0 = off)`} tip="goods_rate" />
             <TextInput
               keyboardType="numeric"
