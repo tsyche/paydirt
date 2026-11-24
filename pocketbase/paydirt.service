@@ -34,11 +34,14 @@ ReadWritePaths=/var/lib/paydirt
 CPUQuota=200%
 CPUWeight=200
 Nice=0
+# No effect under kyber (bb's /var/lib/paydirt SSD); only honoured by BFQ.
 IOSchedulingClass=best-effort
 IOSchedulingPriority=4
 # Collect Go heaps before the hard limit forces synchronous reclaim/swap.
 Environment=GOMEMLIMIT=512MiB
 MemoryMax=768M
+# Needs the parent slice's MemoryLow (system.slice-paydirt-memory.conf); a child's is capped by it.
+MemoryLow=256M
 
 [Install]
 WantedBy=multi-user.target

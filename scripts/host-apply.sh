@@ -69,6 +69,9 @@ if command -v system76-scheduler >/dev/null 2>&1; then
         sudo systemctl reload com.system76.Scheduler.service
     fi
 fi
+# paydirt.service MemoryLow is capped by its parent slice's; system.slice defaults to 0.
+sudo install -d -o root -g root -m 755 /etc/systemd/system/system.slice.d
+sudo install -o root -g root -m 644 system.slice-paydirt-memory.conf /etc/systemd/system/system.slice.d/50-paydirt-memory.conf
 sudo systemctl daemon-reload
 sudo systemctl enable --now paydirt-notify.path
 # Recover interrupted jobs even if pending/ is empty.

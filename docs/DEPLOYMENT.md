@@ -38,7 +38,9 @@ The unit runs as the unprivileged `paydirt` user with `ProtectSystem=strict`; on
 
 PocketBase is capped at two CPU cores (`CPUQuota=200%`) and 768 MB RAM, with `GOMEMLIMIT=512MiB` to collect Go heaps before the hard limit forces reclaim/swap. `CPUWeight=200` gives the service extra weight under host contention.
 
-On hosts with System76 Scheduler, deployment installs a [PayDirt-only exception](../pocketbase/paydirt-scheduler.kdl) and reloads the scheduler so it preserves the unit’s nice 0 and best-effort I/O priorities instead of assigning nice 12 and idle I/O. Other services retain their existing scheduling policies. These settings address the 2026-11-23 memory-limit stalls; they do not reserve CPU or RAM. See the [Go memory-limit guidance](https://go.dev/doc/gc-guide#Memory_limit).
+`MemoryLow=256M` protects that much of PocketBase's memory from reclaim under host pressure. A service's `memory.low` is capped by its parent's, so deployment also installs a [`system.slice` drop-in](../pocketbase/system.slice-paydirt-memory.conf) at `/etc/systemd/system/system.slice.d/50-paydirt-memory.conf` with the same value. Verify with `cat /sys/fs/cgroup/system.slice/memory.low /sys/fs/cgroup/system.slice/paydirt.service/memory.low` (both `268435456`).
+
+On hosts with System76 Scheduler, deployment installs a [PayDirt-only exception](../pocketbase/paydirt-scheduler.kdl) and reloads the scheduler so it preserves the unit’s nice 0 and best-effort I/O priorities instead of assigning nice 12 and idle I/O. Other services retain their existing scheduling policies. These settings address the 2026-11-23 memory-limit stalls; they do not reserve CPU. `IOSchedulingClass`/`IOSchedulingPriority` only apply under BFQ; bb's data SSD uses kyber, which ignores them. See the [Go memory-limit guidance](https://go.dev/doc/gc-guide#Memory_limit).
 
 It binds `0.0.0.0:3111` on all interfaces; restrict access to the trusted LAN with host/router firewall rules. The bind address itself does not enforce LAN-only access.
 

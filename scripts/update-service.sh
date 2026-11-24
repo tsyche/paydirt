@@ -47,7 +47,8 @@ trap cleanup EXIT
 
 rsync -rt \
     "$repo_dir/pocketbase/pb_hooks" "$repo_dir/pocketbase/pb_migrations" \
-    "$repo_dir/pocketbase/paydirt.service" "$repo_dir/pocketbase/paydirt-scheduler.kdl" "$repo_dir/scripts/host-apply.sh" \
+    "$repo_dir/pocketbase/paydirt.service" "$repo_dir/pocketbase/paydirt-scheduler.kdl" "$repo_dir/pocketbase/system.slice-paydirt-memory.conf" \
+    "$repo_dir/scripts/host-apply.sh" \
     "$repo_dir/pocketbase/paydirt-fl.service" "$repo_dir/pocketbase/paydirt-fl.path" \
     "$repo_dir/scripts/fl-host-code.sh" \
     "$repo_dir/pocketbase/paydirt-notify.service" "$repo_dir/pocketbase/paydirt-notify.path" \
